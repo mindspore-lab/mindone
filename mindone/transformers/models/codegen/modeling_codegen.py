@@ -23,6 +23,8 @@ import mindspore as ms
 from mindspore import mint, nn, ops
 from mindspore.nn import CrossEntropyLoss
 
+from mindone.models.utils import constant_, normal_, zeros_
+
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache, StaticCache
 from ...generation import GenerationMixin
@@ -65,8 +67,8 @@ class CodeGenAttention(nn.Cell):
         super().__init__()
 
         max_positions = config.max_position_embeddings
-        self.attn_dropout = nn.Dropout(p=config.attn_pdrop)
-        self.resid_dropout = nn.Dropout(p=config.resid_pdrop)
+        self.attn_dropout = mint.nn.Dropout(p=config.attn_pdrop)
+        self.resid_dropout = mint.nn.Dropout(p=config.resid_pdrop)
         self.layer_idx = layer_idx
         if layer_idx is None:
             logger.warning_once(
@@ -128,7 +130,7 @@ class CodeGenAttention(nn.Cell):
             attn_weights += causal_mask
 
         attn_weights = attn_weights / self.scale_attn
-        attn_weights = nn.Softmax(axis=-1)(attn_weights)
+        attn_weights = mint.nn.Softmax(dim=-1)(attn_weights)
         attn_weights = attn_weights.to(value.dtype)
         attn_weights = self.attn_dropout(attn_weights)
 
@@ -229,7 +231,7 @@ class CodeGenMLP(nn.Cell):
         self.fc_out = mint.nn.Linear(intermediate_size, embed_dim)
 
         self.act = ACT2FN[config.activation_function]
-        self.dropout = nn.Dropout(p=config.resid_pdrop)
+        self.dropout = mint.nn.Dropout(p=config.resid_pdrop)
 
     def construct(self, hidden_states: Optional[ms.Tensor]) -> ms.Tensor:
         hidden_states = self.fc_in(hidden_states)
@@ -245,7 +247,7 @@ class CodeGenBlock(nn.Cell):
     def __init__(self, config, layer_idx=None):
         super().__init__()
         inner_dim = config.n_inner if config.n_inner is not None else 4 * config.n_embd
-        self.ln_1 = nn.LayerNorm((config.n_embd,), epsilon=config.layer_norm_epsilon)
+        self.ln_1 = mint.nn.LayerNorm((config.n_embd,), epsilon=config.layer_norm_epsilon)
         self.attn = CodeGenAttention(config, layer_idx)
         self.mlp = CodeGenMLP(inner_dim, config)
 
@@ -306,19 +308,19 @@ class CodeGenPreTrainedModel(PreTrainedModel):
 
     def _init_weights(self, module):
         """Initialize the weights."""
-        if isinstance(module, (nn.Linear,)):
+        if isinstance(module, (mint.nn.Linear,)):
             # Slightly different from Mesh Transformer JAX which uses truncated_normal for initialization
             # cf https://github.com/pytorch/pytorch/pull/5617
-            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+            normal_(module.weight, mean=0.0, std=self.config.initializer_range)
             if module.bias is not None:
-                module.bias.data.zero_()
-        elif isinstance(module, nn.Embedding):
-            module.embedding_table.data.normal_(mean=0.0, std=self.config.initializer_range)
+                zeros_(module.bias)
+        elif isinstance(module, mint.nn.Embedding):
+            normal_(module.embedding_table, mean=0.0, std=self.config.initializer_range)
             if module.padding_idx is not None:
-                module.embedding_table.data[module.padding_idx].zero_()
-        elif isinstance(module, nn.LayerNorm):
-            module.beta.data.zero_()
-            module.gamma.data.fill_(1.0)
+                module.embedding_table.data[module.padding_idx] = 0.0
+        elif isinstance(module, mint.nn.LayerNorm):
+            zeros_(module.beta)
+            constant_(module.gamma, 1.0)
 
 
 CODEGEN_START_DOCSTRING = r"""
@@ -414,10 +416,10 @@ class CodeGenModel(CodeGenPreTrainedModel):
 
         self.embed_dim = config.n_embd
         self.vocab_size = config.vocab_size
-        self.wte = nn.Embedding(config.vocab_size, self.embed_dim)
-        self.drop = nn.Dropout(p=config.embd_pdrop)
+        self.wte = mint.nn.Embedding(config.vocab_size, self.embed_dim)
+        self.drop = mint.nn.Dropout(p=config.embd_pdrop)
         self.h = nn.CellList([CodeGenBlock(config, layer_idx=i) for i in range(config.n_layer)])
-        self.ln_f = nn.LayerNorm((self.embed_dim,), epsilon=config.layer_norm_epsilon)
+        self.ln_f = mint.nn.LayerNorm((self.embed_dim,), epsilon=config.layer_norm_epsilon)
         self.rotary_dim = min(config.rotary_dim, config.n_ctx // config.num_attention_heads)
 
         self.gradient_checkpointing = False
@@ -438,10 +440,9 @@ class CodeGenModel(CodeGenPreTrainedModel):
 
         # llama layers
         for decoder_layer in self.h:
-            # assert isinstance(decoder_layer, nn.Embedding)
             for name, cell in decoder_layer.name_cells().items():
                 if "output_identity" in name:
-                    assert isinstance(cell, nn.Identity)
+                    assert isinstance(cell, mint.nn.Identity)
                     pass
                 else:
                     # cell._recompute()
