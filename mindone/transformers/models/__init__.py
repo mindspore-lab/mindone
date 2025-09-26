@@ -75,6 +75,8 @@ from . import (
     idefics3,
     ijepa,
     imagegpt,
+    layoutlm,
+    layoutlmv3,
     levit,
     lilt,
     llama,
