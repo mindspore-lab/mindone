@@ -252,6 +252,15 @@ from .models.chameleon import (
     ChameleonProcessor,
     ChameleonVQVAE,
 )
+from .models.chinese_clip import (
+    ChineseCLIPFeatureExtractor,
+    ChineseCLIPImageProcessor,
+    ChineseCLIPModel,
+    ChineseCLIPPreTrainedModel,
+    ChineseCLIPProcessor,
+    ChineseCLIPTextModel,
+    ChineseCLIPVisionModel,
+)
 from .models.clap import (
     ClapAudioModel,
     ClapAudioModelWithProjection,
@@ -312,6 +321,7 @@ from .models.convnextv2 import (
     ConvNextV2PreTrainedModel,
 )
 from .models.ctrl import CTRLForSequenceClassification, CTRLLMHeadModel, CTRLModel, CTRLPreTrainedModel
+from .models.cvt import CvtForImageClassification, CvtModel, CvtPreTrainedModel
 from .models.dac import DacModel, DacPreTrainedModel
 from .models.data2vec import (
     Data2VecAudioForAudioFrameClassification,

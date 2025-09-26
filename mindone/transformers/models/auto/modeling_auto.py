@@ -51,6 +51,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("camembert", "CamembertModel"),
         ("canine", "CanineModel"),
         ("chameleon", "ChameleonModel"),
+        ("chinese_clip", "ChineseCLIPModel"),
+        ("chinese_clip_vision_model", "ChineseCLIPVisionModel"),
         ("clap", "ClapModel"),
         ("clip", "CLIPModel"),
         ("clip_text_model", "CLIPTextModel"),
@@ -63,6 +65,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("convnext", "ConvNextModel"),
         ("convnextv2", "ConvNextV2Model"),
         ("ctrl", "CTRLModel"),
+        ("cvt", "CvtModel"),
         ("dac", "DacModel"),
         ("data2vec-audio", "Data2VecAudioModel"),
         ("data2vec-text", "Data2VecTextModel"),
@@ -413,6 +416,7 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("clip", "CLIPForImageClassification"),
         ("convnext", "ConvNextForImageClassification"),
         ("convnextv2", "ConvNextV2ForImageClassification"),
+        ("cvt", "CvtForImageClassification"),
         ("data2vec-vision", "Data2VecVisionForImageClassification"),
         (
             "deit",
@@ -888,6 +892,7 @@ MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("altclip", "AltCLIPModel"),
         ("blip", "BlipModel"),
         ("blip-2", "Blip2ForImageTextRetrieval"),
+        ("chinese_clip", "ChineseCLIPModel"),
         ("clipseg", "CLIPSegModel"),
         ("siglip", "SiglipModel"),
     ]
