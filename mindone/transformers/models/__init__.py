@@ -95,6 +95,7 @@ from . import (
     instructblipvideo,
     jetmoe,
     kosmos2,
+    jamba,
     levit,
     lilt,
     llama,
