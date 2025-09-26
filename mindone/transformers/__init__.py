@@ -370,6 +370,14 @@ from .models.deit import (
 )
 from .models.depth_anything import DepthAnythingForDepthEstimation, DepthAnythingPreTrainedModel
 from .models.depth_pro import DepthProForDepthEstimation, DepthProImageProcessor, DepthProModel, DepthProPreTrainedModel
+from .models.diffllama import (
+    DiffLlamaForCausalLM,
+    DiffLlamaForQuestionAnswering,
+    DiffLlamaForSequenceClassification,
+    DiffLlamaForTokenClassification,
+    DiffLlamaModel,
+    DiffLlamaPreTrainedModel,
+)
 from .models.dinov2 import Dinov2Backbone, Dinov2ForImageClassification, Dinov2Model, Dinov2PreTrainedModel
 from .models.distilbert import (
     DistilBertForMaskedLM,
@@ -409,6 +417,7 @@ from .models.electra import (
 )
 from .models.emu3 import Emu3ForCausalLM, Emu3ForConditionalGeneration, Emu3PreTrainedModel, Emu3TextModel, Emu3VQVAE
 from .models.encodec import EncodecModel, EncodecPreTrainedModel
+from .models.encoder_decoder import EncoderDecoderModel
 from .models.ernie import (
     ErnieForCausalLM,
     ErnieForMaskedLM,
@@ -816,6 +825,7 @@ from .models.nystromformer import (
 )
 from .models.olmo import OlmoForCausalLM, OlmoModel, OlmoPreTrainedModel
 from .models.olmo2 import Olmo2ForCausalLM, Olmo2Model, Olmo2PreTrainedModel
+from .models.olmoe import OlmoeForCausalLM, OlmoeModel, OlmoePreTrainedModel
 from .models.opt import (
     OPTForCausalLM,
     OPTForQuestionAnswering,
