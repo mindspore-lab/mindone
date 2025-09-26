@@ -55,6 +55,7 @@ from . import (
     emu3,
     encodec,
     fastspeech2_conformer,
+    fnet,
     funnel,
     fuyu,
     gemma,
