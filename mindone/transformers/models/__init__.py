@@ -137,6 +137,7 @@ from . import (
     paligemma,
     pegasus,
     pegasus_x,
+    perceiver,
     persimmon,
     phi,
     phi3,
