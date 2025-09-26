@@ -102,6 +102,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("granite", "GraniteModel"),
         ("granitemoe", "GraniteMoeModel"),
         ("granitemoeshared", "GraniteMoeSharedModel"),
+        ("groupvit", "GroupViTModel"),
         ("helium", "HeliumModel"),
         ("grounding-dino", "GroundingDinoModel"),
         ("hiera", "HieraModel"),
@@ -177,6 +178,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("stablelm", "StableLmModel"),
         ("starcoder2", "Starcoder2Model"),
         ("swin2sr", "Swin2SRModel"),
+        ("swinv2", "Swinv2Model"),
         ("t5", "T5Model"),
         ("tapas", "TapasModel"),
         ("timesformer", "TimesformerModel"),
@@ -424,6 +426,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         ("segformer", "SegformerModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
         ("swin2sr", "Swin2SRModel"),
+        ("swinv2", "Swinv2Model"),
         ("timesformer", "TimesformerModel"),
         ("vit", "ViTModel"),
         ("vit_msn", "ViTMSNModel"),
@@ -437,6 +440,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_MASKED_IMAGE_MODELING_MAPPING_NAMES = OrderedDict(
     [
         ("deit", "DeiTForMaskedImageModeling"),
+        ("swinv2", "Swinv2ForMaskedImageModeling"),
         ("vit", "ViTForMaskedImageModeling"),
     ]
 )
@@ -475,6 +479,7 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("segformer", "SegformerForImageClassification"),
         ("siglip", "SiglipForImageClassification"),
         ("siglip2", "Siglip2ForImageClassification"),
+        ("swinv2", "Swinv2ForImageClassification"),
         ("mobilenet_v1", "MobileNetV1ForImageClassification"),
         ("mobilenet_v2", "MobileNetV2ForImageClassification"),
         ("vit", "ViTForImageClassification"),
@@ -969,6 +974,7 @@ MODEL_FOR_BACKBONE_MAPPING_NAMES = OrderedDict(
         ("hiera", "HieraBackbone"),
         ("resnet", "ResNetBackbone"),
         ("swin", "SwinBackbone"),
+        ("swinv2", "Swinv2Backbone"),
         ("vitdet", "VitDetBackbone"),
         ("vitpose_backbone", "VitPoseBackbone"),
     ]
