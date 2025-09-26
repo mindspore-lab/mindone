@@ -698,6 +698,9 @@ def getattribute_from_module(module, attr):
     # Some of the mappings have entries model_type -> object of another model type. In that case we try to grab the
     # object at the top level.
     try:
+        sub_path = os.path.abspath(os.path.dirname(__file__))
+        sub_path = str(Path(sub_path).parent.parent.parent.parent)
+        sys.path.insert(0, sub_path)
         transformers_module = importlib.import_module("mindone.transformers")
         if module != transformers_module:
             try:
