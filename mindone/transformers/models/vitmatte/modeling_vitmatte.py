@@ -78,9 +78,9 @@ class VitMattePreTrainedModel(PreTrainedModel):
 
     def _init_weights(self, module):
         if isinstance(module, mint.nn.Conv2d):
-            normal_(module.weight.data, mean=0.0, std=self.config.initializer_range)
+            normal_(module.weight, mean=0.0, std=self.config.initializer_range)
             if module.bias is not None:
-                zeros_(module.bias.data)
+                zeros_(module.bias)
 
 
 class VitMatteBasicConv3x3(nn.Cell):

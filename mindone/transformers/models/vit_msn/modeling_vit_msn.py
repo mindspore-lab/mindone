@@ -468,7 +468,7 @@ class ViTMSNPreTrainedModel(PreTrainedModel):
             # cf https://github.com/pytorch/pytorch/pull/5617
             normal_(module.weight, mean=0.0, std=self.config.initializer_range)
             if module.bias is not None:
-                zeros_(module.bias.data)
+                zeros_(module.bias)
         elif isinstance(module, mint.nn.LayerNorm):
             zeros_(module.bias)
             ones_(module.weight)

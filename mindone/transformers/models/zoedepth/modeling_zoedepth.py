@@ -456,19 +456,6 @@ class LogBinomialSoftmax(nn.Cell):
         return self.act(y / temperature, dim=1)
 
 
-class Softplus(nn.Cell):
-    def __init__(
-        self,
-        beta=1.0,
-        threshold=20.0,
-    ):
-        self.beta = beta
-        self.threshold = threshold
-
-    def construct(self, input):
-        return mint.nn.functional.softplus(input)
-
-
 class ZoeDepthConditionalLogBinomialSoftmax(nn.Cell):
     def __init__(
         self,
@@ -567,7 +554,9 @@ class ZoeDepthSeedBinRegressor(nn.Cell):
         self.conv1 = mint.nn.Conv2d(self.in_features, mlp_dim, 1, 1, 0)
         self.act1 = mint.nn.ReLU()
         self.conv2 = mint.nn.Conv2d(mlp_dim, n_bins, 1, 1, 0)
-        self.act2 = mint.nn.ReLU() if self.bin_centers_type == "normed" else nn.Softplus()
+        self.act2 = (
+            mint.nn.ReLU() if self.bin_centers_type == "normed" else None
+        )  # mindspore doesnot have nn.Softplus()
 
     def construct(self, x):
         """
@@ -576,7 +565,10 @@ class ZoeDepthSeedBinRegressor(nn.Cell):
         x = self.conv1(x)
         x = self.act1(x)
         x = self.conv2(x)
-        bin_centers = self.act2(x)
+        if self.act2:
+            bin_centers = self.act2(x)
+        else:
+            bin_centers = mint.nn.functional.softplus(x)
 
         if self.bin_centers_type == "normed":
             bin_centers = bin_centers + 1e-3
@@ -1262,12 +1254,12 @@ class ZoeDepthPreTrainedModel(PreTrainedModel):
         if isinstance(module, (mint.nn.Linear, mint.nn.Conv2d, mint.nn.ConvTranspose2d)):
             # Slightly different from the TF version which uses truncated_normal for initialization
             # cf https://github.com/pytorch/pytorch/pull/5617
-            normal_(module.weight.data, mean=0.0, std=self.config.initializer_range)
+            normal_(module.weight, mean=0.0, std=self.config.initializer_range)
             if module.bias is not None:
-                zeros_(module.bias.data)
+                zeros_(module.bias)
         elif isinstance(module, mint.nn.LayerNorm):
-            zeros_(module.bias.data)
-            ones_(module.weight.data)
+            zeros_(module.bias)
+            ones_(module.weight)
 
 
 ZOEDEPTH_START_DOCSTRING = r"""

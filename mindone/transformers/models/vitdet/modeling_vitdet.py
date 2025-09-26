@@ -618,28 +618,28 @@ class VitDetPreTrainedModel(PreTrainedModel):
         if isinstance(module, (mint.nn.Linear, mint.nn.Conv2d)):
             # Upcast the input in `fp32` and cast it back to desired `dtype` to avoid
             # `trunc_normal_cpu` not implemented in `half` issues
-            trunc_normal_(module.weight.data, mean=0.0, std=self.config.initializer_range)
+            trunc_normal_(module.weight, mean=0.0, std=self.config.initializer_range)
             if module.bias is not None:
-                zeros_(module.bias.data)
+                zeros_(module.bias)
         elif isinstance(module, mint.nn.LayerNorm):
             zeros_(module.bias)
             ones_(module.weight)
 
         elif isinstance(module, VitDetEmbeddings):
             trunc_normal_(
-                module.position_embeddings.data,
+                module.position_embeddings,
                 mean=0.0,
                 std=self.config.initializer_range,
             )
 
         elif isinstance(module, VitDetAttention) and self.config.use_relative_position_embeddings:
             trunc_normal_(
-                module.rel_pos_h.data,
+                module.rel_pos_h,
                 mean=0.0,
                 std=self.config.initializer_range,
             )
             trunc_normal_(
-                module.rel_pos_w.data,
+                module.rel_pos_w,
                 mean=0.0,
                 std=self.config.initializer_range,
             )
@@ -648,11 +648,11 @@ class VitDetPreTrainedModel(PreTrainedModel):
             for layer in [module.conv1, module.conv2, module.conv3]:
                 caffe2_msra_fill(layer)
             for layer in [module.norm1, module.norm2]:
-                ones_(layer.weight.data)
-                zeros_(layer.bias.data)
+                ones_(layer.weight)
+                zeros_(layer.bias)
             # zero init last norm layer.
-            zeros_(module.norm3.weight.data)
-            zeros_(module.norm3.bias.data)
+            zeros_(module.norm3.weight)
+            zeros_(module.norm3.bias)
 
 
 VITDET_START_DOCSTRING = r"""

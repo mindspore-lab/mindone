@@ -437,15 +437,15 @@ class VitPoseBackbonePreTrainedModel(PreTrainedModel):
         if isinstance(module, (mint.nn.Linear, mint.nn.Conv2d)):
             # Upcast the input in `fp32` and cast it back to desired `dtype` to avoid
             # `trunc_normal_cpu` not implemented in `half` issues
-            trunc_normal_(module.weight.data, mean=0.0, std=self.config.initializer_range)
+            trunc_normal_(module.weight, mean=0.0, std=self.config.initializer_range)
             if module.bias is not None:
-                zeros_(module.bias.data)
+                zeros_(module.bias)
         elif isinstance(module, mint.nn.LayerNorm):
-            zeros_(module.bias.data)
-            ones_(module.weight.data)
+            zeros_(module.bias)
+            ones_(module.weight)
         elif isinstance(module, VitPoseBackboneEmbeddings):
             trunc_normal_(
-                module.position_embeddings.data,
+                module.position_embeddings,
                 mean=0.0,
                 std=self.config.initializer_range,
             )
