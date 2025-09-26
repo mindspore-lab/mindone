@@ -114,6 +114,7 @@ from . import (
     qwen2_vl,
     resnet,
     roberta,
+    roc_bert,
     rwkv,
     sam,
     seamless_m4t_v2,

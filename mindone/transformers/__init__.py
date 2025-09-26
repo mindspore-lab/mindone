@@ -708,6 +708,17 @@ from .models.roberta import (
     RobertaModel,
     RobertaPreTrainedModel,
 )
+from .models.roc_bert import (
+    RoCBertForCausalLM,
+    RoCBertForMaskedLM,
+    RoCBertForMultipleChoice,
+    RoCBertForPreTraining,
+    RoCBertForQuestionAnswering,
+    RoCBertForSequenceClassification,
+    RoCBertForTokenClassification,
+    RoCBertModel,
+    RoCBertPreTrainedModel,
+)
 from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
 from .models.sam import SamImageProcessor, SamModel, SamPreTrainedModel, SamProcessor
 from .models.seamless_m4t_v2 import (
