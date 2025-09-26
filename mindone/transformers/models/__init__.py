@@ -54,6 +54,7 @@ from . import (
     dpt,
     emu3,
     encodec,
+    esm,
     fastspeech2_conformer,
     funnel,
     fuyu,

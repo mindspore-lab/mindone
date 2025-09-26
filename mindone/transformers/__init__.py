@@ -378,6 +378,13 @@ from .models.dpr import (
 from .models.dpt import DPTForDepthEstimation, DPTImageProcessor, DPTModel, DPTPreTrainedModel
 from .models.emu3 import Emu3ForCausalLM, Emu3ForConditionalGeneration, Emu3PreTrainedModel, Emu3TextModel, Emu3VQVAE
 from .models.encodec import EncodecModel, EncodecPreTrainedModel
+from .models.esm import (
+    EsmForMaskedLM,
+    EsmForSequenceClassification,
+    EsmForTokenClassification,
+    EsmModel,
+    EsmPreTrainedModel,
+)
 from .models.fastspeech2_conformer import (
     FastSpeech2ConformerHifiGan,
     FastSpeech2ConformerModel,
