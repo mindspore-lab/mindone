@@ -355,6 +355,14 @@ from .models.deit import (
     DeiTModel,
     DeiTPreTrainedModel,
 )
+from .models.deprecated.xlm_prophetnet import (
+    XLMProphetNetDecoder,
+    XLMProphetNetEncoder,
+    XLMProphetNetForCausalLM,
+    XLMProphetNetForConditionalGeneration,
+    XLMProphetNetModel,
+    XLMProphetNetPreTrainedModel,
+)
 from .models.depth_anything import DepthAnythingForDepthEstimation, DepthAnythingPreTrainedModel
 from .models.dinov2 import Dinov2Backbone, Dinov2ForImageClassification, Dinov2Model, Dinov2PreTrainedModel
 from .models.distilbert import (
@@ -870,6 +878,16 @@ from .models.whisper import (
     WhisperProcessor,
 )
 from .models.x_clip import XCLIPModel, XCLIPPreTrainedModel, XCLIPTextModel, XCLIPVisionModel
+from .models.xlm import (
+    XLMForMultipleChoice,
+    XLMForQuestionAnswering,
+    XLMForQuestionAnsweringSimple,
+    XLMForSequenceClassification,
+    XLMForTokenClassification,
+    XLMModel,
+    XLMPreTrainedModel,
+    XLMWithLMHeadModel,
+)
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
 from .models.xlm_roberta_xl import (
     XLMRobertaXLForCausalLM,
