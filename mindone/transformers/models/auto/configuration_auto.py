@@ -419,6 +419,8 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("gpt_neox", "GPTNeoX"),
         ("gpt_neox_japanese", "GPTNeoXJapaneseModel"),
         ("gptj", "GPTJ"),
+        ("yolos", "YolosModel"),
+        ("cohere2", "Cohere2Model"),
         ("yolos", "YOLOS"),
         ("zamba2", "Zamba2"),
         ("cohere2", "Cohere2"),
