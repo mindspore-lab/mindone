@@ -16,7 +16,7 @@ import math
 from typing import Optional, Tuple, Union
 
 from transformers import LiltConfig
-from transformers.utils import add_start_docstrings, logging, replace_return_docstrings
+from transformers.utils import add_start_docstrings, logging
 
 import mindspore as ms
 from mindspore import mint
@@ -698,7 +698,6 @@ class LiltModel(LiltPreTrainedModel):
         for layer, heads in heads_to_prune.items():
             self.encoder.layer[layer].attention.prune_heads(heads)
 
-    @replace_return_docstrings(output_type=BaseModelOutputWithPooling, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
@@ -809,7 +808,6 @@ class LiltForSequenceClassification(LiltPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @replace_return_docstrings(output_type=SequenceClassifierOutput, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
@@ -905,7 +903,6 @@ class LiltForTokenClassification(LiltPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @replace_return_docstrings(output_type=TokenClassifierOutput, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
@@ -1003,7 +1000,6 @@ class LiltForQuestionAnswering(LiltPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @replace_return_docstrings(output_type=QuestionAnsweringModelOutput, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
