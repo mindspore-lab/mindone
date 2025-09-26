@@ -37,6 +37,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         # Add configs here
         ("albert", "AlbertConfig"),
         ("align", "AlignConfig"),
+        ("altclip", "AltCLIPConfig"),
         ("aria", "AriaConfig"),
         ("aria_text", "AriaTextConfig"),
         ("bamba", "BambaConfig"),
@@ -203,6 +204,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         # Add full (and cased) model names here
         ("albert", "ALBERT"),
         ("align", "ALIGN"),
+        ("altclip", "AltCLIP"),
         ("aria", "Aria"),
         ("aria_text", "AriaText"),
         ("bamba", "Bamba"),

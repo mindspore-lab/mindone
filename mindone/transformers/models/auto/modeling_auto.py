@@ -34,6 +34,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         # Base model mapping
         ("albert", "AlbertModel"),
         ("align", "AlignModel"),
+        ("altclip", "AltCLIPModel"),
         ("aria", "AriaForConditionalGeneration"),
         ("aria_text", "AriaTextModel"),
         ("bamba", "BambaModel"),
@@ -808,6 +809,7 @@ MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
     [
         # Model for Zero Shot Image Classification mapping
         ("align", "AlignModel"),
+        ("altclip", "AltCLIPModel"),
         ("blip", "BlipModel"),
         ("blip-2", "Blip2ForImageTextRetrieval"),
         ("clipseg", "CLIPSegModel"),
