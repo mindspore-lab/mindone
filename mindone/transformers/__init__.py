@@ -42,6 +42,7 @@ from .models.albert import (
     AlbertPreTrainedModel,
 )
 from .models.align import AlignModel, AlignPreTrainedModel, AlignTextModel, AlignVisionModel
+from .models.altclip import AltCLIPModel, AltCLIPPreTrainedModel, AltCLIPTextModel, AltCLIPVisionModel
 from .models.aria import (
     AriaForConditionalGeneration,
     AriaPreTrainedModel,
@@ -139,6 +140,7 @@ from .models.auto import (
     AutoProcessor,
 )
 from .models.bamba import BambaForCausalLM, BambaModel, BambaPreTrainedModel
+from .models.bark import BarkCausalModel, BarkCoarseModel, BarkFineModel, BarkModel, BarkSemanticModel
 from .models.bart import (
     BartForCausalLM,
     BartForConditionalGeneration,
@@ -283,6 +285,7 @@ from .models.clvp import (
     ClvpModelForConditionalGeneration,
     ClvpPreTrainedModel,
 )
+from .models.codegen import CodeGenForCausalLM, CodeGenModel, CodeGenPreTrainedModel
 from .models.cohere2 import Cohere2ForCausalLM, Cohere2Model, Cohere2PreTrainedModel
 from .models.colpali import ColPaliForRetrieval, ColPaliPreTrainedModel, ColPaliProcessor
 from .models.convbert import (
@@ -531,6 +534,13 @@ from .models.imagegpt import (
     ImageGPTModel,
     ImageGPTPreTrainedModel,
 )
+from .models.jetmoe import (
+    JetMoeConfig,
+    JetMoeForCausalLM,
+    JetMoeForSequenceClassification,
+    JetMoeModel,
+    JetMoePreTrainedModel,
+)
 from .models.led import (
     LEDForConditionalGeneration,
     LEDForQuestionAnswering,
@@ -588,6 +598,7 @@ from .models.megatron_bert import (
     MegatronBertModel,
     MegatronBertPreTrainedModel,
 )
+from .models.mgp_str import MgpstrForSceneTextRecognition, MgpstrModel, MgpstrPreTrainedModel, MgpstrProcessor
 from .models.mimi import MimiModel, MimiPreTrainedModel
 from .models.minicpm4 import MiniCPMForCausalLM, MiniCPMForSequenceClassification, MiniCPMModel
 from .models.mistral import (
@@ -668,6 +679,8 @@ from .models.nystromformer import (
     NystromformerModel,
     NystromformerPreTrainedModel,
 )
+from .models.olmo import OlmoForCausalLM, OlmoModel, OlmoPreTrainedModel
+from .models.olmo2 import Olmo2ForCausalLM, Olmo2Model, Olmo2PreTrainedModel
 from .models.opt import (
     OPTForCausalLM,
     OPTForQuestionAnswering,
@@ -719,18 +732,6 @@ from .models.pixtral import PixtralPreTrainedModel, PixtralVisionModel
 from .models.poolformer import PoolFormerForImageClassification, PoolFormerModel, PoolFormerPreTrainedModel
 from .models.pop2piano import Pop2PianoForConditionalGeneration, Pop2PianoPreTrainedModel
 from .models.qwen2 import Qwen2ForCausalLM, Qwen2ForSequenceClassification, Qwen2ForTokenClassification, Qwen2Model
-from .models.qwen2_5_omni import (
-    Qwen2_5OmniForConditionalGeneration,
-    Qwen2_5OmniPreTrainedModel,
-    Qwen2_5OmniPreTrainedModelForConditionalGeneration,
-    Qwen2_5OmniTalkerForConditionalGeneration,
-    Qwen2_5OmniTalkerModel,
-    Qwen2_5OmniThinkerForConditionalGeneration,
-    Qwen2_5OmniThinkerTextModel,
-    Qwen2_5OmniToken2WavBigVGANModel,
-    Qwen2_5OmniToken2WavDiTModel,
-    Qwen2_5OmniToken2WavModel,
-)
 from .models.qwen2_5_vl import (
     Qwen2_5_VLForConditionalGeneration,
     Qwen2_5_VLModel,
@@ -797,6 +798,13 @@ from .models.siglip import (
     SiglipTextModel,
     SiglipVisionModel,
 )
+from .models.siglip2 import (
+    Siglip2ForImageClassification,
+    Siglip2Model,
+    Siglip2PreTrainedModel,
+    Siglip2TextModel,
+    Siglip2VisionModel,
+)
 from .models.smolvlm import (
     SmolVLMForConditionalGeneration,
     SmolVLMModel,
@@ -857,6 +865,8 @@ from .models.tapas import (
     TapasModel,
     TapasPreTrainedModel,
 )
+from .models.trocr import TrOCRForCausalLM, TrOCRPreTrainedModel
+from .models.tvp import TvpForVideoGrounding, TvpModel, TvpPreTrainedModel
 from .models.umt5 import (
     UMT5EncoderModel,
     UMT5ForQuestionAnswering,
@@ -905,6 +915,11 @@ from .models.visual_bert import (
     VisualBertPreTrainedModel,
 )
 from .models.vit import ViTForImageClassification, ViTForMaskedImageModeling, ViTModel, ViTPreTrainedModel
+from .models.vit_msn import ViTMSNForImageClassification, ViTMSNModel, ViTMSNPreTrainedModel
+from .models.vitdet import VitDetBackbone, VitDetModel, VitDetPreTrainedModel
+from .models.vitmatte import VitMatteForImageMatting, VitMattePreTrainedModel
+from .models.vitpose import VitPoseForPoseEstimation, VitPosePreTrainedModel
+from .models.vitpose_backbone import VitPoseBackbone, VitPoseBackbonePreTrainedModel
 from .models.vits import VitsModel, VitsPreTrainedModel
 from .models.wav2vec2 import (
     Wav2Vec2FeatureExtractor,
@@ -941,6 +956,7 @@ from .models.xlm_roberta_xl import (
 from .models.yolos import YolosForObjectDetection, YolosImageProcessor, YolosModel, YolosPreTrainedModel
 from .models.zamba import ZambaForCausalLM, ZambaForSequenceClassification, ZambaModel, ZambaPreTrainedModel
 from .models.zamba2 import Zamba2ForCausalLM, Zamba2ForSequenceClassification, Zamba2Model, Zamba2PreTrainedModel
+from .models.zoedepth import ZoeDepthForDepthEstimation, ZoeDepthPreTrainedModel
 from .pipelines import (
     ImageToImagePipeline,
     ImageToTextPipeline,
@@ -980,5 +996,17 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
         MiniMaxForTokenClassification,
         MiniMaxModel,
         MiniMaxPreTrainedModel,
+    )
+    from .models.qwen2_5_omni import (
+        Qwen2_5OmniForConditionalGeneration,
+        Qwen2_5OmniPreTrainedModel,
+        Qwen2_5OmniPreTrainedModelForConditionalGeneration,
+        Qwen2_5OmniTalkerForConditionalGeneration,
+        Qwen2_5OmniTalkerModel,
+        Qwen2_5OmniThinkerForConditionalGeneration,
+        Qwen2_5OmniThinkerTextModel,
+        Qwen2_5OmniToken2WavBigVGANModel,
+        Qwen2_5OmniToken2WavDiTModel,
+        Qwen2_5OmniToken2WavModel,
     )
     from .models.vjepa2 import VJEPA2ForVideoClassification, VJEPA2Model, VJEPA2PreTrainedModel
