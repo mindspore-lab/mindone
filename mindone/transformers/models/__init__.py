@@ -181,6 +181,7 @@ from . import (
     wav2vec2,
     x_clip,
     xlm_roberta,
+    xlnet,
     yolos,
     zamba,
     zamba2,
