@@ -630,6 +630,8 @@ from .models.nystromformer import (
     NystromformerModel,
     NystromformerPreTrainedModel,
 )
+from .models.olmo import OlmoForCausalLM, OlmoModel, OlmoPreTrainedModel
+from .models.olmo2 import Olmo2ForCausalLM, Olmo2Model, Olmo2PreTrainedModel
 from .models.opt import (
     OPTForCausalLM,
     OPTForQuestionAnswering,

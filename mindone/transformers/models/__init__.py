@@ -99,6 +99,8 @@ from . import (
     mpt,
     mvp,
     nystromformer,
+    olmo,
+    olmo2,
     opt,
     owlvit,
     paligemma,
