@@ -30,7 +30,7 @@ from .feature_extraction_utils import BatchFeature, FeatureExtractionMixin
 from .image_processing_base import ImageProcessingMixin
 from .image_processing_utils import BaseImageProcessor
 from .image_utils import ImageFeatureExtractionMixin
-from .modeling_utils import MSPreTrainedModel
+from .modeling_utils import MSPreTrainedModel, PreTrainedModel
 from .models.albert import (
     AlbertForMaskedLM,
     AlbertForMultipleChoice,
@@ -139,6 +139,7 @@ from .models.auto import (
     AutoModelWithLMHead,
     AutoProcessor,
 )
+from .models.aya_vision import AyaVisionForConditionalGeneration, AyaVisionPreTrainedModel
 from .models.bamba import BambaForCausalLM, BambaModel, BambaPreTrainedModel
 from .models.bark import BarkCausalModel, BarkCoarseModel, BarkFineModel, BarkModel, BarkSemanticModel
 from .models.bart import (
@@ -232,6 +233,13 @@ from .models.bloom import (
     BloomForTokenClassification,
     BloomModel,
     BloomPreTrainedModel,
+)
+from .models.bridgetower import (
+    BridgeTowerForContrastiveLearning,
+    BridgeTowerForImageAndTextRetrieval,
+    BridgeTowerForMaskedLM,
+    BridgeTowerModel,
+    BridgeTowerPreTrainedModel,
 )
 from .models.camembert import (
     CamembertForCausalLM,
@@ -990,6 +998,7 @@ from .models.qwen2_vl import (
     Qwen2VLModel,
     Qwen2VLPreTrainedModel,
 )
+from .models.rag import RagModel, RagPreTrainedModel, RagSequenceForGeneration, RagTokenForGeneration
 from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
 from .models.regnet import RegNetForImageClassification, RegNetModel, RegNetPreTrainedModel
 from .models.rembert import (
@@ -1172,6 +1181,7 @@ from .models.tapas import (
     TapasModel,
     TapasPreTrainedModel,
 )
+from .models.textnet import TextNetBackbone, TextNetForImageClassification, TextNetModel, TextNetPreTrainedModel
 from .models.timesformer import TimesformerForVideoClassification, TimesformerModel, TimesformerPreTrainedModel
 from .models.trocr import TrOCRForCausalLM, TrOCRPreTrainedModel
 from .models.tvp import TvpForVideoGrounding, TvpModel, TvpPreTrainedModel
