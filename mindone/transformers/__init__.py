@@ -493,6 +493,13 @@ from .models.imagegpt import (
     ImageGPTModel,
     ImageGPTPreTrainedModel,
 )
+from .models.jetmoe import (
+    JetMoeConfig,
+    JetMoeForCausalLM,
+    JetMoeForSequenceClassification,
+    JetMoeModel,
+    JetMoePreTrainedModel,
+)
 from .models.led import (
     LEDForConditionalGeneration,
     LEDForQuestionAnswering,
