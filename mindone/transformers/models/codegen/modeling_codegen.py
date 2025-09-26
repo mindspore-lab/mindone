@@ -40,14 +40,14 @@ _CHECKPOINT_FOR_DOC = "Salesforce/codegen-2B-mono"
 _CONFIG_FOR_DOC = "CodeGenConfig"
 
 
-# Copied from mindway.transformers.models.gptj.modeling_gptj.create_sinusoidal_positions
+# Copied from mindone.transformers.models.gptj.modeling_gptj.create_sinusoidal_positions
 def create_sinusoidal_positions(num_pos: int, dim: int) -> ms.Tensor:
     inv_freq = 1.0 / (10000 ** (mint.arange(0, dim, 2, dtype=ms.int64) / dim))
     sinusoid_inp = mint.einsum("i , j -> i j", mint.arange(num_pos, dtype=ms.int64).float(), inv_freq).float()
     return mint.cat((mint.sin(sinusoid_inp), mint.cos(sinusoid_inp)), dim=1)
 
 
-# Copied from mindway.transformers.models.gptj.modeling_gptj.rotate_every_two
+# Copied from mindone.transformers.models.gptj.modeling_gptj.rotate_every_two
 def rotate_every_two(x: ms.Tensor) -> ms.Tensor:
     x1 = x[:, :, :, ::2]
     x2 = x[:, :, :, 1::2]
@@ -55,7 +55,7 @@ def rotate_every_two(x: ms.Tensor) -> ms.Tensor:
     return x.flatten(-2)  # in einsum notation: rearrange(x, '... d j -> ... (d j)')
 
 
-# Copied from mindway.transformers.models.gptj.modeling_gptj.apply_rotary_pos_emb
+# Copied from mindone.transformers.models.gptj.modeling_gptj.apply_rotary_pos_emb
 def apply_rotary_pos_emb(tensor: ms.Tensor, sin: ms.Tensor, cos: ms.Tensor) -> ms.Tensor:
     sin = mint.repeat_interleave(sin[:, :, None, :], 2, 3)
     cos = mint.repeat_interleave(cos[:, :, None, :], 2, 3)
@@ -221,7 +221,7 @@ class CodeGenAttention(nn.Cell):
         return outputs  # a, present, (attentions)
 
 
-# Copied from mindway.transformers.models.gptj.modeling_gptj.GPTJMLP with GPTJ->CodeGen
+# Copied from mindone.transformers.models.gptj.modeling_gptj.GPTJMLP with GPTJ->CodeGen
 class CodeGenMLP(nn.Cell):
     def __init__(self, intermediate_size, config):  # in MLP: intermediate_size= 4 * embed_dim
         super().__init__()
@@ -241,13 +241,13 @@ class CodeGenMLP(nn.Cell):
         return hidden_states
 
 
-# Copied from mindway.transformers.models.gptj.modeling_gptj.GPTJBlock with GPTJ->CodeGen
+# Copied from mindone.transformers.models.gptj.modeling_gptj.GPTJBlock with GPTJ->CodeGen
 class CodeGenBlock(nn.Cell):
     # Ignore copy
     def __init__(self, config, layer_idx=None):
         super().__init__()
         inner_dim = config.n_inner if config.n_inner is not None else 4 * config.n_embd
-        self.ln_1 = mint.nn.LayerNorm((config.n_embd,), epsilon=config.layer_norm_epsilon)
+        self.ln_1 = mint.nn.LayerNorm((config.n_embd,), eps=config.layer_norm_epsilon)
         self.attn = CodeGenAttention(config, layer_idx)
         self.mlp = CodeGenMLP(inner_dim, config)
 
@@ -315,12 +315,12 @@ class CodeGenPreTrainedModel(PreTrainedModel):
             if module.bias is not None:
                 zeros_(module.bias)
         elif isinstance(module, mint.nn.Embedding):
-            normal_(module.embedding_table, mean=0.0, std=self.config.initializer_range)
+            normal_(module.weight, mean=0.0, std=self.config.initializer_range)
             if module.padding_idx is not None:
-                module.embedding_table.data[module.padding_idx] = 0.0
+                module.weight.data[module.padding_idx] = 0.0
         elif isinstance(module, mint.nn.LayerNorm):
-            zeros_(module.beta)
-            constant_(module.gamma, 1.0)
+            zeros_(module.bias)
+            constant_(module.weight, 1.0)
 
 
 CODEGEN_START_DOCSTRING = r"""
@@ -419,7 +419,7 @@ class CodeGenModel(CodeGenPreTrainedModel):
         self.wte = mint.nn.Embedding(config.vocab_size, self.embed_dim)
         self.drop = mint.nn.Dropout(p=config.embd_pdrop)
         self.h = nn.CellList([CodeGenBlock(config, layer_idx=i) for i in range(config.n_layer)])
-        self.ln_f = mint.nn.LayerNorm((self.embed_dim,), epsilon=config.layer_norm_epsilon)
+        self.ln_f = mint.nn.LayerNorm((self.embed_dim,), eps=config.layer_norm_epsilon)
         self.rotary_dim = min(config.rotary_dim, config.n_ctx // config.num_attention_heads)
 
         self.gradient_checkpointing = False
@@ -598,7 +598,7 @@ class CodeGenModel(CodeGenPreTrainedModel):
             attentions=all_self_attentions,
         )
 
-    # Copied from mindway.transformers.models.llama.modeling_llama.LlamaModel._update_causal_mask
+    # Copied from mindone.transformers.models.llama.modeling_llama.LlamaModel._update_causal_mask
     def _update_causal_mask(
         self,
         attention_mask: ms.Tensor,
@@ -664,7 +664,7 @@ class CodeGenModel(CodeGenPreTrainedModel):
         return causal_mask
 
     @staticmethod
-    # Copied from mindway.transformers.models.llama.modeling_llama.LlamaPreTrainedModel._prepare_4d_causal_attention_mask_with_cache_position
+    # Copied from mindone.transformers.models.llama.modeling_llama.LlamaPreTrainedModel._prepare_4d_causal_attention_mask_with_cache_position
     def _prepare_4d_causal_attention_mask_with_cache_position(
         attention_mask: ms.Tensor,
         sequence_length: int,
