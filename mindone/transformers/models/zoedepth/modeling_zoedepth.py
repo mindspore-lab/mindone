@@ -417,7 +417,7 @@ class LogBinomialSoftmax(nn.Cell):
         Args:
             n_classes (`int`, *optional*, defaults to 256):
                 Number of output classes.
-            act (`torch.nn.Cell`, *optional*, defaults to `mint.softmax`):
+            act (`ms.nn.Cell`, *optional*, defaults to `mint.softmax`):
                 Activation function to apply to the output.
         """
         super().__init__()
