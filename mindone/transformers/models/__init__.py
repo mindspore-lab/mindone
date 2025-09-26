@@ -150,6 +150,7 @@ from . import (
     speecht5,
     splinter,
     squeezebert,
+    stablelm,
     starcoder2,
     swin2sr,
     switch_transformers,
