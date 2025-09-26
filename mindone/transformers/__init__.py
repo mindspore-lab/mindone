@@ -498,6 +498,33 @@ from .models.gpt2 import (
     GPT2Model,
     GPT2PreTrainedModel,
 )
+from .models.gpt_bigcode import (
+    GPTBigCodeForCausalLM,
+    GPTBigCodeForSequenceClassification,
+    GPTBigCodeForTokenClassification,
+    GPTBigCodeModel,
+    GPTBigCodePreTrainedModel,
+)
+from .models.gpt_neox import (
+    GPTNeoXForCausalLM,
+    GPTNeoXForQuestionAnswering,
+    GPTNeoXForSequenceClassification,
+    GPTNeoXLayer,
+    GPTNeoXModel,
+    GPTNeoXPreTrainedModel,
+)
+from .models.gpt_neox_japanese import (
+    GPTNeoXJapaneseForCausalLM,
+    GPTNeoXJapaneseLayer,
+    GPTNeoXJapaneseModel,
+    GPTNeoXJapanesePreTrainedModel,
+)
+from .models.gptj import (
+    GPTJForCausalLM,
+    GPTJForQuestionAnswering,
+    GPTJForSequenceClassification,
+    GPTJModel,
+    GPTJPreTrainedModel,
 from .models.gpt_neo import (
     GPTNeoForCausalLM,
     GPTNeoForQuestionAnswering,
