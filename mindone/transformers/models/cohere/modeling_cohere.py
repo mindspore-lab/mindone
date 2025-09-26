@@ -603,7 +603,7 @@ class CohereModel(CoherePreTrainedModel):
             causal_mask = attention_mask
         else:
             min_dtype = _DTYPE_2_MIN[ms.float32]
-            causal_mask = mint.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
+            causal_mask = ms.ops.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
             if sequence_length != 1:
                 causal_mask = mint.triu(causal_mask, diagonal=1)
             causal_mask *= mint.arange(target_length) > cache_position.reshape(-1, 1)
