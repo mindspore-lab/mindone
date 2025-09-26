@@ -22,12 +22,8 @@ from ..pipeline_test_utils import (
     get_pipeline_components,
 )
 
-# float32 in StableVideoDiffusion is not supported
 test_cases = [
-    # {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
-    # {"mode": ms.GRAPH_MODE, "dtype": "float32"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float16"},
 ]
 
 

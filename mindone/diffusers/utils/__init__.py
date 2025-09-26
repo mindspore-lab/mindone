@@ -17,9 +17,11 @@
 
 from .constants import (
     CONFIG_NAME,
+    DEFAULT_HF_PARALLEL_LOADING_WORKERS,
     DEPRECATED_REVISION_ARGS,
     DIFFUSERS_DYNAMIC_MODULE_NAME,
     FLAX_WEIGHTS_NAME,
+    HF_ENABLE_PARALLEL_LOADING,
     HF_MODULES_CACHE,
     HUGGINGFACE_CO_RESOLVE_ENDPOINT,
     ONNX_EXTERNAL_WEIGHTS_NAME,
@@ -48,6 +50,7 @@ from .import_utils import (
     is_ftfy_available,
     is_hf_hub_version,
     is_invisible_watermark_available,
+    is_kernels_available,
     is_matplotlib_available,
     is_mindspore_version,
     is_opencv_available,

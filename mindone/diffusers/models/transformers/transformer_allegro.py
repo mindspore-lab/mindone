@@ -25,6 +25,7 @@ from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import logging
 from ..attention import FeedForward
 from ..attention_processor import AllegroAttnProcessor2_0, Attention
+from ..cache_utils import CacheMixin
 from ..embeddings import PatchEmbed, PixArtAlphaTextProjection
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
@@ -173,7 +174,7 @@ class AllegroTransformerBlock(nn.Cell):
         return hidden_states
 
 
-class AllegroTransformer3DModel(ModelMixin, ConfigMixin):
+class AllegroTransformer3DModel(ModelMixin, ConfigMixin, CacheMixin):
     _supports_gradient_checkpointing = True
 
     """

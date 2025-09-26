@@ -27,6 +27,7 @@ from ...loaders.single_file_model import FromOriginalModelMixin
 from ...utils import logging
 from ..attention import FeedForward
 from ..attention_processor import MochiAttention, MochiAttnProcessor2_0
+from ..cache_utils import CacheMixin
 from ..embeddings import MochiCombinedTimestepCaptionEmbedding, PatchEmbed
 from ..layers_compat import unflatten
 from ..modeling_outputs import Transformer2DModelOutput
@@ -301,7 +302,7 @@ class MochiRoPE(nn.Cell):
         return rope_cos, rope_sin
 
 
-class MochiTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginalModelMixin):
+class MochiTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginalModelMixin, CacheMixin):
     r"""
     A Transformer model for video-like data introduced in [Mochi](https://huggingface.co/genmo/mochi-1-preview).
 

@@ -1019,11 +1019,8 @@ class StableDiffusionPipeline(
 
                 # expand the latents if we are doing classifier free guidance
                 latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
-                # TODO: method of scheduler should not change the dtype of input.
-                #  Remove the casting after cuiyushi confirm that.
-                tmp_dtype = latent_model_input.dtype
-                latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
-                latent_model_input = latent_model_input.to(tmp_dtype)
+                if hasattr(self.scheduler, "scale_model_input"):
+                    latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 # predict the noise residual
                 noise_pred = self.unet(

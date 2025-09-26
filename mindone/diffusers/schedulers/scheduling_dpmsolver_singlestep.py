@@ -173,6 +173,8 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
         final_sigmas_type: Optional[str] = "zero",  # "zero", "sigma_min"
         lambda_min_clipped: float = -float("inf"),
         variance_type: Optional[str] = None,
+        use_dynamic_shifting: bool = False,
+        time_shift_type: str = "exponential",
     ):
         if self.config.use_beta_sigmas and not is_scipy_available():
             raise ImportError("Make sure to install scipy if you want to use beta sigmas.")
@@ -305,7 +307,12 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
         """
         self._begin_index = begin_index
 
-    def set_timesteps(self, num_inference_steps: int = None, timesteps: Optional[List[int]] = None):
+    def set_timesteps(
+        self,
+        num_inference_steps: int = None,
+        mu: Optional[float] = None,
+        timesteps: Optional[List[int]] = None,
+    ):
         """
         Sets the discrete timesteps used for the diffusion chain (to be run before inference).
 
@@ -317,6 +324,9 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
                 timestep spacing strategy of equal spacing between timesteps schedule is used. If `timesteps` is
                 passed, `num_inference_steps` must be `None`.
         """
+        if mu is not None:
+            assert self.config.use_dynamic_shifting and self.config.time_shift_type == "exponential"
+            self.config.flow_shift = np.exp(mu)
         if num_inference_steps is None and timesteps is None:
             raise ValueError("Must pass exactly one of  `num_inference_steps` or `timesteps`.")
         if num_inference_steps is not None and timesteps is not None:

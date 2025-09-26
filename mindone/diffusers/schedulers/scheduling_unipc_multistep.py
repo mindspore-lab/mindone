@@ -218,6 +218,8 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
         steps_offset: int = 0,
         final_sigmas_type: Optional[str] = "zero",  # "zero", "sigma_min"
         rescale_betas_zero_snr: bool = False,
+        use_dynamic_shifting: bool = False,
+        time_shift_type: str = "exponential",
     ):
         if self.config.use_beta_sigmas and not is_scipy_available():
             raise ImportError("Make sure to install scipy if you want to use beta sigmas.")
@@ -304,7 +306,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
         """
         self._begin_index = begin_index
 
-    def set_timesteps(self, num_inference_steps: int):
+    def set_timesteps(self, num_inference_steps: int, mu: Optional[float] = None):
         """
         Sets the discrete timesteps used for the diffusion chain (to be run before inference).
 
@@ -313,6 +315,9 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
                 The number of diffusion steps used when generating samples with a pre-trained model.
         """
         # "linspace", "leading", "trailing" corresponds to annotation of Table 2. of https://huggingface.co/papers/2305.08891
+        if mu is not None:
+            assert self.config.use_dynamic_shifting and self.config.time_shift_type == "exponential"
+            self.config.flow_shift = np.exp(mu)
         if self.config.timestep_spacing == "linspace":
             timesteps = (
                 np.linspace(0, self.config.num_train_timesteps - 1, num_inference_steps + 1)

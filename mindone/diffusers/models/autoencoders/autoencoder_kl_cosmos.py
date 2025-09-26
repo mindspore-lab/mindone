@@ -179,7 +179,9 @@ class CosmosPatchEmbed3d(nn.Cell):
         batch_size, num_channels, num_frames, height, width = hidden_states.shape
         p = self.patch_size
 
-        hidden_states = mint.reshape(batch_size, num_channels, num_frames // p, p, height // p, p, width // p, p)
+        hidden_states = hidden_states.reshape(
+            batch_size, num_channels, num_frames // p, p, height // p, p, width // p, p
+        )
         hidden_states = hidden_states.permute(0, 1, 3, 5, 7, 2, 4, 6).flatten(1, 4).contiguous()
         return hidden_states
 
@@ -520,12 +522,12 @@ class CosmosSpatialAttentionProcessor2_0:
         value = value.permute(0, 2, 3, 4, 1).flatten(2, 3).flatten(0, 1)
 
         # [B * T, H * W, C] -> [B * T, N, H * W, C // N]
-        query = unflatten(query, 2, (attn.num_attention_heads, -1)).transpose(1, 2)
-        key = unflatten(key, 2, (attn.num_attention_heads, -1)).transpose(1, 2)
-        value = unflatten(value, 2, (attn.num_attention_heads, -1)).transpose(1, 2)
+        query = unflatten(query, 2, (attn.num_attention_heads, -1)).swapaxes(1, 2)
+        key = unflatten(key, 2, (attn.num_attention_heads, -1)).swapaxes(1, 2)
+        value = unflatten(value, 2, (attn.num_attention_heads, -1)).swapaxes(1, 2)
 
         hidden_states = attn.scaled_dot_product_attention(query, key, value, attn_mask=attention_mask)
-        hidden_states = hidden_states.transpose(1, 2).flatten(2, 3).type_as(query)
+        hidden_states = hidden_states.swapaxes(1, 2).flatten(2, 3).type_as(query)
         hidden_states = unflatten(unflatten(hidden_states, 1, (height, width)), 0, (batch_size, num_frames))
         hidden_states = hidden_states.permute(0, 4, 1, 2, 3)
 
@@ -553,12 +555,12 @@ class CosmosTemporalAttentionProcessor2_0:
         value = value.permute(0, 3, 4, 2, 1).flatten(0, 2)
 
         # [B * T, H * W, C] -> [B * T, N, H * W, C // N]
-        query = unflatten(query, 2, (attn.num_attention_heads, -1)).transpose(1, 2)
-        key = unflatten(key, 2, (attn.num_attention_heads, -1)).transpose(1, 2)
-        value = unflatten(value, 2, (attn.num_attention_heads, -1)).transpose(1, 2)
+        query = unflatten(query, 2, (attn.num_attention_heads, -1)).swapaxes(1, 2)
+        key = unflatten(key, 2, (attn.num_attention_heads, -1)).swapaxes(1, 2)
+        value = unflatten(value, 2, (attn.num_attention_heads, -1)).swapaxes(1, 2)
 
         hidden_states = attn.scaled_dot_product_attention(query, key, value, attn_mask=attention_mask)
-        hidden_states = hidden_states.transpose(1, 2).flatten(2, 3).type_as(query)
+        hidden_states = hidden_states.swapaxes(1, 2).flatten(2, 3).type_as(query)
         hidden_states = unflatten(hidden_states, 0, (batch_size, height, width))
         hidden_states = hidden_states.permute(0, 4, 3, 1, 2)
 

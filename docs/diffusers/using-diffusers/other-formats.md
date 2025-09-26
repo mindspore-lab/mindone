@@ -1,4 +1,4 @@
-<!--Copyright 2024 The HuggingFace Team. All rights reserved.
+<!--Copyright 2025 The HuggingFace Team. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may obtain a copy of the License at
@@ -64,41 +64,27 @@ Safetensors stores weights in a safetensors file. Diffusers loads safetensors fi
     )
     ```
 
-#### LoRA files
+#### LoRAs
 
-[LoRA](https://hf.co/docs/peft/conceptual_guides/adapter#low-rank-adaptation-lora) is a lightweight adapter that is fast and easy to train, making them especially popular for generating images in a certain way or style. These adapters are commonly stored in a safetensors file, and are widely popular on model sharing platforms like [civitai](https://civitai.com/).
+[LoRAs](https://mindspore-lab.github.io/mindone/latest/diffusers/tutorials/using_peft_for_inference) are lightweight checkpoints fine-tuned to generate images or video in a specific style. If you are using a checkpoint trained with a Diffusers training script, the LoRA configuration is automatically saved as metadata in a safetensors file. When the safetensors file is loaded, the metadata is parsed to correctly configure the LoRA and avoids missing or incorrect LoRA configurations.
 
-LoRAs are loaded into a base model with the [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_weights) method.
+The easiest way to inspect the metadata, if available, is by clicking on the Safetensors logo next to the weights.
+
+For LoRAs that aren't trained with Diffusers, you can still save metadata with the `transformer_lora_adapter_metadata` and `text_encoder_lora_adapter_metadata` arguments in [`save_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin.save_lora_weights) as long as it is a safetensors file.
 
 ```py
-from mindone.diffusers import StableDiffusionXLPipeline
 import mindspore as ms
-import numpy as np
+from mindone.diffusers import FluxPipeline
 
-# base model
-pipeline = StableDiffusionXLPipeline.from_pretrained(
-    "Lykon/dreamshaper-xl-1-0", mindspore_dtype=ms.float16, variant="fp16"
+pipeline = FluxPipeline.from_pretrained(
+    "black-forest-labs/FLUX.1-dev", mindspore_dtype=ms.bfloat16
 )
-
-# download LoRA weights
-!wget https://civitai.com/api/download/models/168776 -O blueprintify.safetensors
-
-# load LoRA weights
-pipeline.load_lora_weights(".", weight_name="blueprintify.safetensors")
-prompt = "bl3uprint, a highly detailed blueprint of the empire state building, explaining how to build all parts, many txt, blueprint grid backdrop"
-negative_prompt = "lowres, cropped, worst quality, low quality, normal quality, artifacts, signature, watermark, username, blurry, more than one bridge, bad architecture"
-
-image = pipeline(
-    prompt=prompt,
-    negative_prompt=negative_prompt,
-    generator=np.random.Generator(np.random.PCG64(0)),
-)[0][0]
-image
+pipeline.load_lora_weights("linoyts/yarn_art_Flux_LoRA")
+pipeline.save_lora_weights(
+    transformer_lora_adapter_metadata={"r": 16, "lora_alpha": 16},
+    text_encoder_lora_adapter_metadata={"r": 8, "lora_alpha": 8}
+)
 ```
-
-<div style="display: flex; justify-content: center; align-items: flex-start; text-align: center; max-width: 98%; margin: 0 auto; gap: 1vw;">
-    <img src="https://github.com/user-attachments/assets/45abbf59-1119-48b5-9d9a-d36645b4fc2a"/>
-</div>
 
 ### Bin files
 

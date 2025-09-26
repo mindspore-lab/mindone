@@ -859,7 +859,7 @@ def _encode_prompt_with_t5(
     text_input_ids=None,
 ):
     batch_size = text_input_ids.shape[0]
-    prompt_embeds = text_encoder(text_input_ids)[0]
+    prompt_embeds = text_encoder(text_input_ids, return_dict=False)[0]
 
     dtype = text_encoder.dtype
     prompt_embeds = prompt_embeds.to(dtype=dtype)

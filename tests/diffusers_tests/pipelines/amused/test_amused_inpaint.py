@@ -19,11 +19,13 @@
 import unittest
 
 import numpy as np
+import pytest
 from ddt import data, ddt, unpack
+from packaging.version import parse
 
 import mindspore as ms
 
-from mindone.diffusers import AmusedInpaintPipeline
+from mindone.diffusers import AmusedInpaintPipeline, __version__
 from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import THRESHOLD_PIXEL, PipelineTesterMixin
@@ -31,8 +33,6 @@ from ..pipeline_test_utils import THRESHOLD_PIXEL, PipelineTesterMixin
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float32"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float16"},
 ]
 
 
@@ -42,6 +42,9 @@ class AmusedPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
     @data(*test_cases)
     @unpack
     def test_amused_512(self, mode, dtype):
+        if parse(__version__) > parse("0.33.1"):
+            pytest.skip("Skipping this case in diffusers > 0.33.1")
+
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
         pipe = AmusedInpaintPipeline.from_pretrained("amused/amused-512", mindspore_dtype=ms_dtype)

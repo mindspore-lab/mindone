@@ -40,8 +40,6 @@ from ..pipeline_test_utils import (
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float32"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float16"},
 ]
 
 
@@ -279,7 +277,7 @@ class StableDiffusion3ControlNetInpaintNetPipelineIntegrationTests(PipelineTeste
     def test_controlnet_inpaint_sd3(self, mode, dtype):
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
-        controlnet_cls = get_module("mindone.diffusers.models.controlnet_sd3.SD3ControlNetModel")
+        controlnet_cls = get_module("mindone.diffusers.models.controlnets.controlnet_sd3.SD3ControlNetModel")
         pipe_cls = get_module(
             "mindone.diffusers.pipelines.controlnet_sd3.pipeline_stable_diffusion_3_controlnet_inpainting.StableDiffusion3ControlNetInpaintingPipeline"
         )

@@ -147,6 +147,7 @@ except importlib_metadata.PackageNotFoundError:
 
 _transformers_available, _transformers_version = _is_package_available("transformers")
 _hf_hub_available, _hf_hub_version = _is_package_available("huggingface_hub")
+_kernels_available, _kernels_version = _is_package_available("kernels")
 _inflect_available, _inflect_version = _is_package_available("inflect")
 _unidecode_available, _unidecode_version = _is_package_available("unidecode")
 _note_seq_available, _note_seq_version = _is_package_available("note_seq")
@@ -188,6 +189,10 @@ def is_scipy_available():
 
 def is_librosa_available():
     return _librosa_available
+
+
+def is_kernels_available():
+    return _kernels_available
 
 
 def is_note_seq_available():

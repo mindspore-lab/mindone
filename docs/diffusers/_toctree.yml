@@ -1,72 +1,136 @@
-- sections:
+- title: Get started
+  sections:
   - local: index
-    title: 🧨 Diffusers
-  - local: quicktour
-    title: Quicktour
-  - local: stable_diffusion
-    title: Effective and efficient diffusion
+    title: Diffusers
   - local: installation
     title: Installation
   - local: limitations
     title: Limitations
-  title: Get started
-- sections:
-  - local: tutorials/tutorial_overview
-    title: Overview
-  - local: using-diffusers/write_own_pipeline
-    title: Understanding pipelines, models and schedulers
-  - local: tutorials/autopipeline
-    title: AutoPipeline
-  - local: tutorials/basic_training
-    title: Train a diffusion model
-  - local: tutorials/using_peft_for_inference
-    title: Load LoRAs for inference
-  title: Tutorials
-- sections:
+  - local: quicktour
+    title: Quickstart
+  - local: stable_diffusion
+    title: Basic performance
+
+- title: DiffusionPipeline
+  isExpanded: false
+  sections:
   - local: using-diffusers/loading
     title: Load pipelines
+  - local: tutorials/autopipeline
+    title: AutoPipeline
+  - local: using-diffusers/callback
+    title: Pipeline callbacks
+  - local: using-diffusers/reusing_seeds
+    title: Reproducible pipelines
   - local: using-diffusers/schedulers
     title: Load schedulers and models
+  - local: using-diffusers/scheduler_features
+    title: Scheduler features
   - local: using-diffusers/other-formats
     title: Model files and layouts
-  - local: using-diffusers/loading_adapters
-    title: Load adapters
   - local: using-diffusers/push_to_hub
     title: Push files to the Hub
-  title: Load pipelines and adapters
-- sections:
-  - local: using-diffusers/unconditional_image_generation
-    title: Unconditional image generation
-  - local: using-diffusers/conditional_image_generation
-    title: Text-to-image
-  - local: using-diffusers/img2img
-    title: Image-to-image
-  - local: using-diffusers/inpaint
-    title: Inpainting
-  - local: using-diffusers/text-img2vid
-    title: Video generation
-  - local: using-diffusers/depth2img
-    title: Depth-to-image
-  title: Generative tasks
-- sections:
-  - local: using-diffusers/overview_techniques
-    title: Overview
-  - local: using-diffusers/merge_loras
-    title: Merge LoRAs
+
+- title: Adapters
+  isExpanded: false
+  sections:
+  - local: tutorials/using_peft_for_inference
+    title: LoRA
+  - local: using-diffusers/ip_adapter
+    title: IP-Adapter
+  - local: using-diffusers/controlnet
+    title: ControlNet
+  - local: using-diffusers/t2i_adapter
+    title: T2I-Adapter
+  - local: using-diffusers/dreambooth
+    title: DreamBooth
+  - local: using-diffusers/textual_inversion_inference
+    title: Textual inversion
+
+- title: Inference
+  isExpanded: false
+  sections:
+  - local: using-diffusers/weighted_prompts
+    title: Prompt techniques
+  - local: using-diffusers/batched_inference
+    title: Batch inference
   - local: using-diffusers/scheduler_features
     title: Scheduler features
   - local: using-diffusers/callback
     title: Pipeline callbacks
   - local: using-diffusers/reusing_seeds
     title: Reproducible pipelines
-  title: Inference techniques
-- sections:
-  - local: advanced_inference/outpaint
-    title: Outpainting
-  title: Advanced inference
-- sections:
-  - local: using-diffusers/cogvideox
-    title: CogVideoX
+
+- title: Inference optimization
+  isExpanded: false
+  sections:
+  - local: optimization/fp16
+    title: Accelerate inference
+  - local: optimization/memory
+    title: Reduce memory usage
+  - title: Community optimizations
+    sections:
+    - local: optimization/xformers
+      title: xFormers
+
+- title: Modular Diffusers
+  isExpanded: false
+  sections:
+  - local: modular_diffusers/overview
+    title: Overview
+  - local: modular_diffusers/quickstart
+    title: Quickstart
+  - local: modular_diffusers/modular_diffusers_states
+    title: States
+  - local: modular_diffusers/pipeline_block
+    title: ModularPipelineBlocks
+  - local: modular_diffusers/sequential_pipeline_blocks
+    title: SequentialPipelineBlocks
+  - local: modular_diffusers/loop_sequential_pipeline_blocks
+    title: LoopSequentialPipelineBlocks
+  - local: modular_diffusers/auto_pipeline_blocks
+    title: AutoPipelineBlocks
+  - local: modular_diffusers/modular_pipeline
+    title: ModularPipeline
+  - local: modular_diffusers/components_manager
+    title: ComponentsManager
+  - local: modular_diffusers/guiders
+    title: Guiders
+
+- title: Training
+  isExpanded: false
+  sections:
+  - local: training/overview
+    title: Overview
+  - local: training/create_dataset
+    title: Create a dataset for training
+  - local: training/adapt_a_model
+    title: Adapt a model to a new task
+  - local: tutorials/basic_training
+    title: Train a diffusion model
+  - title: Models
+    sections:
+    - local: training/unconditional_training
+      title: Unconditional image generation
+    - local: training/text2image
+      title: Text-to-image
+    - local: training/sdxl
+      title: Stable Diffusion XL
+    - local: training/controlnet
+      title: ControlNet
+  - title: Methods
+    sections:
+    - local: training/text_inversion
+      title: Textual Inversion
+    - local: training/dreambooth
+      title: DreamBooth
+    - local: training/lora
+      title: LoRA
+
+
+- title: Specific pipeline examples
+  isExpanded: false
+  sections:
   - local: using-diffusers/consisid
     title: ConsisID
   - local: using-diffusers/sdxl
@@ -75,20 +139,12 @@
     title: SDXL Turbo
   - local: using-diffusers/kandinsky
     title: Kandinsky
-  - local: using-diffusers/ip_adapter
-    title: IP-Adapter
   - local: using-diffusers/omnigen
     title: OmniGen
   - local: using-diffusers/pag
     title: PAG
-  - local: using-diffusers/controlnet
-    title: ControlNet
-  - local: using-diffusers/t2i_adapter
-    title: T2I-Adapter
   - local: using-diffusers/inference_with_lcm
     title: Latent Consistency Model
-  - local: using-diffusers/textual_inversion_inference
-    title: Textual inversion
   - local: using-diffusers/shap-e
     title: Shap-E
   - local: using-diffusers/diffedit
@@ -99,51 +155,35 @@
     title: Stable Video Diffusion
   - local: using-diffusers/marigold_usage
     title: Marigold Computer Vision
-  title: Specific pipeline examples
-- sections:
-  - local: training/overview
-    title: Overview
-  - local: training/create_dataset
-    title: Create a dataset for training
-  - local: training/adapt_a_model
-    title: Adapt a model to a new task
-  - isExpanded: false
+
+- title: Resources
+  isExpanded: false
+  sections:
+  - title: Task recipes
     sections:
-    - local: training/unconditional_training
+    - local: using-diffusers/unconditional_image_generation
       title: Unconditional image generation
-    - local: training/text2image
+    - local: using-diffusers/conditional_image_generation
       title: Text-to-image
-    - local: training/sdxl
-      title: Stable Diffusion XL
-    - local: training/controlnet
-      title: ControlNet
-    title: Models
-  - isExpanded: false
-    sections:
-    - local: training/text_inversion
-      title: Textual Inversion
-    - local: training/dreambooth
-      title: DreamBooth
-    - local: training/lora
-      title: LoRA
-    title: Methods
-  title: Training
-- sections:
-  - local: optimization/fp16
-    title: Speed up inference
-  - local: optimization/memory
-    title: Reduce memory usage
-  - local: optimization/xformers
-    title: xFormers
-  title: Accelerate inference and reduce memory
-- sections:
+    - local: using-diffusers/img2img
+      title: Image-to-image
+    - local: using-diffusers/inpaint
+      title: Inpainting
+    - local: using-diffusers/text-img2vid
+      title: Video generation
+    - local: using-diffusers/depth2img
+      title: Depth-to-image
+  - local: using-diffusers/write_own_pipeline
+    title: Understanding pipelines, models and schedulers
   - local: conceptual/philosophy
     title: Philosophy
   - local: using-diffusers/controlling_generation
     title: Controlled generation
-  title: Conceptual Guides
-- sections:
-  - isExpanded: false
+
+- title: API
+  isExpanded: false
+  sections:
+  - title: Main Classes
     sections:
     - local: api/configuration
       title: Configuration
@@ -151,8 +191,19 @@
       title: Logging
     - local: api/outputs
       title: Outputs
-    title: Main Classes
-  - isExpanded: false
+  - title: Modular
+    sections:
+    - local: api/modular_diffusers/pipeline
+      title: Pipeline
+    - local: api/modular_diffusers/pipeline_blocks
+      title: Blocks
+    - local: api/modular_diffusers/pipeline_states
+      title: States
+    - local: api/modular_diffusers/pipeline_components
+      title: Components and configs
+    - local: api/modular_diffusers/guiders
+      title: Guiders
+  - title: Loaders
     sections:
     - local: api/loaders/ip_adapter
       title: IP-Adapter
@@ -168,16 +219,18 @@
       title: SD3Transformer2D
     - local: api/loaders/peft
       title: PEFT
-    title: Loaders
-  - isExpanded: false
+  - title: Models
     sections:
     - local: api/models/overview
       title: Overview
     - local: api/models/auto_model
       title: AutoModel
-    - sections:
+    - title: ControlNets
+      sections:
       - local: api/models/controlnet
         title: ControlNetModel
+      - local: api/models/controlnet_union
+        title: ControlNetUnionModel
       - local: api/models/controlnet_flux
         title: FluxControlNetModel
       - local: api/models/controlnet_hunyuandit
@@ -188,10 +241,8 @@
         title: SD3ControlNetModel
       - local: api/models/controlnet_sparsectrl
         title: SparseControlNetModel
-      - local: api/models/controlnet_union
-        title: ControlNetUnionModel
-      title: ControlNets
-    - sections:
+    - title: Transformers
+      sections:
       - local: api/models/allegro_transformer3d
         title: AllegroTransformer3DModel
       - local: api/models/aura_flow_transformer2d
@@ -200,12 +251,12 @@
         title: ChromaTransformer2DModel
       - local: api/models/cogvideox_transformer3d
         title: CogVideoXTransformer3DModel
-      - local: api/models/consisid_transformer3d
-        title: ConsisIDTransformer3DModel
       - local: api/models/cogview3plus_transformer2d
         title: CogView3PlusTransformer2DModel
       - local: api/models/cogview4_transformer2d
         title: CogView4Transformer2DModel
+      - local: api/models/consisid_transformer3d
+        title: ConsisIDTransformer3DModel
       - local: api/models/cosmos_transformer3d
         title: CosmosTransformer3DModel
       - local: api/models/dit_transformer2d
@@ -220,12 +271,12 @@
         title: HunyuanVideoTransformer3DModel
       - local: api/models/latte_transformer3d
         title: LatteTransformer3DModel
-      - local: api/models/lumina_nextdit2d
-        title: LuminaNextDiT2DModel
-      - local: api/models/lumina2_transformer2d
-        title: Lumina2Transformer2DModel
       - local: api/models/ltx_video_transformer3d
         title: LTXVideoTransformer3DModel
+      - local: api/models/lumina2_transformer2d
+        title: Lumina2Transformer2DModel
+      - local: api/models/lumina_nextdit2d
+        title: LuminaNextDiT2DModel
       - local: api/models/mochi_transformer3d
         title: MochiTransformer3DModel
       - local: api/models/omnigen_transformer
@@ -234,12 +285,12 @@
         title: PixArtTransformer2DModel
       - local: api/models/prior_transformer
         title: PriorTransformer
+      - local: api/models/sana_transformer2d
+        title: SanaTransformer2DModel
       - local: api/models/sd3_transformer2d
         title: SD3Transformer2DModel
       - local: api/models/skyreels_v2_transformer_3d
         title: SkyReelsV2Transformer3DModel
-      - local: api/models/sana_transformer2d
-        title: SanaTransformer2DModel
       - local: api/models/stable_audio_transformer
         title: StableAudioDiTModel
       - local: api/models/transformer2d
@@ -248,24 +299,28 @@
         title: TransformerTemporalModel
       - local: api/models/wan_transformer_3d
         title: WanTransformer3DModel
-      title: Transformers
-    - sections:
+    - title: UNets
+      sections:
       - local: api/models/stable_cascade_unet
         title: StableCascadeUNet
       - local: api/models/unet
         title: UNet1DModel
-      - local: api/models/unet2d
-        title: UNet2DModel
       - local: api/models/unet2d-cond
         title: UNet2DConditionModel
+      - local: api/models/unet2d
+        title: UNet2DModel
       - local: api/models/unet3d-cond
         title: UNet3DConditionModel
       - local: api/models/unet-motion
         title: UNetMotionModel
       - local: api/models/uvit2d
         title: UViT2DModel
-      title: UNets
-    - sections:
+    - title: VAEs
+      sections:
+      - local: api/models/asymmetricautoencoderkl
+        title: AsymmetricAutoencoderKL
+      - local: api/models/autoencoder_dc
+        title: AutoencoderDC
       - local: api/models/autoencoderkl
         title: AutoencoderKL
       - local: api/models/autoencoderkl_allegro
@@ -284,10 +339,6 @@
         title: AutoencoderKLMochi
       - local: api/models/autoencoder_kl_wan
         title: AutoencoderKLWan
-      - local: api/models/asymmetricautoencoderkl
-        title: AsymmetricAutoencoderKL
-      - local: api/models/autoencoder_dc
-        title: AutoencoderDC
       - local: api/models/consistency_decoder_vae
         title: ConsistencyDecoderVAE
       - local: api/models/autoencoder_oobleck
@@ -296,9 +347,7 @@
         title: Tiny AutoEncoder
       - local: api/models/vq
         title: VQModel
-      title: VAEs
-    title: Models
-  - isExpanded: false
+  - title: Pipelines
     sections:
     - local: api/pipelines/overview
       title: Overview
@@ -438,44 +487,44 @@
       title: Stable Audio
     - local: api/pipelines/stable_cascade
       title: Stable Cascade
-    - sections:
+    - title: Stable Diffusion
+      sections:
       - local: api/pipelines/stable_diffusion/overview
         title: Overview
-      - local: api/pipelines/stable_diffusion/text2img
-        title: Text-to-image
+      - local: api/pipelines/stable_diffusion/depth2img
+        title: Depth-to-image
+      - local: api/pipelines/stable_diffusion/gligen
+        title: GLIGEN (Grounded Language-to-Image Generation)
+      - local: api/pipelines/stable_diffusion/image_variation
+        title: Image variation
       - local: api/pipelines/stable_diffusion/img2img
         title: Image-to-image
       - local: api/pipelines/stable_diffusion/svd
         title: Image-to-video
       - local: api/pipelines/stable_diffusion/inpaint
         title: Inpainting
-      - local: api/pipelines/stable_diffusion/depth2img
-        title: Depth-to-image
-      - local: api/pipelines/stable_diffusion/image_variation
-        title: Image variation
+      - local: api/pipelines/stable_diffusion/k_diffusion
+        title: K-Diffusion
+      - local: api/pipelines/stable_diffusion/latent_upscale
+        title: Latent upscaler
+      - local: api/pipelines/stable_diffusion/ldm3d_diffusion
+        title: LDM3D Text-to-(RGB, Depth), Text-to-(RGB-pano, Depth-pano), LDM3D Upscaler
       - local: api/pipelines/stable_diffusion/stable_diffusion_safe
         title: Safe Stable Diffusion
+      - local: api/pipelines/stable_diffusion/sdxl_turbo
+        title: SDXL Turbo
       - local: api/pipelines/stable_diffusion/stable_diffusion_2
         title: Stable Diffusion 2
       - local: api/pipelines/stable_diffusion/stable_diffusion_3
         title: Stable Diffusion 3
       - local: api/pipelines/stable_diffusion/stable_diffusion_xl
         title: Stable Diffusion XL
-      - local: api/pipelines/stable_diffusion/sdxl_turbo
-        title: SDXL Turbo
-      - local: api/pipelines/stable_diffusion/latent_upscale
-        title: Latent upscaler
       - local: api/pipelines/stable_diffusion/upscale
         title: Super-resolution
-      - local: api/pipelines/stable_diffusion/k_diffusion
-        title: K-Diffusion
-      - local: api/pipelines/stable_diffusion/ldm3d_diffusion
-        title: LDM3D Text-to-(RGB, Depth), Text-to-(RGB-pano, Depth-pano), LDM3D Upscaler
       - local: api/pipelines/stable_diffusion/adapter
         title: T2I-Adapter
-      - local: api/pipelines/stable_diffusion/gligen
-        title: GLIGEN (Grounded Language-to-Image Generation)
-      title: Stable Diffusion
+      - local: api/pipelines/stable_diffusion/text2img
+        title: Text-to-image
     - local: api/pipelines/stable_unclip
       title: Stable unCLIP
     - local: api/pipelines/text_to_video
@@ -494,8 +543,7 @@
       title: Wan
     - local: api/pipelines/wuerstchen
       title: Wuerstchen
-    title: Pipelines
-  - isExpanded: false
+  - title: Schedulers
     sections:
     - local: api/schedulers/overview
       title: Overview
@@ -565,8 +613,7 @@
       title: UniPCMultistepScheduler
     - local: api/schedulers/vq_diffusion
       title: VQDiffusionScheduler
-    title: Schedulers
-  - isExpanded: false
+  - title: Internal classes
     sections:
     - local: api/internal_classes_overview
       title: Overview
@@ -582,5 +629,3 @@
       title: VAE Image Processor
     - local: api/video_processor
       title: Video Processor
-    title: Internal classes
-  title: API
