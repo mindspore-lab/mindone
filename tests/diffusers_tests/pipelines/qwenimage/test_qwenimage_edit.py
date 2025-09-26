@@ -1,5 +1,8 @@
 # Copyright 2025 The HuggingFace Team.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -216,9 +219,6 @@ class QwenImageEditPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         ms_dtype, pt_dtype = getattr(ms, dtype), getattr(torch, dtype)
         pt_pipe = pt_pipe.to(pt_dtype)
         ms_pipe = ms_pipe.to(ms_dtype)
-
-        sys.modules[ms_pipe.__module__].randn_tensor = randn_tensor
-        sys.modules[ms_pipe.vae.diag_gauss_dist.__module__].randn_tensor = randn_tensor
 
         inputs = self.get_dummy_inputs()
 

@@ -1548,7 +1548,11 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
                 image_mask = mask_expanded
 
                 image_embeds = image_embeds.to(inputs_embeds.dtype)
-                inputs_embeds = inputs_embeds.masked_scatter(image_mask, image_embeds)
+                # to allow passing input_embeds.dtype -> bf16
+                # inputs_embeds = inputs_embeds.masked_scatter(image_mask, image_embeds)
+                inputs_embeds = inputs_embeds.float()
+                inputs_embeds = inputs_embeds.masked_scatter(image_mask, image_embeds.float())
+                inputs_embeds = inputs_embeds.to(pixel_values.dtype)
 
             if pixel_values_videos is not None:
                 pixel_values_videos = pixel_values_videos.type(self.visual.dtype)

@@ -230,7 +230,7 @@ class StableDiffusionLoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -248,7 +248,7 @@ class StableDiffusionLoraLoaderMixin(LoraBaseMixin):
         )
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale' from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
@@ -681,7 +681,7 @@ class StableDiffusionXLLoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -699,7 +699,7 @@ class StableDiffusionXLLoraLoaderMixin(LoraBaseMixin):
         )
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale' from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
@@ -1062,7 +1062,7 @@ class SD3LoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -1081,7 +1081,7 @@ class SD3LoraLoaderMixin(LoraBaseMixin):
 
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale' from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
@@ -1492,7 +1492,7 @@ class AuraFlowLoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -1511,7 +1511,7 @@ class AuraFlowLoraLoaderMixin(LoraBaseMixin):
 
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale' from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
@@ -1814,7 +1814,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -1832,7 +1832,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
         )
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale' from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
@@ -2815,7 +2815,7 @@ class CogVideoXLoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -2834,7 +2834,7 @@ class CogVideoXLoraLoaderMixin(LoraBaseMixin):
 
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale' from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
@@ -3130,7 +3130,7 @@ class Mochi1LoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -3149,7 +3149,7 @@ class Mochi1LoraLoaderMixin(LoraBaseMixin):
 
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale' from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
@@ -3447,7 +3447,7 @@ class LTXVideoLoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -3466,7 +3466,7 @@ class LTXVideoLoraLoaderMixin(LoraBaseMixin):
 
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale' from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
@@ -3769,7 +3769,7 @@ class SanaLoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -3788,7 +3788,7 @@ class SanaLoraLoaderMixin(LoraBaseMixin):
 
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale' from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
@@ -4085,7 +4085,7 @@ class HunyuanVideoLoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -4104,7 +4104,7 @@ class HunyuanVideoLoraLoaderMixin(LoraBaseMixin):
 
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale' from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
@@ -4405,7 +4405,7 @@ class Lumina2LoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -4424,7 +4424,7 @@ class Lumina2LoraLoaderMixin(LoraBaseMixin):
 
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale' from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
@@ -4726,7 +4726,7 @@ class WanLoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -4749,7 +4749,7 @@ class WanLoraLoaderMixin(LoraBaseMixin):
 
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale' from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
@@ -5118,7 +5118,7 @@ class SkyReelsV2LoraLoaderMixin(LoraBaseMixin):
 
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale' from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
@@ -5467,7 +5467,7 @@ class CogView4LoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -5486,7 +5486,7 @@ class CogView4LoraLoaderMixin(LoraBaseMixin):
 
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale' from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
@@ -5783,7 +5783,7 @@ class HiDreamImageLoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -5802,7 +5802,7 @@ class HiDreamImageLoraLoaderMixin(LoraBaseMixin):
 
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale' from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
@@ -6065,8 +6065,7 @@ class QwenImageLoraLoaderMixin(LoraBaseMixin):
                       the Hub.
                     - A path to a *directory* (for example `./my_model_directory`) containing the model weights saved
                       with [`ModelMixin.save_pretrained`].
-                    - A [torch state
-                      dict](https://pytorch.org/tutorials/beginner/saving_loading_models.html#what-is-a-state-dict).
+                    - A [mindspore state dict].
 
             cache_dir (`Union[str, os.PathLike]`, *optional*):
                 Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
@@ -6111,7 +6110,7 @@ class QwenImageLoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -6264,10 +6263,10 @@ class QwenImageLoraLoaderMixin(LoraBaseMixin):
                 process to avoid race conditions.
             save_function (`Callable`):
                 The function to use to save the state dictionary. Useful during distributed training when you need to
-                replace `torch.save` with another method. Can be configured with the environment variable
+                replace `mindspore.save_checkpoint` with another method. Can be configured with the environment variable
                 `DIFFUSERS_SAVE_MODE`.
             safe_serialization (`bool`, *optional*, defaults to `True`):
-                Whether to save the model using `safetensors` or the traditional PyTorch way with `pickle`.
+                Whether to save the model using `safetensors` or the traditional MindSpore way.
             transformer_lora_adapter_metadata:
                 LoRA adapter metadata associated with the transformer to be serialized with the state dict.
         """
@@ -6325,7 +6324,7 @@ class QwenImageLoraLoaderMixin(LoraBaseMixin):
         Example:
 
         ```py
-        from diffusers import DiffusionPipeline
+        from mindone.diffusers import DiffusionPipeline
         import mindspore
 
         pipeline = DiffusionPipeline.from_pretrained(

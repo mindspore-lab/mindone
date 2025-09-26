@@ -227,9 +227,6 @@ class QwenImageInpaintPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         pt_pipe = pt_pipe.to(pt_dtype)
         ms_pipe = ms_pipe.to(ms_dtype)
 
-        sys.modules[ms_pipe.__module__].randn_tensor = randn_tensor
-        sys.modules[ms_pipe.vae.diag_gauss_dist.__module__].randn_tensor = randn_tensor
-
         pt_inputs, ms_inputs = self.get_dummy_inputs()
 
         torch.manual_seed(0)

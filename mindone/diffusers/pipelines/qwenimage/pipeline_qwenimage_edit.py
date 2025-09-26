@@ -16,6 +16,7 @@
 # limitations under the License.
 
 import inspect
+import sys
 import math
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -30,7 +31,7 @@ from ...loaders import QwenImageLoraLoaderMixin
 from ...models import AutoencoderKLQwenImage, QwenImageTransformer2DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
 from ...utils import logging
-from ...utils.mindspore_utils import randn_tensor, pynative_context
+from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import QwenImagePipelineOutput
 
@@ -101,7 +102,7 @@ def retrieve_timesteps(
             `num_inference_steps` and `timesteps` must be `None`.
 
     Returns:
-        `Tuple[ms.Tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and the
+        `Tuple[ms.tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and the
         second element is the number of inference steps.
     """
     if timesteps is not None and sigmas is not None:
@@ -134,13 +135,13 @@ def retrieve_timesteps(
 
 # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion_img2img.retrieve_latents
 def retrieve_latents(
-    vae, encoder_output: ms.Tensor, generator: Optional[np.random.Generator] = None, sample_mode: str = "sample"
+    vae, encoder_output: ms.tensor, generator: Optional[np.random.Generator] = None, sample_mode: str = "sample"
 ):
     if sample_mode == "sample":
         return vae.diag_gauss_dist.sample(encoder_output, generator=generator)
     elif sample_mode == "argmax":
         return vae.diag_gauss_dist.mode(encoder_output)
-    # This brach is not needed because the encoder_output type is ms.Tensor as per AutoencoderKLOuput change
+    # This brach is not needed because the encoder_output type is ms.tensor as per AutoencoderKLOuput change
     # elif hasattr(encoder_output, "latents"):
     #     return encoder_output.latents  
     else:
@@ -210,7 +211,7 @@ class QwenImageEditPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         self.default_sample_size = 128
 
     # Copied from diffusers.pipelines.qwenimage.pipeline_qwenimage.QwenImagePipeline._extract_masked_hidden
-    def _extract_masked_hidden(self, hidden_states: ms.Tensor, mask: ms.Tensor):
+    def _extract_masked_hidden(self, hidden_states: ms.tensor, mask: ms.tensor):
         bool_mask = mask.bool()
         valid_lengths = bool_mask.sum(dim=1)
         selected = hidden_states[bool_mask]
@@ -221,7 +222,7 @@ class QwenImageEditPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
     def _get_qwen_prompt_embeds(
         self,
         prompt: Union[str, List[str]] = None,
-        image: Optional[ms.Tensor] = None,
+        image: Optional[ms.tensor] = None,
         dtype: Optional[ms.dtype] = None,
     ):
         dtype = dtype or self.text_encoder.dtype
@@ -240,15 +241,15 @@ class QwenImageEditPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         )
 
         outputs = self.text_encoder(
-            input_ids=ms.Tensor(model_inputs.input_ids),
-            attention_mask=ms.Tensor(model_inputs.attention_mask),
-            pixel_values=ms.Tensor(model_inputs.pixel_values),
-            image_grid_thw=ms.Tensor(model_inputs.image_grid_thw),
+            input_ids=ms.tensor(model_inputs.input_ids),
+            attention_mask=ms.tensor(model_inputs.attention_mask),
+            pixel_values=ms.tensor(model_inputs.pixel_values),
+            image_grid_thw=ms.tensor(model_inputs.image_grid_thw),
             output_hidden_states=True,
         )
 
         hidden_states = outputs.hidden_states[-1]
-        split_hidden_states = self._extract_masked_hidden(hidden_states, ms.Tensor(model_inputs.attention_mask))
+        split_hidden_states = self._extract_masked_hidden(hidden_states, ms.tensor(model_inputs.attention_mask))
         split_hidden_states = [e[drop_idx:] for e in split_hidden_states]
         attn_mask_list = [mint.ones(e.shape[0], dtype=ms.int64) for e in split_hidden_states]
         max_seq_len = max([e.shape[0] for e in split_hidden_states])
@@ -266,10 +267,10 @@ class QwenImageEditPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
     def encode_prompt(
         self,
         prompt: Union[str, List[str]],
-        image: Optional[ms.Tensor] = None,
+        image: Optional[ms.tensor] = None,
         num_images_per_prompt: int = 1,
-        prompt_embeds: Optional[ms.Tensor] = None,
-        prompt_embeds_mask: Optional[ms.Tensor] = None,
+        prompt_embeds: Optional[ms.tensor] = None,
+        prompt_embeds_mask: Optional[ms.tensor] = None,
         max_sequence_length: int = 1024,
     ):
         r"""
@@ -277,11 +278,11 @@ class QwenImageEditPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         Args:
             prompt (`str` or `List[str]`, *optional*):
                 prompt to be encoded
-            image (`ms.Tensor`, *optional*):
+            image (`ms.tensor`, *optional*):
                 image to be encoded
             num_images_per_prompt (`int`):
                 number of images that should be generated per prompt
-            prompt_embeds (`ms.Tensor`, *optional*):
+            prompt_embeds (`ms.tensor`, *optional*):
                 Pre-generated text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting. If not
                 provided, text embeddings will be generated from `prompt` input argument.
         """
@@ -380,25 +381,23 @@ class QwenImageEditPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
 
         return latents
 
-    def _encode_vae_image(self, image: ms.Tensor, generator: np.random.Generator):
-        # TODO: we use pynative mode here since cache in vae.decode which not supported in graph mode
-        with pynative_context():
-            if isinstance(generator, list):
-                image_latents = [
-                    retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0], sample_mode="argmax")
-                    for i in range(image.shape[0])
-                ]
-                image_latents = mint.cat(image_latents, dim=0)
-            else:
-                image_latents = retrieve_latents(self.vae, self.vae.encode(image)[0], sample_mode="argmax")
+    def _encode_vae_image(self, image: ms.tensor, generator: np.random.Generator):
+        if isinstance(generator, list):
+            image_latents = [
+                retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0], sample_mode="argmax")
+                for i in range(image.shape[0])
+            ]
+            image_latents = mint.cat(image_latents, dim=0)
+        else:
+            image_latents = retrieve_latents(self.vae, self.vae.encode(image)[0], sample_mode="argmax")
         
         latents_mean = (
-            ms.Tensor(self.vae.config.latents_mean)
+            ms.tensor(self.vae.config.latents_mean)
             .view(1, self.latent_channels, 1, 1, 1)
             .to(image_latents.dtype)
         )
         latents_std = (
-            ms.Tensor(self.vae.config.latents_std)
+            ms.tensor(self.vae.config.latents_std)
             .view(1, self.latent_channels, 1, 1, 1)
             .to(image_latents.dtype)
         )
@@ -522,11 +521,11 @@ class QwenImageEditPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         guidance_scale: Optional[float] = None,
         num_images_per_prompt: int = 1,
         generator: Optional[Union[np.random.Generator, List[np.random.Generator]]] = None,
-        latents: Optional[ms.Tensor] = None,
-        prompt_embeds: Optional[ms.Tensor] = None,
-        prompt_embeds_mask: Optional[ms.Tensor] = None,
-        negative_prompt_embeds: Optional[ms.Tensor] = None,
-        negative_prompt_embeds_mask: Optional[ms.Tensor] = None,
+        latents: Optional[ms.tensor] = None,
+        prompt_embeds: Optional[ms.tensor] = None,
+        prompt_embeds_mask: Optional[ms.tensor] = None,
+        negative_prompt_embeds: Optional[ms.tensor] = None,
+        negative_prompt_embeds_mask: Optional[ms.tensor] = None,
         output_type: Optional[str] = "pil",
         return_dict: bool = True,
         attention_kwargs: Optional[Dict[str, Any]] = None,
@@ -538,7 +537,7 @@ class QwenImageEditPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         Function invoked when calling the pipeline for generation.
 
         Args:
-            image (`ms.Tensor`, `PIL.Image.Image`, `np.ndarray`, `List[ms.Tensor]`, `List[PIL.Image.Image]`, or `List[np.ndarray]`):
+            image (`ms.tensor`, `PIL.Image.Image`, `np.ndarray`, `List[ms.tensor]`, `List[PIL.Image.Image]`, or `List[np.ndarray]`):
                 `Image`, numpy array or tensor representing an image batch to be used as the starting point. For both
                 numpy array and pytorch tensor, the expected value range is between `[0, 1]` If it's a tensor or a list
                 or tensors, the expected shape should be `(B, C, H, W)` or `(C, H, W)`. If it is a numpy array or a
@@ -582,16 +581,16 @@ class QwenImageEditPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             num_images_per_prompt (`int`, *optional*, defaults to 1):
                 The number of images to generate per prompt.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
-                One or a list of [torch generator(s)](https://pytorch.org/docs/stable/generated/np.random.Generator.html)
+                One or a list of [numpy generator(s)](https://numpy.org/doc/stable/reference/random/generator.html)
                 to make generation deterministic.
-            latents (`ms.Tensor`, *optional*):
+            latents (`ms.tensor`, *optional*):
                 Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
                 generation. Can be used to tweak the same generation with different prompts. If not provided, a latents
                 tensor will be generated by sampling using the supplied random `generator`.
-            prompt_embeds (`ms.Tensor`, *optional*):
+            prompt_embeds (`ms.tensor`, *optional*):
                 Pre-generated text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting. If not
                 provided, text embeddings will be generated from `prompt` input argument.
-            negative_prompt_embeds (`ms.Tensor`, *optional*):
+            negative_prompt_embeds (`ms.tensor`, *optional*):
                 Pre-generated negative text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt
                 weighting. If not provided, negative_prompt_embeds will be generated from `negative_prompt` input
                 argument.
@@ -831,17 +830,15 @@ class QwenImageEditPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             latents = self._unpack_latents(latents, height, width, self.vae_scale_factor)
             latents = latents.to(self.vae.dtype)
             latents_mean = (
-                ms.Tensor(self.vae.config.latents_mean)
+                ms.tensor(self.vae.config.latents_mean)
                 .view(1, self.vae.config.z_dim, 1, 1, 1)
                 .to(latents.dtype)
             )
-            latents_std = 1.0 / ms.Tensor(self.vae.config.latents_std).view(1, self.vae.config.z_dim, 1, 1, 1).to(
+            latents_std = 1.0 / ms.tensor(self.vae.config.latents_std).view(1, self.vae.config.z_dim, 1, 1, 1).to(
                 latents.dtype
             )
             latents = latents / latents_std + latents_mean
-            # TODO: we use pynative mode here since cache in vae.decode which not supported in graph mode
-            with pynative_context():
-                image = self.vae.decode(latents, return_dict=False)[0][:, :, 0]
+            image = self.vae.decode(latents, return_dict=False)[0][:, :, 0]
             image = self.image_processor.postprocess(image, output_type=output_type)
 
         if not return_dict:
