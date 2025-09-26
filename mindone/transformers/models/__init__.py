@@ -39,6 +39,7 @@ from . import (
     clip,
     clipseg,
     clvp,
+    codegen,
     colpali,
     convbert,
     convnext,
