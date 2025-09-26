@@ -151,6 +151,14 @@ from .models.bart import (
     BartPreTrainedModel,
     PretrainedBartModel,
 )
+from .models.beit import (
+    BeitBackbone,
+    BeitForImageClassification,
+    BeitForMaskedImageModeling,
+    BeitForSemanticSegmentation,
+    BeitModel,
+    BeitPreTrainedModel,
+)
 from .models.bert import (
     BertForMaskedLM,
     BertForMultipleChoice,
@@ -429,6 +437,7 @@ from .models.falcon import (
     FalconModel,
     FalconPreTrainedModel,
 )
+from .models.falcon_mamba import FalconMambaForCausalLM, FalconMambaModel, FalconMambaPreTrainedModel
 from .models.fastspeech2_conformer import (
     FastSpeech2ConformerHifiGan,
     FastSpeech2ConformerModel,
@@ -880,6 +889,8 @@ from .models.prophetnet import (
     ProphetNetModel,
     ProphetNetPreTrainedModel,
 )
+from .models.pvt import PvtForImageClassification, PvtModel, PvtPreTrainedModel
+from .models.pvt_v2 import PvtV2Backbone, PvtV2ForImageClassification, PvtV2Model, PvtV2PreTrainedModel
 from .models.qwen2 import Qwen2ForCausalLM, Qwen2ForSequenceClassification, Qwen2ForTokenClassification, Qwen2Model
 from .models.qwen2_5_vl import (
     Qwen2_5_VLForConditionalGeneration,
@@ -1119,6 +1130,16 @@ from .models.xlm_roberta_xl import (
     XLMRobertaXLForTokenClassification,
     XLMRobertaXLModel,
     XLMRobertaXLPreTrainedModel,
+)
+from .models.xmod import (
+    XmodForCausalLM,
+    XmodForMaskedLM,
+    XmodForMultipleChoice,
+    XmodForQuestionAnswering,
+    XmodForSequenceClassification,
+    XmodForTokenClassification,
+    XmodModel,
+    XmodPreTrainedModel,
 )
 from .models.yolos import YolosForObjectDetection, YolosImageProcessor, YolosModel, YolosPreTrainedModel
 from .models.zamba import ZambaForCausalLM, ZambaForSequenceClassification, ZambaModel, ZambaPreTrainedModel
