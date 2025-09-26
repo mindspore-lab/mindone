@@ -35,6 +35,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("albert", "AlbertModel"),
         ("aria", "AriaForConditionalGeneration"),
         ("aria_text", "AriaTextModel"),
+        ("audio-spectrogram-transformer", "ASTModel"),
         ("bamba", "BambaModel"),
         ("bert", "BertModel"),
         ("bart", "BartModel"),
@@ -120,6 +121,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("vilt", "ViltModel"),
         ("vit", "ViTModel"),
         ("wav2vec2", "Wav2Vec2Model"),
+        ("wavlm", "WavLMModel"),
         ("whisper", "WhisperModel"),
         ("xlm-roberta", "XLMRobertaModel"),
         ("xlm-roberta-xl", "XLMRobertaXLModel"),
@@ -605,7 +607,9 @@ MODEL_FOR_NEXT_SENTENCE_PREDICTION_MAPPING_NAMES = OrderedDict(
 
 MODEL_FOR_AUDIO_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
     [
+        ("audio-spectrogram-transformer", "ASTForAudioClassification"),
         ("wav2vec2", "Wav2Vec2ForSequenceClassification"),
+        ("wavlm", "WavLMForSequenceClassification"),
         ("whisper", "WhisperForAudioClassification"),
     ]
 )
@@ -613,6 +617,7 @@ MODEL_FOR_AUDIO_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_CTC_MAPPING_NAMES = OrderedDict(
     [
         ("wav2vec2", "Wav2Vec2ForCTC"),
+        ("wavlm", "WavLMForAudioFrameClassification"),
     ]
 )
 
@@ -625,6 +630,7 @@ MODEL_FOR_AUDIO_FRAME_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_AUDIO_XVECTOR_MAPPING_NAMES = OrderedDict(
     [
         ("wav2vec2", "Wav2Vec2ForXVector"),
+        ("wavlm", "WavLMForXVector"),
     ]
 )
 

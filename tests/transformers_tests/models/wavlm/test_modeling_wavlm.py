@@ -20,6 +20,7 @@
 
 import inspect
 import logging
+import math
 
 import numpy as np
 import pytest
@@ -27,7 +28,6 @@ import torch
 from transformers import WavLMConfig
 
 import mindspore as ms
-import math
 
 from tests.modeling_test_utils import (
     MS_DTYPE_MAPPING,
@@ -36,7 +36,7 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import random_attention_mask, floats_numpy
+from tests.transformers_tests.models.modeling_common import floats_numpy, random_attention_mask
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
 MODES = [1]

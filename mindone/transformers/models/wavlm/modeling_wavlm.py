@@ -22,14 +22,17 @@ import warnings
 from typing import Optional, Tuple, Union
 
 import numpy as np
+from transformers.models.wavlm.configuration_wavlm import WavLMConfig
+
 import mindspore
-import mindspore.mint.nn.functional as F
 from mindspore import nn
-from mindspore.mint.nn import CrossEntropyLoss
 from mindspore.common.initializer import HeNormal, Uniform, initializer
+from mindspore.mint.nn import CrossEntropyLoss
+from mindspore.ops.function.nn_func import multi_head_attention_forward
 
+from ....models.utils import constant_, normal_
+from ....utils import WeightNorm
 from ...activations import ACT2FN
-
 from ...modeling_outputs import (
     BaseModelOutput,
     CausalLMOutput,
@@ -40,11 +43,6 @@ from ...modeling_outputs import (
 )
 from ...modeling_utils import MSPreTrainedModel
 from ...utils import logging
-from transformers.models.wavlm.configuration_wavlm import WavLMConfig
-from mindspore.ops.function.nn_func import multi_head_attention_forward
-from ....utils import WeightNorm
-from ....models.utils import normal_, constant_
-
 
 logger = logging.get_logger(__name__)
 
@@ -169,9 +167,7 @@ def _compute_mask_indices(
     spec_aug_mask_idxs = np.array(spec_aug_mask_idxs)
 
     # expand masked indices to masked spans
-    spec_aug_mask_idxs = np.broadcast_to(
-        spec_aug_mask_idxs[:, :, None], (batch_size, max_num_masked_span, mask_length)
-    )
+    spec_aug_mask_idxs = np.broadcast_to(spec_aug_mask_idxs[:, :, None], (batch_size, max_num_masked_span, mask_length))
     spec_aug_mask_idxs = spec_aug_mask_idxs.reshape(batch_size, max_num_masked_span * mask_length)
 
     # add offset to the starting indexes so that indexes now create a span
@@ -260,7 +256,9 @@ class WavLMGroupNormConvLayer(mindspore.nn.Cell):
         )
         self.activation = ACT2FN[config.feat_extract_activation]
 
-        self.layer_norm = mindspore.mint.nn.GroupNorm(num_groups=self.out_conv_dim, num_channels=self.out_conv_dim, affine=True)
+        self.layer_norm = mindspore.mint.nn.GroupNorm(
+            num_groups=self.out_conv_dim, num_channels=self.out_conv_dim, affine=True
+        )
 
     def construct(self, hidden_states):
         hidden_states = self.conv(hidden_states)
@@ -281,7 +279,7 @@ class WavLMPositionalConvEmbedding(mindspore.nn.Cell):
             group=config.num_conv_pos_embedding_groups,
             pad_mode="pad",
         )
-        
+
         self.conv = WeightNorm(self.conv, dim=2)
 
         self.padding = WavLMSamePadLayer(config.num_conv_pos_embeddings)
@@ -435,9 +433,7 @@ class WavLMAttention(mindspore.nn.Cell):
         # first pass of attention layer creates position bias
         if position_bias is None:
             position_bias = self.compute_bias(tgt_len, tgt_len)
-            position_bias = (
-                position_bias.unsqueeze(0).repeat(bsz, 1, 1, 1).view(bsz * self.num_heads, tgt_len, tgt_len)
-            )
+            position_bias = position_bias.unsqueeze(0).repeat(bsz, 1, 1, 1).view(bsz * self.num_heads, tgt_len, tgt_len)
 
         # Compute relative position bias:
         # 1) get reshape hidden_states
@@ -681,7 +677,7 @@ class WavLMEncoder(mindspore.nn.Cell):
         hidden_states = self.layer_norm(hidden_states)
         hidden_states = self.dropout(hidden_states)
 
-        synced_gpus = False #is_deepspeed_zero3_enabled() or is_fsdp_managed_module(self)
+        synced_gpus = False  # is_deepspeed_zero3_enabled() or is_fsdp_managed_module(self)
         position_bias = None
 
         for i, layer in enumerate(self.layers):
@@ -766,7 +762,7 @@ class WavLMEncoderStableLayerNorm(mindspore.nn.Cell):
         hidden_states = hidden_states + position_embeddings
         hidden_states = self.dropout(hidden_states)
 
-        synced_gpus = False #is_deepspeed_zero3_enabled() or is_fsdp_managed_module(self)
+        synced_gpus = False  # is_deepspeed_zero3_enabled() or is_fsdp_managed_module(self)
         position_bias = None
 
         for i, layer in enumerate(self.layers):
@@ -845,7 +841,9 @@ class WavLMGumbelVectorQuantizer(mindspore.nn.Cell):
     @staticmethod
     def _compute_perplexity(probs):
         marginal_probs = probs.mean(dim=0)
-        perplexity = mindspore.mint.exp(-mindspore.mint.sum(marginal_probs * mindspore.mint.log(marginal_probs + 1e-7), dim=-1)).sum()
+        perplexity = mindspore.mint.exp(
+            -mindspore.mint.sum(marginal_probs * mindspore.mint.log(marginal_probs + 1e-7), dim=-1)
+        ).sum()
         return perplexity
 
     def construct(self, hidden_states):
@@ -986,9 +984,7 @@ class WavLMPreTrainedModel(MSPreTrainedModel):
 
             if module.bias is not None:
                 k = math.sqrt(module.groups / (module.in_channels * module.kernel_size[0]))
-                module.bias.set_data(
-                    initializer(Uniform(scale=k), shape=module.bias.shape, dtype=module.bias.dtype)
-                )
+                module.bias.set_data(initializer(Uniform(scale=k), shape=module.bias.shape, dtype=module.bias.dtype))
 
     def _get_feat_extract_output_lengths(
         self, input_lengths: Union[mindspore.Tensor, int], add_adapter: Optional[bool] = None
@@ -1026,14 +1022,24 @@ class WavLMPreTrainedModel(MSPreTrainedModel):
         batch_size = attention_mask.shape[0]
 
         attention_mask = mindspore.mint.zeros(
-            (batch_size, feature_vector_length), dtype=attention_mask.dtype, )
+            (batch_size, feature_vector_length),
+            dtype=attention_mask.dtype,
+        )
         # these two operations makes sure that all values before the output lengths idxs are attended to
-        attention_mask[(mindspore.mint.arange(attention_mask.shape[0], ), output_lengths - 1)] = 1
+        attention_mask[
+            (
+                mindspore.mint.arange(
+                    attention_mask.shape[0],
+                ),
+                output_lengths - 1,
+            )
+        ] = 1
         attention_mask = attention_mask.flip([-1]).cumsum(-1).flip([-1]).bool()
         return attention_mask
 
 
-# Copied from transformers.models.wav2vec2.modeling_wav2vec2.Wav2Vec2Model with Wav2Vec2->WavLM, wav2vec2->wavlm, WAV_2_VEC_2->WAVLM, WavLMBaseModelOutput->Wav2Vec2BaseModelOutput
+# Copied from transformers.models.wav2vec2.modeling_wav2vec2.Wav2Vec2Model with Wav2Vec2->WavLM, wav2vec2->wavlm, 
+# WAV_2_VEC_2->WAVLM, WavLMBaseModelOutput->Wav2Vec2BaseModelOutput
 class WavLMModel(WavLMPreTrainedModel):
     def __init__(self, config: WavLMConfig):
         super().__init__(config)
@@ -1173,7 +1179,6 @@ class WavLMModel(WavLMPreTrainedModel):
         )
 
 
-
 # Copied from transformers.models.wav2vec2.modeling_wav2vec2.Wav2Vec2ForCTC with Wav2Vec2->WavLM, wav2vec2->wavlm, WAV_2_VEC_2->WAVLM
 class WavLMForCTC(WavLMPreTrainedModel):
     def __init__(self, config, target_lang: Optional[str] = None):
@@ -1285,7 +1290,9 @@ class WavLMForCTC(WavLMPreTrainedModel):
         if labels is not None:
             # retrieve loss input_lengths from attention_mask
             attention_mask = (
-                attention_mask if attention_mask is not None else mindspore.mint.ones_like(input_values, dtype=mindspore.int64)
+                attention_mask
+                if attention_mask is not None
+                else mindspore.mint.ones_like(input_values, dtype=mindspore.int64)
             )
             input_lengths = self._get_feat_extract_output_lengths(attention_mask.sum(-1)).to(mindspore.int64)
 
@@ -1296,7 +1303,9 @@ class WavLMForCTC(WavLMPreTrainedModel):
             flattened_targets = labels.masked_select(labels_mask)
 
             # ctc_loss doesn't support fp16
-            log_probs = mindspore.mint.nn.functional.log_softmax(logits, dim=-1, dtype=mindspore.float32).transpose(0, 1)
+            log_probs = mindspore.mint.nn.functional.log_softmax(logits, dim=-1, dtype=mindspore.float32).transpose(
+                0, 1
+            )
 
             loss = mindspore.ops.ctc_loss(
                 log_probs,
@@ -1514,7 +1523,9 @@ class WavLMForAudioFrameClassification(WavLMPreTrainedModel):
         loss = None
         if labels is not None:
             loss_fct = CrossEntropyLoss()
-            loss = loss_fct(logits.view(-1, self.num_labels), mindspore.mint.argmax(labels.view(-1, self.num_labels), axis=1))
+            loss = loss_fct(
+                logits.view(-1, self.num_labels), mindspore.mint.argmax(labels.view(-1, self.num_labels), axis=1)
+            )
 
         if not return_dict:
             output = (logits,) + outputs[_HIDDEN_STATES_START_POSITION:]
