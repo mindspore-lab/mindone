@@ -1309,7 +1309,7 @@ class WavLMForCTC(WavLMPreTrainedModel):
             # mindspore ctc_loss doesn't support 1-dim
             if flattened_targets.ndim == 1:
                 flattened_targets = flattened_targets.unsqueeze(0)
-                
+
             loss = mindspore.ops.ctc_loss(
                 log_probs,
                 flattened_targets,
