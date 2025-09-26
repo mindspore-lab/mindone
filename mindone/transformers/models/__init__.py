@@ -143,6 +143,11 @@ from . import (
     vision_encoder_decoder,
     visual_bert,
     vit,
+    vit_msn,
+    vitdet,
+    vitmatte,
+    vitpose,
+    vitpose_backbone,
     vits,
     wav2vec2,
     x_clip,
@@ -150,6 +155,7 @@ from . import (
     yolos,
     zamba,
     zamba2,
+    zoedepth,
 )
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
