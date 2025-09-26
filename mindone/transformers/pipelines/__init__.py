@@ -62,11 +62,15 @@ from .image_classification import ImageClassificationPipeline
 from .image_feature_extraction import ImageFeatureExtractionPipeline
 from .image_segmentation import ImageSegmentationPipeline
 from .image_text_to_text import ImageTextToTextPipeline
+from .image_to_image import ImageToImagePipeline
+from .image_to_text import ImageToTextPipeline
 from .object_detection import ObjectDetectionPipeline
 from .question_answering import QuestionAnsweringArgumentHandler, QuestionAnsweringPipeline
+from .table_question_answering import TableQuestionAnsweringPipeline
 from .text2text_generation import Text2TextGenerationPipeline
 from .text_classification import TextClassificationPipeline
 from .text_generation import TextGenerationPipeline
+from .visual_question_answering import VisualQuestionAnsweringPipeline
 from .zero_shot_classification import ZeroShotClassificationArgumentHandler, ZeroShotClassificationPipeline
 from .zero_shot_image_classification import ZeroShotImageClassificationPipeline
 from .zero_shot_object_detection import ZeroShotObjectDetectionPipeline
@@ -81,12 +85,16 @@ if is_mindspore_available():
         AutoModelForImageClassification,
         AutoModelForImageSegmentation,
         AutoModelForImageTextToText,
+        AutoModelForImageToImage,
         AutoModelForObjectDetection,
         AutoModelForQuestionAnswering,
         AutoModelForSemanticSegmentation,
         AutoModelForSeq2SeqLM,
         AutoModelForSequenceClassification,
+        AutoModelForTableQuestionAnswering,
         AutoModelForTokenClassification,
+        AutoModelForVision2Seq,
+        AutoModelForVisualQuestionAnswering,
         AutoModelForZeroShotImageClassification,
         AutoModelForZeroShotObjectDetection,
     )
@@ -115,6 +123,12 @@ SUPPORTED_TASKS = {
         "default": {"model": {"ms": ("distilbert/distilbert-base-cased", "6ea8117")}},
         "type": "multimodal",
     },
+    "visual-question-answering": {
+        "impl": VisualQuestionAnsweringPipeline,
+        "ms": (AutoModelForVisualQuestionAnswering,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("dandelin/vilt-b32-finetuned-vqa", "d0a1f6a")}},
+        "type": "multimodal",
+    },
     "text-classification": {
         "impl": TextClassificationPipeline,
         "ms": (AutoModelForSequenceClassification,) if is_mindspore_available() else (),
@@ -125,6 +139,16 @@ SUPPORTED_TASKS = {
         "impl": QuestionAnsweringPipeline,
         "ms": (AutoModelForQuestionAnswering,) if is_mindspore_available() else (),
         "default": {"model": {"ms": ("distilbert/distilbert-base-cased-distilled-squad", "564e9b5")}},
+        "type": "text",
+    },
+    "table-question-answering": {
+        "impl": TableQuestionAnsweringPipeline,
+        "ms": (AutoModelForTableQuestionAnswering,) if is_mindspore_available() else (),
+        "default": {
+            "model": {
+                "ms": ("google/tapas-base-finetuned-wtq", "e3dde19"),
+            },
+        },
         "type": "text",
     },
     "text2text-generation": {
@@ -172,6 +196,12 @@ SUPPORTED_TASKS = {
         "default": {"model": {"ms": ("facebook/detr-resnet-50-panoptic", "d53b52a")}},
         "type": "multimodal",
     },
+    "image-to-text": {
+        "impl": ImageToTextPipeline,
+        "ms": (AutoModelForVision2Seq,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("ydshieh/vit-gpt2-coco-en", "5bebf1e")}},
+        "type": "multimodal",
+    },
     "image-text-to-text": {
         "impl": ImageTextToTextPipeline,
         "ms": (AutoModelForImageTextToText,) if is_mindspore_available() else (),
@@ -194,6 +224,12 @@ SUPPORTED_TASKS = {
         "impl": DepthEstimationPipeline,
         "ms": (AutoModelForDepthEstimation,) if is_mindspore_available() else (),
         "default": {"model": {"ms": ("Intel/dpt-large", "bc15f29")}},
+        "type": "image",
+    },
+    "image-to-image": {
+        "impl": ImageToImagePipeline,
+        "ms": (AutoModelForImageToImage,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("caidas/swin2SR-classical-sr-x2-64", "cee1c92")}},
         "type": "image",
     },
 }

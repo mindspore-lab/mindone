@@ -34,7 +34,7 @@ def recurse_remove_peft_layers(model):
     r"""
     Recursively replace all instances of `LoraLayer` with corresponding new layers in `model`.
     """
-    from mindone.diffusers._peft.utils import _get_submodules
+    from mindone.peft.utils import _get_submodules
 
     key_list = [key for key, _ in model.cells_and_names() if "lora" not in key]
     for key in key_list:
@@ -57,7 +57,7 @@ def scale_lora_layers(model, weight):
         weight (`float`):
             The weight to be given to the LoRA layers.
     """
-    from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+    from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
     if weight == 1.0:
         return
@@ -79,7 +79,7 @@ def unscale_lora_layers(model, weight: Optional[float] = None):
             re-initialized to the correct value. If 0.0 is passed, we will re-initialize the scale with the correct
             value.
     """
-    from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+    from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
     if weight is None or weight == 1.0:
         return
@@ -143,7 +143,7 @@ def get_peft_kwargs(rank_dict, network_alpha_dict, peft_state_dict, is_unet=True
 
 
 def get_adapter_name(model):
-    from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+    from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
     for _, module in model.cells_and_names():
         if isinstance(module, BaseTunerLayer):
@@ -152,7 +152,7 @@ def get_adapter_name(model):
 
 
 def set_adapter_layers(model, enabled=True):
-    from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+    from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
     for _, module in model.cells_and_names():
         if isinstance(module, BaseTunerLayer):
@@ -164,7 +164,7 @@ def set_adapter_layers(model, enabled=True):
 
 
 def delete_adapter_layers(model, adapter_name):
-    from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+    from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
     for _, module in model.cells_and_names():
         if isinstance(module, BaseTunerLayer):
@@ -184,7 +184,7 @@ def delete_adapter_layers(model, adapter_name):
 
 
 def set_weights_and_activate_adapters(model, adapter_names, weights):
-    from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+    from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
     def get_module_weight(weight_for_adapter, module_name):
         if not isinstance(weight_for_adapter, dict):
@@ -223,9 +223,7 @@ def check_peft_version(min_version: str) -> None:
         version (`str`):
             The version of PEFT to check against.
     """
-    is_peft_version_compatible = version.parse(importlib.metadata.version("mindone.diffusers._peft")) > version.parse(
-        min_version
-    )
+    is_peft_version_compatible = version.parse(importlib.metadata.version("mindone.peft")) > version.parse(min_version)
 
     if not is_peft_version_compatible:
         raise ValueError(
@@ -241,7 +239,7 @@ def _create_lora_config(
     rank_pattern_dict,
     is_unet: bool = True,
 ):
-    from mindone.diffusers._peft import LoraConfig
+    from mindone.peft import LoraConfig
 
     if metadata is not None:
         lora_config_kwargs = metadata

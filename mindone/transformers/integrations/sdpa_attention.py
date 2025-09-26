@@ -22,6 +22,52 @@ def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 
+def scaled_dot_product_attention(
+    query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None, enable_gqa=False
+) -> ms.Tensor:
+    L, S = query.shape[-2], key.shape[-2]
+    scale_factor = 1 / sqrt(query.shape[-1]) if scale is None else scale
+    attn_bias = mint.zeros((L, S), dtype=query.dtype)
+    if is_causal:
+        if attn_mask is not None:
+            if attn_mask.dtype == ms.bool_:
+                attn_mask = mint.logical_and(
+                    attn_mask, mint.ones((query.shape[-2], key.shape[-2]), dtype=ms.bool_).tril(diagonal=0)
+                )
+            else:
+                attn_mask = attn_mask + mint.triu(mint.full((L, S), float("-inf"), dtype=attn_mask.dtype), diagonal=1)
+        else:
+            temp_mask = mint.ones((L, S), dtype=ms.bool_).tril(diagonal=0)
+            attn_bias.masked_fill_(temp_mask.logical_not(), float("-inf"))
+            attn_bias = attn_bias.to(query.dtype)
+
+    if attn_mask is not None:
+        if attn_mask.dtype == ms.bool_:
+            attn_bias = attn_bias.masked_fill(attn_mask.logical_not(), float("-inf"))
+        else:
+            attn_bias = attn_mask + attn_bias
+
+    if enable_gqa:
+        key = key.repeat_interleave(query.shape[-3] // key.shape[-3], -3)
+        value = value.repeat_interleave(query.shape[-3] // value.shape[-3], -3)
+
+    attn_weight = mint.matmul(query, key.swapaxes(-2, -1)) * scale_factor
+    attn_weight += attn_bias
+
+    # Identify rows where all elements are -inf (caused by causal mask or padding)
+    row_is_all_inf = mint.isinf(attn_weight).all(axis=-1, keep_dims=True)
+
+    # Before softmax: replace full -inf rows with zeros to avoid NaN
+    attn_weight = mint.where(row_is_all_inf, mint.zeros_like(attn_weight), attn_weight)
+    attn_weight = mint.softmax(attn_weight, dim=-1)
+
+    # After softmax: set full -inf rows to zeros
+    attn_weight = mint.where(row_is_all_inf, mint.zeros_like(attn_weight), attn_weight)
+
+    attn_weight = ops.dropout(attn_weight, dropout_p, training=True)
+    return mint.matmul(attn_weight, value)
+
+
 def sdpa_attention_forward(
     module: nn.Cell,
     query: ms.Tensor,
@@ -54,26 +100,15 @@ def sdpa_attention_forward(
         # This is mainly due to those models having mixed implementations for encoder, decoder, and encoder-decoder attns
         is_causal = query.shape[2] > 1 and attention_mask is None and getattr(module, "is_causal", True)
 
-    if is_causal:
-        if attention_mask is not None:
-            raise ValueError("Causal mode cannot be used with an explicit `attention_mask`")
-        attention_mask = mint.ones((query.shape[-2], key.shape[-2]), dtype=ms.bool_).tril(diagonal=0)
-
-    if attention_mask is not None:
-        attention_mask = mint.logical_not(attention_mask)  # in MindSpore, 0 indicates retain, 1 indicates discard
-
-    scaling = 1 / sqrt(query.shape[-1]) if scaling is None else scaling
-
-    attn_output = ops.speed_fusion_attention(
+    attn_output = scaled_dot_product_attention(
         query,
         key,
         value,
-        head_num=query.shape[1],
-        input_layout="BNSD",
-        atten_mask=attention_mask,
+        attn_mask=attention_mask,
+        dropout_p=dropout,
         scale=scaling,
-        keep_prob=1 - dropout,
-    )[0]
+        is_causal=is_causal,
+    )
     attn_output = mint.transpose(attn_output, 1, 2).contiguous()
 
     return attn_output, None

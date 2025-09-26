@@ -1,10 +1,10 @@
-from typing import Dict
+from typing import Dict, Optional
 
 import mindspore as ms
 from mindspore import ParallelMode, Tensor, context, nn, ops
-from mindspore.boost.grad_accumulation import gradient_clear_op as _grad_clear_op
 from mindspore.ops import composite as C
-from mindspore.ops import operations as P
+
+from mindone.trainers.zero import ZeroHelper
 
 try:
     from .adamw_zero import AdamWeightDecayZeRO1, AdamWeightDecayZeRO2
@@ -17,11 +17,19 @@ except ImportError:
 _grad_accum_op = C.MultitypeFuncGraph("gradient_accumulation_op")
 
 
-@_grad_accum_op.register("Int64", "Tensor", "Tensor")
+@_grad_accum_op.register("Tensor", "Tensor")
 def cumulative_grad_process(cumulative_grad, grad):
     """Apply gradient accumulation to cumulative grad."""
-    P.AssignAdd()(cumulative_grad, grad)
-    return cumulative_grad
+    cumulative_grad.add_(grad)
+
+
+_grad_clear_op = C.MultitypeFuncGraph("gradient_clear_op")
+
+
+@_grad_clear_op.register("Tensor")
+def clear_grad(cumulative_grad):
+    """Clear grad."""
+    cumulative_grad.mul_(0.0)
 
 
 def _is_pynative_parallel():
@@ -79,6 +87,17 @@ def create_grad_reducer(trainable_parameters):
     return grad_reducer
 
 
+class LossWithScaleSense(nn.Cell):
+    def __init__(self, network: nn.Cell) -> None:
+        super().__init__(auto_prefix=False)
+        self.network = network
+
+    def construct(self, *args, scale_sense: float = 1.0, **kwargs) -> Tensor:
+        loss = self.network(*args, **kwargs)
+        loss = loss * scale_sense.to(loss.dtype)
+        return loss
+
+
 class TrainOneStepWrapper(nn.Cell):
     """TrainStep with ema and clip grad.
 
@@ -101,6 +120,7 @@ class TrainOneStepWrapper(nn.Cell):
         gradient_accumulation_steps: int = 1,
         clip_grad: str = "none",
         clip_value: float = 1.0,
+        zero_helper: Optional[ZeroHelper] = None,
     ):
         super().__init__(auto_prefix=False)
 
@@ -116,6 +136,9 @@ class TrainOneStepWrapper(nn.Cell):
             reducer = create_grad_reducer(network.trainable_params())
             is_zero = False
 
+        # wrap network with scale sense
+        network = LossWithScaleSense(network)
+
         # grad accumulation
         assert gradient_accumulation_steps >= 1
         self.accum_steps = gradient_accumulation_steps
@@ -125,7 +148,7 @@ class TrainOneStepWrapper(nn.Cell):
 
             if is_zero:
                 self.accumulated_grads = optimizer.moments1.clone(prefix="accum_grad", init="zeros")  # split grads
-            else:
+            elif zero_helper is not None:
                 self.accumulated_grads = optimizer.parameters.clone(prefix="accum_grad", init="zeros")
 
             class ScalingLossForGradAccum(nn.Cell):
@@ -147,8 +170,7 @@ class TrainOneStepWrapper(nn.Cell):
         # self.network.set_train()
         # self.network.set_grad()
 
-        # self.value_and_grad = ops.value_and_grad(network, grad_position=None, weights=optimizer.parameters)
-        self.grad_fn = ops.GradOperation(get_by_list=True, sens_param=True)(self.network, optimizer.parameters)
+        self.value_and_grad = ops.value_and_grad(network, grad_position=None, weights=optimizer.parameters)
 
         self.optimizer = optimizer
         self.ema = ema
@@ -199,6 +221,16 @@ class TrainOneStepWrapper(nn.Cell):
             raise NotImplementedError
         self.clip_grad_fn = clip_grad_fn
 
+        # zero init
+        self.zero_helper = zero_helper
+        self.zero_stage = zero_helper.zero_stage if zero_helper is not None else 0
+        self.run_optimizer = zero_helper.run_optimizer if zero_helper is not None else self.optimizer
+        self.reducer = self.reducer if self.zero_stage == 0 else nn.Identity()
+        if self.zero_stage != 0:
+            self.zero_helper.split_params()
+            if gradient_accumulation_steps > 1:
+                self.accumulated_grads = optimizer.parameters.clone(prefix="accum_grad", init="zeros")
+
     def do_optim(self, loss, grads):
         if self.accum_steps == 1:
             if self.clip_grad_fn is not None:
@@ -206,12 +238,12 @@ class TrainOneStepWrapper(nn.Cell):
                     grads = self.clip_grad_fn(grads, self.clip_value, self.reduce_op_for_clip_grad)
                 else:
                     grads = self.clip_grad_fn(grads, self.clip_value)
-            loss = ops.depend(loss, self.optimizer(grads))
+            loss = ops.depend(loss, self.run_optimizer(grads))
             if self.ema is not None:
                 self.ema.ema_update()
         else:
             loss = ops.depend(loss, self.hyper_map(_grad_accum_op, self.accumulated_grads, grads))
-            loss = ops.depend(loss, ops.assign_add(self.cur_accum_step, ms.Tensor(1, ms.int32)))
+            loss = ops.depend(loss, self.cur_accum_step.add_(1))
             if self.cur_accum_step % self.accum_steps == 0:
                 if self.clip_grad_fn is not None:
                     if self.is_zero and self.is_clip_norm:
@@ -221,9 +253,9 @@ class TrainOneStepWrapper(nn.Cell):
                     else:
                         clipped_grads = self.clip_grad_fn(self.accumulated_grads, self.clip_value)
 
-                    loss = ops.depend(loss, self.optimizer(clipped_grads))
+                    loss = ops.depend(loss, self.run_optimizer(clipped_grads))
                 else:
-                    loss = ops.depend(loss, self.optimizer(self.accumulated_grads))
+                    loss = ops.depend(loss, self.run_optimizer(self.accumulated_grads))
 
                 loss = ops.depend(loss, self.hyper_map(ops.partial(_grad_clear_op), self.accumulated_grads))
                 loss = ops.depend(loss, ops.assign(self.cur_accum_step, ms.Tensor(0, ms.int32)))
@@ -231,9 +263,7 @@ class TrainOneStepWrapper(nn.Cell):
                     self.ema.ema_update()
             else:
                 # update the optimizer global step and learning rate, do not update the parameter
-                loss = ops.depend(
-                    loss, ops.assign_add(self.optimizer.global_step, self.optimizer.global_step_increase_tensor)
-                )
+                loss = ops.depend(loss, self.optimizer.global_step.add_(self.optimizer.global_step_increase_tensor))
 
             # unscaling loss for grad accum
             loss = loss * self.accum_steps
@@ -241,13 +271,17 @@ class TrainOneStepWrapper(nn.Cell):
         return loss
 
     def construct(self, *inputs):
-        loss = self.network(*inputs)
-        sens = ops.fill(loss.dtype, loss.shape, self.scaler.scale_value)
-        grads = self.grad_fn(*inputs, sens)
-        if self.is_zero:
+        loss, grads = self.value_and_grad(*inputs, scale_sense=self.scaler.scale_value)
+        loss = self.scaler.unscale(loss)
+        loss = loss * self.accum_steps
+
+        if self.zero_helper is not None:
+            grads = self.zero_helper.cal_gradients(grads)
+        elif self.is_zero:
             grads = self.optimizer.grad_reduce(grads)
         else:
             grads = self.reducer(grads)
+
         unscaled_grads = self.scaler.unscale(grads)
 
         finite = self.all_finite(unscaled_grads)
