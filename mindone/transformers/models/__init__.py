@@ -39,6 +39,8 @@ from . import (
     clip,
     clipseg,
     clvp,
+    cohere,
+    cohere2,
     colpali,
     convbert,
     convnext,
