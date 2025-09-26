@@ -655,6 +655,16 @@ from .models.llava_onevision import (
     LlavaOnevisionProcessor,
     LlavaOnevisionVideoProcessor,
 )
+from .models.longformer import (
+    LongformerForMaskedLM,
+    LongformerForMultipleChoice,
+    LongformerForQuestionAnswering,
+    LongformerForSequenceClassification,
+    LongformerForTokenClassification,
+    LongformerModel,
+    LongformerPreTrainedModel,
+)
+from .models.longt5 import LongT5EncoderModel, LongT5ForConditionalGeneration, LongT5Model, LongT5PreTrainedModel
 from .models.luke import (
     LukeForEntityClassification,
     LukeForEntityPairClassification,
@@ -1020,6 +1030,7 @@ from .models.tapas import (
     TapasModel,
     TapasPreTrainedModel,
 )
+from .models.timesformer import TimesformerForVideoClassification, TimesformerModel, TimesformerPreTrainedModel
 from .models.trocr import TrOCRForCausalLM, TrOCRPreTrainedModel
 from .models.tvp import TvpForVideoGrounding, TvpModel, TvpPreTrainedModel
 from .models.umt5 import (
@@ -1076,6 +1087,7 @@ from .models.vitmatte import VitMatteForImageMatting, VitMattePreTrainedModel
 from .models.vitpose import VitPoseForPoseEstimation, VitPosePreTrainedModel
 from .models.vitpose_backbone import VitPoseBackbone, VitPoseBackbonePreTrainedModel
 from .models.vits import VitsModel, VitsPreTrainedModel
+from .models.vivit import VivitForVideoClassification, VivitModel, VivitPreTrainedModel
 from .models.wav2vec2 import (
     Wav2Vec2FeatureExtractor,
     Wav2Vec2ForAudioFrameClassification,
