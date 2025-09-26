@@ -1,6 +1,0 @@
-av
-ftfy
-tdqm
-imageio
-omegaconf
-transformers
