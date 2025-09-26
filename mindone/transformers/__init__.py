@@ -379,6 +379,17 @@ from .models.dpr import (
     DPRReader,
 )
 from .models.dpt import DPTForDepthEstimation, DPTImageProcessor, DPTModel, DPTPreTrainedModel
+from .models.electra import (
+    ElectraForCausalLM,
+    ElectraForMaskedLM,
+    ElectraForMultipleChoice,
+    ElectraForPreTraining,
+    ElectraForQuestionAnswering,
+    ElectraForSequenceClassification,
+    ElectraForTokenClassification,
+    ElectraModel,
+    ElectraPreTrainedModel,
+)
 from .models.emu3 import Emu3ForCausalLM, Emu3ForConditionalGeneration, Emu3PreTrainedModel, Emu3TextModel, Emu3VQVAE
 from .models.encodec import EncodecModel, EncodecPreTrainedModel
 from .models.ernie import (
@@ -541,6 +552,20 @@ from .models.jetmoe import (
     JetMoeModel,
     JetMoePreTrainedModel,
 )
+from .models.instructblip import (
+    InstructBlipForConditionalGeneration,
+    InstructBlipPreTrainedModel,
+    InstructBlipProcessor,
+    InstructBlipQFormerModel,
+    InstructBlipVisionModel,
+)
+from .models.instructblipvideo import (
+    InstructBlipVideoForConditionalGeneration,
+    InstructBlipVideoPreTrainedModel,
+    InstructBlipVideoQFormerModel,
+    InstructBlipVideoVisionModel,
+)
+from .models.kosmos2 import Kosmos2ForConditionalGeneration, Kosmos2Model, Kosmos2PreTrainedModel
 from .models.led import (
     LEDForConditionalGeneration,
     LEDForQuestionAnswering,
@@ -719,6 +744,8 @@ from .models.owlvit import (
     OwlViTVisionModel,
 )
 from .models.paligemma import PaliGemmaForConditionalGeneration, PaliGemmaPreTrainedModel
+from .models.pegasus import PegasusForCausalLM, PegasusForConditionalGeneration, PegasusModel, PegasusPreTrainedModel
+from .models.pegasus_x import PegasusXForConditionalGeneration, PegasusXModel, PegasusXPreTrainedModel
 from .models.persimmon import (
     PersimmonForCausalLM,
     PersimmonForSequenceClassification,
@@ -739,6 +766,12 @@ from .models.phi3 import (
     Phi3ForTokenClassification,
     Phi3Model,
     Phi3PreTrainedModel,
+)
+from .models.pix2struct import (
+    Pix2StructForConditionalGeneration,
+    Pix2StructPreTrainedModel,
+    Pix2StructTextModel,
+    Pix2StructVisionModel,
 )
 from .models.pixtral import PixtralPreTrainedModel, PixtralVisionModel
 from .models.poolformer import PoolFormerForImageClassification, PoolFormerModel, PoolFormerPreTrainedModel
@@ -847,6 +880,15 @@ from .models.splinter import (
     SplinterLayer,
     SplinterModel,
     SplinterPreTrainedModel,
+)
+from .models.squeezebert import (
+    SqueezeBertForMaskedLM,
+    SqueezeBertForMultipleChoice,
+    SqueezeBertForQuestionAnswering,
+    SqueezeBertForSequenceClassification,
+    SqueezeBertForTokenClassification,
+    SqueezeBertModel,
+    SqueezeBertPreTrainedModel,
 )
 from .models.starcoder2 import (
     Starcoder2ForCausalLM,
