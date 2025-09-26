@@ -148,11 +148,8 @@ from . import (
     speech_encoder_decoder,
     speech_to_text,
     speecht5,
-<<<<<<< HEAD
     splinter,
     squeezebert,
-=======
->>>>>>> 0c3c7751 (Add stablelm model)
     stablelm,
     starcoder2,
     swin2sr,
