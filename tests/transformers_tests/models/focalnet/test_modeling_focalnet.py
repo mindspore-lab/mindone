@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2022 The HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,14 +15,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Testing suite for the MindSpore ResNet model."""
+"""Testing suite for the MindSpore FocalNet model."""
 
 import inspect
 
 import numpy as np
 import pytest
 import torch
-from transformers import ResNetConfig
+from transformers import FocalNetConfig
 
 import mindspore as ms
 
@@ -32,40 +35,64 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
-# TODO: Prompted by accuracy problems in the FP32 model caused by the conv2d operation, we modified the corresponding threshold.  # noqa: E501
-DTYPE_AND_THRESHOLDS = {"fp32": 7e-4, "fp16": 5e-3, "bf16": 5e-2}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
 
 
-class ResNetModelTester:
+class FocalNetModelTester:
     def __init__(
         self,
-        batch_size=3,
+        batch_size=13,
         image_size=32,
+        patch_size=2,
         num_channels=3,
-        embeddings_size=10,
-        hidden_sizes=[10, 20, 30, 40],
-        depths=[1, 1, 2, 1],
+        embed_dim=16,
+        hidden_sizes=[32, 64, 128],
+        depths=[1, 2, 1],
+        num_heads=[2, 2, 4],
+        window_size=2,
+        mlp_ratio=2.0,
+        qkv_bias=True,
+        hidden_dropout_prob=0.0,
+        attention_probs_dropout_prob=0.0,
+        drop_path_rate=0.1,
+        hidden_act="gelu",
+        use_absolute_embeddings=False,
+        patch_norm=True,
+        initializer_range=0.02,
+        layer_norm_eps=1e-5,
         is_training=True,
-        use_labels=True,
-        hidden_act="relu",
-        num_labels=3,
         scope=None,
-        out_features=["stage2", "stage3", "stage4"],
-        out_indices=[2, 3, 4],
+        use_labels=True,
+        type_sequence_label_size=10,
+        encoder_stride=8,
+        out_features=["stage1", "stage2"],
+        out_indices=[1, 2],
     ):
         self.batch_size = batch_size
         self.image_size = image_size
+        self.patch_size = patch_size
         self.num_channels = num_channels
-        self.embeddings_size = embeddings_size
+        self.embed_dim = embed_dim
         self.hidden_sizes = hidden_sizes
         self.depths = depths
-        self.is_training = is_training
-        self.use_labels = use_labels
+        self.num_heads = num_heads
+        self.window_size = window_size
+        self.mlp_ratio = mlp_ratio
+        self.qkv_bias = qkv_bias
+        self.hidden_dropout_prob = hidden_dropout_prob
+        self.attention_probs_dropout_prob = attention_probs_dropout_prob
+        self.drop_path_rate = drop_path_rate
         self.hidden_act = hidden_act
-        self.num_labels = num_labels
+        self.use_absolute_embeddings = use_absolute_embeddings
+        self.patch_norm = patch_norm
+        self.layer_norm_eps = layer_norm_eps
+        self.initializer_range = initializer_range
+        self.is_training = is_training
         self.scope = scope
-        self.num_stages = len(hidden_sizes)
+        self.use_labels = use_labels
+        self.type_sequence_label_size = type_sequence_label_size
+        self.encoder_stride = encoder_stride
         self.out_features = out_features
         self.out_indices = out_indices
 
@@ -74,32 +101,45 @@ class ResNetModelTester:
 
         labels = None
         if self.use_labels:
-            labels = ids_numpy([self.batch_size], self.num_labels)
+            labels = ids_numpy([self.batch_size], self.type_sequence_label_size)
 
         config = self.get_config()
 
         return config, pixel_values, labels
 
     def get_config(self):
-        return ResNetConfig(
+        return FocalNetConfig(
+            image_size=self.image_size,
+            patch_size=self.patch_size,
             num_channels=self.num_channels,
-            embeddings_size=self.embeddings_size,
+            embed_dim=self.embed_dim,
             hidden_sizes=self.hidden_sizes,
             depths=self.depths,
+            num_heads=self.num_heads,
+            window_size=self.window_size,
+            mlp_ratio=self.mlp_ratio,
+            qkv_bias=self.qkv_bias,
+            hidden_dropout_prob=self.hidden_dropout_prob,
+            attention_probs_dropout_prob=self.attention_probs_dropout_prob,
+            drop_path_rate=self.drop_path_rate,
             hidden_act=self.hidden_act,
-            num_labels=self.num_labels,
+            use_absolute_embeddings=self.use_absolute_embeddings,
+            path_norm=self.patch_norm,
+            layer_norm_eps=self.layer_norm_eps,
+            initializer_range=self.initializer_range,
+            encoder_stride=self.encoder_stride,
             out_features=self.out_features,
             out_indices=self.out_indices,
         )
 
 
-model_tester = ResNetModelTester()
+model_tester = FocalNetModelTester()
 config, pixel_values, labels = model_tester.prepare_config_and_inputs()
-RESNET_CASES = [
+FOCALNET_CASES = [
     [
-        "ResNetModel",
-        "transformers.ResNetModel",
-        "mindone.transformers.ResNetModel",
+        "FocalNetModel",
+        "transformers.FocalNetModel",
+        "mindone.transformers.FocalNetModel",
         (config,),
         {},
         (pixel_values,),
@@ -121,7 +161,7 @@ RESNET_CASES = [
         + [
             mode,
         ]
-        for case in RESNET_CASES
+        for case in FOCALNET_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],
