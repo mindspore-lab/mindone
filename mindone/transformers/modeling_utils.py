@@ -775,6 +775,18 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             config = self._autoset_attn_implementation(config, mindspore_dtype=dtype)
         # Save config and origin of the pretrained weights if given in model
         self.config = config
+
+        # for initialization of the loss
+        loss_type = self.__class__.__name__
+        if loss_type not in LOSS_MAPPING:
+            loss_groups = f"({'|'.join(LOSS_MAPPING)})"
+            loss_type = re.findall(loss_groups, self.__class__.__name__)
+            if len(loss_type) > 0:
+                loss_type = loss_type[0]
+            else:
+                loss_type = None
+        self.loss_type = loss_type
+
         self.name_or_path = config.name_or_path
         self.warnings_issued = {}
         self.generation_config = GenerationConfig.from_model_config(config) if self.can_generate() else None
@@ -2729,6 +2741,15 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         if state_dict is not None:
             # Whole checkpoint
             state_dict = _convert_state_dict(model, state_dict, prefix)
+            # In the original PyTorch implementation, this transformation is done via `_register_load_state_dict_pre_hook(load_hook)`.
+            # Since MindSpore does not support such hooks, we manually apply the same renaming logic here.
+            # This ensures compatibility with checkpoints loaded using the original naming convention.
+            if "Mamba" in model.__class__.__name__:
+                state_dict_tmp = {}
+                for k, v in state_dict.items():
+                    new_k = k.replace("embedding.", "embeddings.") if "embedding." in k else k
+                    state_dict_tmp[new_k] = v
+                state_dict = state_dict_tmp
 
             matching = [s for s in key_renaming_mapping.keys() if "LayerNorm.gamma" in s]
             if matching:
@@ -2761,6 +2782,15 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             for shard_file in resolved_archive_file:
                 state_dict = load_state_dict(shard_file)
                 state_dict = _convert_state_dict(model, state_dict, prefix)
+                # In the original PyTorch implementation, this transformation is done via `_register_load_state_dict_pre_hook(load_hook)`.
+                # Since MindSpore does not support such hooks, we manually apply the same renaming logic here.
+                # This ensures compatibility with checkpoints loaded using the original naming convention.
+                if "Mamba" in model.__class__.__name__:
+                    state_dict_tmp = {}
+                    for k, v in state_dict.items():
+                        new_k = k.replace("embedding.", "embeddings.") if "embedding." in k else k
+                        state_dict_tmp[new_k] = v
+                    state_dict = state_dict_tmp
 
                 matching = [s for s in key_renaming_mapping.keys() if "LayerNorm.gamma" in s]
                 if matching:
@@ -3005,9 +3035,9 @@ class PoolerEndLogits(nn.Cell):
         ), "One of start_states, start_positions should be not None"
         if start_positions is not None:
             slen, hsz = hidden_states.shape[-2:]
-            start_positions = start_positions[:, None, None].expand(-1, -1, hsz)  # shape (bsz, 1, hsz)
+            start_positions = start_positions[:, None, None].expand((-1, -1, hsz))  # shape (bsz, 1, hsz)
             start_states = hidden_states.gather(-2, start_positions)  # shape (bsz, 1, hsz)
-            start_states = start_states.expand(-1, slen, -1)  # shape (bsz, slen, hsz)
+            start_states = start_states.expand((-1, slen, -1))  # shape (bsz, slen, hsz)
 
         x = self.dense_0(mint.cat([hidden_states, start_states], dim=-1))
         x = self.activation(x)
@@ -3072,11 +3102,11 @@ class PoolerAnswerClass(nn.Cell):
             start_states is not None or start_positions is not None
         ), "One of start_states, start_positions should be not None"
         if start_positions is not None:
-            start_positions = start_positions[:, None, None].expand(-1, -1, hsz)  # shape (bsz, 1, hsz)
+            start_positions = start_positions[:, None, None].expand((-1, -1, hsz))  # shape (bsz, 1, hsz)
             start_states = hidden_states.gather(-2, start_positions).squeeze(-2)  # shape (bsz, hsz)
 
         if cls_index is not None:
-            cls_index = cls_index[:, None, None].expand(-1, -1, hsz)  # shape (bsz, 1, hsz)
+            cls_index = cls_index[:, None, None].expand((-1, -1, hsz))  # shape (bsz, 1, hsz)
             cls_token_state = hidden_states.gather(-2, cls_index).squeeze(-2)  # shape (bsz, hsz)
         else:
             cls_token_state = hidden_states[:, -1, :]  # shape (bsz, hsz)
@@ -3208,9 +3238,9 @@ class SQuADHead(nn.Cell):
             start_top_log_probs, start_top_index = mint.topk(
                 start_log_probs, self.start_n_top, dim=-1
             )  # shape (bsz, start_n_top)
-            start_top_index_exp = start_top_index.unsqueeze(-1).expand(-1, -1, hsz)  # shape (bsz, start_n_top, hsz)
+            start_top_index_exp = start_top_index.unsqueeze(-1).expand((-1, -1, hsz))  # shape (bsz, start_n_top, hsz)
             start_states = mint.gather(hidden_states, -2, start_top_index_exp)  # shape (bsz, start_n_top, hsz)
-            start_states = start_states.unsqueeze(1).expand(-1, slen, -1, -1)  # shape (bsz, slen, start_n_top, hsz)
+            start_states = start_states.unsqueeze(1).expand((-1, slen, -1, -1))  # shape (bsz, slen, start_n_top, hsz)
 
             hidden_states_expanded = hidden_states.unsqueeze(2).expand_as(
                 start_states
