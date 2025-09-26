@@ -91,6 +91,8 @@ from . import (
     mixtral,
     mllama,
     mobilebert,
+    mobilevit,
+    mobilevitv2,
     modernbert,
     moonshine,
     moshi,
