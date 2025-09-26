@@ -136,6 +136,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("sam", "SamModel"),
         ("seamless_m4t_v2", "SeamlessM4Tv2Model"),
         ("segformer", "SegformerModel"),
+        ("seggpt", "SegGptModel"),
         ("sew", "SEWModel"),
         ("sew-d", "SEWDModel"),
         ("siglip", "SiglipModel"),
@@ -147,6 +148,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("starcoder2", "Starcoder2Model"),
         ("swin2sr", "Swin2SRModel"),
         ("t5", "T5Model"),
+        ("table-transformer", "TableTransformerModel"),
         ("tapas", "TapasModel"),
         ("umt5", "UMT5Model"),
         ("unispeech", "UniSpeechModel"),
@@ -336,6 +338,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         ("segformer", "SegformerModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
         ("swin2sr", "Swin2SRModel"),
+        ("table-transformer", "TableTransformerModel"),
         ("vit", "ViTModel"),
         ("yolos", "YolosModel"),
         ("zamba2", "Zamba2ForCausalLM"),
@@ -529,6 +532,7 @@ MODEL_FOR_DEPTH_ESTIMATION_MAPPING_NAMES = OrderedDict(
         ("depth_anything", "DepthAnythingForDepthEstimation"),
         ("dpt", "DPTForDepthEstimation"),
         ("glpn", "GLPNForDepthEstimation"),
+        ("prompt_depth_anything", "PromptDepthAnythingForDepthEstimation"),
         ("zoedepth", "ZoeDepthForDepthEstimation"),
     ]
 )
