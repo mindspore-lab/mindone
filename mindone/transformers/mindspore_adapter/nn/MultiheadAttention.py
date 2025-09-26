@@ -28,8 +28,6 @@ from mindspore.ops.function.nn_func import (
     linear,
 )
 
-from mindone.transformers.mindspore_adapter.utils import _DTYPE_2_MIN
-
 
 def _scaled_dot_product_attention(query, key, value, attn_mask, dropout_p, is_causal, is_training, dtype):
     """scaled dot product attention"""
