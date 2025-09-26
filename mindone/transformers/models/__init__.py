@@ -98,6 +98,7 @@ from . import (
     moshi,
     mpt,
     mvp,
+    nemotron,
     nystromformer,
     opt,
     owlvit,

@@ -620,6 +620,14 @@ from .models.mvp import (
     MvpModel,
     MvpPreTrainedModel,
 )
+from .models.nemotron import (
+    NemotronForCausalLM,
+    NemotronForQuestionAnswering,
+    NemotronForSequenceClassification,
+    NemotronForTokenClassification,
+    NemotronModel,
+    NemotronPreTrainedModel,
+)
 from .models.nystromformer import (
     NystromformerEncoder,
     NystromformerForMaskedLM,
