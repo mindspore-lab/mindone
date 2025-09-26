@@ -272,28 +272,7 @@ class TableTransformerConvEncoder(mindspore.nn.Cell):
 
         self.config = config
 
-        # For backwards compatibility we have to use the timm library directly instead of the AutoBackbone API
-        # if config.use_timm_backbone:
-        #     # We default to values which were previously hard-coded. This enables configurability from the config
-        #     # using backbone arguments, while keeping the default behavior the same.
-        #     requires_backends(self, ["timm"])
-        #     kwargs = getattr(config, "backbone_kwargs", {})
-        #     kwargs = {} if kwargs is None else kwargs.copy()
-        #     out_indices = kwargs.pop("out_indices", (1, 2, 3, 4))
-        #     num_channels = kwargs.pop("in_chans", config.num_channels)
-        #     if config.dilation:
-        #         kwargs["output_stride"] = kwargs.get("output_stride", 16)
-        #     backbone = create_model(
-        #         config.backbone,
-        #         pretrained=config.use_pretrained_backbone,
-        #         features_only=True,
-        #         out_indices=out_indices,
-        #         in_chans=num_channels,
-        #         **kwargs,
-        #     )
-        # else:
-        #     backbone = load_backbone(config)
-        # mindone not support timm now.
+        # TODO: mindone not support timm now.
         backbone = load_backbone(config)
 
         # replace batch norm by frozen batch norm
