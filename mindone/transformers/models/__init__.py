@@ -22,6 +22,7 @@ from . import (
     aria,
     auto,
     bamba,
+    bark,
     bart,
     bert,
     bert_generation,
