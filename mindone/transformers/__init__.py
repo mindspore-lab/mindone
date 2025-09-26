@@ -820,7 +820,6 @@ from .models.oneformer import (
     OneFormerModel,
     OneFormerPreTrainedModel,
     OneFormerProcessor,
-    OneFormerImageProcessor,
 )
 from .models.opt import (
     OPTForCausalLM,
