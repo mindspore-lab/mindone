@@ -148,6 +148,7 @@ from . import (
     x_clip,
     xlm_roberta,
     yolos,
+    yoso,
     zamba,
     zamba2,
 )
