@@ -721,6 +721,20 @@ from .models.mobilebert import (
     MobileBertModel,
     MobileBertPreTrainedModel,
 )
+from .models.mobilenet_v1 import (
+    MobileNetV1ForImageClassification,
+    MobileNetV1ImageProcessor,
+    MobileNetV1ImageProcessorFast,
+    MobileNetV1Model,
+    MobileNetV1PreTrainedModel,
+)
+from .models.mobilenet_v2 import (
+    MobileNetV2ForImageClassification,
+    MobileNetV2ForSemanticSegmentation,
+    MobileNetV2ImageProcessor,
+    MobileNetV2ImageProcessorFast,
+    MobileNetV2Model,
+    MobileNetV2PreTrainedModel,
 from .models.modernbert import (
     ModernBertForMaskedLM,
     ModernBertForSequenceClassification,

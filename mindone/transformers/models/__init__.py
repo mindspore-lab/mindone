@@ -115,6 +115,8 @@ from . import (
     mixtral,
     mllama,
     mobilebert,
+    mobilenet_v1,
+    mobilenet_v2,
     modernbert,
     moonshine,
     moshi,

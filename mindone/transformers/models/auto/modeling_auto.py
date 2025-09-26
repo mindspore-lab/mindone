@@ -190,6 +190,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("gpt_neox", "GPTNeoXModel"),
         ("gptj", "GPTJModel"),
         ("xlm-roberta-xl", "XLMRobertaXLModel"),
+        ("mobilenet_v1", "MobileNetV1Model"),
+        ("mobilenet_v2", "MobileNetV2Model"),
         ("gpt_neox_japanese", "GPTNeoXJapaneseModel"),
         ("yolos", "YolosModel"),
         ("zamba", "ZambaModel"),
@@ -450,6 +452,8 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("segformer", "SegformerForImageClassification"),
         ("siglip", "SiglipForImageClassification"),
         ("siglip2", "Siglip2ForImageClassification"),
+        ("mobilenet_v1", "MobileNetV1ForImageClassification"),
+        ("mobilenet_v2", "MobileNetV2ForImageClassification"),
         ("vit", "ViTForImageClassification"),
         ("vit_msn", "ViTMSNForImageClassification"),
     ]
