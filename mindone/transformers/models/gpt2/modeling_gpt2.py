@@ -449,6 +449,7 @@ class GPT2PreTrainedModel(MSPreTrainedModel):
     _skip_keys_device_placement = "past_key_values"
     _supports_flash_attn_2 = False
     _supports_sdpa = False
+    _supports_dynamic_input = True
 
     def __init__(self, *inputs, **kwargs):
         super().__init__(*inputs, **kwargs)
