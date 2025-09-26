@@ -17,7 +17,8 @@ transformers
 av
 mindcv==0.3.0
 beautifulsoup4
+jsonargparse[signatures,omegaconf,urls]~=4.37.0
+einops
 # for T5 tokenizer
 tiktoken
 sentencepiece
-jsonargparse[signatures,omegaconf,urls]~=4.37.0

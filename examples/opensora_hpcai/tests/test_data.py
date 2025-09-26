@@ -1,4 +1,3 @@
-import os
 import sys
 import time
 
@@ -8,10 +7,6 @@ import mindspore as ms
 
 sys.path.append("./")
 from opensora.datasets.t2v_dataset import TextVideoDataset, create_dataloader
-
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
-sys.path.insert(0, mindone_lib_path)
 
 csv_path = "../videocomposer/datasets/webvid5/video_caption.csv"
 video_folder = "../videocomposer/datasets/webvid5"

@@ -13,15 +13,10 @@ from tqdm import trange
 from mindspore import Tensor
 from mindspore import dtype as mstype
 
-# TODO: remove in future when mindone is ready for install
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../../"))
-sys.path.append(mindone_lib_path)
-sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))
-
-from opensora.models.text_encoder import HFEmbedder
-
 from mindone.utils import init_env, set_logger
+
+sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
+from opensora.models.text_encoder import HFEmbedder
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +102,7 @@ def main(args):
 if __name__ == "__main__":
     parser = ArgumentParser(description="Text embeddings generation script.")
     parser.add_function_arguments(init_env, "env")
-    parser.add_class_arguments(HFEmbedder, "model")
+    parser.add_class_arguments(HFEmbedder, "model", instantiate=False)
     parser.add_function_arguments(prepare_captions, as_group=False, skip={"rank_id", "device_num"})
     parser.add_argument("--batch_size", default=10, type=int, help="Inference batch size.")
     cfg = parser.parse_args()

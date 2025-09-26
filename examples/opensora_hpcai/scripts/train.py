@@ -39,7 +39,7 @@ from opensora.utils.amp import auto_mixed_precision
 from opensora.utils.callbacks import EMAEvalSwapCallback, PerfRecorderCallback
 from opensora.utils.ema import EMA, save_ema_ckpts
 from opensora.utils.metrics import BucketLoss
-from opensora.utils.model_utils import WHITELIST_OPS, Model
+from opensora.utils.model_utils import BLACKLIST_OPS, Model
 from opensora.utils.resume import flush_from_cache, get_resume_ckpt, get_resume_states, resume_train_net, save_train_net
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch, StopAtStepCallback
@@ -236,9 +236,10 @@ def initialize_dataset(
     else:
         from opensora.datasets.bucket import Bucket, bucket_split_function
         from opensora.datasets.mask_generator import MaskGenerator
-        from opensora.datasets.video_dataset_refactored import VideoDatasetRefactored, create_dataloader
+        from opensora.datasets.video_dataset_refactored import VideoDatasetRefactored
 
-        # from mindone.data import create_dataloader
+        from mindone.data import create_dataloader
+
         if validation:
             mask_gen = MaskGenerator({"identity": 1.0})
             all_buckets, individual_buckets = None, [None]
@@ -270,7 +271,7 @@ def initialize_dataset(
                 sample_n_frames=args.num_frames,
                 sample_stride=args.frame_stride,
                 frames_mask_generator=mask_gen,
-                t_compress_func=(lambda x: vae.get_latent_size((x, None, None))[0]) if vae is not None else None,
+                latent_compress_func=(lambda x: vae.get_latent_size((x, None, None))[0]) if vae is not None else None,
                 buckets=buckets,
                 filter_data=args.filter_data,
                 pre_patchify=args.pre_patchify,
@@ -280,7 +281,7 @@ def initialize_dataset(
                 max_target_size=args.max_image_size,
                 input_sq_size=latte_model.input_sq_size,
                 in_channels=latte_model.in_channels,
-                apply_train_transforms=True,
+                apply_transforms_dataset=True,
                 target_size=(img_h, img_w),
                 video_backend=args.video_backend,
                 output_columns=output_columns,
@@ -467,7 +468,7 @@ def main(args):
                 latte_model,
                 amp_level=args.amp_level,
                 dtype=dtype_map[args.dtype],
-                custom_fp32_cells=WHITELIST_OPS,
+                custom_fp32_cells=BLACKLIST_OPS,
             )
     # load checkpoint
     if args.pretrained_model_path:

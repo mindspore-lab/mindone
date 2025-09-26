@@ -1,0 +1,169 @@
+env:
+  mode: 0
+  jit_level: O1
+  max_device_memory: 59GB
+  seed: 42
+  distributed: False
+  debug: False
+
+model:
+  from_pretrained:
+  guidance_embed: False
+  fused_qkv: False
+  use_liger_rope: True
+  # model architecture
+  in_channels: 64
+  vec_in_dim: 768
+  context_in_dim: 4096
+  hidden_size: 3072
+  mlp_ratio: 4.0
+  num_heads: 24
+  depth: 19
+  depth_single_blocks: 38
+  axes_dim: [ 16, 56, 56 ]
+  theta: 10_000
+  qkv_bias: True
+  cond_embed: False
+  recompute_every_nth_block: 1
+  dtype: bf16
+
+ae: ../ae/hunyuan_vae.yaml
+
+dataset:
+  v2_pipeline: True
+  sample_n_frames: 5
+  csv_path: CSV_PATH
+  video_folder: VIDEO_FOLDER
+  text_emb_folder:
+    t5: UL2_FOLDER
+    clip: BYT5_FOLDER
+  empty_text_emb:
+    t5: EMPTY_TEXT_EMB
+    clip: EMPTY_TEXT_EMB
+  text_drop_prob:
+    t5: 0.31622777
+    clip: 0.31622777
+  vae_scale_factor: 0.476986
+  vae_shift_factor: 0
+  max_fps: 24
+  apply_transforms_dataset: True
+  output_columns: [ "video", "video_ids", "t5_caption", "txt_ids", "clip_caption", "shift_alpha" ]
+
+bucket_config:
+  init_args:
+    bucket_config:
+      256px:
+        1: [ 1.0, 130 ]
+        5: [ 1.0, 14 ]
+        9: [ 1.0, 14 ]
+        13: [ 1.0, 14 ]
+        17: [ 1.0, 14 ]
+        21: [ 1.0, 14 ]
+        25: [ 1.0, 14 ]
+        29: [ 1.0, 14 ]
+        33: [ 1.0, 14 ]
+        37: [ 1.0, 10 ]
+        41: [ 1.0, 10 ]
+        45: [ 1.0, 10 ]
+        49: [ 1.0, 10 ]
+        53: [ 1.0, 10 ]
+        57: [ 1.0, 10 ]
+        61: [ 1.0, 10 ]
+        65: [ 1.0, 10 ]
+        73: [ 1.0, 7 ]
+        77: [ 1.0, 7 ]
+        81: [ 1.0, 7 ]
+        85: [ 1.0, 7 ]
+        89: [ 1.0, 7 ]
+        93: [ 1.0, 7 ]
+        97: [ 1.0, 7 ]
+        101: [ 1.0, 6 ]
+        105: [ 1.0, 6 ]
+        109: [ 1.0, 6 ]
+        113: [ 1.0, 6 ]
+        117: [ 1.0, 6 ]
+        121: [ 1.0, 6 ]
+        125: [ 1.0, 6 ]
+        129: [ 1.0, 6 ]
+      768px:
+        1: [ 1.0, 38 ]
+        5: [ 1.0, 6 ]
+        9: [ 1.0, 6 ]
+        13: [ 1.0, 6 ]
+        17: [ 1.0, 6 ]
+        21: [ 1.0, 6 ]
+        25: [ 1.0, 6 ]
+        29: [ 1.0, 6 ]
+        33: [ 1.0, 6 ]
+        37: [ 1.0, 4 ]
+        41: [ 1.0, 4 ]
+        45: [ 1.0, 4 ]
+        49: [ 1.0, 4 ]
+        53: [ 1.0, 4 ]
+        57: [ 1.0, 4 ]
+        61: [ 1.0, 4 ]
+        65: [ 1.0, 4 ]
+        69: [ 1.0, 3 ]
+        73: [ 1.0, 3 ]
+        77: [ 1.0, 3 ]
+        81: [ 1.0, 3 ]
+        85: [ 1.0, 3 ]
+        89: [ 1.0, 3 ]
+        93: [ 1.0, 3 ]
+        97: [ 1.0, 3 ]
+        101: [ 1.0, 2 ]
+        105: [ 1.0, 2 ]
+        109: [ 1.0, 2 ]
+        113: [ 1.0, 2 ]
+        117: [ 1.0, 2 ]
+        121: [ 1.0, 2 ]
+        125: [ 1.0, 2 ]
+        129: [ 1.0, 2 ]
+
+dataloader:
+  shuffle: True
+  num_workers_dataset: 4
+
+train:
+  pipeline:
+    is_causal_vae: True
+
+  sequence_parallel:
+    shards: 8   # 1 == no SP
+
+  options:
+    steps: 20000
+
+  lr_scheduler:
+    name: constant
+    lr: 5e-5
+    warmup_steps: 0
+
+  optimizer:
+    name: adamw_bf16
+    eps: 1e-15
+    betas: [ 0.9, 0.999 ]
+    weight_decay: 0
+
+  loss_scaler:
+    class_path: mindspore.nn.FixedLossScaleUpdateCell   # or DynamicLossScaleUpdateCell in FP16
+    init_args:
+      loss_scale_value: 1
+
+  settings:
+    zero_stage: 3
+    gradient_accumulation_steps: 1
+    clip_grad: True
+    clip_norm: 1.0
+
+  save:
+    ckpt_save_policy: latest_k
+    ckpt_save_interval: 500
+    ckpt_max_keep: 10
+    log_interval: 1
+    save_ema_only: False
+    record_lr: False
+    ckpt_combine_online: False
+
+save:
+  output_path: ../../../output/stage2  # the path is relative to this config

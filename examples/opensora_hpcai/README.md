@@ -193,7 +193,13 @@ Other useful documents and links are listed below.
    install [CANN 8.0.0.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.0.beta1)
    as recommended by the official installation website.
 
-2. Install requirements
+2. Install MindONE
+
+```shell
+pip install -e .[training]
+```
+
+3. Install requirements
 
 ```shell
 pip install -r requirements.txt
@@ -366,16 +372,16 @@ First, you will need to generate text embeddings with:
 ```shell
 # CLIP-Large
 TRANSFORMERS_OFFLINE=1 python scripts/v2.0/text_embedding.py \
---model.from_pretrained="DeepFloyd/t5-v1_1-xxl" \
---model.max_length=512 \
---prompts_file=YOUR_PROMPTS.txt \
---output_path=assets/texts/t5_512
-# T5
-TRANSFORMERS_OFFLINE=1 python scripts/v2.0/text_embedding.py \
 --model.from_pretrained="openai/clip-vit-large-patch14" \
 --model.max_length=77 \
 --prompts_file=YOUR_PROMPTS.txt \
 --output_path=assets/texts/clip_77
+# T5
+TRANSFORMERS_OFFLINE=1 python scripts/v2.0/text_embedding.py \
+--model.from_pretrained="DeepFloyd/t5-v1_1-xxl" \
+--model.max_length=512 \
+--prompts_file=YOUR_PROMPTS.txt \
+--output_path=assets/texts/t5_512
 ```
 
 Repeat the same for negative prompts.
@@ -384,10 +390,10 @@ Then, you can generate videos by running the following command:
 
 ```shell
 python scripts/v2.0/inference_v2.py --config=configs/opensora-v2-0/inference/256px.yaml \
-text_emb.t5_dir=assets/texts/t5_512 \
-text_emb.neg_t5_dir=assets/texts/t5_512_neg \
-text_emb.clip_dir=assets/texts/clip_77 \
-text_emb.neg_clip_dir=assets/texts/clip_77_neg
+prompts.t5_dir=assets/texts/t5_512 \
+prompts.neg_t5_dir=assets/texts/t5_512_neg \
+prompts.clip_dir=assets/texts/clip_77 \
+prompts.neg_clip_dir=assets/texts/clip_77_neg
 ```
 
 #### Inference Performance
@@ -616,7 +622,25 @@ video_embed_folder
 
 ## Training
 
+### Open-Sora 2.0
+
+Once the data in a CSV file is prepared, training can be started by running the appropriate bash scripts located in the
+`scripts/v2.0/run` directory.
+
+#### Training Performance
+
+| Model name | Cards | Batch size |            Mode            | JIT level | Method | Resolution | Frames | Sequence Parallel | ZeRO stage | VAE cache | Text Cache | Step time (s) |                         Recipe                         |
+|:----------:|:-----:|:----------:|:--------------------------:|:---------:|:------:|:----------:|:------:|:-----------------:|:----------:|:---------:|:----------:|:-------------:|:------------------------------------------------------:|
+|    11B     |   8   |     1      |           Graph            |    O1     |  t2v   |  256x256   |  129   |         -         |     3      |    Yes    |    Yes     |     4.58      | [yaml](configs/opensora-v2-0/train/stage1_latent.yaml) |
+|    11B     |   8   |     1      |          Pynative          |     -     |  t2v   |  256x256   |  129   |         -         |     3      |    Yes    |    Yes     |     6.57      | [yaml](configs/opensora-v2-0/train/stage1_latent.yaml) |
+|    11B     |   8   |     2      | MMDiT Graph + VAE Pynative |    O1     |  t2v   |  256x256   |  129   |         -         |     3      |    No     |    Yes     |     11.8      |    [yaml](configs/opensora-v2-0/train/stage1.yaml)     |
+|    11B     |   8   |     1      |           Graph            |    O1     |  t2v   |  768x768   |  129   |         8         |     3      |    Yes    |    Yes     |     16.5      | [yaml](configs/opensora-v2-0/train/stage2_latent.yaml) |
+|    11B     |   8   |     1      |          Pynative          |     -     |  t2v   |  768x768   |  129   |         8         |     3      |    Yes    |    Yes     |     18.9      | [yaml](configs/opensora-v2-0/train/stage2_latent.yaml) |
+
 ### Open-Sora 1.2
+
+<details>
+<summary>Instructions</summary>
 
 Once you prepare the data in a csv file, you may run the following commands to launch training on a single card.
 
@@ -675,6 +699,7 @@ More details on the bucket configuration can be found in [Multi-resolution Train
 
 The instruction for launching the dynamic training task is smilar to the previous section. An example running script is `scripts/run/run_train_os1.2_stage2.sh`.
 
+</details>
 
 ### Open-Sora 1.1
 

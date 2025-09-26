@@ -22,17 +22,9 @@ model:
   cond_embed: True
   dtype: bf16
 
-ae:
-  from_pretrained: hpcai-tech/Open-Sora-v2/hunyuan_vae.safetensors
-  in_channels: 3
-  out_channels: 3
-  layers_per_block: 2
-  latent_channels: 16
-  use_spatial_tiling: True
-  use_temporal_tiling: False
-  dtype: bf16
+ae: ../ae/hunyuan_vae.yaml
 
-text_emb:
+prompts:
   prompts:
   neg_prompts:
   t5_dir:
@@ -64,12 +56,11 @@ sampling_option:
   image_osci: True  # enable image guidance oscillation
   scale_temporal_osci: True
   method: i2v
-  motion_score: "4"  # motion score for video generation
+  motion_score: 4  # motion score for video generation
   batch_size: 1
-  cond_type: "t2v"
+  cond_type: t2v
 
 saving_option:
-  output_path: ../../../samples  # save directory
   fps: 24  # fps for video generation and saving
 
 # T2I. TODO: separate config
@@ -119,6 +110,6 @@ sampling_option_t2i:
   image_osci: True  # enable image guidance oscillation
   scale_temporal_osci: True
   method: distill
-  motion_score: "4"  # motion score for video generation
+  motion_score: 4  # motion score for video generation
   batch_size: 1
-  cond_type: "t2v"
+  cond_type: t2v

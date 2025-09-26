@@ -10,7 +10,7 @@ from typing import Optional, Tuple, Union
 
 import numpy as np
 from mindcv.models.layers import DropPath
-from opensora.acceleration.communications import AlltoAll, GatherFowardSplitBackward, SplitFowardGatherBackward
+from opensora.acceleration.communications import AlltoAll, GatherForwardSplitBackward, SplitForwardGatherBackward
 from opensora.acceleration.parallel_states import get_sequence_parallel_group
 from opensora.models.layers.blocks import (
     CaptionEmbedder,
@@ -332,8 +332,8 @@ class STDiT3_DSP(nn.Cell):
             sp_group = get_sequence_parallel_group()
             logger.info(f"Initialize STDIT-v3 model with dynamic sequence parallel group `{sp_group}`.")
             self.sp_size = get_group_size(sp_group)
-            self.split_forward_gather_backward = SplitFowardGatherBackward(dim=1, grad_scale="down", group=sp_group)
-            self.gather_forward_split_backward = GatherFowardSplitBackward(dim=1, grad_scale="up", group=sp_group)
+            self.split_forward_gather_backward = SplitForwardGatherBackward(dim=1, grad_scale="down", group=sp_group)
+            self.gather_forward_split_backward = GatherForwardSplitBackward(dim=1, grad_scale="up", group=sp_group)
 
         self.is_dynamic_shape = check_dynamic_mode()
         self.chunk = get_chunk_op()
