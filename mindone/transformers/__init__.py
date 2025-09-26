@@ -1042,6 +1042,11 @@ from .models.t5 import (
     T5Model,
     T5PreTrainedModel,
 )
+from .models.table_transformer import (
+    TableTransformerForObjectDetection,
+    TableTransformerModel,
+    TableTransformerPreTrainedModel,
+)
 from .models.tapas import (
     TapasForMaskedLM,
     TapasForQuestionAnswering,
