@@ -84,6 +84,7 @@ from . import (
     m2m_100,
     mamba,
     mamba2,
+    markuplm,
     megatron_bert,
     mgp_str,
     mimi,
