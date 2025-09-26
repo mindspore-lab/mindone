@@ -380,6 +380,13 @@ from .models.distilbert import (
     DistilBertModel,
     DistilBertPreTrainedModel,
 )
+from .models.donut import (
+    DonutFeatureExtractor,
+    DonutImageProcessor,
+    DonutProcessor,
+    DonutSwinModel,
+    DonutSwinPreTrainedModel,
+)
 from .models.dpr import (
     DPRContextEncoder,
     DPRPretrainedContextEncoder,
@@ -445,6 +452,18 @@ from .models.flaubert import (
     FlaubertPreTrainedModel,
     FlaubertWithLMHeadModel,
 )
+from .models.flava import (
+    FlavaFeatureExtractor,
+    FlavaForPreTraining,
+    FlavaImageCodebook,
+    FlavaImageModel,
+    FlavaImageProcessor,
+    FlavaModel,
+    FlavaMultimodalModel,
+    FlavaPreTrainedModel,
+    FlavaProcessor,
+    FlavaTextModel,
+)
 from .models.fsmt import FSMTForConditionalGeneration, FSMTModel, PretrainedFSMTModel
 from .models.funnel import (
     FunnelBaseModel,
@@ -505,6 +524,14 @@ from .models.gpt_bigcode import (
     GPTBigCodeModel,
     GPTBigCodePreTrainedModel,
 )
+from .models.gpt_neo import (
+    GPTNeoForCausalLM,
+    GPTNeoForQuestionAnswering,
+    GPTNeoForSequenceClassification,
+    GPTNeoForTokenClassification,
+    GPTNeoModel,
+    GPTNeoPreTrainedModel,
+)
 from .models.gpt_neox import (
     GPTNeoXForCausalLM,
     GPTNeoXForQuestionAnswering,
@@ -526,14 +553,6 @@ from .models.gptj import (
     GPTJForSequenceClassification,
     GPTJModel,
     GPTJPreTrainedModel,
-)
-from .models.gpt_neo import (
-    GPTNeoForCausalLM,
-    GPTNeoForQuestionAnswering,
-    GPTNeoForSequenceClassification,
-    GPTNeoForTokenClassification,
-    GPTNeoModel,
-    GPTNeoPreTrainedModel,
 )
 from .models.granite import GraniteForCausalLM, GraniteModel, GranitePreTrainedModel
 from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
