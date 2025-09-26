@@ -509,6 +509,7 @@ from .models.gpt_neox import (
     GPTNeoXForCausalLM,
     GPTNeoXForQuestionAnswering,
     GPTNeoXForSequenceClassification,
+    GPTNeoXForTokenClassification,
     GPTNeoXLayer,
     GPTNeoXModel,
     GPTNeoXPreTrainedModel,
@@ -525,6 +526,7 @@ from .models.gptj import (
     GPTJForSequenceClassification,
     GPTJModel,
     GPTJPreTrainedModel,
+)
 from .models.gpt_neo import (
     GPTNeoForCausalLM,
     GPTNeoForQuestionAnswering,
