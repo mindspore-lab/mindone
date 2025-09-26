@@ -128,6 +128,8 @@ from . import (
     switch_transformers,
     t5,
     tapas,
+    trocr,
+    tvp,
     umt5,
     unispeech,
     unispeech_sat,
