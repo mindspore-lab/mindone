@@ -3,7 +3,6 @@ Video Information Extracting with Qwen2.5-Omni
 This script demonstrates how to use Qwen2.5-Omni to obtain information from the video stream.
 """
 
-import numpy as np
 from qwen_omni_utils import process_mm_info
 
 import mindspore as ms
@@ -42,10 +41,7 @@ def inference(video_path, prompt, sys_prompt):
     )
     # convert input to Tensor
     for key, value in inputs.items():  # by default input numpy array or list
-        if isinstance(value, np.ndarray):
-            inputs[key] = ms.Tensor(value)
-        elif isinstance(value, list):
-            inputs[key] = ms.Tensor(value)
+        inputs[key] = ms.Tensor(value)
         if inputs[key].dtype == ms.int64:
             inputs[key] = inputs[key].to(ms.int32)
         else:

@@ -1,0 +1,11 @@
+decord
+easydict
+ftfy
+huggingface_hub
+imageio[ffmpeg]
+librosa
+mindcv
+omegaconf
+regex
+torch
+transformers==4.50.0
