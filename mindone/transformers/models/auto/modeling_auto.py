@@ -196,6 +196,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("vitdet", "VitDetModel"),
         ("vivit", "VivitModel"),
         ("wav2vec2", "Wav2Vec2Model"),
+        ("wav2vec2-bert", "Wav2Vec2BertModel"),
+        ("wav2vec2-conformer", "Wav2Vec2ConformerModel"),
         ("whisper", "WhisperModel"),
         ("xclip", "XCLIPModel"),
         ("xlm-roberta", "XLMRobertaModel"),
@@ -268,6 +270,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("vipllava", "VipLlavaForConditionalGeneration"),
         ("visual_bert", "VisualBertForPreTraining"),
         ("wav2vec2", "Wav2Vec2ForPreTraining"),
+        ("wav2vec2-conformer", "Wav2Vec2ConformerForPreTraining"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
         ("gpt_neox_japanese", "GPTNeoXJapanesePreTrainedModel"),
@@ -918,6 +921,8 @@ MODEL_FOR_AUDIO_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("sew", "SEWForSequenceClassification"),
         ("sew-d", "SEWDForSequenceClassification"),
         ("wav2vec2", "Wav2Vec2ForSequenceClassification"),
+        ("wav2vec2-bert", "Wav2Vec2BertForSequenceClassification"),
+        ("wav2vec2-conformer", "Wav2Vec2ConformerForSequenceClassification"),
         ("whisper", "WhisperForAudioClassification"),
     ]
 )
@@ -929,6 +934,8 @@ MODEL_FOR_CTC_MAPPING_NAMES = OrderedDict(
         ("sew", "SEWForCTC"),
         ("sew-d", "SEWDForCTC"),
         ("wav2vec2", "Wav2Vec2ForCTC"),
+        ("wav2vec2-bert", "Wav2Vec2BertForCTC"),
+        ("wav2vec2-conformer", "Wav2Vec2ConformerForCTC"),
     ]
 )
 
@@ -936,6 +943,8 @@ MODEL_FOR_AUDIO_FRAME_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
     [
         ("unispeech-sat", "UniSpeechSatForAudioFrameClassification"),
         ("wav2vec2", "Wav2Vec2ForAudioFrameClassification"),
+        ("wav2vec2-bert", "Wav2Vec2BertForAudioFrameClassification"),
+        ("wav2vec2-conformer", "Wav2Vec2ConformerForAudioFrameClassification"),
     ]
 )
 
@@ -943,6 +952,8 @@ MODEL_FOR_AUDIO_XVECTOR_MAPPING_NAMES = OrderedDict(
     [
         ("unispeech-sat", "UniSpeechSatForXVector"),
         ("wav2vec2", "Wav2Vec2ForXVector"),
+        ("wav2vec2-bert", "Wav2Vec2BertForXVector"),
+        ("wav2vec2-conformer", "Wav2Vec2ConformerForXVector"),
     ]
 )
 
