@@ -701,7 +701,9 @@ class HeliumModel(HeliumPreTrainedModel):
             causal_mask = attention_mask
         else:
             min_dtype = _DTYPE_2_MIN[dtype]
-            causal_mask = mint.full(
+            # FIXME: mint.full raise "TypeError: Can not convert Tensor(shape=[], dtype=BFloat16, value=-3.38953e+38) to number" in mindspore 2.6.0 and 2.7.0
+            # Use ms.ops.full instead
+            causal_mask = ms.ops.full(
                 (sequence_length, target_length),
                 fill_value=min_dtype,
                 dtype=dtype,

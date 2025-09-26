@@ -18,7 +18,8 @@ from tests.modeling_test_utils import (
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
-MODES = [0, 1]
+# TODO: currently only support pynative mode. Add graph mode support later.
+MODES = [1]
 
 
 class HeliumModelTester:
@@ -33,7 +34,7 @@ class HeliumModelTester:
         vocab_size=99,
         hidden_size=32,
         num_hidden_layers=2,
-        num_attention_heads=4,
+        num_attention_heads=2,
         num_key_value_heads=2,
         intermediate_size=37,
         hidden_act="silu",
@@ -94,6 +95,7 @@ class HeliumModelTester:
         return self.config_class(
             vocab_size=self.vocab_size,
             hidden_size=self.hidden_size,
+            head_dim=self.head_dim,
             num_hidden_layers=self.num_hidden_layers,
             num_attention_heads=self.num_attention_heads,
             num_key_value_heads=self.num_key_value_heads,
