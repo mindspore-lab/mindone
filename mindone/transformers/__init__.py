@@ -545,13 +545,6 @@ from .models.imagegpt import (
     ImageGPTModel,
     ImageGPTPreTrainedModel,
 )
-from .models.jetmoe import (
-    JetMoeConfig,
-    JetMoeForCausalLM,
-    JetMoeForSequenceClassification,
-    JetMoeModel,
-    JetMoePreTrainedModel,
-)
 from .models.instructblip import (
     InstructBlipForConditionalGeneration,
     InstructBlipPreTrainedModel,
@@ -564,6 +557,13 @@ from .models.instructblipvideo import (
     InstructBlipVideoPreTrainedModel,
     InstructBlipVideoQFormerModel,
     InstructBlipVideoVisionModel,
+)
+from .models.jetmoe import (
+    JetMoeConfig,
+    JetMoeForCausalLM,
+    JetMoeForSequenceClassification,
+    JetMoeModel,
+    JetMoePreTrainedModel,
 )
 from .models.kosmos2 import Kosmos2ForConditionalGeneration, Kosmos2Model, Kosmos2PreTrainedModel
 from .models.led import (
