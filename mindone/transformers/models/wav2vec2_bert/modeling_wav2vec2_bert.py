@@ -754,14 +754,7 @@ class Wav2Vec2BertEncoder(mindspore.nn.Cell):
             if not skip_the_layer or synced_gpus:
                 # under fsdp or deepspeed zero3 all gpus must run in sync
                 if self.gradient_checkpointing and self.training:
-                    layer_outputs = self._gradient_checkpointing_func(
-                        layer.__call__,
-                        hidden_states,
-                        attention_mask,
-                        relative_position_embeddings,
-                        output_attentions,
-                        conv_attention_mask,
-                    )
+                    raise NotImplementedError
                 else:
                     layer_outputs = layer(
                         hidden_states,
