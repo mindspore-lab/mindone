@@ -669,6 +669,13 @@ from .models.phi3 import (
     Phi3PreTrainedModel,
 )
 from .models.pixtral import PixtralPreTrainedModel, PixtralVisionModel
+from .models.plbart import (
+    PLBartForCausalLM,
+    PLBartForConditionalGeneration,
+    PLBartForSequenceClassification,
+    PLBartModel,
+    PLBartPreTrainedModel,
+)
 from .models.poolformer import PoolFormerForImageClassification, PoolFormerModel, PoolFormerPreTrainedModel
 from .models.pop2piano import Pop2PianoForConditionalGeneration, Pop2PianoPreTrainedModel
 from .models.qwen2 import Qwen2ForCausalLM, Qwen2ForSequenceClassification, Qwen2ForTokenClassification, Qwen2Model

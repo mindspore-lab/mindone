@@ -106,6 +106,7 @@ from . import (
     phi,
     phi3,
     pixtral,
+    plbart,
     poolformer,
     pop2piano,
     qwen2,
