@@ -1306,7 +1306,10 @@ class WavLMForCTC(WavLMPreTrainedModel):
             log_probs = mindspore.mint.nn.functional.log_softmax(logits, dim=-1, dtype=mindspore.float32).transpose(
                 0, 1
             )
-
+            # mindspore ctc_loss doesn't support 1-dim
+            if flattened_targets.ndim == 1:
+                flattened_targets = flattened_targets.unsqueeze(0)
+                
             loss = mindspore.ops.ctc_loss(
                 log_probs,
                 flattened_targets,
