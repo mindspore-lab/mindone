@@ -52,7 +52,9 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("blip", "BlipModel"),
         ("blip-2", "Blip2Model"),
         ("bloom", "BloomModel"),
+        ("bridgetower", "BridgeTowerModel"),
         ("camembert", "CamembertModel"),
+        ("starcoder2", "Starcoder2Model"),
         ("canine", "CanineModel"),
         ("chameleon", "ChameleonModel"),
         ("chinese_clip", "ChineseCLIPModel"),
@@ -179,6 +181,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("swin2sr", "Swin2SRModel"),
         ("t5", "T5Model"),
         ("tapas", "TapasModel"),
+        ("textnet", "TextNetModel"),
         ("timesformer", "TimesformerModel"),
         ("tvp", "TvpModel"),
         ("umt5", "UMT5Model"),
@@ -475,6 +478,7 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("segformer", "SegformerForImageClassification"),
         ("siglip", "SiglipForImageClassification"),
         ("siglip2", "Siglip2ForImageClassification"),
+        ("textnet", "TextNetForImageClassification"),
         ("mobilenet_v1", "MobileNetV1ForImageClassification"),
         ("mobilenet_v2", "MobileNetV2ForImageClassification"),
         ("vit", "ViTForImageClassification"),
@@ -558,6 +562,7 @@ MODEL_FOR_RETRIEVAL_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES = OrderedDict(
     [
         ("aria", "AriaForConditionalGeneration"),
+        ("aya_vision", "AyaVisionForConditionalGeneration"),
         ("blip", "BlipForConditionalGeneration"),
         ("blip-2", "Blip2ForConditionalGeneration"),
         ("chameleon", "ChameleonForConditionalGeneration"),
@@ -969,6 +974,7 @@ MODEL_FOR_BACKBONE_MAPPING_NAMES = OrderedDict(
         ("hiera", "HieraBackbone"),
         ("resnet", "ResNetBackbone"),
         ("swin", "SwinBackbone"),
+        ("textnet", "TextNetBackbone"),
         ("vitdet", "VitDetBackbone"),
         ("vitpose_backbone", "VitPoseBackbone"),
     ]
