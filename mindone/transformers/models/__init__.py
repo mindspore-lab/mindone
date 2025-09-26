@@ -61,6 +61,7 @@ from . import (
     falcon,
     fastspeech2_conformer,
     flaubert,
+    fsmt,
     funnel,
     fuyu,
     gemma,

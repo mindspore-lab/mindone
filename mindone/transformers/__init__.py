@@ -428,6 +428,7 @@ from .models.flaubert import (
     FlaubertPreTrainedModel,
     FlaubertWithLMHeadModel,
 )
+from .models.fsmt import FSMTForConditionalGeneration, FSMTModel, PretrainedFSMTModel
 from .models.funnel import (
     FunnelBaseModel,
     FunnelForMaskedLM,
