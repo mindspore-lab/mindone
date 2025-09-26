@@ -737,6 +737,13 @@ from .models.siglip import (
     SiglipTextModel,
     SiglipVisionModel,
 )
+from .models.siglip2 import (
+    Siglip2ForImageClassification,
+    Siglip2Model,
+    Siglip2PreTrainedModel,
+    Siglip2TextModel,
+    Siglip2VisionModel,
+)
 from .models.smolvlm import (
     SmolVLMForConditionalGeneration,
     SmolVLMModel,
