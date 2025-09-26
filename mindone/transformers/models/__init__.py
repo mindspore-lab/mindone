@@ -138,6 +138,7 @@ from . import (
     unispeech_sat,
     univnet,
     video_llava,
+    videomae,
     vilt,
     vipllava,
     vision_encoder_decoder,

@@ -826,6 +826,13 @@ from .models.unispeech_sat import (
 )
 from .models.univnet import UnivNetModel
 from .models.video_llava import VideoLlavaForConditionalGeneration, VideoLlavaPreTrainedModel
+from .models.videomae import (
+    VideoMAEForPreTraining,
+    VideoMAEForVideoClassification,
+    VideoMAEImageProcessor,
+    VideoMAEModel,
+    VideoMAEPreTrainedModel,
+)
 from .models.vilt import (
     ViltForImageAndTextRetrieval,
     ViltForImagesAndTextClassification,
