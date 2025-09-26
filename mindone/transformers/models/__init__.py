@@ -131,6 +131,7 @@ from . import (
     nystromformer,
     olmo,
     olmo2,
+    oneformer,
     opt,
     owlv2,
     owlvit,
