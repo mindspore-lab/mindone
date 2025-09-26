@@ -683,6 +683,16 @@ from .models.modernbert import (
 )
 from .models.moonshine import MoonshineForConditionalGeneration, MoonshineModel, MoonshinePreTrainedModel
 from .models.moshi import MoshiForCausalLM, MoshiForConditionalGeneration, MoshiModel, MoshiPreTrainedModel
+from .models.mpnet import (
+    MPNetForMaskedLM,
+    MPNetForMultipleChoice,
+    MPNetForQuestionAnswering,
+    MPNetForSequenceClassification,
+    MPNetForTokenClassification,
+    MPNetLayer,
+    MPNetModel,
+    MPNetPreTrainedModel,
+)
 from .models.mpt import (
     MptForCausalLM,
     MptForQuestionAnswering,
