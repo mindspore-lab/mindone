@@ -43,7 +43,7 @@ class StableLmModelTester:
     def __init__(
         self,
         batch_size=13,
-        seq_length=7,
+        seq_length=1,
         is_training=True,
         use_input_mask=True,
         use_token_type_ids=False,

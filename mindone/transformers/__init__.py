@@ -885,6 +885,7 @@ from .models.speecht5 import (
     SpeechT5Model,
     SpeechT5PreTrainedModel,
 )
+<<<<<<< HEAD
 from .models.splinter import (
     SplinterForPreTraining,
     SplinterForQuestionAnswering,
@@ -901,6 +902,8 @@ from .models.squeezebert import (
     SqueezeBertModel,
     SqueezeBertPreTrainedModel,
 )
+=======
+>>>>>>> 0c3c7751 (Add stablelm model)
 from .models.stablelm import (
     StableLmForCausalLM,
     StableLmForSequenceClassification,
