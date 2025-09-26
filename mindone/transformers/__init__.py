@@ -369,6 +369,7 @@ from .models.deit import (
     DeiTPreTrainedModel,
 )
 from .models.depth_anything import DepthAnythingForDepthEstimation, DepthAnythingPreTrainedModel
+from .models.depth_pro import DepthProForDepthEstimation, DepthProImageProcessor, DepthProModel, DepthProPreTrainedModel
 from .models.dinov2 import Dinov2Backbone, Dinov2ForImageClassification, Dinov2Model, Dinov2PreTrainedModel
 from .models.distilbert import (
     DistilBertForMaskedLM,
@@ -389,6 +390,12 @@ from .models.dpr import (
     DPRReader,
 )
 from .models.dpt import DPTForDepthEstimation, DPTImageProcessor, DPTModel, DPTPreTrainedModel
+from .models.efficientnet import (
+    EfficientNetForImageClassification,
+    EfficientNetImageProcessor,
+    EfficientNetModel,
+    EfficientNetPreTrainedModel,
+)
 from .models.electra import (
     ElectraForCausalLM,
     ElectraForMaskedLM,
