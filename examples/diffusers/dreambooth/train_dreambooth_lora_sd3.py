@@ -43,9 +43,6 @@ from mindone.diffusers import (
     SD3Transformer2DModel,
     StableDiffusion3Pipeline,
 )
-from mindone.diffusers._peft import LoraConfig
-from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
-from mindone.diffusers._peft.utils import get_peft_model_state_dict, set_peft_model_state_dict
 from mindone.diffusers.optimization import get_scheduler
 from mindone.diffusers.training_utils import (
     AttrJitWrapper,
@@ -60,6 +57,9 @@ from mindone.diffusers.training_utils import (
     set_seed,
 )
 from mindone.diffusers.utils import convert_unet_state_dict_to_peft
+from mindone.peft import LoraConfig
+from mindone.peft.tuners.tuners_utils import BaseTunerLayer
+from mindone.peft.utils import get_peft_model_state_dict, set_peft_model_state_dict
 from mindone.trainers.adamw_mint import AdamW
 
 logger = logging.getLogger(__name__)
