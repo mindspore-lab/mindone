@@ -89,6 +89,7 @@ from . import (
     llava_next,
     llava_next_video,
     llava_onevision,
+    luke,
     m2m_100,
     mamba,
     mamba2,
