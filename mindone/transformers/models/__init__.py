@@ -125,6 +125,7 @@ from . import (
     moshi,
     mpnet,
     mpt,
+    musicgen_melody,
     mvp,
     nllb,
     nllb_moe,
