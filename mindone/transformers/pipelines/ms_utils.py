@@ -9,7 +9,7 @@ from mindspore.dataset import Dataset
 
 # fixme
 # consider general methods for various processor
-class PipelineDataset(Dataset):
+class PipelineDataset:
     def __init__(self, dataset, process, params):
         self.dataset = dataset
         self.process = process

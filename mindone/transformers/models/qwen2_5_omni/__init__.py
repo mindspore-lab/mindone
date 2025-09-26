@@ -14,12 +14,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .configuration_qwen2_5_omni import (
-    Qwen2_5OmniConfig,
-    Qwen2_5OmniTalkerConfig,
-    Qwen2_5OmniThinkerConfig,
-    Qwen2_5OmniToken2WavConfig,
-)
 from .modeling_qwen2_5_omni import (
     Qwen2_5OmniForConditionalGeneration,
     Qwen2_5OmniPreTrainedModel,
