@@ -49,7 +49,7 @@ from mindone.transformers.mindspore_adapter.paged_attention_block_tables import 
 from mindone.transformers.mindspore_adapter.utils import dtype_to_min
 
 from ...mindspore_adapter import dtype_to_max
-from ..qwen2 import Qwen2ForCausalLM, modeling_qwen2
+from ..qwen2 import Qwen2ForCausalLM
 
 logger = logging.get_logger(__name__)
 
@@ -756,12 +756,8 @@ class Qwen2AudioForConditionalGeneration(Qwen2AudioPreTrainedModel, GenerationMi
     def __init__(self, config: Qwen2AudioConfig):
         super().__init__(config)
         print("Qwen2AudoConfig:", config._attn_implementation)
-        if config._attn_implementation in modeling_qwen2.QWEN2_ATTENTION_CLASSES:
-            config.text_config._attn_implementation = config._attn_implementation
-        if config._attn_implementation in QWEN2AUDIO_ATTENTION_CLASSES:
-            config.audio_config._attn_implementation = config._attn_implementation
-        else:
-            config.audio_config._attn_implementation = "flash_attention_2"
+        config.text_config._attn_implementation = config._attn_implementation
+        config.audio_config._attn_implementation = config._attn_implementation
         print("audio_config_attention:", config.audio_config._attn_implementation)
         print("text_config_attention:", config.text_config._attn_implementation)
         self.audio_tower = Qwen2AudioEncoder(config.audio_config)  # Usually a `Qwen2AudioEncoder` instance
@@ -869,7 +865,7 @@ class Qwen2AudioForConditionalGeneration(Qwen2AudioPreTrainedModel, GenerationMi
                     "[INST] <|AUDIO|>\nWhat is that in this audio? [/INST]",
                     "[INST] <|AUDIO|>\nWhat is that in this audio? [/INST]",
                 ]
-                inputs = processor(text=prompts, audios=[audio1, audio2], return_tensors='pt', padding=True).to("cuda")
+                inputs = processor(text=prompts, audios=[audio1, audio2], return_tensors='np', padding=True)
                     audio1 has 101 tokens, while audio2 has 72 tokens
                 ```
 

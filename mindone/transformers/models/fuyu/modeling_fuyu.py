@@ -229,9 +229,11 @@ class FuyuForCausalLM(FuyuPreTrainedModel, GenerationMixin):
         Examples:
 
         ```python
-        >>> from transformers import FuyuProcessor, FuyuForCausalLM
+        >>> from transformers import FuyuProcessor
+        >>> from mindone.transformers import FuyuForCausalLM
         >>> from PIL import Image
         >>> import requests
+        >>> import mindspore as ms
 
         >>> processor = FuyuProcessor.from_pretrained("adept/fuyu-8b")
         >>> model = FuyuForCausalLM.from_pretrained("adept/fuyu-8b")
@@ -241,6 +243,11 @@ class FuyuForCausalLM(FuyuPreTrainedModel, GenerationMixin):
         >>> prompt = "Generate a coco-style caption.\n"
 
         >>> inputs = processor(images=image, text=prompt, return_tensors="pt")
+        >>> for key, value in inputs.items():
+        >>>     if key in ('attention_mask', 'image_patches_indices', 'input_ids'):
+        >>>         inputs[key] = ms.tensor(value.detach().numpy(), dtype=ms.int32)
+        >>>     elif key == 'image_patches':
+        >>>         inputs[key] = ms.tensor(value, dtype=ms.float32)
         >>> outputs = model(**inputs)
 
         >>> generated_ids = model.generate(**inputs, max_new_tokens=7)

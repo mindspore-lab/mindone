@@ -452,7 +452,10 @@ class PaliGemmaForConditionalGeneration(PaliGemmaPreTrainedModel, GenerationMixi
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor, PaliGemmaForConditionalGeneration
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import PaliGemmaForConditionalGeneration
+        >>> import mindspore as ms
+        >>> import numpy as np
 
         >>> model = PaliGemmaForConditionalGeneration.from_pretrained("google/PaliGemma-test-224px-hf")
         >>> processor = AutoProcessor.from_pretrained("google/PaliGemma-test-224px-hf")
@@ -461,7 +464,12 @@ class PaliGemmaForConditionalGeneration(PaliGemmaPreTrainedModel, GenerationMixi
         >>> url = "https://huggingface.co/gv-hf/PaliGemma-test-224px-hf/resolve/main/cow_beach_1.png"
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
-        >>> inputs = processor(images=image, text=prompt,  return_tensors="pt")
+        >>> inputs = processor(images=image, text=prompt,  return_tensors="np")
+        >>> for key, value in inputs.items():
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.tensor(value)
 
         >>> # Generate
         >>> generate_ids = model.generate(**inputs, max_length=30)
