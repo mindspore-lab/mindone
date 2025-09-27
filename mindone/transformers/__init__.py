@@ -798,6 +798,12 @@ from .models.mt5 import (
     MT5Model,
     MT5PreTrainedModel,
 )
+from .models.musicgen import (
+    MusicgenForCausalLM,
+    MusicgenForConditionalGeneration,
+    MusicgenModel,
+    MusicgenPreTrainedModel,
+)
 from .models.mvp import (
     MvpForCausalLM,
     MvpForConditionalGeneration,

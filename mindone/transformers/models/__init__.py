@@ -128,6 +128,7 @@ from . import (
     moshi,
     mpnet,
     mpt,
+    musicgen,
     mvp,
     nllb,
     nllb_moe,
