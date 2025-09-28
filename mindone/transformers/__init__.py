@@ -425,6 +425,12 @@ from .models.electra import (
 )
 from .models.emu3 import Emu3ForCausalLM, Emu3ForConditionalGeneration, Emu3PreTrainedModel, Emu3TextModel, Emu3VQVAE
 from .models.encodec import EncodecModel, EncodecPreTrainedModel
+from .models.esm import (
+    EsmForMaskedLM,
+    EsmForSequenceClassification,
+    EsmForTokenClassification,
+    EsmModel,
+    EsmPreTrainedModel,
 from .models.encoder_decoder import EncoderDecoderModel
 from .models.ernie import (
     ErnieForCausalLM,

@@ -63,6 +63,7 @@ from . import (
     electra,
     emu3,
     encodec,
+    esm,
     encoder_decoder,
     ernie,
     falcon,

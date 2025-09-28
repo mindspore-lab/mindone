@@ -84,7 +84,8 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("efficientnet", "EfficientNetConfig"),
         ("electra", "ElectraConfig"),
         ("emu3", "Emu3Config"),
-        ("encodec", "EncodecConfig"),
+        ("encodec", "EncodecConfig")
+        ("esm", "EsmConfig"),
         ("encoder-decoder", "EncoderDecoderConfig"),
         ("falcon", "FalconConfig"),
         ("fastspeech2_conformer", "FastSpeech2ConformerConfig"),
@@ -309,6 +310,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("electra", "ELECTRA"),
         ("emu3", "Emu3"),
         ("encodec", "Encodec"),
+        ("esm", "ESM"),
         ("encoder-decoder", "Encoder decoder"),
         ("falcon", "Falcon"),
         ("fastspeech2_conformer", "FastSpeech2Conformer"),
