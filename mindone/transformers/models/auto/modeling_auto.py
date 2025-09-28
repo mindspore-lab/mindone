@@ -214,6 +214,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("gpt_neox", "GPTNeoXModel"),
         ("gptj", "GPTJModel"),
         ("xlm-roberta-xl", "XLMRobertaXLModel"),
+        ("xlnet", "XLNetModel"),
         ("mobilenet_v1", "MobileNetV1Model"),
         ("mobilenet_v2", "MobileNetV2Model"),
         ("gpt_neox_japanese", "GPTNeoXJapaneseModel"),
@@ -285,6 +286,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("xlm", "XLMWithLMHeadModel"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
+        ("xlnet", "XLNetLMHeadModel"),
         ("gpt_neox_japanese", "GPTNeoXJapanesePreTrainedModel"),
     ]
 )
@@ -350,6 +352,7 @@ MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
         ("xlm", "XLMWithLMHeadModel"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
+        ("xlnet", "XLNetLMHeadModel"),
     ]
 )
 
@@ -428,6 +431,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("xlm-prophetnet", "XLMProphetNetForCausalLM"),
         ("xlm-roberta", "XLMRobertaForCausalLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForCausalLM"),
+        ("xlnet", "XLNetLMHeadModel"),
         ("gpt_bigcode", "GPTBigCodeForCausalLM"),
         ("gpt_neox", "GPTNeoXForCausalLM"),
         ("gpt_neox_japanese", "GPTNeoXJapaneseForCausalLM"),
@@ -801,6 +805,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("xlm", "XLMForSequenceClassification"),
         ("gpt_neox", "SequenceClassification"),
         ("xlm-roberta-xl", "XLMRobertaXLForSequenceClassification"),
+        ("xlnet", "XLNetForSequenceClassification"),
         ("zamba", "ZambaForSequenceClassification"),
         ("zamba2", "Zamba2ForSequenceClassification"),
     ]
@@ -858,6 +863,7 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
         ("xlm-roberta", "XLMRobertaForQuestionAnswering"),
         ("gpt_neox", "GPTNeoXForQuestionAnswering"),
         ("xlm-roberta-xl", "XLMRobertaXLForQuestionAnswering"),
+        ("xlnet", "XLNetForQuestionAnsweringSimple"),
         ("gptj", "GPTJForQuestionAnswering"),
     ]
 )
@@ -940,6 +946,7 @@ MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("xlm-roberta", "XLMRobertaForTokenClassification"),
         ("gpt_neox", "GPTNeoXForTokenClassification"),
         ("xlm-roberta-xl", "XLMRobertaXLForTokenClassification"),
+        ("xlnet", "XLNetForTokenClassification"),
     ]
 )
 
@@ -972,6 +979,7 @@ MODEL_FOR_MULTIPLE_CHOICE_MAPPING_NAMES = OrderedDict(
         ("squeezebert", "SqueezeBertForMultipleChoice"),
         ("xlm-roberta", "XLMRobertaForMultipleChoice"),
         ("xlm-roberta-xl", "XLMRobertaXLForMultipleChoice"),
+        ("xlnet", "XLNetForMultipleChoice"),
     ]
 )
 

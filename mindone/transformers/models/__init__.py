@@ -211,6 +211,7 @@ from . import (
     x_clip,
     xlm,
     xlm_roberta,
+    xlnet,
     yolos,
     zamba,
     zamba2,
