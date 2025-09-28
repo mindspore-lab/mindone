@@ -156,9 +156,11 @@ from . import (
     qwen2,
     qwen2_5_vl,
     qwen2_audio,
+    qwen2_moe,
     qwen2_vl,
     resnet,
     roberta,
+    roberta_prelayernorm,
     rwkv,
     sam,
     seamless_m4t_v2,
@@ -212,7 +214,7 @@ from . import (
 )
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
-    from . import qwen3
+    from . import qwen3, qwen3_moe
 
 if version.parse(transformers.__version__) >= version.parse("4.51.3"):
     from . import glm4

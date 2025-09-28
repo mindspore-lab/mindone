@@ -927,6 +927,14 @@ from .models.qwen2_5_vl import (
     Qwen2_5_VLProcessor,
 )
 from .models.qwen2_audio import Qwen2AudioEncoder, Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel
+from .models.qwen2_moe import (
+    Qwen2MoeForCausalLM,
+    Qwen2MoeForQuestionAnswering,
+    Qwen2MoeForSequenceClassification,
+    Qwen2MoeForTokenClassification,
+    Qwen2MoeModel,
+    Qwen2MoePreTrainedModel,
+)
 from .models.qwen2_vl import (
     Qwen2VLForConditionalGeneration,
     Qwen2VLImageProcessor,
@@ -955,6 +963,16 @@ from .models.roberta import (
     RobertaForTokenClassification,
     RobertaModel,
     RobertaPreTrainedModel,
+)
+from .models.roberta_prelayernorm import (
+    RobertaPreLayerNormForCausalLM,
+    RobertaPreLayerNormForMaskedLM,
+    RobertaPreLayerNormForMultipleChoice,
+    RobertaPreLayerNormForQuestionAnswering,
+    RobertaPreLayerNormForSequenceClassification,
+    RobertaPreLayerNormForTokenClassification,
+    RobertaPreLayerNormModel,
+    RobertaPreLayerNormPreTrainedModel,
 )
 from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
 from .models.sam import SamImageProcessor, SamModel, SamPreTrainedModel, SamProcessor
@@ -1190,6 +1208,14 @@ from .utils import logging
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
     from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
+    from .models.qwen3_moe import (
+        Qwen3MoeForCausalLM,
+        Qwen3MoeForQuestionAnswering,
+        Qwen3MoeForSequenceClassification,
+        Qwen3MoeForTokenClassification,
+        Qwen3MoeModel,
+        Qwen3MoePreTrainedModel,
+    )
 
 if version.parse(transformers.__version__) >= version.parse("4.51.3"):
     from .models.glm4 import (
