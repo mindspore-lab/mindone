@@ -16,3 +16,4 @@
 # limitations under the License.
 
 from .utils import GenerationMixin
+from .logits_process import *
