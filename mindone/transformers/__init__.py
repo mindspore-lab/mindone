@@ -444,6 +444,18 @@ from .models.fastspeech2_conformer import (
     FastSpeech2ConformerPreTrainedModel,
     FastSpeech2ConformerWithHifiGan,
 )
+from .models.fnet import (
+    FNetForMaskedLM,
+    FNetForMultipleChoice,
+    FNetForNextSentencePrediction,
+    FNetForPreTraining,
+    FNetForQuestionAnswering,
+    FNetForSequenceClassification,
+    FNetForTokenClassification,
+    FNetLayer,
+    FNetModel,
+    FNetPreTrainedModel,
+)
 from .models.flaubert import (
     FlaubertForMultipleChoice,
     FlaubertForQuestionAnswering,

@@ -66,6 +66,7 @@ from . import (
     ernie,
     falcon,
     fastspeech2_conformer,
+    fnet,
     flaubert,
     fsmt,
     funnel,
