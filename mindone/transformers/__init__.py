@@ -884,6 +884,7 @@ from .models.pix2struct import (
 from .models.pixtral import PixtralPreTrainedModel, PixtralVisionModel
 from .models.poolformer import PoolFormerForImageClassification, PoolFormerModel, PoolFormerPreTrainedModel
 from .models.pop2piano import Pop2PianoForConditionalGeneration, Pop2PianoPreTrainedModel
+from .models.prompt_depth_anything import PromptDepthAnythingForDepthEstimation, PromptDepthAnythingPreTrainedModel
 from .models.prophetnet import (
     ProphetNetDecoder,
     ProphetNetEncoder,
