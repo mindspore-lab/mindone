@@ -3,6 +3,7 @@ from typing import Any
 from mindspore import Parameter, Tensor
 from mindspore.common.initializer import (
     Constant,
+    HeNormal,
     Normal,
     One,
     TruncatedNormal,
@@ -56,3 +57,9 @@ def xavier_normal_(tensor: Parameter, gain: float = 1.0) -> None:
 
 def modulate(x: Tensor, shift: Tensor, scale: Tensor) -> Tensor:
     return x * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
+
+
+def kaiming_normal_(tensor: Parameter, a: float = 0, mode: str = "fan_out", nonlinearity: str = "relu") -> None:
+    tensor.set_data(
+        initializer(HeNormal(negative_slope=a, mode=mode, nonlinearity=nonlinearity), tensor.shape, tensor.dtype)
+    )
