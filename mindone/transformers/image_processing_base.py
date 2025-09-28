@@ -40,6 +40,7 @@ from transformers.utils import (
 )
 
 from .feature_extraction_utils import BatchFeature as BaseBatchFeature
+from .image_utils import is_valid_image
 from .utils import is_vision_available
 
 if is_vision_available():
@@ -536,6 +537,8 @@ class ImageProcessingMixin(PushToHubMixin):
             response = requests.get(image_url_or_urls, stream=True, headers=headers)
             response.raise_for_status()
             return Image.open(BytesIO(response.content))
+        elif is_valid_image(image_url_or_urls):
+            return image_url_or_urls
         else:
             raise TypeError(f"only a single or a list of entries is supported but got type={type(image_url_or_urls)}")
 

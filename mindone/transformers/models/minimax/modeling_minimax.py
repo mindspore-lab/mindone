@@ -18,7 +18,6 @@
 
 from typing import Callable, Optional, Union
 
-from transformers.integrations import use_kernel_forward_from_hub
 from transformers.models.minimax import MiniMaxConfig
 from transformers.utils import auto_docstring, can_return_tuple, logging
 
@@ -47,7 +46,6 @@ from ...utils import TransformersKwargs
 logger = logging.get_logger(__name__)
 
 
-@use_kernel_forward_from_hub("RMSNorm")
 class MiniMaxRMSNorm(nn.Cell):
     def __init__(self, hidden_size, eps=1e-6):
         """

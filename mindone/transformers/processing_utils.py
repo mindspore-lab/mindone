@@ -1370,6 +1370,15 @@ class ProcessorMixin(PushToHubMixin):
             else:
                 raise ValueError(f"Expect to have `{module_name}` registered in `transformers`, but failed to load it!")
 
+    def batch_decode(self, *args, **kwargs):
+        """
+        This method forwards all its arguments to PreTrainedTokenizer's [`~PreTrainedTokenizer.batch_decode`]. Please
+        refer to the docstring of this method for more information.
+        """
+        if not hasattr(self, "tokenizer"):
+            raise ValueError(f"Cannot batch decode text: {self.__class__.__name__} has no tokenizer.")
+        return self.tokenizer.batch_decode(*args, **kwargs)
+
     @property
     def model_input_names(self):
         first_attribute = getattr(self, self.attributes[0])

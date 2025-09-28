@@ -12,16 +12,19 @@
 
 ### Installation:
 ```
-# compile newest transformers whl because qwen3-vl(transformers v4.57.dev.0) haven't released
-git clone https://github.com/huggingface/transformers.git
-cd transformers
+git clone https://github.com/mindspore-lab/mindone.git -b hf-transformers-4.54
+cd mindone
 pip install -e .
 cd ..
 
-git clone https://github.com/mindspore-lab/mindone.git
-cd mindone
+# compile newest transformers whl because qwen3-vl(transformers v4.57.dev.0) haven't released
+git clone https://github.com/huggingface/transformers.git
+cd transformers
+git reset --hard d0af4269ec260b9c4aeeda24c346a469e44799e1
 pip install -e .
-cd examples/transformers/qwen3_vl
+cd ..
+
+cd mindone/examples/transformers/qwen3_vl
 ```
 
 ## Quick Start
@@ -37,11 +40,11 @@ python generate_qwen3_vl.py
 ```
 
 ```bash
-# for Qwen3-VL-30B-Instruct inference
+# for Qwen3-VL-30B-A3B-Instruct inference
 msrun --worker_num=2 --local_worker_num=2 --master_port=8118 \
     --log_dir=msrun_log --join=True --cluster_time_out=300 \
     generate_qwen3_vl_moe.py \
-    --model_name "Qwen/Qwen3-VL-30B-Instruct" \
+    --model_name "Qwen/Qwen3-VL-30B-A3B-Instruct" \
     --image "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/pipeline-cat-chonk.jpeg" \
     --prompt "Describe this image." \
 ```
@@ -74,7 +77,7 @@ thick, dense fur. This coat is a mix of brownish"]
 `model_name` and `image` could be replaced with your local path. Give it a try with various images and prompts🤗🤗.
 
 ## Inference Speed
-|        model name	         | mindspore version | precision* | cards | attention type | 	tokens/s	 |
-|:--------------------------:|:-----------------:|:----------:|:-----:|:--------------:|:----------:|
-| Qwen/Qwen3-VL-4B-Instruct  |       2.6.0       |    bf16     |   1   |   flash_attn   |    1.35    |
-| Qwen/Qwen3-VL-30B-Instruct |       2.6.0       |    bf16    |   2   |   flash_attn   |    0.5     |
+|          model name	           | mindspore version | precision* | cards | attention type | 	tokens/s	 |
+|:------------------------------:|:-----------------:|:----------:|:-----:|:--------------:|:----------:|
+|   Qwen/Qwen3-VL-4B-Instruct    |       2.6.0       |    bf16     |   1   |   flash_attn   |    1.35    |
+| Qwen/Qwen3-VL-30B-A3B-Instruct |       2.6.0       |    bf16    |   2   |   flash_attn   |    0.5     |

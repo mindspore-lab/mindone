@@ -2,14 +2,13 @@ import argparse
 from functools import partial
 
 import numpy as np
-from transformers import AutoProcessor
 
 import mindspore as ms
 import mindspore.mint.distributed as dist
 from mindspore.communication import GlobalComm
 
 from mindone.trainers.zero import prepare_network
-from mindone.transformers import Qwen3VLMoeForConditionalGeneration
+from mindone.transformers import AutoProcessor, Qwen3VLMoeForConditionalGeneration
 
 
 def generate(args):
@@ -73,7 +72,7 @@ if __name__ == "__main__":
         default="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/pipeline-cat-chonk.jpeg",
     )
     parser.add_argument(
-        "--model_name", type=str, default="Qwen/Qwen3-VL-30B-Instruct", help="Path to the pre-trained model."
+        "--model_name", type=str, default="Qwen/Qwen3-VL-30B-A3B-Instruct", help="Path to the pre-trained model."
     )
     parser.add_argument(
         "--attn_implementation",
