@@ -58,6 +58,7 @@ PROCESSOR_MAPPING_NAMES = OrderedDict(
         ("flava", "FlavaProcessor"),
         ("idefics", "IdeficsProcessor"),
         ("instructblip", "InstructBlipProcessor"),
+        ("internvl", "InternVLProcessor"),
         ("layoutlmv3", "LayoutMv3Processor"),
         ("llava_next", "LlavaNextProcessor"),
         ("llava_next_video", "LlavaNextVideoProcessor"),
@@ -65,11 +66,14 @@ PROCESSOR_MAPPING_NAMES = OrderedDict(
         ("oneformer", "OneFormerProcessor"),
         ("owlv2", "Owlv2Processor"),
         ("owlvit", "OwlViTProcessor"),
+        ("phi4_multimodal", "Phi4MultimodalProcessor"),
         ("pop2piano", "Pop2PianoProcessor"),
         ("qwen2_5_vl", "Qwen2_5_VLProcessor"),
+        ("qwen2_audio", "Qwen2AudioProcessor"),
         ("sam", "SamProcessor"),
         ("seamless_m4t", "SeamlessM4TProcessor"),
         ("siglip", "SiglipProcessor"),
+        ("whisper", "WhisperProcessor"),
     ]
 )
 
