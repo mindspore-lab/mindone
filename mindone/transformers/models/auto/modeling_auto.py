@@ -429,6 +429,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         ("mllama", "MllamaVisionModel"),
         ("resnet", "ResNetModel"),
         ("segformer", "SegformerModel"),
+        ("seggpt", "SegGptModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
         ("swin2sr", "Swin2SRModel"),
         ("swinv2", "Swinv2Model"),

@@ -159,6 +159,7 @@ from . import (
     sam,
     seamless_m4t_v2,
     segformer,
+    seggpt,
     sew,
     sew_d,
     siglip,
