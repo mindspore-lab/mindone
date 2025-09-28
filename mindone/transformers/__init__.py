@@ -964,6 +964,16 @@ from .models.roberta import (
     RobertaModel,
     RobertaPreTrainedModel,
 )
+from .models.roformer import (
+    RoFormerForCausalLM,
+    RoFormerForMaskedLM,
+    RoFormerForMultipleChoice,
+    RoFormerForQuestionAnswering,
+    RoFormerForSequenceClassification,
+    RoFormerForTokenClassification,
+    RoFormerLayer,
+    RoFormerModel,
+    RoFormerPreTrainedModel,
 from .models.roc_bert import (
     RoCBertForCausalLM,
     RoCBertForMaskedLM,
