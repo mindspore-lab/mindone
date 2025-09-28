@@ -12,5 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .configuration_nllb_moe import *
 from .modeling_nllb_moe import *

@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .image_processing_mobilenet_v2 import *
-from .image_processing_mobilenet_v2_fast import *
-from .modeling_mobilenet_v2 import *
+from .modeling_table_transformer import (
+    TableTransformerForObjectDetection,
+    TableTransformerModel,
+    TableTransformerPreTrainedModel,
+)
