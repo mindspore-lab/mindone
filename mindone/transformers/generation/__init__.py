@@ -15,5 +15,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .utils import GenerationMixin
 from .logits_process import *
+from .utils import GenerationMixin
