@@ -148,6 +148,7 @@ from . import (
     pixtral,
     poolformer,
     pop2piano,
+    prompt_depth_anything,
     prophetnet,
     qwen2,
     qwen2_5_vl,
