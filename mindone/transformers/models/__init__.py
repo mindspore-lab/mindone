@@ -112,6 +112,7 @@ from . import (
     m2m_100,
     mamba,
     mamba2,
+    markuplm,
     marian,
     mbart,
     megatron_bert,
