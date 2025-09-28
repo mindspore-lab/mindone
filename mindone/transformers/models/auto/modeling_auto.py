@@ -22,7 +22,7 @@ from collections import OrderedDict
 
 import transformers
 from packaging import version
-from transformers.utils import logging
+from .utils import logging
 
 from .auto_factory import _BaseAutoBackboneClass, _BaseAutoModelClass, _LazyAutoMapping, auto_class_update
 from .configuration_auto import CONFIG_MAPPING_NAMES
@@ -168,6 +168,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("rembert", "RemBertModel"),
         ("resnet", "ResNetModel"),
         ("roberta", "RobertaModel"),
+        ("roc_bert", "RoCBertModel"),
         ("roberta-prelayernorm", "RobertaPreLayerNormModel"),
         ("rwkv", "RwkvModel"),
         ("sam", "SamModel"),
@@ -266,6 +267,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("paligemma", "PaliGemmaForConditionalGeneration"),
         ("qwen2_audio", "Qwen2AudioForConditionalGeneration"),
         ("roberta", "RobertaForMaskedLM"),
+        ("roc_bert", "RoCBertForPreTraining"),
         ("roberta-prelayernorm", "RobertaPreLayerNormForMaskedLM"),
         ("rwkv", "RwkvForCausalLM"),
         ("squeezebert", "SqueezeBertForMaskedLM"),
@@ -330,6 +332,7 @@ MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
         ("pegasus_x", "PegasusXForConditionalGeneration"),
         ("pop2piano", "Pop2PianoForConditionalGeneration"),
         ("rembert", "RemBertForMaskedLM"),
+        ("roc_bert", "RoCBertForMaskedLM"),
         ("roberta", "RobertaForMaskedLM"),
         ("roberta-prelayernorm", "RobertaPreLayerNormForMaskedLM"),
         ("rwkv", "RwkvForCausalLM"),
@@ -407,6 +410,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("roberta-prelayernorm", "RobertaPreLayerNormForCausalLM"),
         ("recurrent_gemma", "RecurrentGemmaForCausalLM"),
         ("rembert", "RemBertForCausalLM"),
+        ("roc_bert", "RoCBertForCausalLM"),
         ("roberta", "RobertaForCausalLM"),
         ("rwkv", "RwkvForCausalLM"),
         ("stablelm", "StableLmForCausalLM"),
@@ -638,6 +642,7 @@ MODEL_FOR_MASKED_LM_MAPPING_NAMES = OrderedDict(
         ("mvp", "MvpForConditionalGeneration"),
         ("nystromformer", "NystromformerForMaskedLM"),
         ("rembert", "RemBertForMaskedLM"),
+        ("roc_bert", "RoCBertForMaskedLM"),
         ("roberta", "RobertaForMaskedLM"),
         ("squeezebert", "SqueezeBertForMaskedLM"),
         ("tapas", "TapasForMaskedLM"),
@@ -771,6 +776,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("qwen2", "Qwen2ForSequenceClassification"),
         ("qwen2_moe", "Qwen2MoeForSequenceClassification"),
         ("rembert", "RemBertForSequenceClassification"),
+        ("roc_bert", "RoCBertForSequenceClassification"),
         ("roberta", "RobertaForSequenceClassification"),
         ("roberta-prelayernorm", "RobertaPreLayerNormForSequenceClassification"),
         ("stablelm", "StableLmForSequenceClassification"),
@@ -823,6 +829,7 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
         ("opt", "OPTForQuestionAnswering"),
         ("qwen2", "Qwen2ForQuestionAnswering"),
         ("rembert", "RemBertForQuestionAnswering"),
+        ("roc_bert", "RoCBertForQuestionAnswering"),
         ("roberta", "RobertaForQuestionAnswering"),
         ("roberta-prelayernorm", "RobertaPreLayerNormForQuestionAnswering"),
         ("squeezebert", "SqueezeBertForQuestionAnswering"),
@@ -899,6 +906,9 @@ MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("phi", "PhiForTokenClassification"),
         ("phi3", "Phi3ForTokenClassification"),
         ("qwen2", "Qwen2ForTokenClassification"),
+        ("rembert", "RemBertForTokenClassification"),
+        ("roberta", "RobertaForTokenClassification"),
+        ("roc_bert", "RoCBertForTokenClassification"),
         ("qwen2_moe", "Qwen2MoeForTokenClassification"),
         ("roberta", "RobertaForTokenClassification"),
         ("roberta-prelayernorm", "RobertaPreLayerNormForTokenClassification"),
@@ -937,6 +947,7 @@ MODEL_FOR_MULTIPLE_CHOICE_MAPPING_NAMES = OrderedDict(
         ("nystromformer", "NystromformerForMultipleChoice"),
         ("rembert", "RemBertForMultipleChoice"),
         ("roberta", "RobertaForMultipleChoice"),
+        ("roc_bert", "RoCBertForMultipleChoice"),
         ("roberta-prelayernorm", "RobertaPreLayerNormForMultipleChoice"),
         ("squeezebert", "SqueezeBertForMultipleChoice"),
         ("xlm-roberta", "XLMRobertaForMultipleChoice"),
@@ -1057,6 +1068,7 @@ MODEL_FOR_TEXT_ENCODING_MAPPING_NAMES = OrderedDict(
         ("mt5", "MT5EncoderModel"),
         ("nystromformer", "NystromformerModel"),
         ("rembert", "RemBertModel"),
+        ("roc_bert", "RoCBertModel"),
         ("roberta", "RobertaModel"),
         ("roberta-prelayernorm", "RobertaPreLayerNormModel"),
         ("squeezebert", "SqueezeBertModel"),

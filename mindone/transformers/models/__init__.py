@@ -160,6 +160,7 @@ from . import (
     qwen2_vl,
     resnet,
     roberta,
+    roc_bert,
     roberta_prelayernorm,
     rwkv,
     sam,
