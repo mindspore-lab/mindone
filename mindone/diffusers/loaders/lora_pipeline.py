@@ -6162,9 +6162,6 @@ class QwenImageLoraLoaderMixin(LoraBaseMixin):
             adapter_name (`str`, *optional*):
                 Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
                 `default_{i}` where i is the total number of adapters being loaded.
-            low_cpu_mem_usage (`bool`, *optional*):
-                Speed up model loading by only loading the pretrained LoRA weights and not initializing the random
-                weights.
             hotswap (`bool`, *optional*):
                 See [`~loaders.StableDiffusionLoraLoaderMixin.load_lora_weights`].
             kwargs (`dict`, *optional*):
@@ -6199,7 +6196,6 @@ class QwenImageLoraLoaderMixin(LoraBaseMixin):
         transformer,
         adapter_name=None,
         _pipeline=None,
-        low_cpu_mem_usage=False,
         hotswap: bool = False,
         metadata=None,
     ):
@@ -6216,9 +6212,6 @@ class QwenImageLoraLoaderMixin(LoraBaseMixin):
             adapter_name (`str`, *optional*):
                 Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
                 `default_{i}` where i is the total number of adapters being loaded.
-            low_cpu_mem_usage (`bool`, *optional*):
-                Speed up model loading by only loading the pretrained LoRA weights and not initializing the random
-                weights.
             hotswap (`bool`, *optional*):
                 See [`~loaders.StableDiffusionLoraLoaderMixin.load_lora_weights`].
             metadata (`dict`):
@@ -6233,7 +6226,6 @@ class QwenImageLoraLoaderMixin(LoraBaseMixin):
             adapter_name=adapter_name,
             metadata=metadata,
             _pipeline=_pipeline,
-            low_cpu_mem_usage=low_cpu_mem_usage,
             hotswap=hotswap,
         )
 

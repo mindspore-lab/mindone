@@ -1135,6 +1135,37 @@ LTX_VIDEO_TRANSFORMER3D_CASES = [
     ],
 ]
 
+QWENIMAGE_TRANSFORMER2D_CASES = [
+    [
+        "QwenImageTransformer2DModel",
+        "diffusers.models.transformers.transformer_qwenimage.QwenImageTransformer2DModel",
+        "mindone.diffusers.models.transformers.transformer_qwenimage.QwenImageTransformer2DModel",
+        (),
+        {
+            "patch_size": 2,
+            "in_channels": 16,
+            "out_channels": 4,
+            "num_layers": 2,
+            "attention_head_dim": 16,
+            "num_attention_heads": 3,
+            "joint_attention_dim": 16,
+            "guidance_embeds": False,
+            "axes_dims_rope": (8, 4, 4),
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(1, 16, 16),
+            "encoder_hidden_states": np.random.randn(1, 7, 16),
+            "encoder_hidden_states_mask": np.ones((1, 7)).astype(bool),
+            "timestep": np.ones(1),
+            "img_shapes": (1, 4, 4),
+            "txt_seq_lens": (7, ),
+            "return_dict": False,
+        },  
+        ("fp32", "bf16"),
+        (0, 1),
+    ],
+]
 
 SKYREELS_V2_TRANSFORMER3D_CASES = [
     [
@@ -1500,7 +1531,6 @@ CHROMA_TRANSFORMER2D_CASES = [
     ]
 ]
 
-
 TRANSFORMERS_CASES = (
     ALLEGRO_TRANSFORMER3D_CASES
     + AURAFLOW_TRANSFORMER2D_CASES
@@ -1515,6 +1545,7 @@ TRANSFORMERS_CASES = (
     + OMNIGEN_TRANSFORMER2D_CASES
     + PIXART_TRANSFORMER2D_CASES
     + PRIOR_TRANSFORMER_CASES
+    + QWENIMAGE_TRANSFORMER2D_CASES
     + SANA_TRANSFORMER2D_CASES
     + SD3_TRANSFORMER2D_CASES
     + SD35_TRANSFORMER2D_CASES

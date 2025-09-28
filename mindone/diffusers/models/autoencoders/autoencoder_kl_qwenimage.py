@@ -27,15 +27,10 @@ import numpy as np
 
 import mindspore as ms
 from mindspore import mint, nn, ops
-# import torch
-# import torch.nn as nn
-# import torch.nn.functional as F
-# import torch.utils.checkpoint
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin
 from ...utils import logging
-# from ...utils.accelerate_utils import apply_forward_hook
 from ..activations import get_activation
 from ..modeling_outputs import AutoencoderKLOutput
 from ..modeling_utils import ModelMixin

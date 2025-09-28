@@ -22,19 +22,12 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import mindspore as ms
 from mindspore import mint, nn, ops
-# import torch
-# import torch.nn as nn
-# import torch.nn.functional as F
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
-# from ...utils import USE_PEFT_BACKEND, logging, scale_lora_layers, unscale_lora_layers
-# from ...utils.torch_utils import maybe_allow_in_graph
 from ...utils import logging
 from ..attention import FeedForward
-# from ..attention_dispatch import dispatch_attention_fn
 from ..attention_processor import Attention
-# from ..cache_utils import CacheMixin
 from ..embeddings import TimestepEmbedding, Timesteps
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
@@ -240,19 +233,19 @@ class QwenEmbedRope(nn.Cell):
 
     @functools.lru_cache(maxsize=None)
     def _compute_video_freqs(self, frame, height, width, idx=0):
-        seq_lens = frame * height * width
+        seq_lens = frame * height * width    
         freqs_pos = self.pos_freqs.split([x // 2 for x in self.axes_dim], dim=1)
         freqs_neg = self.neg_freqs.split([x // 2 for x in self.axes_dim], dim=1)
 
-        freqs_frame = freqs_pos[0][idx : idx + frame].view(frame, 1, 1, -1).expand((frame, height, width, -1),)
+        freqs_frame = freqs_pos[0][idx : idx + frame].view(frame, 1, 1, -1).tile((1, height, width, 1))
         if self.scale_rope:
             freqs_height = mint.cat([freqs_neg[1][-(height - height // 2) :], freqs_pos[1][: height // 2]], dim=0)
-            freqs_height = freqs_height.view(1, height, 1, -1).expand((frame, height, width, -1),)
+            freqs_height = freqs_height.view(1, height, 1, -1).tile((frame, 1, width, 1))
             freqs_width = mint.cat([freqs_neg[2][-(width - width // 2) :], freqs_pos[2][: width // 2]], dim=0)
-            freqs_width = freqs_width.view(1, 1, width, -1).expand((frame, height, width, -1),)
+            freqs_width = freqs_width.view(1, 1, width, -1).tile((frame, height, 1, 1))
         else:
-            freqs_height = freqs_pos[1][:height].view(1, height, 1, -1).expand((frame, height, width, -1),)
-            freqs_width = freqs_pos[2][:width].view(1, 1, width, -1).expand((frame, height, width, -1),)
+            freqs_height = freqs_pos[1][:height].view(1, height, 1, -1).tile((frame, 1, width, 1))
+            freqs_width = freqs_pos[2][:width].view(1, 1, width, -1).tile((frame, height, 1, 1))
 
         freqs = mint.cat([freqs_frame, freqs_height, freqs_width], dim=-1).reshape(seq_lens, -1)
         return freqs.clone().contiguous()
@@ -324,16 +317,7 @@ class QwenDoubleStreamAttnProcessor2_0:
         joint_value = mint.cat([txt_value, img_value], dim=1)
 
         # Compute joint attention
-        # TODO: dispatch_attention_fn.py
-        # joint_hidden_states = dispatch_attention_fn(
-        #     joint_query,
-        #     joint_key,
-        #     joint_value,
-        #     attn_mask=attention_mask,
-        #     dropout_p=0.0,
-        #     is_causal=False,
-        #     backend=self._attention_backend,
-        # )
+        # TODO: function dispatch_attention_fn.py
         joint_query, joint_key, joint_value = (x.permute(0, 2, 1, 3) for x in (joint_query, joint_key, joint_value))
         joint_hidden_states = attn.scaled_dot_product_attention(
             joint_query, joint_key, joint_value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
@@ -602,7 +586,7 @@ class QwenImageTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, Fro
         timestep = timestep.to(hidden_states.dtype)
         encoder_hidden_states = self.txt_norm(encoder_hidden_states)
         encoder_hidden_states = self.txt_in(encoder_hidden_states)
-
+        
         if guidance is not None:
             guidance = guidance.to(hidden_states.dtype) * 1000
 
