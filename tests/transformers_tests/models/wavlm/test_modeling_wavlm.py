@@ -39,7 +39,7 @@ from tests.modeling_test_utils import (
 from tests.transformers_tests.models.modeling_common import floats_numpy, random_attention_mask
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-2}
-#DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
+# DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
 # TODO mindspore.ops.function.nn_func.multi_head_attention_forward only support fp32 and accuracy does not meet requirements
 
 MODES = [1]
