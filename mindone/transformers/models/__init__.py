@@ -213,6 +213,7 @@ from . import (
     xlm_roberta,
     xlnet,
     yolos,
+    yoso,
     zamba,
     zamba2,
     zoedepth,

@@ -1239,6 +1239,16 @@ from .models.xlnet import (
     XLNetPreTrainedModel,
 )
 from .models.yolos import YolosForObjectDetection, YolosImageProcessor, YolosModel, YolosPreTrainedModel
+from .models.yoso import (
+    YosoForMaskedLM,
+    YosoForMultipleChoice,
+    YosoForQuestionAnswering,
+    YosoForSequenceClassification,
+    YosoForTokenClassification,
+    YosoLayer,
+    YosoModel,
+    YosoPreTrainedModel,
+)
 from .models.zamba import ZambaForCausalLM, ZambaForSequenceClassification, ZambaModel, ZambaPreTrainedModel
 from .models.zamba2 import Zamba2ForCausalLM, Zamba2ForSequenceClassification, Zamba2Model, Zamba2PreTrainedModel
 from .models.zoedepth import ZoeDepthForDepthEstimation, ZoeDepthPreTrainedModel
