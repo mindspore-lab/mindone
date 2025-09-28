@@ -132,6 +132,7 @@ from . import (
     mpnet,
     mpt,
     mvp,
+    nemotron,
     nllb_moe,
     nystromformer,
     olmo,
