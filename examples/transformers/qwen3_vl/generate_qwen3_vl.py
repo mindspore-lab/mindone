@@ -1,11 +1,10 @@
 import argparse
 
 import numpy as np
-from transformers import AutoProcessor
 
 import mindspore as ms
 
-from mindone.transformers import Qwen3VLForConditionalGeneration
+from mindone.transformers import AutoProcessor, Qwen3VLForConditionalGeneration
 
 
 def generate(args):

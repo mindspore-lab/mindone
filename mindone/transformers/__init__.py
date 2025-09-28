@@ -44,7 +44,6 @@ from .image_processing_utils import BaseImageProcessor
 from .image_processing_utils_fast import BaseImageProcessorFast
 from .image_utils import ImageFeatureExtractionMixin
 from .masking_utils import AttentionMaskInterface
-
 from .modeling_utils import MSPreTrainedModel
 from .models.albert import (
     AlbertForMaskedLM,
@@ -528,7 +527,12 @@ from .models.qwen2_5_omni import (
 )
 from .models.qwen2_5_vl import Qwen2_5_VLForConditionalGeneration, Qwen2_5_VLModel, Qwen2_5_VLPreTrainedModel
 from .models.qwen2_audio import Qwen2AudioEncoder, Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel
-from .models.qwen2_vl import Qwen2VLForConditionalGeneration, Qwen2VLModel, Qwen2VLPreTrainedModel
+from .models.qwen2_vl import (
+    Qwen2VLForConditionalGeneration,
+    Qwen2VLImageProcessor,
+    Qwen2VLModel,
+    Qwen2VLPreTrainedModel,
+)
 from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
 from .models.rembert import (
     RemBertForCausalLM,
@@ -691,6 +695,7 @@ if version.parse(transformers.__version__) > version.parse("4.56.1"):
         Qwen3VLForConditionalGeneration,
         Qwen3VLModel,
         Qwen3VLPreTrainedModel,
+        Qwen3VLProcessor,
         Qwen3VLTextModel,
         Qwen3VLVisionModel,
     )

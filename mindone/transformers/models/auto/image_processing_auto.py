@@ -60,6 +60,7 @@ else:
             ("llava_next", ("LlavaNextImageProcessor",)),
             ("llava_next_video", ("LlavaNextVideoImageProcessor",)),
             ("llava_onevision", ("LlavaOnevisionImageProcessor",)),
+            ("qwen3_vl", ("Qwen2VLImageProcessor",)),
             ("segformer", ("SegformerImageProcessor",)),
             ("siglip", ("SiglipImageProcessor", "SiglipImageProcessorFast")),
         ]
