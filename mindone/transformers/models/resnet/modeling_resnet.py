@@ -85,7 +85,10 @@ class ResNetEmbeddings(nn.Cell):
                 "Make sure that the channel dimension of the pixel values match with the one set in the configuration."
             )
         embedding = self.embedder(pixel_values)
-        embedding = self.pooler(embedding)
+        if embedding.dtype == ms.bfloat16:
+            embedding = self.pooler(embedding.half()).to(embedding.dtype)
+        else:
+            embedding = self.pooler(embedding)
         return embedding
 
 
