@@ -147,6 +147,7 @@ from . import (
     nystromformer,
     olmo,
     olmo2,
+    oneformer,
     olmoe,
     opt,
     owlv2,

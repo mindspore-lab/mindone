@@ -19,13 +19,13 @@ Feature extractor class for SeamlessM4T
 from typing import Optional, Union
 
 import numpy as np
+
 import mindspore as ms
 
 from ...audio_utils import mel_filter_bank, spectrogram, window_function
 from ...feature_extraction_sequence_utils import SequenceFeatureExtractor
 from ...feature_extraction_utils import BatchFeature
 from ...utils import PaddingStrategy, TensorType, logging
-
 
 logger = logging.get_logger(__name__)
 
@@ -282,9 +282,7 @@ class SeamlessM4TFeatureExtractor(SequenceFeatureExtractor):
             input_features = input_features[:, : num_frames - remainder, :]
             attention_mask = attention_mask[:, : num_frames - remainder]
 
-        input_features = np.reshape(
-            input_features, (batch_size, num_frames // self.stride, num_channels * self.stride)
-        )
+        input_features = np.reshape(input_features, (batch_size, num_frames // self.stride, num_channels * self.stride))
 
         indices = np.arange(0, num_frames - remainder)
         attention_mask = attention_mask[:, indices % self.stride == 1]
