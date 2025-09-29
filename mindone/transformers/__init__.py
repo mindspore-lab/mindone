@@ -1033,6 +1033,13 @@ from .models.pix2struct import (
     Pix2StructVisionModel,
 )
 from .models.pixtral import PixtralPreTrainedModel, PixtralVisionModel
+from .models.plbart import (
+    PLBartForCausalLM,
+    PLBartForConditionalGeneration,
+    PLBartForSequenceClassification,
+    PLBartModel,
+    PLBartPreTrainedModel,
+)
 from .models.poolformer import PoolFormerForImageClassification, PoolFormerModel, PoolFormerPreTrainedModel
 from .models.pop2piano import Pop2PianoForConditionalGeneration, Pop2PianoPreTrainedModel
 from .models.prompt_depth_anything import PromptDepthAnythingForDepthEstimation, PromptDepthAnythingPreTrainedModel

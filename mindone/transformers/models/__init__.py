@@ -167,6 +167,7 @@ from . import (
     phi3,
     pix2struct,
     pixtral,
+    plbart,
     poolformer,
     pop2piano,
     prompt_depth_anything,
