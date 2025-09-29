@@ -48,7 +48,6 @@ _CHECKPOINT_FOR_DOC = "facebook/hf-seamless-m4t-medium"
 _CONFIG_FOR_DOC = "SeamlessM4TConfig"
 
 
-# Copied from mindone.transformers.models.speecht5.modeling_speecht5.pad_sequence
 def pad_sequence(
     sequences: List[ms.Tensor],
     batch_first=True,
@@ -112,7 +111,9 @@ class SeamlessM4TGenerationOutput(ModelOutput):
     unit_sequences: Optional[Tuple[ms.Tensor]] = None
 
 
-# Copied from transformers.models.roberta.modeling_roberta.create_position_ids_from_input_ids
+# UTILS
+
+
 def create_position_ids_from_input_ids(input_ids, padding_idx, past_key_values_length=0):
     """
     Replace non-padding symbols with their position numbers. Position numbers begin at padding_idx+1. Padding symbols
@@ -129,7 +130,6 @@ def create_position_ids_from_input_ids(input_ids, padding_idx, past_key_values_l
     return incremental_indices.long() + padding_idx
 
 
-# Copied from transformers.models.bart.modeling_bart.shift_tokens_right
 def shift_tokens_right(input_ids: ms.Tensor, pad_token_id: int, decoder_start_token_id: int):
     """
     Shift input ids one token to the right.
@@ -212,8 +212,9 @@ def format_speech_generation_kwargs(kwargs):
     return kwargs_text, kwargs_speech
 
 
-# Copied from transformers.models.wav2vec2.modeling_wav2vec2.Wav2Vec2PositionalConvEmbedding with
-# Wav2Vec2->SeamlessM4TConformer, feat_extract_activation->speech_encoder_hidden_act
+# SPEECH ENCODER related code
+
+
 class SeamlessM4TConformerPositionalConvEmbedding(nn.Cell):
     def __init__(self, config):
         super().__init__()
@@ -246,8 +247,6 @@ class SeamlessM4TConformerPositionalConvEmbedding(nn.Cell):
         return hidden_states
 
 
-# Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.
-# Wav2Vec2ConformerRotaryPositionalEmbedding with Wav2Vec2->SeamlessM4T, num_attention_heads->speech_encoder_attention_heads
 class SeamlessM4TConformerRotaryPositionalEmbedding(nn.Cell):
     """Rotary positional embedding
     Reference : https://blog.eleuther.ai/rotary-embeddings/ Paper: https://arxiv.org/pdf/2104.09864.pdf
@@ -282,7 +281,6 @@ class SeamlessM4TConformerRotaryPositionalEmbedding(nn.Cell):
         return self.cached_rotary_positional_embedding
 
 
-# Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.Wav2Vec2ConformerRelPositionalEmbedding with Wav2Vec2->SeamlessM4T
 class SeamlessM4TConformerRelPositionalEmbedding(nn.Cell):
     """Relative positional encoding module."""
 
@@ -333,7 +331,6 @@ class SeamlessM4TConformerRelPositionalEmbedding(nn.Cell):
         return relative_position_embeddings
 
 
-# Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.Wav2Vec2ConformerSamePadLayer with Wav2Vec2->SeamlessM4T
 class SeamlessM4TConformerSamePadLayer(nn.Cell):
     def __init__(self, num_conv_pos_embeddings):
         super().__init__()
@@ -478,7 +475,6 @@ class SeamlessM4TConformerSelfAttention(nn.Cell):
             self.pos_bias_u = ms.Parameter(mint.zeros((self.num_heads, self.head_size)))
             self.pos_bias_v = ms.Parameter(mint.zeros((self.num_heads, self.head_size)))
 
-    # Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.Wav2Vec2ConformerSelfAttention.forward
     def construct(
         self,
         hidden_states: ms.Tensor,
@@ -541,7 +537,6 @@ class SeamlessM4TConformerSelfAttention(nn.Cell):
 
         return hidden_states, probs
 
-    # Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.Wav2Vec2ConformerSelfAttention._apply_rotary_embedding
     def _apply_rotary_embedding(self, hidden_states, relative_position_embeddings):
         batch_size, sequence_length, hidden_size = hidden_states.shape
         hidden_states = hidden_states.view(batch_size, sequence_length, self.num_heads, self.head_size)
@@ -561,7 +556,6 @@ class SeamlessM4TConformerSelfAttention(nn.Cell):
 
         return hidden_states
 
-    # Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.Wav2Vec2ConformerSelfAttention._apply_relative_embeddings
     def _apply_relative_embeddings(self, query, key, relative_position_embeddings):
         # 1. project positional embeddings
         # => (batch, head, 2*time1-1, d_k)
@@ -605,8 +599,6 @@ class SeamlessM4TConformerSelfAttention(nn.Cell):
 class SeamlessM4TConformerEncoderLayer(nn.Cell):
     """Conformer block based on https://arxiv.org/abs/2005.08100."""
 
-    # Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.Wav2Vec2ConformerEncoderLayer.
-    # __init__ with Wav2Vec2->SeamlessM4T, attention_dropout->speech_encoder_dropout, torch.nn->nn
     def __init__(self, config):
         super().__init__()
         embed_dim = config.hidden_size
@@ -887,7 +879,9 @@ class SeamlessM4TConformerAdapter(nn.Cell):
         return hidden_states
 
 
-# Copied from transformers.models.m2m_100.modeling_m2m_100.M2M100ScaledWordEmbedding with M2M100->SeamlessM4T
+# TEXT / UNITS related code
+
+
 class SeamlessM4TScaledWordEmbedding(mint.nn.Embedding):
     """
     This module overrides mint.nn.Embeddings' forward by multiplying with embeddings scale.
@@ -901,7 +895,6 @@ class SeamlessM4TScaledWordEmbedding(mint.nn.Embedding):
         return super().construct(input_ids) * self.embed_scale
 
 
-# Copied from transformers.models.m2m_100.modeling_m2m_100.M2M100SinusoidalPositionalEmbedding
 class SeamlessM4TSinusoidalPositionalEmbedding(nn.Cell):
     """This module produces sinusoidal positional embeddings of any length."""
 
@@ -979,7 +972,6 @@ class SeamlessM4TSinusoidalPositionalEmbedding(nn.Cell):
 class SeamlessM4TAttention(nn.Cell):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
 
-    # Copied from transformers.models.bart.modeling_bart.BartAttention.__init__ with Bart->SeamlessM4T
     def __init__(
         self,
         embed_dim: int,
@@ -1096,8 +1088,6 @@ class SeamlessM4TAttention(nn.Cell):
             return attn_output, None, past_key_value
 
 
-# Copied from transformers.models.nllb_moe.modeling_nllb_moe.NllbMoeDenseActDense with
-# NllbMoe->SeamlessM4T,DenseActDense->FeedForwardNetwork, d_model->hidden_size
 class SeamlessM4TFeedForwardNetwork(nn.Cell):
     def __init__(self, config: SeamlessM4TConfig, ffn_dim: int):
         super().__init__()
@@ -1296,6 +1286,9 @@ class SeamlessM4TDecoderLayer(nn.Cell):
             outputs += (self_attn_weights, cross_attn_weights)
 
         return outputs
+
+
+# SUB-MODELS related code
 
 
 class SeamlessM4TPreTrainedModel(PreTrainedModel):
@@ -2112,6 +2105,9 @@ class SeamlessM4TTextToUnitForConditionalGeneration(SeamlessM4TPreTrainedModel, 
                 self._tie_or_clone_weights(output_embeddings, self.get_input_embeddings())
 
 
+# VOCODER related code
+
+
 HIFIGAN_START_DOCSTRING = r"""
     This model inherits from [`PreTrainedModel`]. Check the superclass documentation for the generic methods the
     library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
@@ -2129,7 +2125,6 @@ HIFIGAN_START_DOCSTRING = r"""
 """
 
 
-# Copied from transformers.models.speecht5.modeling_speecht5.HifiGanResidualBlock
 class HifiGanResidualBlock(nn.Cell):
     def __init__(self, channels, kernel_size=3, dilation=(1, 3, 5), leaky_relu_slope=0.1):
         super().__init__()
@@ -2468,6 +2463,9 @@ class SeamlessM4TCodeHifiGan(PreTrainedModel):
         for layer in self.hifi_gan.resblocks:
             layer.remove_weight_norm()
         mint.nn.utils.remove_weight_norm(self.hifi_gan.conv_post)
+
+
+# WHOLE MODEL related code
 
 
 class SeamlessM4TForTextToText(SeamlessM4TPreTrainedModel, GenerationMixin):

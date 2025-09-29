@@ -148,6 +148,7 @@ from . import (
     olmo,
     olmo2,
     olmoe,
+    oneformer,
     opt,
     owlv2,
     owlvit,

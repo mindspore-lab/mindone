@@ -36,7 +36,6 @@ One can directly use FLAN-T5 weights without finetuning the model:
 
 >>> outputs = model.generate(**inputs)
 >>> print(tokenizer.batch_decode(outputs, skip_special_tokens=True))
-['Pour a cup of bolognese into a large bowl and add the pasta']
 ```
 
 FLAN-T5 includes the same improvements as T5 version 1.1 (see [here](https://huggingface.co/docs/transformers/model_doc/t5v1.1) for the full details of the model's improvements.)

@@ -53,7 +53,7 @@ ByT5 works on raw UTF-8 bytes, so it can be used without a tokenizer:
 
 >>> labels = ms.tensor([list("La vie est comme une boîte de chocolat.".encode("utf-8"))]) + num_special_tokens
 
->>> loss = model(input_ids, labels=labels).loss
+>>> loss = model(input_ids, labels=labels.to(ms.int32)).loss
 >>> loss.item()
 ```
 
@@ -62,6 +62,7 @@ For batched inference and training it is however recommended to make use of the 
 ```python
 >>> from mindone.transformers import T5ForConditionalGeneration
 >>> from transformers import AutoTokenizer
+>>> import mindspore as ms
 
 >>> model = T5ForConditionalGeneration.from_pretrained("google/byt5-small")
 >>> tokenizer = AutoTokenizer.from_pretrained("google/byt5-small")
@@ -77,7 +78,7 @@ For batched inference and training it is however recommended to make use of the 
 ... )
 >>> labels = ms.tensor(labels_dict.input_ids)
 
->>> loss = model(**model_inputs, labels=labels).loss
+>>> loss = model(**model_inputs, labels=labels.to(ms.int32)).loss
 >>> loss.item()
 ```
 
