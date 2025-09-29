@@ -29,11 +29,10 @@ from ...utils import logging
 from ..attention import FeedForward
 from ..attention_processor import Attention
 from ..embeddings import TimestepEmbedding, Timesteps
+from ..layers_compat import unflatten, view_as_complex
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import AdaLayerNormContinuous, RMSNorm
-from ..layers_compat import unflatten, view_as_complex
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 

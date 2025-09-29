@@ -77,8 +77,8 @@ class QwenImageInpaintPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
                 latents_mean=[0.0] * 4,
                 latents_std=[1.0] * 4,
                 # fmt: on
-            ),            
-        ],    
+            ),
+        ],
         [
             "scheduler",
             "diffusers.schedulers.scheduling_flow_match_euler_discrete.FlowMatchEulerDiscreteScheduler",
@@ -125,7 +125,7 @@ class QwenImageInpaintPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
                     vision_end_token_id=151653,
                     vision_start_token_id=151652,
                     vision_token_id=151654,
-                    sliding_window=32768, #None
+                    sliding_window=32768, # None
                     use_sliding_window=False,
                     use_cache=True,
                     attn_implementation="eager",

@@ -16,7 +16,7 @@ _import_structure = {
 if TYPE_CHECKING:
     from .pipeline_qwenimage import QwenImagePipeline
     from .pipeline_qwenimage_edit import QwenImageEditPipeline
-    from .pipeline_qwenimage_edit_inpaint import QwenImageEditInpaintPipeline    
+    from .pipeline_qwenimage_edit_inpaint import QwenImageEditInpaintPipeline
     from .pipeline_qwenimage_img2img import QwenImageImg2ImgPipeline
     from .pipeline_qwenimage_inpaint import QwenImageInpaintPipeline
 else:
