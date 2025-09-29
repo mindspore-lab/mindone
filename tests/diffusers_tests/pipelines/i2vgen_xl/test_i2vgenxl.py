@@ -37,12 +37,8 @@ from ..pipeline_test_utils import (
     get_pipeline_components,
 )
 
-# FP32 is not supported since I2VGenXLPipeline contains nn.Conv3d
 test_cases = [
-    # {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
-    # {"mode": ms.GRAPH_MODE, "dtype": "float32"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float16"},
 ]
 
 

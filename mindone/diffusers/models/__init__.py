@@ -38,6 +38,7 @@ _import_structure = {
     "autoencoders.autoencoder_tiny": ["AutoencoderTiny"],
     "autoencoders.consistency_decoder_vae": ["ConsistencyDecoderVAE"],
     "autoencoders.vq_model": ["VQModel"],
+    "cache_utils": ["CacheMixin"],
     "controlnets.controlnet": ["ControlNetModel"],
     "controlnets.controlnet_flux": ["FluxControlNetModel", "FluxMultiControlNetModel"],
     "controlnets.controlnet_hunyuan": [
@@ -118,6 +119,7 @@ if TYPE_CHECKING:
         ConsistencyDecoderVAE,
         VQModel,
     )
+    from .cache_utils import CacheMixin
     from .controlnets import (
         ControlNetModel,
         ControlNetUnionModel,

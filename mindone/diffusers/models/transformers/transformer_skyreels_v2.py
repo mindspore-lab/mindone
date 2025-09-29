@@ -26,6 +26,7 @@ from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
 from ...utils import logging
 from ..attention import FeedForward
 from ..attention_processor import Attention
+from ..cache_utils import CacheMixin
 from ..embeddings import (
     PixArtAlphaTextProjection,
     TimestepEmbedding,
@@ -337,7 +338,7 @@ class SkyReelsV2TransformerBlock(nn.Cell):
         return hidden_states
 
 
-class SkyReelsV2Transformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginalModelMixin):
+class SkyReelsV2Transformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginalModelMixin, CacheMixin):
     r"""
     A Transformer model for video-like data used in the Wan-based SkyReels-V2 model.
 

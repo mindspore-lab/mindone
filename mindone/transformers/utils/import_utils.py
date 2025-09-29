@@ -122,7 +122,6 @@ SCIPY_IMPORT_ERROR = """
 `pip install scipy`. Please note that you may need to restart your runtime after installation.
 """
 
-
 # docstyle-ignore
 VISION_IMPORT_ERROR = """
 {0} requires the PIL library but it was not found in your environment. You can install it with pip:
@@ -133,8 +132,8 @@ BACKENDS_MAPPING = OrderedDict(
     [
         ("mindspore", (is_mindspore_available, MINDSPORE_IMPORT_ERROR_WITH_TF)),
         ("pandas", (is_pandas_available, PANDAS_IMPORT_ERROR)),
-        ("vision", (is_vision_available, VISION_IMPORT_ERROR)),
         ("scipy", (is_scipy_available, SCIPY_IMPORT_ERROR)),
+        ("vision", (is_vision_available, VISION_IMPORT_ERROR)),
     ]
 )
 
