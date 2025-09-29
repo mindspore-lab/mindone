@@ -149,6 +149,7 @@ from . import (
     moshi,
     mpnet,
     mpt,
+    musicgen,
     mra,
     mvp,
     nemotron,

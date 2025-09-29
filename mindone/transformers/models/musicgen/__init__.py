@@ -1,4 +1,4 @@
-# Copyright 2022 The HuggingFace Team. All rights reserved.
+# Copyright 2024 The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/transformers
 # with modifications to run transformers on mindspore.
@@ -14,6 +14,4 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from .logits_process import *
-from .utils import GenerationMixin
+from .modeling_musicgen import *
