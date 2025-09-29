@@ -27,7 +27,7 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import ids_numpy, random_attention_mask
+from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy, random_attention_mask
 
 # CrossEntropyLoss not support bf16
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3}
@@ -123,6 +123,33 @@ class BertModelTester:
             is_decoder=False,
             initializer_range=self.initializer_range,
             attn_implementation=self.attn_implementation,
+        )
+
+    def prepare_config_and_inputs_for_decoder(self):
+        (
+            config,
+            input_ids,
+            token_type_ids,
+            input_mask,
+            sequence_labels,
+            token_labels,
+            choice_labels,
+        ) = self.prepare_config_and_inputs()
+
+        config.is_decoder = True
+        encoder_hidden_states = floats_numpy([self.batch_size, self.seq_length, self.hidden_size])
+        encoder_attention_mask = ids_numpy([self.batch_size, self.seq_length], vocab_size=2)
+
+        return (
+            config,
+            input_ids,
+            token_type_ids,
+            input_mask,
+            sequence_labels,
+            token_labels,
+            choice_labels,
+            encoder_hidden_states,
+            encoder_attention_mask,
         )
 
 
