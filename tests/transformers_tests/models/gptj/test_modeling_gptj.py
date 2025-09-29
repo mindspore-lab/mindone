@@ -158,7 +158,7 @@ GPTJ_CASES = [
             "attention_mask": input_mask,
         },
         {
-            "last_hidden_state": 1,
+            "last_hidden_state": 0,
         },
     ],
 ]

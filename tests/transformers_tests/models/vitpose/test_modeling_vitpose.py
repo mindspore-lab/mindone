@@ -143,7 +143,7 @@ VIT_POSE_CASES = [
             "pixel_values": inputs_dict["pixel_values"],
         },
         {
-            "heatmaps": 1,
+            "heatmaps": 0,
         },
     ],
 ]
