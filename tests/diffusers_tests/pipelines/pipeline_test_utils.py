@@ -53,6 +53,8 @@ def convert_state_dict(m, state_dict_pt):
     state_dict_ms = {}
     for name_pt, data_pt in state_dict_pt.items():
         name_ms, data_mapping = mappings.get(name_pt, (name_pt, lambda x: x))
+        if data_pt.is_meta:
+            data_pt = torch.randn(data_pt.shape, dtype=data_pt.dtype)
         data_ms = data_mapping(ms.Tensor.from_numpy(data_pt.numpy()))
         if ops.is_floating_point(data_ms) and data_ms.dtype != dtype:
             data_ms = data_ms.to(dtype)
