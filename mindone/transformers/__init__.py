@@ -1057,6 +1057,16 @@ from .models.roformer import (
 )
 from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
 from .models.sam import SamImageProcessor, SamModel, SamPreTrainedModel, SamProcessor
+from .models.seamless_m4t import (
+    SeamlessM4TConfig,
+    SeamlessM4TFeatureExtractor,
+    SeamlessM4TForSpeechToSpeech,
+    SeamlessM4TForSpeechToText,
+    SeamlessM4TForTextToSpeech,
+    SeamlessM4TForTextToText,
+    SeamlessM4TModel,
+    SeamlessM4TProcessor,
+)
 from .models.seamless_m4t_v2 import (
     SeamlessM4Tv2ForSpeechToSpeech,
     SeamlessM4Tv2ForSpeechToText,
@@ -1073,6 +1083,7 @@ from .models.segformer import (
     SegformerModel,
     SegformerPreTrainedModel,
 )
+from .models.seggpt import SegGptForImageSegmentation, SegGptModel, SegGptPreTrainedModel
 from .models.sew import SEWForCTC, SEWForSequenceClassification, SEWModel, SEWPreTrainedModel
 from .models.sew_d import SEWDForCTC, SEWDForSequenceClassification, SEWDModel, SEWDPreTrainedModel
 from .models.siglip import (

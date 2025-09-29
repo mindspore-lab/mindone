@@ -25,8 +25,7 @@ There are models with two different tokenization methods:
 - Tokenize with MeCab and WordPiece. This requires some extra dependencies, [fugashi](https://github.com/polm/fugashi) which is a wrapper around [MeCab](https://taku910.github.io/mecab/).
 - Tokenize into characters.
 
-To use *MecabTokenizer*, you should `pip install transformers["ja"]` (or `pip install -e .["ja"]` if you install from source) to install dependencies.
-
+To use *MecabTokenizer*, you should `pip install fugashi unidic_lite`.
 See [details on cl-tohoku repository](https://github.com/cl-tohoku/bert-japanese).
 
 Example of using a model with MeCab and WordPiece tokenization:

@@ -187,6 +187,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("roberta-prelayernorm", "RobertaPreLayerNormModel"),
         ("rwkv", "RwkvModel"),
         ("sam", "SamModel"),
+        ("seamless_m4t", "SeamlessM4TModel"),
         ("seamless_m4t_v2", "SeamlessM4Tv2Model"),
         ("segformer", "SegformerModel"),
         ("sew", "SEWModel"),
@@ -498,6 +499,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         ("regnet", "RegNetModel"),
         ("resnet", "ResNetModel"),
         ("segformer", "SegformerModel"),
+        ("seggpt", "SegGptModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
         ("swiftformer", "SwiftFormerModel"),
         ("swin2sr", "Swin2SRModel"),
@@ -756,6 +758,7 @@ MODEL_FOR_DEPTH_ESTIMATION_MAPPING_NAMES = OrderedDict(
         ("zoedepth", "ZoeDepthForDepthEstimation"),
     ]
 )
+
 MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
     [
         # Model for Seq2Seq Causal LM mapping
@@ -774,6 +777,7 @@ MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("pegasus", "PegasusForConditionalGeneration"),
         ("pegasus_x", "PegasusXForConditionalGeneration"),
         ("qwen2_audio", "Qwen2AudioForConditionalGeneration"),
+        ("seamless_m4t", "SeamlessM4TForTextToText"),
         ("seamless_m4t_v2", "SeamlessM4Tv2ForTextToText"),
         ("squeezebert", "SqueezeBertForSequenceClassification"),
         ("t5", "T5ForConditionalGeneration"),
@@ -786,6 +790,7 @@ MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING_NAMES = OrderedDict(
     [
         ("moonshine", "MoonshineForConditionalGeneration"),
         ("pop2piano", "Pop2PianoForConditionalGeneration"),
+        ("seamless_m4t", "SeamlessM4TForSpeechToText"),
         ("seamless_m4t_v2", "SeamlessM4Tv2ForSpeechToText"),
         ("speech-encoder-decoder", "SpeechEncoderDecoderModel"),
         ("speech_to_text", "Speech2TextForConditionalGeneration"),
@@ -1102,8 +1107,8 @@ MODEL_FOR_TEXT_TO_SPECTROGRAM_MAPPING_NAMES = OrderedDict(
 
 MODEL_FOR_TEXT_TO_WAVEFORM_MAPPING_NAMES = OrderedDict(
     [
-        # Model for Text-To-Waveform mapping
         ("fastspeech2_conformer", "FastSpeech2ConformerWithHifiGan"),
+        ("seamless_m4t", "SeamlessM4TForTextToSpeech"),
         ("seamless_m4t_v2", "SeamlessM4Tv2ForTextToSpeech"),
     ]
 )
