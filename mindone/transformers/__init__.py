@@ -948,6 +948,17 @@ from .models.owlvit import (
 from .models.paligemma import PaliGemmaForConditionalGeneration, PaliGemmaPreTrainedModel
 from .models.pegasus import PegasusForCausalLM, PegasusForConditionalGeneration, PegasusModel, PegasusPreTrainedModel
 from .models.pegasus_x import PegasusXForConditionalGeneration, PegasusXModel, PegasusXPreTrainedModel
+from .models.perceiver import (
+    PerceiverForImageClassificationConvProcessing,
+    PerceiverForImageClassificationFourier,
+    PerceiverForImageClassificationLearned,
+    PerceiverForMaskedLM,
+    PerceiverForMultimodalAutoencoding,
+    PerceiverForOpticalFlow,
+    PerceiverForSequenceClassification,
+    PerceiverModel,
+    PerceiverPreTrainedModel,
+)
 from .models.persimmon import (
     PersimmonForCausalLM,
     PersimmonForSequenceClassification,
