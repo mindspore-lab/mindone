@@ -33,7 +33,7 @@ class FillMaskPipeline(Pipeline):
     Example:
 
     ```python
-    >>> from transformers import pipeline
+    >>> from mindone.transformers import pipeline
 
     >>> fill_masker = pipeline(model="google-bert/bert-base-uncased")
     >>> fill_masker("This is a simple [MASK].")
