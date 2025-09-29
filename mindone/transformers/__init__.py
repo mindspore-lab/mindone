@@ -194,6 +194,13 @@ from .models.bigbird_pegasus import (
     BigBirdPegasusModel,
     BigBirdPegasusPreTrainedModel,
 )
+from .models.biogpt import (
+    BioGptForCausalLM,
+    BioGptForSequenceClassification,
+    BioGptForTokenClassification,
+    BioGptModel,
+    BioGptPreTrainedModel,
+)
 from .models.bit import BitBackbone
 from .models.blenderbot import (
     BlenderbotForCausalLM,
@@ -687,6 +694,23 @@ from .models.jetmoe import (
     JetMoePreTrainedModel,
 )
 from .models.kosmos2 import Kosmos2ForConditionalGeneration, Kosmos2Model, Kosmos2PreTrainedModel
+from .models.layoutlm import (
+    LayoutLMForMaskedLM,
+    LayoutLMForQuestionAnswering,
+    LayoutLMForSequenceClassification,
+    LayoutLMForTokenClassification,
+    LayoutLMModel,
+    LayoutLMPreTrainedModel,
+)
+from .models.layoutlmv3 import (
+    LayoutLMv3ForQuestionAnswering,
+    LayoutLMv3ForSequenceClassification,
+    LayoutLMv3ForTokenClassification,
+    LayoutLMv3ImageProcessor,
+    LayoutLMv3Model,
+    LayoutLMv3PreTrainedModel,
+    LayoutLMv3Processor,
+)
 from .models.led import (
     LEDForConditionalGeneration,
     LEDForQuestionAnswering,
@@ -829,6 +853,17 @@ from .models.mobilebert import (
     MobileBertModel,
     MobileBertPreTrainedModel,
 )
+from .models.mobilevit import (
+    MobileViTForImageClassification,
+    MobileViTForSemanticSegmentation,
+    MobileViTModel,
+    MobileViTPreTrainedModel,
+)
+from .models.mobilevitv2 import (
+    MobileViTV2ForImageClassification,
+    MobileViTV2ForSemanticSegmentation,
+    MobileViTV2Model,
+    MobileViTV2PreTrainedModel,
 from .models.mobilenet_v1 import (
     MobileNetV1ForImageClassification,
     MobileNetV1ImageProcessor,
@@ -870,6 +905,16 @@ from .models.mpt import (
     MptForTokenClassification,
     MptModel,
     MptPreTrainedModel,
+)
+from .models.mra import (
+    MraForMaskedLM,
+    MraForMultipleChoice,
+    MraForQuestionAnswering,
+    MraForSequenceClassification,
+    MraForTokenClassification,
+    MraLayer,
+    MraModel,
+    MraPreTrainedModel,
 )
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
@@ -988,6 +1033,13 @@ from .models.pix2struct import (
     Pix2StructVisionModel,
 )
 from .models.pixtral import PixtralPreTrainedModel, PixtralVisionModel
+from .models.plbart import (
+    PLBartForCausalLM,
+    PLBartForConditionalGeneration,
+    PLBartForSequenceClassification,
+    PLBartModel,
+    PLBartPreTrainedModel,
+)
 from .models.poolformer import PoolFormerForImageClassification, PoolFormerModel, PoolFormerPreTrainedModel
 from .models.pop2piano import Pop2PianoForConditionalGeneration, Pop2PianoPreTrainedModel
 from .models.prompt_depth_anything import PromptDepthAnythingForDepthEstimation, PromptDepthAnythingPreTrainedModel
@@ -1025,6 +1077,16 @@ from .models.qwen2_vl import (
 )
 from .models.rag import RagModel, RagPreTrainedModel, RagSequenceForGeneration, RagTokenForGeneration
 from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
+from .models.reformer import (
+    ReformerLayer,
+    ReformerModel,
+    ReformerAttention,
+    ReformerPreTrainedModel,
+    ReformerForMaskedLM,
+    ReformerForSequenceClassification,
+    ReformerForQuestionAnswering,
+    ReformerModelWithLMHead,
+)
 from .models.regnet import RegNetForImageClassification, RegNetModel, RegNetPreTrainedModel
 from .models.rembert import (
     RemBertForCausalLM,
@@ -1222,6 +1284,7 @@ from .models.textnet import TextNetBackbone, TextNetForImageClassification, Text
 from .models.timesformer import TimesformerForVideoClassification, TimesformerModel, TimesformerPreTrainedModel
 from .models.trocr import TrOCRForCausalLM, TrOCRPreTrainedModel
 from .models.tvp import TvpForVideoGrounding, TvpModel, TvpPreTrainedModel
+from .models.udop import UdopEncoderModel, UdopForConditionalGeneration, UdopModel, UdopPreTrainedModel
 from .models.umt5 import (
     UMT5EncoderModel,
     UMT5ForQuestionAnswering,
@@ -1249,6 +1312,13 @@ from .models.unispeech_sat import (
 from .models.univnet import UnivNetModel
 from .models.upernet import UperNetForSemanticSegmentation, UperNetPreTrainedModel
 from .models.video_llava import VideoLlavaForConditionalGeneration, VideoLlavaPreTrainedModel
+from .models.videomae import (
+    VideoMAEForPreTraining,
+    VideoMAEForVideoClassification,
+    VideoMAEImageProcessor,
+    VideoMAEModel,
+    VideoMAEPreTrainedModel,
+)
 from .models.vilt import (
     ViltForImageAndTextRetrieval,
     ViltForImagesAndTextClassification,
@@ -1299,6 +1369,7 @@ from .models.whisper import (
     WhisperPreTrainedModel,
     WhisperProcessor,
 )
+from .models.xglm import XGLMForCausalLM, XGLMModel, XGLMPreTrainedModel
 from .models.x_clip import XCLIPModel, XCLIPPreTrainedModel, XCLIPTextModel, XCLIPVisionModel
 from .models.xlm import (
     XLMForMultipleChoice,
