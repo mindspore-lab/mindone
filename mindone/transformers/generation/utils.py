@@ -498,8 +498,11 @@ class GenerationMixin:
                     attention_mask,
                     sequence_length=sequence_length,
                     target_length=past_key_values.get_max_cache_shape(),
+                    dtype=self.dtype,
                     cache_position=cache_position,
                     batch_size=batch_size,
+                    config=self.config,
+                    past_key_values=past_key_values,
                 )
         if attention_mask is not None:
             model_inputs[attention_mask_key] = attention_mask
@@ -787,7 +790,7 @@ class GenerationMixin:
                 )
             decoder_start_token_id = decoder_start_token_id.view(-1, 1)
         else:
-            decoder_start_token_id = ops.ones((batch_size, 1), dtype=ms.int32) * decoder_start_token_id
+            decoder_start_token_id = mint.ones((batch_size, 1), dtype=ms.int64) * decoder_start_token_id
 
         # 3. Encoder-decoder models expect the `decoder_input_ids` to start with a special token. Let's ensure that.
         # no user input -> use decoder_start_token_id as decoder_input_ids
@@ -1402,7 +1405,7 @@ class GenerationMixin:
         # 1. In absence of `beam_indices`, we can assume that we come from e.g. greedy search, which is equivalent
         # to a beam search approach were the first (and only) beam is always selected
         if beam_indices is None:
-            beam_indices = mint.arange(scores[0].shape[0]).view(-1, 1).to(sequences.device)
+            beam_indices = mint.arange(scores[0].shape[0]).view(-1, 1)
             beam_indices = beam_indices.expand(-1, len(scores))
 
         # 2. reshape scores as [batch_size*vocab_size, # generation steps] with # generation steps being
@@ -3127,6 +3130,10 @@ class GenerationMixin:
         running_beam_indices = mint.full((batch_size, num_beams, max_length - cur_len), fill_value=-1, dtype=ms.int32)
         beam_indices = running_beam_indices.copy()  # .detach()
 
+        step = 0
+        s_time = time.time()
+        graph_compiled_time_buffer = []
+
         # 4. run the generation loop
         while self._has_unfinished_sequences(this_peer_finished, synced_gpus):
             # a. Forward current tokens, obtain the logits
@@ -3147,6 +3154,18 @@ class GenerationMixin:
             )
             if synced_gpus and this_peer_finished:
                 continue
+
+            step_time = time.time() - s_time
+            if step < 2:
+                print(f"==> sampling, step: {step}, time cost: {step_time:.5f}s")
+            else:
+                graph_compiled_time_buffer.append(step_time)
+                token_speed = len(graph_compiled_time_buffer) / sum(graph_compiled_time_buffer)
+                print(
+                    f"==> sampling, step: {step}, time cost: {step_time:.5f}s, running avg speed: {token_speed:.5f}token/s"
+                )
+            s_time = time.time()
+            step += 1
 
             logits = model_outputs.logits[:, -1, :].copy().float()  # copy is needed to avoid keeping a hanging ref
 

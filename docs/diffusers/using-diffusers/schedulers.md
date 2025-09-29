@@ -1,4 +1,4 @@
-<!--Copyright 2024 The HuggingFace Team. All rights reserved.
+<!--Copyright 2025 The HuggingFace Team. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may obtain a copy of the License at
@@ -187,4 +187,14 @@ unet = UNet2DConditionModel.from_pretrained(
     "stable-diffusion-v1-5/stable-diffusion-v1-5", subfolder="unet", variant="non_ema", use_safetensors=True
 )
 unet.save_pretrained("./local-unet", variant="non_ema")
+```
+
+Use the `mindspore_dtype` argument in [`from_pretrained`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/models/overview/#mindone.diffusers.ModelMixin.from_pretrained) to specify the dtype to load a model in.
+
+```py
+from mindone.diffusers import AutoModel
+
+unet = AutoModel.from_pretrained(
+    "stabilityai/stable-diffusion-xl-base-1.0", subfolder="unet", mindspore_dtype=ms.float16
+)
 ```
