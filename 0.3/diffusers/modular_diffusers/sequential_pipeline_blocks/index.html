@@ -8,13 +8,13 @@
       
       
       
-        <link rel="canonical" href="https://mindspore-lab.github.io/mindone/0.3/diffusers/using-diffusers/merge_loras/">
+        <link rel="canonical" href="https://mindspore-lab.github.io/mindone/0.3/diffusers/modular_diffusers/sequential_pipeline_blocks/">
       
       
-        <link rel="prev" href="../overview_techniques/">
+        <link rel="prev" href="../pipeline_block/">
       
       
-        <link rel="next" href="../scheduler_features/">
+        <link rel="next" href="../loop_sequential_pipeline_blocks/">
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
@@ -22,7 +22,7 @@
     
     
       
-        <title>Merge LoRAs - MindOne - One for All</title>
+        <title>SequentialPipelineBlocks - MindOne - One for All</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#merge-loras" class="md-skip">
+        <a href="#sequentialpipelineblocks" class="md-skip">
           Skip to content
         </a>
       
@@ -116,7 +116,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Merge LoRAs
+              SequentialPipelineBlocks
             
           </span>
         </div>
@@ -514,53 +514,7 @@
   
   
   <span class="md-ellipsis">
-    🧨 Diffusers
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../quicktour/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Quicktour
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../stable_diffusion/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Effective and efficient diffusion
+    Diffusers
     
   </span>
   
@@ -617,6 +571,52 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quicktour/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quickstart
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stable_diffusion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Basic performance
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -656,7 +656,7 @@
   
   
   <span class="md-ellipsis">
-    Tutorials
+    DiffusionPipeline
     
   </span>
   
@@ -667,7 +667,7 @@
         <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2_2">
             <span class="md-nav__icon md-icon"></span>
-            Tutorials
+            DiffusionPipeline
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -678,35 +678,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../../tutorials/tutorial_overview/" class="md-nav__link">
+      <a href="../../using-diffusers/loading/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Overview
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../write_own_pipeline/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Understanding pipelines, models and schedulers
+    Load pipelines
     
   </span>
   
@@ -747,12 +724,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../../tutorials/basic_training/" class="md-nav__link">
+      <a href="../../using-diffusers/callback/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Train a diffusion model
+    Pipeline callbacks
     
   </span>
   
@@ -770,12 +747,104 @@
   
   
     <li class="md-nav__item">
-      <a href="../../tutorials/using_peft_for_inference/" class="md-nav__link">
+      <a href="../../using-diffusers/reusing_seeds/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Load LoRAs for inference
+    Reproducible pipelines
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/schedulers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Load schedulers and models
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/scheduler_features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Scheduler features
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/other-formats/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Model files and layouts
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/push_to_hub/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Push files to the Hub
     
   </span>
   
@@ -825,7 +894,7 @@
   
   
   <span class="md-ellipsis">
-    Load pipelines and adapters
+    Adapters
     
   </span>
   
@@ -836,7 +905,7 @@
         <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2_3">
             <span class="md-nav__icon md-icon"></span>
-            Load pipelines and adapters
+            Adapters
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -847,12 +916,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../loading/" class="md-nav__link">
+      <a href="../../tutorials/using_peft_for_inference/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Load pipelines
+    LoRA
     
   </span>
   
@@ -870,12 +939,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../schedulers/" class="md-nav__link">
+      <a href="../../using-diffusers/ip_adapter/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Load schedulers and models
+    IP-Adapter
     
   </span>
   
@@ -893,12 +962,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../other-formats/" class="md-nav__link">
+      <a href="../../using-diffusers/controlnet/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Model files and layouts
+    ControlNet
     
   </span>
   
@@ -916,12 +985,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../loading_adapters/" class="md-nav__link">
+      <a href="../../using-diffusers/t2i_adapter/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Load adapters
+    T2I-Adapter
     
   </span>
   
@@ -939,12 +1008,35 @@
   
   
     <li class="md-nav__item">
-      <a href="../push_to_hub/" class="md-nav__link">
+      <a href="../../using-diffusers/dreambooth/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Push files to the Hub
+    DreamBooth
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/textual_inversion_inference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Textual inversion
     
   </span>
   
@@ -994,7 +1086,7 @@
   
   
   <span class="md-ellipsis">
-    Generative tasks
+    Inference
     
   </span>
   
@@ -1005,7 +1097,7 @@
         <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2_4">
             <span class="md-nav__icon md-icon"></span>
-            Generative tasks
+            Inference
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -1016,12 +1108,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../unconditional_image_generation/" class="md-nav__link">
+      <a href="../../using-diffusers/weighted_prompts/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Unconditional image generation
+    Prompt techniques
     
   </span>
   
@@ -1039,12 +1131,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../conditional_image_generation/" class="md-nav__link">
+      <a href="../../using-diffusers/batched_inference/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Text-to-image
+    Batch inference
     
   </span>
   
@@ -1062,261 +1154,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../img2img/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Image-to-image
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../inpaint/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Inpainting
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../text-img2vid/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Video generation
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../depth2img/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Depth-to-image
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-          
-          
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" checked>
-        
-          
-          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="">
-            
-  
-  
-  <span class="md-ellipsis">
-    Inference techniques
-    
-  </span>
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_2_5">
-            <span class="md-nav__icon md-icon"></span>
-            Inference techniques
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../overview_techniques/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Overview
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    Merge LoRAs
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    Merge LoRAs
-    
-  </span>
-  
-
-      </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#set_adapters" class="md-nav__link">
-    <span class="md-ellipsis">
-      set_adapters
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#fuse_lora" class="md-nav__link">
-    <span class="md-ellipsis">
-      fuse_lora
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../scheduler_features/" class="md-nav__link">
+      <a href="../../using-diffusers/scheduler_features/" class="md-nav__link">
         
   
   
@@ -1339,7 +1177,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../callback/" class="md-nav__link">
+      <a href="../../using-diffusers/callback/" class="md-nav__link">
         
   
   
@@ -1362,7 +1200,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../reusing_seeds/" class="md-nav__link">
+      <a href="../../using-diffusers/reusing_seeds/" class="md-nav__link">
         
   
   
@@ -1409,15 +1247,15 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_6" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" >
         
           
-          <label class="md-nav__link" for="__nav_2_6" id="__nav_2_6_label" tabindex="">
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="">
             
   
   
   <span class="md-ellipsis">
-    Advanced inference
+    Inference optimization
     
   </span>
   
@@ -1425,10 +1263,10 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_6">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_5">
             <span class="md-nav__icon md-icon"></span>
-            Advanced inference
+            Inference optimization
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -1439,12 +1277,405 @@
   
   
     <li class="md-nav__item">
-      <a href="../../advanced_inference/outpaint.md" class="md-nav__link">
+      <a href="../../optimization/fp16/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Outpainting
+    Accelerate inference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../optimization/memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Reduce memory usage
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_5_3" id="__nav_2_5_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Community optimizations
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_5_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_5_3">
+            <span class="md-nav__icon md-icon"></span>
+            Community optimizations
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../optimization/xformers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    xFormers
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_6" id="__nav_2_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Modular Diffusers
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_6">
+            <span class="md-nav__icon md-icon"></span>
+            Modular Diffusers
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quickstart
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modular_diffusers_states/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    States
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipeline_block/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ModularPipelineBlocks
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    SequentialPipelineBlocks
+    
+  </span>
+  
+
+      </a>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../loop_sequential_pipeline_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    LoopSequentialPipelineBlocks
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../auto_pipeline_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AutoPipelineBlocks
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modular_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ModularPipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components_manager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ComponentsManager
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guiders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Guiders
     
   </span>
   
@@ -1494,7 +1725,7 @@
   
   
   <span class="md-ellipsis">
-    Specific pipeline examples
+    Training
     
   </span>
   
@@ -1504,451 +1735,6 @@
         
         <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_7_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2_7">
-            <span class="md-nav__icon md-icon"></span>
-            Specific pipeline examples
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../cogvideox/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    CogVideoX
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../consisid/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    ConsisID
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../sdxl/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Stable Diffusion XL
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../sdxl_turbo/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    SDXL Turbo
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../kandinsky/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Kandinsky
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../ip_adapter/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    IP-Adapter
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../omnigen/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    OmniGen
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../pag/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    PAG
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../controlnet/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    ControlNet
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../t2i_adapter/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    T2I-Adapter
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../inference_with_lcm/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Latent Consistency Model
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../textual_inversion_inference/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Textual inversion
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../shap-e/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Shap-E
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../diffedit/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    DiffEdit
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../inference_with_tcd_lora/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Trajectory Consistency Distillation-LoRA
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../svd/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Stable Video Diffusion
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../marigold_usage/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Marigold Computer Vision
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-          
-          
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_8" >
-        
-          
-          <label class="md-nav__link" for="__nav_2_8" id="__nav_2_8_label" tabindex="">
-            
-  
-  
-  <span class="md-ellipsis">
-    Training
-    
-  </span>
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_8_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_8">
             <span class="md-nav__icon md-icon"></span>
             Training
           </label>
@@ -2029,6 +1815,29 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../../tutorials/basic_training/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Train a diffusion model
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     
     
     
@@ -2043,10 +1852,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_8_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_7_5" >
         
           
-          <label class="md-nav__link" for="__nav_2_8_4" id="__nav_2_8_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_7_5" id="__nav_2_7_5_label" tabindex="0">
             
   
   
@@ -2059,8 +1868,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_8_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_8_4">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_7_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_7_5">
             <span class="md-nav__icon md-icon"></span>
             Models
           </label>
@@ -2186,10 +1995,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_8_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_7_6" >
         
           
-          <label class="md-nav__link" for="__nav_2_8_5" id="__nav_2_8_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_7_6" id="__nav_2_7_6_label" tabindex="0">
             
   
   
@@ -2202,8 +2011,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_8_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_8_5">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_7_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_7_6">
             <span class="md-nav__icon md-icon"></span>
             Methods
           </label>
@@ -2317,15 +2126,15 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_9" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_8" >
         
           
-          <label class="md-nav__link" for="__nav_2_9" id="__nav_2_9_label" tabindex="">
+          <label class="md-nav__link" for="__nav_2_8" id="__nav_2_8_label" tabindex="">
             
   
   
   <span class="md-ellipsis">
-    Accelerate inference and reduce memory
+    Specific pipeline examples
     
   </span>
   
@@ -2333,10 +2142,10 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_9_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_9">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_8">
             <span class="md-nav__icon md-icon"></span>
-            Accelerate inference and reduce memory
+            Specific pipeline examples
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -2347,12 +2156,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../../optimization/fp16/" class="md-nav__link">
+      <a href="../../using-diffusers/consisid/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Speed up inference
+    ConsisID
     
   </span>
   
@@ -2370,12 +2179,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../../optimization/memory/" class="md-nav__link">
+      <a href="../../using-diffusers/sdxl/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Reduce memory usage
+    Stable Diffusion XL
     
   </span>
   
@@ -2393,12 +2202,531 @@
   
   
     <li class="md-nav__item">
-      <a href="../../optimization/xformers/" class="md-nav__link">
+      <a href="../../using-diffusers/sdxl_turbo/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    xFormers
+    SDXL Turbo
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/kandinsky/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Kandinsky
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/omnigen/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    OmniGen
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/pag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PAG
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/inference_with_lcm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Latent Consistency Model
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/shap-e/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shap-E
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/diffedit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    DiffEdit
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/inference_with_tcd_lora/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Trajectory Consistency Distillation-LoRA
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/svd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Stable Video Diffusion
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/marigold_usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Marigold Computer Vision
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_9" id="__nav_2_9_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Resources
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_9">
+            <span class="md-nav__icon md-icon"></span>
+            Resources
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_9_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_9_1" id="__nav_2_9_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Task recipes
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_9_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_9_1">
+            <span class="md-nav__icon md-icon"></span>
+            Task recipes
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/unconditional_image_generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Unconditional image generation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/conditional_image_generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Text-to-image
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/img2img/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Image-to-image
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/inpaint/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Inpainting
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/text-img2vid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Video generation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/depth2img/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Depth-to-image
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/write_own_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Understanding pipelines, models and schedulers
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../conceptual/philosophy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Philosophy
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/controlling_generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Controlled generation
     
   </span>
   
@@ -2448,7 +2776,7 @@
   
   
   <span class="md-ellipsis">
-    Conceptual Guides
+    API
     
   </span>
   
@@ -2458,106 +2786,6 @@
         
         <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_10_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2_10">
-            <span class="md-nav__icon md-icon"></span>
-            Conceptual Guides
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../conceptual/philosophy/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Philosophy
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../controlling_generation/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Controlled generation
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-          
-          
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11" >
-        
-          
-          <label class="md-nav__link" for="__nav_2_11" id="__nav_2_11_label" tabindex="">
-            
-  
-  
-  <span class="md-ellipsis">
-    API
-    
-  </span>
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_11_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11">
             <span class="md-nav__icon md-icon"></span>
             API
           </label>
@@ -2583,10 +2811,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_1" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_1" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_1" id="__nav_2_11_1_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_1" id="__nav_2_10_1_label" tabindex="0">
             
   
   
@@ -2599,8 +2827,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_11_1_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_1">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_10_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_1">
             <span class="md-nav__icon md-icon"></span>
             Main Classes
           </label>
@@ -2703,10 +2931,176 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_2" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_2" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_2" id="__nav_2_11_2_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_2" id="__nav_2_10_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Modular
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_10_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_2">
+            <span class="md-nav__icon md-icon"></span>
+            Modular
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/modular_diffusers/pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/modular_diffusers/pipeline_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Blocks
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/modular_diffusers/pipeline_states/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    States
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/modular_diffusers/pipeline_components/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Components and configs
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/modular_diffusers/guiders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Guiders
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_10_3" id="__nav_2_10_3_label" tabindex="0">
             
   
   
@@ -2719,8 +3113,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_11_2_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_2">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_10_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_3">
             <span class="md-nav__icon md-icon"></span>
             Loaders
           </label>
@@ -2848,7 +3242,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/loaders/transformer_sd3.md" class="md-nav__link">
+      <a href="../../api/loaders/transformer_sd3/" class="md-nav__link">
         
   
   
@@ -2915,10 +3309,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_3" id="__nav_2_11_3_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_4" id="__nav_2_10_4_label" tabindex="0">
             
   
   
@@ -2931,8 +3325,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_11_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_3">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_10_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4">
             <span class="md-nav__icon md-icon"></span>
             Models
           </label>
@@ -3004,10 +3398,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_3_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_3" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_3_3" id="__nav_2_11_3_3_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_4_3" id="__nav_2_10_4_3_label" tabindex="0">
             
   
   
@@ -3020,8 +3414,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_3_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_3_3">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4_3">
             <span class="md-nav__icon md-icon"></span>
             ControlNets
           </label>
@@ -3040,6 +3434,29 @@
   
   <span class="md-ellipsis">
     ControlNetModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/models/controlnet_union/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ControlNetUnionModel
     
   </span>
   
@@ -3165,29 +3582,6 @@
 
               
             
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../api/models/controlnet_union/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    ControlNetUnionModel
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
           </ul>
         </nav>
       
@@ -3216,10 +3610,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_3_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_4" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_3_4" id="__nav_2_11_3_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_4_4" id="__nav_2_10_4_4_label" tabindex="0">
             
   
   
@@ -3232,8 +3626,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_3_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_3_4">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4_4">
             <span class="md-nav__icon md-icon"></span>
             Transformers
           </label>
@@ -3338,29 +3732,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/models/consisid_transformer3d/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    ConsisIDTransformer3DModel
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../api/models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -3390,6 +3761,29 @@
   
   <span class="md-ellipsis">
     CogView4Transformer2DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
     
   </span>
   
@@ -3568,12 +3962,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/models/lumina_nextdit2d/" class="md-nav__link">
+      <a href="../../api/models/ltx_video_transformer3d/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    LuminaNextDiT2DModel
+    LTXVideoTransformer3DModel
     
   </span>
   
@@ -3614,12 +4008,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/models/ltx_video_transformer3d/" class="md-nav__link">
+      <a href="../../api/models/lumina_nextdit2d/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    LTXVideoTransformer3DModel
+    LuminaNextDiT2DModel
     
   </span>
   
@@ -3729,6 +4123,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api/models/sana_transformer2d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SanaTransformer2DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api/models/sd3_transformer2d/" class="md-nav__link">
         
   
@@ -3758,29 +4175,6 @@
   
   <span class="md-ellipsis">
     SkyReelsV2Transformer3DModel
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../api/models/sana_transformer2d/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    SanaTransformer2DModel
     
   </span>
   
@@ -3911,10 +4305,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_3_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_5" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_3_5" id="__nav_2_11_3_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_4_5" id="__nav_2_10_4_5_label" tabindex="0">
             
   
   
@@ -3927,8 +4321,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_3_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_3_5">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4_5">
             <span class="md-nav__icon md-icon"></span>
             UNets
           </label>
@@ -3987,12 +4381,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/models/unet2d/" class="md-nav__link">
+      <a href="../../api/models/unet2d-cond/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    UNet2DModel
+    UNet2DConditionModel
     
   </span>
   
@@ -4010,12 +4404,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/models/unet2d-cond/" class="md-nav__link">
+      <a href="../../api/models/unet2d/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    UNet2DConditionModel
+    UNet2DModel
     
   </span>
   
@@ -4123,10 +4517,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_3_6" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_6" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_3_6" id="__nav_2_11_3_6_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_4_6" id="__nav_2_10_4_6_label" tabindex="0">
             
   
   
@@ -4139,12 +4533,58 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_3_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_3_6">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4_6">
             <span class="md-nav__icon md-icon"></span>
             VAEs
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/models/asymmetricautoencoderkl/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AsymmetricAutoencoderKL
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/models/autoencoder_dc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AutoencoderDC
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -4360,52 +4800,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/models/asymmetricautoencoderkl/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    AsymmetricAutoencoderKL
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../api/models/autoencoder_dc/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    AutoencoderDC
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../api/models/consistency_decoder_vae/" class="md-nav__link">
         
   
@@ -4527,10 +4921,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_5" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4" id="__nav_2_11_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_5" id="__nav_2_10_5_label" tabindex="0">
             
   
   
@@ -4543,8 +4937,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_11_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_10_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_5">
             <span class="md-nav__icon md-icon"></span>
             Pipelines
           </label>
@@ -5339,7 +5733,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/pipelines/control_flux_inpaint.md" class="md-nav__link">
+      <a href="../../api/pipelines/control_flux_inpaint/" class="md-nav__link">
         
   
   
@@ -6157,10 +6551,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_70" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_5_70" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_70" id="__nav_2_11_4_70_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_5_70" id="__nav_2_10_5_70_label" tabindex="0">
             
   
   
@@ -6173,8 +6567,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_70_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_70">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_5_70_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_5_70">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -6210,12 +6604,58 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/pipelines/stable_diffusion/text2img/" class="md-nav__link">
+      <a href="../../api/pipelines/stable_diffusion/depth2img/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Text-to-image
+    Depth-to-image
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipelines/stable_diffusion/gligen/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    GLIGEN (Grounded Language-to-Image Generation)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipelines/stable_diffusion/image_variation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Image variation
     
   </span>
   
@@ -6302,12 +6742,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/pipelines/stable_diffusion/depth2img/" class="md-nav__link">
+      <a href="../../api/pipelines/stable_diffusion/k_diffusion/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Depth-to-image
+    K-Diffusion
     
   </span>
   
@@ -6325,12 +6765,35 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/pipelines/stable_diffusion/image_variation/" class="md-nav__link">
+      <a href="../../api/pipelines/stable_diffusion/latent_upscale/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Image variation
+    Latent upscaler
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipelines/stable_diffusion/ldm3d_diffusion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    LDM3D Text-to-(RGB, Depth), Text-to-(RGB-pano, Depth-pano), LDM3D Upscaler
     
   </span>
   
@@ -6354,6 +6817,29 @@
   
   <span class="md-ellipsis">
     Safe Stable Diffusion
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipelines/stable_diffusion/sdxl_turbo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SDXL Turbo
     
   </span>
   
@@ -6440,104 +6926,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/pipelines/stable_diffusion/sdxl_turbo/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    SDXL Turbo
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../api/pipelines/stable_diffusion/latent_upscale/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Latent upscaler
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../api/pipelines/stable_diffusion/upscale/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     Super-resolution
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../api/pipelines/stable_diffusion/k_diffusion/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    K-Diffusion
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../api/pipelines/stable_diffusion/ldm3d_diffusion/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    LDM3D Text-to-(RGB, Depth), Text-to-(RGB-pano, Depth-pano), LDM3D Upscaler
     
   </span>
   
@@ -6578,12 +6972,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/pipelines/stable_diffusion/gligen/" class="md-nav__link">
+      <a href="../../api/pipelines/stable_diffusion/text2img/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    GLIGEN (Grounded Language-to-Image Generation)
+    Text-to-image
     
   </span>
   
@@ -6837,10 +7231,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_6" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_5" id="__nav_2_11_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_6" id="__nav_2_10_6_label" tabindex="0">
             
   
   
@@ -6853,8 +7247,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_11_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_5">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_10_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_6">
             <span class="md-nav__icon md-icon"></span>
             Schedulers
           </label>
@@ -7670,10 +8064,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_6" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_7" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_6" id="__nav_2_11_6_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_7" id="__nav_2_10_7_label" tabindex="0">
             
   
   
@@ -7686,8 +8080,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_11_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_6">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_10_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_7">
             <span class="md-nav__icon md-icon"></span>
             Internal classes
           </label>
@@ -8265,32 +8659,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#set_adapters" class="md-nav__link">
-    <span class="md-ellipsis">
-      set_adapters
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#fuse_lora" class="md-nav__link">
-    <span class="md-ellipsis">
-      fuse_lora
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -8305,7 +8673,7 @@
 
 
   
-    <a href="https://github.com/mindspore-lab/mindone/edit/master/docs/diffusers/using-diffusers/merge_loras.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/mindspore-lab/mindone/edit/master/docs/diffusers/modular_diffusers/sequential_pipeline_blocks.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -8314,14 +8682,14 @@
     
       
     
-    <a href="https://github.com/mindspore-lab/mindone/raw/master/docs/diffusers/using-diffusers/merge_loras.md" title="View source of this page" class="md-content__button md-icon">
+    <a href="https://github.com/mindspore-lab/mindone/raw/master/docs/diffusers/modular_diffusers/sequential_pipeline_blocks.md" title="View source of this page" class="md-content__button md-icon">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 18c.56 0 1 .44 1 1s-.44 1-1 1-1-.44-1-1 .44-1 1-1m0-3c-2.73 0-5.06 1.66-6 4 .94 2.34 3.27 4 6 4s5.06-1.66 6-4c-.94-2.34-3.27-4-6-4m0 6.5a2.5 2.5 0 0 1-2.5-2.5 2.5 2.5 0 0 1 2.5-2.5 2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5M9.27 20H6V4h7v5h5v4.07c.7.08 1.36.25 2 .49V8l-6-6H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h4.5a8.2 8.2 0 0 1-1.23-2"/></svg>
     </a>
   
 
 
-<!--Copyright 2024 The HuggingFace Team. All rights reserved.
+<!--Copyright 2025 The HuggingFace Team. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may obtain a copy of the License at
@@ -8333,64 +8701,89 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 -->
 
-<h1 id="merge-loras">Merge LoRAs<a class="headerlink" href="#merge-loras" title="Permanent link">&para;</a></h1>
-<p>It can be fun and creative to use multiple <a href="https://huggingface.co/docs/peft/conceptual_guides/adapter#low-rank-adaptation-lora">LoRAs</a> together to generate something entirely new and unique. This works by merging multiple LoRA weights together to produce images that are a blend of different styles. Diffusers provides a few methods to merge LoRAs depending on <em>how</em> you want to merge their weights, which can affect image quality.</p>
-<p>This guide will show you how to merge LoRAs using the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/peft/#mindone.diffusers.loaders.peft.PeftAdapterMixin.set_adapters"><code>set_adapters</code></a> method. To improve inference speed and reduce memory-usage of merged LoRAs, you'll also see how to use the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.fuse_lora"><code>fuse_lora</code></a> method to fuse the LoRA weights with the original weights of the underlying model.</p>
-<p>For this guide, load a Stable Diffusion XL (SDXL) checkpoint and the <a href="https://huggingface.co/KappaNeuro/studio-ghibli-style">KappaNeuro/studio-ghibli-style</a> and <a href="https://huggingface.co/Norod78/sdxl-chalkboarddrawing-lora">Norod78/sdxl-chalkboarddrawing-lora</a> LoRAs with the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_weights"><code>load_lora_weights</code></a> method. You'll need to assign each LoRA an <code>adapter_name</code> to combine them later.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">mindone.diffusers</span><span class="w"> </span><span class="kn">import</span> <span class="n">DiffusionPipeline</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">mindspore</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ms</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<h1 id="sequentialpipelineblocks">SequentialPipelineBlocks<a class="headerlink" href="#sequentialpipelineblocks" title="Permanent link">&para;</a></h1>
+<p><a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/modular_diffusers/pipeline_blocks#mindone.diffusers.modular_pipelines.SequentialPipelineBlocks"><code>SequentialPipelineBlocks</code></a> are a multi-block type that composes other <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/modular_diffusers/pipeline_blocks#mindone.diffusers.ModularPipelineBlocks"><code>ModularPipelineBlocks</code></a> together in a sequence. Data flows linearly from one block to the next using <code>intermediate_inputs</code> and <code>intermediate_outputs</code>. Each block in <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/modular_diffusers/pipeline_blocks#mindone.diffusers.modular_pipelines.SequentialPipelineBlocks"><code>SequentialPipelineBlocks</code></a> usually represents a step in the pipeline, and by combining them, you gradually build a pipeline.</p>
+<p>This guide shows you how to connect two blocks into a <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/modular_diffusers/pipeline_blocks#mindone.diffusers.modular_pipelines.SequentialPipelineBlocks"><code>SequentialPipelineBlocks</code></a>.</p>
+<p>Create two <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/modular_diffusers/pipeline_blocks#mindone.diffusers.ModularPipelineBlocks"><code>ModularPipelineBlocks</code></a>. The first block, <code>InputBlock</code>, outputs a <code>batch_size</code> value and the second block, <code>ImageEncoderBlock</code> uses <code>batch_size</code> as <code>intermediate_inputs</code>.</p>
+<p><hfoptions id="sequential">
+<hfoption id="InputBlock"></p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">mindone.diffusers.modular_pipelines</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModularPipelineBlocks</span><span class="p">,</span> <span class="n">InputParam</span><span class="p">,</span> <span class="n">OutputParam</span>
 
-<span class="n">pipeline</span> <span class="o">=</span> <span class="n">DiffusionPipeline</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s2">&quot;stabilityai/stable-diffusion-xl-base-1.0&quot;</span><span class="p">,</span> <span class="n">mindspore_dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span>
-<span class="n">pipeline</span><span class="o">.</span><span class="n">load_lora_weights</span><span class="p">(</span><span class="s2">&quot;ostris/ikea-instructions-lora-sdxl&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;ikea_instructions_xl_v1_5.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_name</span><span class="o">=</span><span class="s2">&quot;ikea&quot;</span><span class="p">)</span>
-<span class="n">pipeline</span><span class="o">.</span><span class="n">load_lora_weights</span><span class="p">(</span><span class="s2">&quot;lordjia/by-feng-zikai&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;fengzikai_v1.0_XL.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_name</span><span class="o">=</span><span class="s2">&quot;feng&quot;</span><span class="p">)</span>
-</code></pre></div>
-<h2 id="set_adapters">set_adapters<a class="headerlink" href="#set_adapters" title="Permanent link">&para;</a></h2>
-<p>The <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/peft/#mindone.diffusers.loaders.peft.PeftAdapterMixin.set_adapters"><code>set_adapters</code></a> method merges LoRA adapters by concatenating their weighted matrices. Use the adapter name to specify which LoRAs to merge, and the <code>adapter_weights</code> parameter to control the scaling for each LoRA. For example, if <code>adapter_weights=[0.5, 0.5]</code>, then the merged LoRA output is an average of both LoRAs. Try adjusting the adapter weights to see how it affects the generated image!</p>
-<div class="highlight"><pre><span></span><code><span class="n">pipeline</span><span class="o">.</span><span class="n">set_adapters</span><span class="p">([</span><span class="s2">&quot;ikea&quot;</span><span class="p">,</span> <span class="s2">&quot;feng&quot;</span><span class="p">],</span> <span class="n">adapter_weights</span><span class="o">=</span><span class="p">[</span><span class="mf">0.7</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">])</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">InputBlock</span><span class="p">(</span><span class="n">ModularPipelineBlocks</span><span class="p">):</span>
 
-<span class="n">generator</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PCG64</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
-<span class="n">prompt</span> <span class="o">=</span> <span class="s2">&quot;A bowl of ramen shaped like a cute kawaii bear, by Feng Zikai&quot;</span>
-<span class="n">image</span> <span class="o">=</span> <span class="n">pipeline</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="n">generator</span><span class="p">,</span> <span class="n">cross_attention_kwargs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;scale&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">})[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
-<span class="n">image</span>
-</code></pre></div>
-<div style="display: flex; justify-content: center; align-items: flex-start; text-align: center; max-width: 98%; margin: 0 auto; gap: 1vw;">
-    <img src="https://github.com/user-attachments/assets/d947dae6-e825-4478-89e6-02cdacf92c46"/>
-</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">InputParam</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;prompt&quot;</span><span class="p">,</span> <span class="n">type_hint</span><span class="o">=</span><span class="nb">list</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;list of text prompts&quot;</span><span class="p">),</span>
+            <span class="n">InputParam</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;num_images_per_prompt&quot;</span><span class="p">,</span> <span class="n">type_hint</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;number of images per prompt&quot;</span><span class="p">),</span>
+        <span class="p">]</span>
 
-<h2 id="fuse_lora">fuse_lora<a class="headerlink" href="#fuse_lora" title="Permanent link">&para;</a></h2>
-<p><a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/peft/#mindone.diffusers.loaders.peft.PeftAdapterMixin.set_adapters"><code>set_adapters</code></a> method require loading the base model and the LoRA adapters separately which incurs some overhead. The <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_base.LoraBaseMixin.fuse_lora"><code>fuse_lora</code></a> method allows you to fuse the LoRA weights directly with the original weights of the underlying model. This way, you're only loading the model once which can increase inference and lower memory-usage.</p>
-<p>You can use PEFT to easily fuse/unfuse multiple adapters directly into the model weights (both UNet and text encoder) using the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_base.LoraBaseMixin.fuse_lora"><code>fuse_lora</code></a> method, which can lead to a speed-up in inference and lower VRAM usage.</p>
-<p>For example, if you have a base model and adapters loaded and set as active with the following adapter weights:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">mindone.diffusers</span><span class="w"> </span><span class="kn">import</span> <span class="n">DiffusionPipeline</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">mindspore</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ms</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">intermediate_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">OutputParam</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;batch_size&quot;</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;calculated batch size&quot;</span><span class="p">),</span>
+        <span class="p">]</span>
 
-<span class="n">pipeline</span> <span class="o">=</span> <span class="n">DiffusionPipeline</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s2">&quot;stabilityai/stable-diffusion-xl-base-1.0&quot;</span><span class="p">,</span> <span class="n">mindspore_dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span>
-<span class="n">pipeline</span><span class="o">.</span><span class="n">load_lora_weights</span><span class="p">(</span><span class="s2">&quot;ostris/ikea-instructions-lora-sdxl&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;ikea_instructions_xl_v1_5.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_name</span><span class="o">=</span><span class="s2">&quot;ikea&quot;</span><span class="p">)</span>
-<span class="n">pipeline</span><span class="o">.</span><span class="n">load_lora_weights</span><span class="p">(</span><span class="s2">&quot;lordjia/by-feng-zikai&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;fengzikai_v1.0_XL.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_name</span><span class="o">=</span><span class="s2">&quot;feng&quot;</span><span class="p">)</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">description</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;A block that determines batch_size based on the number of prompts and num_images_per_prompt argument.&quot;</span>
 
-<span class="n">pipeline</span><span class="o">.</span><span class="n">set_adapters</span><span class="p">([</span><span class="s2">&quot;ikea&quot;</span><span class="p">,</span> <span class="s2">&quot;feng&quot;</span><span class="p">],</span> <span class="n">adapter_weights</span><span class="o">=</span><span class="p">[</span><span class="mf">0.7</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">])</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+        <span class="n">block_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_block_state</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+        <span class="n">batch_size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">block_state</span><span class="o">.</span><span class="n">prompt</span><span class="p">)</span>
+        <span class="n">block_state</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">batch_size</span> <span class="o">*</span> <span class="n">block_state</span><span class="o">.</span><span class="n">num_images_per_prompt</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_block_state</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">block_state</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">components</span><span class="p">,</span> <span class="n">state</span>
 </code></pre></div>
-<p>Fuse these LoRAs into the UNet with the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_base.LoraBaseMixin.fuse_lora"><code>fuse_lora</code></a> method. The <code>lora_scale</code> parameter controls how much to scale the output by with the LoRA weights. It is important to make the <code>lora_scale</code> adjustments in the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_base.LoraBaseMixin.fuse_lora"><code>fuse_lora</code></a> method because it won’t work if you try to pass <code>scale</code> to the <code>cross_attention_kwargs</code> in the pipeline.</p>
-<div class="highlight"><pre><span></span><code><span class="n">pipeline</span><span class="o">.</span><span class="n">fuse_lora</span><span class="p">(</span><span class="n">adapter_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;ikea&quot;</span><span class="p">,</span> <span class="s2">&quot;feng&quot;</span><span class="p">],</span> <span class="n">lora_scale</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
-</code></pre></div>
-<p>Then you should use <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.unload_lora_weights"><code>unload_lora_weights</code></a> to unload the LoRA weights since they've already been fused with the underlying base model. Finally, call <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.save_pretrained"><code>save_pretrained</code></a> to save the fused pipeline locally or you could call <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.push_to_hub"><code>push_to_hub</code></a> to push the fused pipeline to the Hub.</p>
-<div class="highlight"><pre><span></span><code><span class="n">pipeline</span><span class="o">.</span><span class="n">unload_lora_weights</span><span class="p">()</span>
-<span class="c1"># save locally</span>
-<span class="n">pipeline</span><span class="o">.</span><span class="n">save_pretrained</span><span class="p">(</span><span class="s2">&quot;path/to/fused-pipeline&quot;</span><span class="p">)</span>
-<span class="c1"># save to the Hub</span>
-<span class="n">pipeline</span><span class="o">.</span><span class="n">push_to_hub</span><span class="p">(</span><span class="s2">&quot;fused-ikea-feng&quot;</span><span class="p">)</span>
-</code></pre></div>
-<p>Now you can quickly load the fused pipeline and use it for inference without needing to separately load the LoRA adapters.</p>
-<div class="highlight"><pre><span></span><code><span class="n">pipeline</span> <span class="o">=</span> <span class="n">DiffusionPipeline</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span>
-    <span class="s2">&quot;username/fused-ikea-feng&quot;</span><span class="p">,</span> <span class="n">mindspore_dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float16</span><span class="p">,</span>
-<span class="p">)</span>
+<p></hfoption>
+<hfoption id="ImageEncoderBlock"></p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">mindspore</span><span class="w"> </span><span class="kn">import</span> <span class="n">mint</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">mindone.diffusers.modular_pipelines</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModularPipelineBlocks</span><span class="p">,</span> <span class="n">InputParam</span><span class="p">,</span> <span class="n">OutputParam</span>
 
-<span class="n">image</span> <span class="o">=</span> <span class="n">pipeline</span><span class="p">(</span><span class="s2">&quot;A bowl of ramen shaped like a cute kawaii bear, by Feng Zikai&quot;</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PCG64</span><span class="p">(</span><span class="mi">0</span><span class="p">)))[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
-<span class="n">image</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ImageEncoderBlock</span><span class="p">(</span><span class="n">ModularPipelineBlocks</span><span class="p">):</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">InputParam</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;image&quot;</span><span class="p">,</span> <span class="n">type_hint</span><span class="o">=</span><span class="s2">&quot;PIL.Image&quot;</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;raw input image to process&quot;</span><span class="p">),</span>
+            <span class="n">InputParam</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;batch_size&quot;</span><span class="p">,</span> <span class="n">type_hint</span><span class="o">=</span><span class="nb">int</span><span class="p">),</span>
+        <span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">intermediate_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">OutputParam</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;image_latents&quot;</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;latents representing the image&quot;</span><span class="p">),</span>
+        <span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">description</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;Encode raw image into its latent presentation&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+        <span class="n">block_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_block_state</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+        <span class="c1"># Simulate processing the image</span>
+        <span class="c1"># This will change the state of the image from a PIL image to a tensor for all blocks</span>
+        <span class="n">block_state</span><span class="o">.</span><span class="n">image</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">512</span><span class="p">,</span> <span class="mi">512</span><span class="p">)</span>
+        <span class="n">block_state</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">block_state</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">*</span> <span class="mi">2</span>
+        <span class="n">block_state</span><span class="o">.</span><span class="n">image_latents</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_block_state</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">block_state</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">components</span><span class="p">,</span> <span class="n">state</span>
 </code></pre></div>
-<p>You can call <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_base.LoraBaseMixin.unfuse_lora"><code>unfuse_lora</code></a> to restore the original model's weights (for example, if you want to use a different <code>lora_scale</code> value). However, this only works if you've only fused one LoRA adapter to the original model. If you've fused multiple LoRAs, you'll need to reload the model.</p>
-<div class="highlight"><pre><span></span><code><span class="n">pipeline</span><span class="o">.</span><span class="n">unfuse_lora</span><span class="p">()</span>
+<p></hfoption>
+</hfoptions></p>
+<p>Connect the two blocks by defining an [<code>InsertableDict</code>] to map the block names to the block instances. Blocks are executed in the order they're registered in <code>blocks_dict</code>.</p>
+<p>Use <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/modular_diffusers/pipeline_blocks#mindone.diffusers.modular_pipelines.SequentialPipelineBlocks.from_blocks_dict"><code>from_blocks_dict</code></a> to create a <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/modular_diffusers/pipeline_blocks#mindone.diffusers.modular_pipelines.SequentialPipelineBlocks"><code>SequentialPipelineBlocks</code></a>.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">mindone.diffusers.modular_pipelines</span><span class="w"> </span><span class="kn">import</span> <span class="n">SequentialPipelineBlocks</span><span class="p">,</span> <span class="n">InsertableDict</span>
+
+<span class="n">blocks_dict</span> <span class="o">=</span> <span class="n">InsertableDict</span><span class="p">()</span>
+<span class="n">blocks_dict</span><span class="p">[</span><span class="s2">&quot;input&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">input_block</span>
+<span class="n">blocks_dict</span><span class="p">[</span><span class="s2">&quot;image_encoder&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">image_encoder_block</span>
+
+<span class="n">blocks</span> <span class="o">=</span> <span class="n">SequentialPipelineBlocks</span><span class="o">.</span><span class="n">from_blocks_dict</span><span class="p">(</span><span class="n">blocks_dict</span><span class="p">)</span>
+</code></pre></div>
+<p>Inspect the sub-blocks in <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/modular_diffusers/pipeline_blocks#mindone.diffusers.modular_pipelines.SequentialPipelineBlocks"><code>SequentialPipelineBlocks</code></a> by calling <code>blocks</code>, and for more details about the inputs and outputs, access the <code>docs</code> attribute.</p>
+<div class="highlight"><pre><span></span><code><span class="nb">print</span><span class="p">(</span><span class="n">blocks</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">blocks</span><span class="o">.</span><span class="n">doc</span><span class="p">)</span>
 </code></pre></div>
 
 
@@ -8414,7 +8807,7 @@ specific language governing permissions and limitations under the License.
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="September 15, 2025 02:04:03 UTC">September 15, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="September 29, 2025 08:38:12 UTC">September 29, 2025</span>
   </span>
 
     
@@ -8424,7 +8817,7 @@ specific language governing permissions and limitations under the License.
     <span class="md-icon" title="Created">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 1, 2024 06:29:50 UTC">November 1, 2024</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="September 29, 2025 08:38:12 UTC">September 29, 2025</span>
   </span>
 
     
@@ -8434,15 +8827,12 @@ specific language governing permissions and limitations under the License.
   <span class="md-source-file__fact">
     <span class="md-icon" title="Contributors">
       
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 5.5A3.5 3.5 0 0 1 15.5 9a3.5 3.5 0 0 1-3.5 3.5A3.5 3.5 0 0 1 8.5 9 3.5 3.5 0 0 1 12 5.5M5 8c.56 0 1.08.15 1.53.42-.15 1.43.27 2.85 1.13 3.96C7.16 13.34 6.16 14 5 14a3 3 0 0 1-3-3 3 3 0 0 1 3-3m14 0a3 3 0 0 1 3 3 3 3 0 0 1-3 3c-1.16 0-2.16-.66-2.66-1.62a5.54 5.54 0 0 0 1.13-3.96c.45-.27.97-.42 1.53-.42M5.5 18.25c0-2.07 2.91-3.75 6.5-3.75s6.5 1.68 6.5 3.75V20h-13zM0 20v-1.5c0-1.39 1.89-2.56 4.45-2.9-.59.68-.95 1.62-.95 2.65V20zm24 0h-3.5v-1.75c0-1.03-.36-1.97-.95-2.65 2.56.34 4.45 1.51 4.45 2.9z"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4"/></svg>
       
     </span>
     <nav>
       
-        <a href="mailto:73014084+cui-yshoho@users.noreply.github.com">Cui-yshoho</a>, 
-        <a href="mailto:emmanuelferdman@gmail.com">Emmanuel Ferdman</a>, 
-        <a href="mailto:53842165+the-truthh@users.noreply.github.com">The-truthh</a>, 
-        <a href="mailto:townwish2023@outlook.com">townwish4git</a>
+        <a href="mailto:73014084+cui-yshoho@users.noreply.github.com">Cui-yshoho</a>
     </nav>
   </span>
 
@@ -8479,7 +8869,7 @@ specific language governing permissions and limitations under the License.
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../overview_techniques/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Overview">
+          <a href="../pipeline_block/" class="md-footer__link md-footer__link--prev" aria-label="Previous: ModularPipelineBlocks">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -8489,20 +8879,20 @@ specific language governing permissions and limitations under the License.
                 Previous
               </span>
               <div class="md-ellipsis">
-                Overview
+                ModularPipelineBlocks
               </div>
             </div>
           </a>
         
         
           
-          <a href="../scheduler_features/" class="md-footer__link md-footer__link--next" aria-label="Next: Scheduler features">
+          <a href="../loop_sequential_pipeline_blocks/" class="md-footer__link md-footer__link--next" aria-label="Next: LoopSequentialPipelineBlocks">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Scheduler features
+                LoopSequentialPipelineBlocks
               </div>
             </div>
             <div class="md-footer__button md-icon">
