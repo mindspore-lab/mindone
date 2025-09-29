@@ -881,6 +881,7 @@ class SeamlessM4TConformerAdapter(nn.Cell):
 
 # TEXT / UNITS related code
 
+
 class SeamlessM4TScaledWordEmbedding(mint.nn.Embedding):
     """
     This module overrides mint.nn.Embeddings' forward by multiplying with embeddings scale.
