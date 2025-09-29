@@ -1,6 +1,6 @@
-from transformers import AutoModelForVision2Seq, AutoProcessor
-
 import mindspore as ms
+
+from mindone.transformers import AutoModelForVision2Seq, AutoProcessor
 
 model_path = "ibm-granite/granite-vision-3.1-2b-preview"
 processor = AutoProcessor.from_pretrained(model_path)

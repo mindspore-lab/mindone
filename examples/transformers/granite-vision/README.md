@@ -11,7 +11,7 @@ The Granite Vision model is a variant of LLaVA-NeXT, leveraging a Granite langua
 
 Sample inference:
 ```python
-from transformers import AutoModelForVision2Seq, AutoProcessor
+from mindone.transformers import AutoModelForVision2Seq, AutoProcessor
 
 import mindspore as ms
 
