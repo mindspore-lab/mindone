@@ -21,8 +21,10 @@
 # - GitHub: https://github.com/Wan-Video/Wan2.1
 # - arXiv: https://arxiv.org/abs/2503.20314
 
-from typing import List, Optional, Tuple, Union
+
 import math
+from typing import List, Optional, Tuple, Union
+
 import numpy as np
 
 import mindspore as ms
@@ -106,11 +108,12 @@ class QwenImageRMS_norm(nn.Cell):
         self.channel_first = channel_first
         self.scale = dim**0.5
         self.gamma = ms.Parameter(mint.ones(shape), name="gamma")
-        self.bias = ms.Parameter(mint.zeros(shape), name="bias" \
-        "") if bias else 0.0
+        self.bias = ms.Parameter(mint.zeros(shape), name="bias") if bias else 0.0
 
     def construct(self, x):
-        return mint.nn.functional.normalize(x, dim=(1 if self.channel_first else -1)) * self.scale * self.gamma + self.bias
+        return (
+            mint.nn.functional.normalize(x, dim=(1 if self.channel_first else -1)) * self.scale * self.gamma + self.bias
+        )
 
 
 class QwenImageUpsample(nn.Upsample):
@@ -150,20 +153,24 @@ class QwenImageResample(nn.Cell):
         # layers
         if mode == "upsample2d":
             self.resample = nn.SequentialCell(
-                QwenImageUpsample(scale_factor=(2.0, 2.0), mode="nearest-exact", recompute_scale_factor = True),
+                QwenImageUpsample(scale_factor=(2.0, 2.0), mode="nearest-exact", recompute_scale_factor=True),
                 mint.nn.Conv2d(dim, dim // 2, 3, padding=1),
             )
         elif mode == "upsample3d":
             self.resample = nn.SequentialCell(
-                QwenImageUpsample(scale_factor=(2.0, 2.0), mode="nearest-exact", recompute_scale_factor = True),
+                QwenImageUpsample(scale_factor=(2.0, 2.0), mode="nearest-exact", recompute_scale_factor=True),
                 mint.nn.Conv2d(dim, dim // 2, 3, padding=1),
             )
             self.time_conv = QwenImageCausalConv3d(dim, dim * 2, (3, 1, 1), padding=(1, 0, 0))
 
         elif mode == "downsample2d":
-            self.resample = nn.SequentialCell(mint.nn.ZeroPad2d((0, 1, 0, 1)), mint.nn.Conv2d(dim, dim, 3, stride=(2, 2)))
+            self.resample = nn.SequentialCell(
+                mint.nn.ZeroPad2d((0, 1, 0, 1)), mint.nn.Conv2d(dim, dim, 3, stride=(2, 2))
+            )
         elif mode == "downsample3d":
-            self.resample = nn.SequentialCell(mint.nn.ZeroPad2d((0, 1, 0, 1)), mint.nn.Conv2d(dim, dim, 3, stride=(2, 2)))
+            self.resample = nn.SequentialCell(
+                mint.nn.ZeroPad2d((0, 1, 0, 1)), mint.nn.Conv2d(dim, dim, 3, stride=(2, 2))
+            )
             self.time_conv = QwenImageCausalConv3d(dim, dim, (3, 1, 1), stride=(2, 1, 1), padding=(0, 0, 0))
 
         else:
@@ -182,9 +189,7 @@ class QwenImageResample(nn.Cell):
                     cache_x = x[:, :, -CACHE_T:, :, :].clone()
                     if cache_x.shape[2] < 2 and feat_cache[idx] is not None and feat_cache[idx] != "Rep":
                         # cache last frame of last two chunk
-                        cache_x = mint.cat(
-                            [feat_cache[idx][:, :, -1, :, :].unsqueeze(2), cache_x], dim=2
-                        )
+                        cache_x = mint.cat([feat_cache[idx][:, :, -1, :, :].unsqueeze(2), cache_x], dim=2)
                     if cache_x.shape[2] < 2 and feat_cache[idx] is not None and feat_cache[idx] == "Rep":
                         cache_x = mint.cat([mint.zeros_like(cache_x), cache_x], dim=2)
                     if feat_cache[idx] == "Rep":
@@ -321,7 +326,7 @@ class QwenImageAttentionBlock(nn.Cell):
         q, k, v = qkv.chunk(3, dim=-1)
 
         # apply attention
-        x = ops.flash_attention_score(q, k, v, 1, scalar_value=1/math.sqrt(q.shape[-1]), input_layout="BNSD")
+        x = ops.flash_attention_score(q, k, v, 1, scalar_value=1 / math.sqrt(q.shape[-1]), input_layout="BNSD")
         x = x.squeeze(1).permute(0, 2, 1).reshape(batch_size * time, channels, height, width)
 
         # output projection
@@ -453,17 +458,17 @@ class QwenImageEncoder3d(nn.Cell):
         else:
             x = self.conv_in(x)
 
-        ## downsamples
+        # downsamples
         for layer in self.down_blocks:
             if feat_cache is not None:
                 x = layer(x, feat_cache, feat_idx)
             else:
                 x = layer(x)
 
-        ## middle
+        # middle
         x = self.mid_block(x, feat_cache, feat_idx)
 
-        ## head
+        # head
         x = self.norm_out(x)
         x = self.nonlinearity(x)
         if feat_cache is not None:
@@ -629,7 +634,7 @@ class QwenImageDecoder3d(nn.Cell):
         self.gradient_checkpointing = False
 
     def construct(self, x, feat_cache=None, feat_idx=[0]):
-        ## conv1
+        # conv1
         if feat_cache is not None:
             idx = feat_idx[0]
             cache_x = x[:, :, -CACHE_T:, :, :].clone()
@@ -642,14 +647,14 @@ class QwenImageDecoder3d(nn.Cell):
         else:
             x = self.conv_in(x)
 
-        ## middle
+        # middle
         x = self.mid_block(x, feat_cache, feat_idx)
 
-        ## upsamples
+        # upsamples
         for up_block in self.up_blocks:
             x = up_block(x, feat_cache, feat_idx)
 
-        ## head
+        # head
         x = self.norm_out(x)
         x = self.nonlinearity(x)
         if feat_cache is not None:
@@ -687,10 +692,12 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         attn_scales: List[float] = [],
         temperal_downsample: List[bool] = [False, True, True],
         dropout: float = 0.0,
-        latents_mean: List[float] = [-0.7571, -0.7089, -0.9113, 0.1075, -0.1745, 0.9653, -0.1517, 1.5508, 0.4134, -0.0715, 0.5517, -0.3632, -0.1922, -0.9497, 0.2503, -0.2921],
-        latents_std: List[float] = [2.8184, 1.4541, 2.3275, 2.6558, 1.2196, 1.7708, 2.6052, 2.0743, 3.2687, 2.1526, 2.8652, 1.5579, 1.6382, 1.1253, 2.8251, 1.9160],
+        latents_mean: List[float] = [-0.7571, -0.7089, -0.9113, 0.1075, -0.1745, 0.9653, -0.1517, 1.5508, \
+                                    0.4134, -0.0715, 0.5517, -0.3632, -0.1922, -0.9497, 0.2503, -0.2921],
+        latents_std: List[float] = [2.8184, 1.4541, 2.3275, 2.6558, 1.2196, 1.7708, 2.6052, 2.0743, 3.2687, \
+                                    2.1526, 2.8652, 1.5579, 1.6382, 1.1253, 2.8251, 1.9160],
     ) -> None:
-    # fmt: on
+        # fmt: on
         super().__init__()
 
         self.z_dim = z_dim
@@ -851,7 +858,7 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         else:
             h = self._encode(x)
 
-        # we cannot use class in grapha mode, even for jit_class or subclass of Tensor. :-(    
+        # we cannot use class in grapha mode, even for jit_class or subclass of Tensor. :-(
         # posterior = DiagonalGaussianDistribution(h)
 
         if not return_dict:

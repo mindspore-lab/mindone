@@ -68,9 +68,7 @@ def get_timestep_embedding(
     assert len(timesteps.shape) == 1, "Timesteps should be a 1d-array"
 
     half_dim = embedding_dim // 2
-    exponent = -math.log(max_period) * mint.arange(
-        start=0, end=half_dim, dtype=ms.float32
-    )
+    exponent = -math.log(max_period) * mint.arange(start=0, end=half_dim, dtype=ms.float32)
     exponent = exponent / (half_dim - downscale_freq_shift)
 
     emb = mint.exp(exponent).to(timesteps.dtype)
@@ -224,7 +222,7 @@ class QwenEmbedRope(nn.Cell):
 
     @functools.lru_cache(maxsize=None)
     def _compute_video_freqs(self, frame, height, width, idx=0):
-        seq_lens = frame * height * width    
+        seq_lens = frame * height * width
         freqs_pos = self.pos_freqs.split([x // 2 for x in self.axes_dim], dim=1)
         freqs_neg = self.neg_freqs.split([x // 2 for x in self.axes_dim], dim=1)
 

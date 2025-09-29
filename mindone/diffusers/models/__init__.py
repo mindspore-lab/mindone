@@ -81,7 +81,7 @@ _import_structure = {
     "transformers.transformer_lumina2": ["Lumina2Transformer2DModel"],
     "transformers.transformer_mochi": ["MochiTransformer3DModel"],
     "transformers.transformer_omnigen": ["OmniGenTransformer2DModel"],
-    "transformers.transformer_qwenimage": ["QwenImageTransformer2DModel"],    
+    "transformers.transformer_qwenimage": ["QwenImageTransformer2DModel"],
     "transformers.transformer_sd3": ["SD3Transformer2DModel"],
     "transformers.transformer_skyreels_v2": ["SkyReelsV2Transformer3DModel"],
     "transformers.transformer_temporal": ["TransformerTemporalModel"],

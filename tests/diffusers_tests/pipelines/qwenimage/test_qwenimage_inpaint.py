@@ -16,7 +16,6 @@
 # limitations under the License.
 
 import random
-import sys
 import unittest
 
 import numpy as np
@@ -27,15 +26,8 @@ from transformers import Qwen2_5_VLConfig
 
 import mindspore as ms
 
-from mindone.diffusers import (
-    AutoencoderKLQwenImage,
-    QwenImageInpaintPipeline,
-    QwenImageTransformer2DModel,
-)
-from mindone.diffusers.utils.testing_utils import (
-    load_numpy_from_local_file, 
-    slow, 
-)
+from mindone.diffusers import QwenImageInpaintPipeline
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -45,7 +37,6 @@ from ..pipeline_test_utils import (
     floats_tensor,
     get_module,
     get_pipeline_components,
-    randn_tensor,
 )
 
 test_cases = [
@@ -85,7 +76,7 @@ class QwenImageInpaintPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
                 # fmt: off
                 latents_mean=[0.0] * 4,
                 latents_std=[1.0] * 4,
-                # fmt: on            
+                # fmt: on
             ),            
         ],    
         [
@@ -166,7 +157,7 @@ class QwenImageInpaintPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
                 "vae",
                 "scheduler",
                 "text_encoder",
-                "tokenizer",                
+                "tokenizer",
             ]
         }
         return get_pipeline_components(components, self.pipeline_config)
@@ -238,7 +229,10 @@ class QwenImageInpaintPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         ms_generated_image = ms_image[0]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_generated_image - ms_generated_image) / np.linalg.norm(pt_generated_image)) < threshold
+        assert (
+            np.max(np.linalg.norm(pt_generated_image - ms_generated_image) / np.linalg.norm(pt_generated_image))
+            < threshold
+        )
 
 
 @slow

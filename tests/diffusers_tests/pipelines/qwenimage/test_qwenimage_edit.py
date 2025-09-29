@@ -15,7 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 
 import numpy as np
@@ -27,16 +26,8 @@ from transformers import Qwen2_5_VLConfig
 
 import mindspore as ms
 
-from diffusers import (
-    AutoencoderKLQwenImage,
-    QwenImageEditPipeline,
-    QwenImageTransformer2DModel,
-)
-
-from mindone.diffusers.utils.testing_utils import (
-    load_numpy_from_local_file, 
-    slow, 
-)
+from mindone.diffusers import QwenImageEditPipeline
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -45,7 +36,6 @@ from ..pipeline_test_utils import (
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
-    randn_tensor,
 )
 
 test_cases = [
@@ -85,8 +75,8 @@ class QwenImageEditPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
                 # fmt: off
                 latents_mean=[0.0] * 4,
                 latents_std=[1.0] * 4,
-                # fmt: on            
-            ),            
+                # fmt: on
+            ),
         ],    
         [
             "scheduler",
@@ -134,7 +124,7 @@ class QwenImageEditPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
                     vision_end_token_id=151653,
                     vision_start_token_id=151652,
                     vision_token_id=151654,
-                    sliding_window=32768, #None
+                    sliding_window=32768,  #None
                     use_sliding_window=False,
                     use_cache=True,
                     attn_implementation="eager",
@@ -175,8 +165,8 @@ class QwenImageEditPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
                 "vae",
                 "scheduler",
                 "text_encoder",
-                "tokenizer", 
-                "processor",               
+                "tokenizer",
+                "processor",
             ]
         }
         return get_pipeline_components(components, self.pipeline_config)
@@ -231,7 +221,10 @@ class QwenImageEditPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         ms_generated_image = ms_image[0]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_generated_image - ms_generated_image) / np.linalg.norm(pt_generated_image)) < threshold
+        assert (
+            np.max(np.linalg.norm(pt_generated_image - ms_generated_image) / np.linalg.norm(pt_generated_image))
+            < threshold
+        )
 
 
 @slow

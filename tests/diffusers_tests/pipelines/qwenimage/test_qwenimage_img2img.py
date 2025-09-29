@@ -13,15 +13,8 @@ from transformers import Qwen2_5_VLConfig
 
 import mindspore as ms
 
-from mindone.diffusers import (
-    AutoencoderKLQwenImage,
-    QwenImageImg2ImgPipeline,
-    QwenImageTransformer2DModel,
-)
-from mindone.diffusers.utils.testing_utils import (
-    load_numpy_from_local_file, 
-    slow, 
-)
+from mindone.diffusers import QwenImageImg2ImgPipeline
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -71,7 +64,7 @@ class QwenImageImg2ImgPipelineFastTests(unittest.TestCase, PipelineTesterMixin):
                 # fmt: off
                 latents_mean=[0.0] * 4,
                 latents_std=[1.0] * 4,
-                # fmt: on            
+                # fmt: on
             ),            
         ],    
         [
@@ -120,7 +113,7 @@ class QwenImageImg2ImgPipelineFastTests(unittest.TestCase, PipelineTesterMixin):
                     vision_end_token_id=151653,
                     vision_start_token_id=151652,
                     vision_token_id=151654,
-                    sliding_window=32768, #None
+                    sliding_window=32768,  #None
                     use_sliding_window=False,
                     use_cache=True,
                     attn_implementation="eager",
@@ -152,7 +145,7 @@ class QwenImageImg2ImgPipelineFastTests(unittest.TestCase, PipelineTesterMixin):
                 "vae",
                 "scheduler",
                 "text_encoder",
-                "tokenizer",                
+                "tokenizer",
             ]
         }
         return get_pipeline_components(components, self.pipeline_config)
@@ -222,7 +215,10 @@ class QwenImageImg2ImgPipelineFastTests(unittest.TestCase, PipelineTesterMixin):
         ms_generated_image = ms_image[0]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_generated_image - ms_generated_image) / np.linalg.norm(pt_generated_image)) < threshold
+        assert (
+            np.max(np.linalg.norm(pt_generated_image - ms_generated_image) / np.linalg.norm(pt_generated_image))
+            < threshold
+        )
 
 
 @slow

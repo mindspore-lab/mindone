@@ -421,8 +421,8 @@ if TYPE_CHECKING:
     from .pipeline_utils import AudioPipelineOutput, DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
     from .pixart_alpha import PixArtAlphaPipeline, PixArtSigmaPipeline
     from .qwenimage import (
-        QwenImageEditPipeline,
         QwenImageEditInpaintPipeline,
+        QwenImageEditPipeline,
         QwenImageImg2ImgPipeline,
         QwenImageInpaintPipeline,
         QwenImagePipeline,

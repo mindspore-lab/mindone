@@ -5,9 +5,10 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 import PIL.Image
+from transformers import Qwen2Tokenizer
+
 import mindspore as ms
 from mindspore import mint
-from transformers import Qwen2Tokenizer
 
 from ....transformers import Qwen2_5_VLForConditionalGeneration
 from ...image_processor import PipelineImageInput, VaeImageProcessor
@@ -52,7 +53,7 @@ def retrieve_latents(
         return vae.diag_gauss_dist.mode(encoder_output)
     # This brach is not needed because the encoder_output type is ms.tensor as per AutoencoderKLOuput change
     # elif hasattr(encoder_output, "latents"):
-    #     return encoder_output.latents  
+    #     return encoder_output.latents
     else:
         return encoder_output
 
@@ -181,7 +182,9 @@ class QwenImageInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             do_convert_grayscale=True,
         )
         self.tokenizer_max_length = 1024
-        self.prompt_template_encode = "<|im_start|>system\nDescribe the image by detailing the color, shape, size, texture, quantity, text, spatial relationships of the objects and background:<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n"
+        self.prompt_template_encode = "<|im_start|>system\nDescribe the image by detailing the color, shape, size, \
+                                        texture, quantity, text, spatial relationships of the objects and background:\
+                                        <|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n"
         self.prompt_template_encode_start_idx = 34
         self.default_sample_size = 128
 
@@ -235,17 +238,14 @@ class QwenImageInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
     def _encode_vae_image(self, image: ms.tensor, generator: np.random.Generator):
         if isinstance(generator, list):
             image_latents = [
-                retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0])
-                for i in range(image.shape[0])
+                retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0]) for i in range(image.shape[0])
             ]
             image_latents = mint.cat(image_latents, dim=0)
         else:
             image_latents = retrieve_latents(self.vae, self.vae.encode(image)[0])
 
         latents_mean = (
-            ms.tensor(self.vae.config.latents_mean)
-            .view(1, self.vae.config.z_dim, 1, 1, 1)
-            .to(image_latents.dtype)
+            ms.tensor(self.vae.config.latents_mean).view(1, self.vae.config.z_dim, 1, 1, 1).to(image_latents.dtype)
         )
         latents_std = 1.0 / ms.tensor(self.vae.config.latents_std).view(1, self.vae.config.z_dim, 1, 1, 1).to(
             image_latents.dtype
@@ -327,14 +327,16 @@ class QwenImageInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
 
         if height % (self.vae_scale_factor * 2) != 0 or width % (self.vae_scale_factor * 2) != 0:
             logger.warning(
-                f"`height` and `width` have to be divisible by {self.vae_scale_factor * 2} but are {height} and {width}. Dimensions will be resized accordingly"
+                f"`height` and `width` have to be divisible by {self.vae_scale_factor * 2} but are {height} and {width}. \
+                    Dimensions will be resized accordingly"
             )
 
         if callback_on_step_end_tensor_inputs is not None and not all(
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found \
+                    {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
             )
 
         if prompt is not None and prompt_embeds is not None:
@@ -357,11 +359,13 @@ class QwenImageInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
 
         if prompt_embeds is not None and prompt_embeds_mask is None:
             raise ValueError(
-                "If `prompt_embeds` are provided, `prompt_embeds_mask` also have to be passed. Make sure to generate `prompt_embeds_mask` from the same text encoder that was used to generate `prompt_embeds`."
+                "If `prompt_embeds` are provided, `prompt_embeds_mask` also have to be passed. Make sure to generate `prompt_embeds_mask` \
+                    from the same text encoder that was used to generate `prompt_embeds`."
             )
         if negative_prompt_embeds is not None and negative_prompt_embeds_mask is None:
             raise ValueError(
-                "If `negative_prompt_embeds` are provided, `negative_prompt_embeds_mask` also have to be passed. Make sure to generate `negative_prompt_embeds_mask` from the same text encoder that was used to generate `negative_prompt_embeds`."
+                "If `negative_prompt_embeds` are provided, `negative_prompt_embeds_mask` also have to be passed. Make sure to generate \
+                    `negative_prompt_embeds_mask` from the same text encoder that was used to generate `negative_prompt_embeds`."
             )
         if padding_mask_crop is not None:
             if not isinstance(image, PIL.Image.Image):
@@ -951,9 +955,7 @@ class QwenImageInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             latents = self._unpack_latents(latents, height, width, self.vae_scale_factor)
             latents = latents.to(self.vae.dtype)
             latents_mean = (
-                ms.tensor(self.vae.config.latents_mean)
-                .view(1, self.vae.config.z_dim, 1, 1, 1)
-                .to(latents.dtype)
+                ms.tensor(self.vae.config.latents_mean).view(1, self.vae.config.z_dim, 1, 1, 1).to(latents.dtype)
             )
             latents_std = 1.0 / ms.tensor(self.vae.config.latents_std).view(1, self.vae.config.z_dim, 1, 1, 1).to(
                 latents.dtype
@@ -964,9 +966,7 @@ class QwenImageInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             image = self.image_processor.postprocess(image, output_type=output_type)
 
             if padding_mask_crop is not None:
-                image = [
-                    self.image_processor.apply_overlay(mask_image, original_image, i, crops_coords) for i in image
-                ]
+                image = [self.image_processor.apply_overlay(mask_image, original_image, i, crops_coords) for i in image]
 
         if not return_dict:
             return (image,)
