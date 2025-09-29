@@ -181,7 +181,7 @@ class DDIMSampler(object):
             subset_end = int(min(timesteps / self.ddim_timesteps.shape[0], 1) * self.ddim_timesteps.shape[0]) - 1
             timesteps = self.ddim_timesteps[:subset_end]
 
-        intermediates = {"x_inter": [img], "pred_x0": [img]}
+        intermediates = {"x_inter": [], "pred_x0": []}
         time_range = reversed(range(0, timesteps)) if ddim_use_original_steps else ms.numpy.flip(timesteps)
         total_steps = timesteps if ddim_use_original_steps else timesteps.shape[0]
         print(f"Running DDIM Sampling with {total_steps} timesteps")
@@ -226,8 +226,9 @@ class DDIMSampler(object):
                 img_callback(pred_x0, i)
 
             if index % log_every_t == 0 or index == total_steps - 1:
-                intermediates["x_inter"].append(img)
-                intermediates["pred_x0"].append(pred_x0)
+                pass
+                # intermediates["x_inter"].append(img)
+                # intermediates["pred_x0"].append(pred_x0)
 
         return img, intermediates
 
@@ -308,10 +309,11 @@ class DDIMSampler(object):
         )
         sigmas = self.model.ddim_sigmas_for_original_num_steps if use_original_steps else self.ddim_sigmas
         # select parameters corresponding to the currently considered timestep
-        a_t = ms.numpy.full((b, 1, 1, 1), alphas[index])
-        a_prev = ms.numpy.full((b, 1, 1, 1), alphas_prev[index])
-        sigma_t = ms.numpy.full((b, 1, 1, 1), sigmas[index])
-        sqrt_one_minus_at = ms.numpy.full((b, 1, 1, 1), sqrt_one_minus_alphas[index])
+        shape = (1,) * (len(e_t.shape) - 1)
+        a_t = ms.numpy.full((b,) + shape, alphas[index])
+        a_prev = ms.numpy.full((b,) + shape, alphas_prev[index])
+        sigma_t = ms.numpy.full((b,) + shape, sigmas[index])
+        sqrt_one_minus_at = ms.numpy.full((b,) + shape, sqrt_one_minus_alphas[index])
 
         # current prediction for x_0
         if self.model.parameterization != "velocity":
@@ -332,7 +334,7 @@ class DDIMSampler(object):
             noise, _ = ops.dropout(noise, p=noise_dropout)
         x_prev = a_prev.sqrt() * pred_x0 + dir_xt + noise
 
-        return x_prev, pred_x0
+        return x_prev, None
 
     def encode(
         self,
