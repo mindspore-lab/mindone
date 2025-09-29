@@ -146,6 +146,7 @@ from . import (
     moshi,
     mpnet,
     mpt,
+    mra,
     mvp,
     nemotron,
     nllb_moe,
