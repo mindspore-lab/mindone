@@ -1057,6 +1057,16 @@ from .models.roformer import (
 )
 from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
 from .models.sam import SamImageProcessor, SamModel, SamPreTrainedModel, SamProcessor
+from .models.seamless_m4t import (
+    SeamlessM4TForSpeechToSpeech,
+    SeamlessM4TForSpeechToText,
+    SeamlessM4TForTextToSpeech,
+    SeamlessM4TForTextToText,
+    SeamlessM4TFeatureExtractor,
+    SeamlessM4TModel,
+    SeamlessM4TProcessor,
+    SeamlessM4TConfig,
+)
 from .models.seamless_m4t_v2 import (
     SeamlessM4Tv2ForSpeechToSpeech,
     SeamlessM4Tv2ForSpeechToText,
