@@ -67,6 +67,7 @@ def _is_package_available(pkg_name: str, return_version: bool = False) -> Union[
 
 _pandas_available = _is_package_available("pandas")
 _scipy_available = _is_package_available("scipy")
+_pytesseract_available = _is_package_available("pytesseract")
 
 
 def is_mindspore_available():
@@ -102,6 +103,10 @@ def is_vision_available():
     return _pil_available
 
 
+def is_pytesseract_available():
+    return _pytesseract_available
+
+
 MINDSPORE_IMPORT_ERROR_WITH_TF = """
 {0} requires the MindSpore library but it was not found in your environment.
 However, we were able to find a TensorFlow installation. TensorFlow classes begin
@@ -117,11 +122,15 @@ Please note that you may need to restart your runtime after installation.
 """
 
 # docstyle-ignore
+PYTESSERACT_IMPORT_ERROR = """
+{0} requires the PyTesseract library but it was not found in your environment. You can install it with pip:
+`pip install pytesseract`. Please note that you may need to restart your runtime after installation.
+"""
+
 SCIPY_IMPORT_ERROR = """
 {0} requires the scipy library but it was not found in your environment. You can install it with pip:
 `pip install scipy`. Please note that you may need to restart your runtime after installation.
 """
-
 
 # docstyle-ignore
 VISION_IMPORT_ERROR = """
@@ -133,8 +142,9 @@ BACKENDS_MAPPING = OrderedDict(
     [
         ("mindspore", (is_mindspore_available, MINDSPORE_IMPORT_ERROR_WITH_TF)),
         ("pandas", (is_pandas_available, PANDAS_IMPORT_ERROR)),
-        ("vision", (is_vision_available, VISION_IMPORT_ERROR)),
+        ("pytesseract", (is_pytesseract_available, PYTESSERACT_IMPORT_ERROR)),
         ("scipy", (is_scipy_available, SCIPY_IMPORT_ERROR)),
+        ("vision", (is_vision_available, VISION_IMPORT_ERROR)),
     ]
 )
 

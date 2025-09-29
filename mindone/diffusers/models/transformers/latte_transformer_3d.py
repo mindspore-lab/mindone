@@ -22,13 +22,14 @@ from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ..attention import BasicTransformerBlock
+from ..cache_utils import CacheMixin
 from ..embeddings import PatchEmbed, PixArtAlphaTextProjection, get_1d_sincos_pos_embed_from_grid
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import AdaLayerNormSingle
 
 
-class LatteTransformer3DModel(ModelMixin, ConfigMixin):
+class LatteTransformer3DModel(ModelMixin, ConfigMixin, CacheMixin):
     _supports_gradient_checkpointing = True
 
     """
