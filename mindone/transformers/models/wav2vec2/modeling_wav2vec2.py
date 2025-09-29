@@ -32,6 +32,7 @@ from mindspore.mint.nn import CrossEntropyLoss
 
 from ....safetensors.mindspore import load_file as safe_load_file
 from ...activations import ACT2FN
+from ...modeling_attn_mask_utils import dtype_to_min
 from ...modeling_outputs import (
     BaseModelOutput,
     CausalLMOutput,
@@ -281,6 +282,7 @@ class Wav2Vec2NoLayerNormConvLayer(nn.Cell):
             kernel_size=config.conv_kernel[layer_id],
             stride=config.conv_stride[layer_id],
             has_bias=config.conv_bias,
+            pad_mode="valid",
         )
         self.activation = ACT2FN[config.feat_extract_activation]
 
@@ -302,6 +304,7 @@ class Wav2Vec2LayerNormConvLayer(nn.Cell):
             kernel_size=config.conv_kernel[layer_id],
             stride=config.conv_stride[layer_id],
             has_bias=config.conv_bias,
+            pad_mode="valid",
         )
         self.layer_norm = mint.nn.LayerNorm(self.out_conv_dim, elementwise_affine=True)
         self.activation = ACT2FN[config.feat_extract_activation]
@@ -329,10 +332,11 @@ class Wav2Vec2GroupNormConvLayer(nn.Cell):
             kernel_size=config.conv_kernel[layer_id],
             stride=config.conv_stride[layer_id],
             has_bias=config.conv_bias,
+            pad_mode="valid",
         )
         self.activation = ACT2FN[config.feat_extract_activation]
 
-        self.layer_norm = mint.nn.LayerNorm(num_groups=self.out_conv_dim, num_channels=self.out_conv_dim, affine=True)
+        self.layer_norm = mint.nn.GroupNorm(num_groups=self.out_conv_dim, num_channels=self.out_conv_dim, affine=True)
 
     def construct(self, hidden_states):
         hidden_states = self.conv(hidden_states)
@@ -768,9 +772,9 @@ class Wav2Vec2Encoder(nn.Cell):
             else:
                 # extend attention_mask
                 attention_mask = 1.0 - attention_mask[:, None, None, :].to(dtype=hidden_states.dtype)
-                attention_mask = attention_mask * mint.finfo(hidden_states.dtype).min
-                attention_mask = attention_mask.expand(
-                    attention_mask.shape[0], 1, attention_mask.shape[-1], attention_mask.shape[-1]
+                attention_mask = attention_mask * dtype_to_min(hidden_states.dtype)
+                attention_mask = attention_mask.broadcast_to(
+                    (attention_mask.shape[0], 1, attention_mask.shape[-1], attention_mask.shape[-1])
                 )
 
         position_embeddings = self.pos_conv_embed(hidden_states)
@@ -853,9 +857,9 @@ class Wav2Vec2EncoderStableLayerNorm(nn.Cell):
             else:
                 # extend attention_mask
                 attention_mask = 1.0 - attention_mask[:, None, None, :].to(dtype=hidden_states.dtype)
-                attention_mask = attention_mask * mint.finfo(hidden_states.dtype).min
-                attention_mask = attention_mask.expand(
-                    attention_mask.shape[0], 1, attention_mask.shape[-1], attention_mask.shape[-1]
+                attention_mask = attention_mask * dtype_to_min(hidden_states.dtype)
+                attention_mask = attention_mask.broadcast_to(
+                    (attention_mask.shape[0], 1, attention_mask.shape[-1], attention_mask.shape[-1])
                 )
 
         position_embeddings = self.pos_conv_embed(hidden_states)
@@ -935,7 +939,7 @@ class Wav2Vec2GumbelVectorQuantizer(nn.Cell):
     @staticmethod
     def _compute_perplexity(probs, mask=None):
         if mask is not None:
-            mask_extended = mask.flatten()[:, None, None].expand(probs.shape)
+            mask_extended = mask.flatten()[:, None, None].broadcast_to(probs.shape)
             probs = mint.where(mask_extended, probs, mint.zeros_like(probs))
             marginal_probs = probs.sum(dim=0) / mask.sum()
         else:
@@ -993,7 +997,7 @@ class Wav2Vec2Adapter(nn.Cell):
         else:
             self.proj = self.proj_layer_norm = None
 
-        self.layers = nn.CellList(Wav2Vec2AdapterLayer(config) for _ in range(config.num_adapter_layers))
+        self.layers = nn.CellList([Wav2Vec2AdapterLayer(config) for _ in range(config.num_adapter_layers)])
         self.layerdrop = config.layerdrop
 
     def construct(self, hidden_states):
@@ -1189,13 +1193,13 @@ class Wav2Vec2PreTrainedModel(MSPreTrainedModel):
             raise ValueError(f"{self.__class__} has no adapter layers. Make sure to define `config.adapter_attn_dim`.")
 
         adapter_weights = {}
-        for name, module in self.named_modules():
+        for name, module in self.cells_and_names():
             if isinstance(module, Wav2Vec2AttnAdapterLayer):
-                for param_name, param in module.named_parameters():
+                for param_name, param in module.parameters_and_names():
                     adapter_weights[".".join([name, param_name])] = param
 
         if isinstance(self, Wav2Vec2ForCTC):
-            for name, param in self.lm_head.named_parameters():
+            for name, param in self.lm_head.parameters_and_names():
                 adapter_weights[".".join(["lm_head", name])] = param
 
         return adapter_weights
@@ -1395,7 +1399,7 @@ class Wav2Vec2PreTrainedModel(MSPreTrainedModel):
             self.config.vocab_size = target_vocab_size
 
         # make sure that adapter weights are put in exactly the same precision and overwritten adapter weights
-        state_dict = {k: v.to(adapter_weights[k]) for k, v in state_dict.items()}
+        state_dict = {k: v.to(adapter_weights[k].dtype) for k, v in state_dict.items()}
         self.load_state_dict(state_dict, strict=False)
 
         # set target language corectly
@@ -1411,7 +1415,7 @@ class Wav2Vec2Model(Wav2Vec2PreTrainedModel):
 
         # model only needs masking vector if mask prob is > 0.0
         if config.mask_time_prob > 0.0 or config.mask_feature_prob > 0.0:
-            self.masked_spec_embed = Parameter(ms.Tensor(config.hidden_size).uniform_())
+            self.masked_spec_embed = Parameter(mint.empty(config.hidden_size).uniform_())
 
         if config.do_stable_layer_norm:
             self.encoder = Wav2Vec2EncoderStableLayerNorm(config)
@@ -1462,7 +1466,7 @@ class Wav2Vec2Model(Wav2Vec2PreTrainedModel):
 
         if mask_time_indices is not None:
             # apply SpecAugment along time axis with given mask_time_indices
-            hidden_states[mask_time_indices] = self.masked_spec_embed.to(hidden_states.dtype)
+            hidden_states[mask_time_indices] = self.masked_spec_embed.set_dtype(hidden_states.dtype)
         elif self.config.mask_time_prob > 0 and self.training:
             mask_time_indices = _compute_mask_indices(
                 (batch_size, sequence_length),
@@ -1472,7 +1476,7 @@ class Wav2Vec2Model(Wav2Vec2PreTrainedModel):
                 min_masks=self.config.mask_time_min_masks,
             )
             mask_time_indices = ms.tensor(mask_time_indices, dtype=ms.bool_)
-            hidden_states[mask_time_indices] = self.masked_spec_embed.to(hidden_states.dtype)
+            hidden_states[mask_time_indices] = self.masked_spec_embed.set_dtype(hidden_states.dtype)
 
         if self.config.mask_feature_prob > 0 and self.training:
             # generate indices & apply SpecAugment along feature axis
@@ -1483,7 +1487,7 @@ class Wav2Vec2Model(Wav2Vec2PreTrainedModel):
                 min_masks=self.config.mask_feature_min_masks,
             )
             mask_feature_indices = ms.tensor(mask_feature_indices, dtype=ms.bool_)
-            mask_feature_indices = mask_feature_indices[:, None].expand(-1, sequence_length, -1)
+            mask_feature_indices = mask_feature_indices[:, None].broadcast_to((-1, sequence_length, -1))
             hidden_states[mask_feature_indices] = 0
 
         return hidden_states
@@ -2170,7 +2174,7 @@ class AMSoftmaxLoss(nn.Cell):
 
         onehot = mint.nn.functional.one_hot(labels, self.num_labels)
         logits = self.scale * mint.where(onehot.bool(), psi, cos_theta)
-        loss = self.loss(logits, labels)
+        loss = self.loss(logits.float(), labels.int())
 
         return loss
 
