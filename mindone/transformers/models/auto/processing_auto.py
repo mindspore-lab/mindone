@@ -51,8 +51,10 @@ PROCESSOR_MAPPING_NAMES = OrderedDict(
     [
         ("blip", "BlipProcessor"),
         ("chameleon", "ChameleonProcessor"),
+        ("chinese_clip", "ChineseCLIPProcessor"),
         ("colpali", "ColPaliProcessor"),
         ("idefics", "IdeficsProcessor"),
+        ("instructblip", "InstructBlipProcessor"),
         ("llava_next", "LlavaNextProcessor"),
         ("llava_next_video", "LlavaNextVideoProcessor"),
         ("llava_onevision", "LlavaOnevisionProcessor"),
@@ -61,6 +63,7 @@ PROCESSOR_MAPPING_NAMES = OrderedDict(
         ("owlv2", "Owlv2Processor"),
         ("owlvit", "OwlViTProcessor"),
         ("sam", "SamProcessor"),
+        ("seamless_m4t", "SeamlessM4TProcessor"),
         ("siglip", "SiglipProcessor"),
     ]
 )
