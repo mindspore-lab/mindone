@@ -234,6 +234,12 @@ from .models.bloom import (
     BloomModel,
     BloomPreTrainedModel,
 )
+from .models.bros import (
+    BrosForTokenClassification,
+    BrosModel,
+    BrosPreTrainedModel,
+    BrosSpadeEEForTokenClassification,
+    BrosSpadeELForTokenClassification,
 from .models.bridgetower import (
     BridgeTowerForContrastiveLearning,
     BridgeTowerForImageAndTextRetrieval,
@@ -906,6 +912,13 @@ from .models.nystromformer import (
 )
 from .models.olmo import OlmoForCausalLM, OlmoModel, OlmoPreTrainedModel
 from .models.olmo2 import Olmo2ForCausalLM, Olmo2Model, Olmo2PreTrainedModel
+from .models.oneformer import (
+    OneFormerForUniversalSegmentation,
+    OneFormerImageProcessor,
+    OneFormerModel,
+    OneFormerPreTrainedModel,
+    OneFormerProcessor,
+)
 from .models.olmoe import OlmoeForCausalLM, OlmoeModel, OlmoePreTrainedModel
 from .models.opt import (
     OPTForCausalLM,
@@ -1058,14 +1071,14 @@ from .models.roformer import (
 from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
 from .models.sam import SamImageProcessor, SamModel, SamPreTrainedModel, SamProcessor
 from .models.seamless_m4t import (
+    SeamlessM4TConfig,
+    SeamlessM4TFeatureExtractor,
     SeamlessM4TForSpeechToSpeech,
     SeamlessM4TForSpeechToText,
     SeamlessM4TForTextToSpeech,
     SeamlessM4TForTextToText,
-    SeamlessM4TFeatureExtractor,
     SeamlessM4TModel,
     SeamlessM4TProcessor,
-    SeamlessM4TConfig,
 )
 from .models.seamless_m4t_v2 import (
     SeamlessM4Tv2ForSpeechToSpeech,

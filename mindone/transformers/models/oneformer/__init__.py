@@ -1,8 +1,5 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
-# This code is adapted from https://github.com/huggingface/transformers
-# with modifications to run transformers on mindspore.
-#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,13 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .configuration_seamless_m4t import SeamlessM4TConfig
-from .feature_extraction_seamless_m4t import SeamlessM4TFeatureExtractor
-from .modeling_seamless_m4t import (
-    SeamlessM4TForSpeechToSpeech,
-    SeamlessM4TForSpeechToText,
-    SeamlessM4TForTextToSpeech,
-    SeamlessM4TForTextToText,
-    SeamlessM4TModel,
-)
-from .processing_seamless_m4t import SeamlessM4TProcessor
+from .image_processing_oneformer import *
+from .modeling_oneformer import *
+from .processing_oneformer import *

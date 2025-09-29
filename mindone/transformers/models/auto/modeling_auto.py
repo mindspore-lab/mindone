@@ -55,6 +55,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("bloom", "BloomModel"),
         ("bridgetower", "BridgeTowerModel"),
         ("camembert", "CamembertModel"),
+        ("bros", "BrosModel"),
         ("starcoder2", "Starcoder2Model"),
         ("canine", "CanineModel"),
         ("chameleon", "ChameleonModel"),
@@ -111,6 +112,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("granite", "GraniteModel"),
         ("granitemoe", "GraniteMoeModel"),
         ("granitemoeshared", "GraniteMoeSharedModel"),
+        ("oneformer", "OneFormerModel"),
         ("groupvit", "GroupViTModel"),
         ("helium", "HeliumModel"),
         ("grounding-dino", "GroundingDinoModel"),
@@ -161,6 +163,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("owlvit", "OwlViTModel"),
         ("pegasus", "PegasusModel"),
         ("pegasus_x", "PegasusXModel"),
+        ("perceiver", "PerceiverModel"),
         ("persimmon", "PersimmonModel"),
         ("olmo", "OlmoModel"),
         ("olmo2", "Olmo2Model"),
@@ -785,8 +788,7 @@ MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
     ]
 )
 
-MODEL_FOR_
-_SEQ_2_SEQ_MAPPING_NAMES = OrderedDict(
+MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING_NAMES = OrderedDict(
     [
         ("moonshine", "MoonshineForConditionalGeneration"),
         ("pop2piano", "Pop2PianoForConditionalGeneration"),
@@ -963,6 +965,7 @@ MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("camembert", "CamembertForTokenClassification"),
         ("canine", "CanineForTokenClassification"),
         ("convbert", "ConvBertForTokenClassification"),
+        ("bros", "BrosForTokenClassification"),
         ("deberta", "DebertaForTokenClassification"),
         ("deberta-v2", "DebertaV2ForTokenClassification"),
         ("diffllama", "DiffLlamaForTokenClassification"),
@@ -1106,7 +1109,7 @@ MODEL_FOR_TEXT_TO_SPECTROGRAM_MAPPING_NAMES = OrderedDict(
 )
 
 MODEL_FOR_TEXT_TO_WAVEFORM_MAPPING_NAMES = OrderedDict(
-    [  
+    [
         ("fastspeech2_conformer", "FastSpeech2ConformerWithHifiGan"),
         ("seamless_m4t", "SeamlessM4TForTextToSpeech"),
         ("seamless_m4t_v2", "SeamlessM4Tv2ForTextToSpeech"),
