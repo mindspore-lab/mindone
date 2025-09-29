@@ -15,6 +15,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .configuration_seamless_m4t import SeamlessM4TConfig
+from .feature_extraction_seamless_m4t import SeamlessM4TFeatureExtractor
 from .modeling_seamless_m4t import (
     SeamlessM4TForSpeechToSpeech,
     SeamlessM4TForSpeechToText,
@@ -23,5 +25,3 @@ from .modeling_seamless_m4t import (
     SeamlessM4TModel,
 )
 from .processing_seamless_m4t import SeamlessM4TProcessor
-from .feature_extraction_seamless_m4t import SeamlessM4TFeatureExtractor
-from .configuration_seamless_m4t import SeamlessM4TConfig
