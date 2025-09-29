@@ -134,6 +134,8 @@ from . import (
     mixtral,
     mllama,
     mobilebert,
+    mobilevit,
+    mobilevitv2,
     mobilenet_v1,
     mobilenet_v2,
     modernbert,

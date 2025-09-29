@@ -149,6 +149,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("mistral", "MistralModel"),
         ("mixtral", "MixtralModel"),
         ("mobilebert", "MobileBertModel"),
+        ("mobilevit", "MobileViTModel"),
+        ("mobilevitv2", "MobileViTV2Model"),
         ("moonshine", "MoonshineModel"),
         ("moshi", "MoshiModel"),
         ("mpnet", "MPNetModel"),
@@ -496,6 +498,10 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         ("ijepa", "IJepaModel"),
         ("imagegpt", "ImageGPTModel"),
         ("levit", "LevitModel"),
+        ("mobilevit", "MobileViTModel"),
+        ("mobilevitv2", "MobileViTV2Model"),
+        ("mllama", "MllamaVisionModel"),
+        ("poolformer", "PoolFormerModel"),
         ("poolformer", "PoolFormerModel"),
         ("pvt", "PvtModel"),
         ("mllama", "MllamaVisionModel"),
@@ -561,6 +567,8 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
             "levit",
             ("LevitForImageClassification", "LevitForImageClassificationWithTeacher"),
         ),
+        ("mobilevit", "MobileViTForImageClassification"),
+        ("mobilevitv2", "MobileViTV2ForImageClassification"),
         (
             "perceiver",
             (
