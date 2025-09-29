@@ -9,7 +9,7 @@ from typing import Optional, Tuple
 
 import numpy as np
 from mindcv.models.layers import DropPath
-from opensora.acceleration.communications import GatherFowardSplitBackward, SplitFowardGatherBackward
+from opensora.acceleration.communications import GatherForwardSplitBackward, SplitForwardGatherBackward
 from opensora.acceleration.parallel_states import get_sequence_parallel_group
 from opensora.models.layers.blocks import (
     CaptionEmbedder,
@@ -102,13 +102,14 @@ class STDiT3Block(nn.Cell):
     ) -> Tensor:
         # prepare modulate parameters
         B, N, C = x.shape
+        scale_shift_table = self.scale_shift_table.to(x.dtype)
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.chunk(
-            self.scale_shift_table[None] + t.reshape(B, 6, -1), 6, 1
+            scale_shift_table[None] + t.reshape(B, 6, -1), 6, 1
         )
 
         # frames mask branch
         shift_msa_zero, scale_msa_zero, gate_msa_zero, shift_mlp_zero, scale_mlp_zero, gate_mlp_zero = self.chunk(
-            self.scale_shift_table[None] + t0.reshape(B, 6, -1), 6, 1
+            scale_shift_table[None] + t0.reshape(B, 6, -1), 6, 1
         )
 
         # modulate (attention)
@@ -304,8 +305,8 @@ class STDiT3(nn.Cell):
             sp_group = get_sequence_parallel_group()
             logger.info(f"Initialize STDIT-v3 model with sequence parallel group `{sp_group}`.")
             self.sp_size = get_group_size(sp_group)
-            self.split_forward_gather_backward = SplitFowardGatherBackward(dim=2, grad_scale="down", group=sp_group)
-            self.gather_forward_split_backward = GatherFowardSplitBackward(dim=2, grad_scale="up", group=sp_group)
+            self.split_forward_gather_backward = SplitForwardGatherBackward(dim=2, grad_scale="down", group=sp_group)
+            self.gather_forward_split_backward = GatherForwardSplitBackward(dim=2, grad_scale="up", group=sp_group)
 
         self.is_dynamic_shape = check_dynamic_mode()
         self.chunk = get_chunk_op()
