@@ -149,6 +149,7 @@ from . import (
     moshi,
     mpnet,
     mpt,
+    musicgen_melody,
     musicgen,
     mra,
     mvp,
