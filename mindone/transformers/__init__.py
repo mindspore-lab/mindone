@@ -443,6 +443,7 @@ from .models.deprecated.xlm_prophetnet import (
 )
 from .models.depth_anything import DepthAnythingForDepthEstimation, DepthAnythingPreTrainedModel
 from .models.depth_pro import DepthProForDepthEstimation, DepthProImageProcessor, DepthProModel, DepthProPreTrainedModel
+from .models.dia import DiaForConditionalGeneration, DiaModel, DiaPreTrainedModel, DiaProcessor
 from .models.diffllama import (
     DiffLlamaForCausalLM,
     DiffLlamaForQuestionAnswering,
