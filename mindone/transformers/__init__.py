@@ -871,6 +871,7 @@ from .models.mobilevitv2 import (
     MobileViTV2ForSemanticSegmentation,
     MobileViTV2Model,
     MobileViTV2PreTrainedModel,
+)    
 from .models.mobilenet_v1 import (
     MobileNetV1ForImageClassification,
     MobileNetV1ImageProcessor,
@@ -936,6 +937,7 @@ from .models.musicgen_melody import (
     MusicgenMelodyForConditionalGeneration,
     MusicgenMelodyModel,
     MusicgenMelodyPreTrainedModel,
+)
 from .models.musicgen import (
     MusicgenForCausalLM,
     MusicgenForConditionalGeneration,
@@ -1397,6 +1399,7 @@ from .models.wav2vec2_conformer import (
     Wav2Vec2ConformerForXVector,
     Wav2Vec2ConformerModel,
     Wav2Vec2ConformerPreTrainedModel,
+)
 from .models.wavlm import (
     WavLMForAudioFrameClassification,
     WavLMForCTC,
