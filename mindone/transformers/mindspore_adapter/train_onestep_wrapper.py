@@ -121,7 +121,7 @@ class TrainOneStepWrapper(nn.Cell):
         gradient_accumulation_steps: int = 1,
         clip_grad: str = "none",
         clip_value: float = 1.0,
-        zero_helper: Optional[ZeroHelper] = None,
+        zero_helper: Optional["ZeroHelper"] = None,
     ):
         super().__init__(auto_prefix=False)
 
