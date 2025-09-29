@@ -158,6 +158,7 @@ def convert_state_dict(m, state_dict_pt):
     dtype_mappings = {
         torch.float16: ms.float16,
         torch.float32: ms.float32,
+        torch.float64: ms.float64,
         torch.bfloat16: ms.bfloat16,
         torch.int64: ms.int64,
     }
