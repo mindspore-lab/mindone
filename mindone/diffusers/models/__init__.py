@@ -39,6 +39,7 @@ _import_structure = {
     "autoencoders.autoencoder_tiny": ["AutoencoderTiny"],
     "autoencoders.consistency_decoder_vae": ["ConsistencyDecoderVAE"],
     "autoencoders.vq_model": ["VQModel"],
+    "cache_utils": ["CacheMixin"],
     "controlnets.controlnet": ["ControlNetModel"],
     "controlnets.controlnet_flux": ["FluxControlNetModel", "FluxMultiControlNetModel"],
     "controlnets.controlnet_hunyuan": [
@@ -86,6 +87,7 @@ _import_structure = {
     "transformers.transformer_skyreels_v2": ["SkyReelsV2Transformer3DModel"],
     "transformers.transformer_temporal": ["TransformerTemporalModel"],
     "transformers.transformer_wan": ["WanTransformer3DModel"],
+    "transformers.transformer_wan_vace": ["WanVACETransformer3DModel"],
     "unets.unet_1d": ["UNet1DModel"],
     "unets.unet_2d": ["UNet2DModel"],
     "unets.unet_2d_condition": ["UNet2DConditionModel"],
@@ -120,6 +122,7 @@ if TYPE_CHECKING:
         ConsistencyDecoderVAE,
         VQModel,
     )
+    from .cache_utils import CacheMixin
     from .controlnets import (
         ControlNetModel,
         ControlNetUnionModel,
@@ -171,6 +174,7 @@ if TYPE_CHECKING:
         Transformer2DModel,
         TransformerTemporalModel,
         WanTransformer3DModel,
+        WanVACETransformer3DModel,
     )
     from .unets import (
         I2VGenXLUNet,

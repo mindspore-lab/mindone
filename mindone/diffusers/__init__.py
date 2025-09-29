@@ -1,6 +1,6 @@
 """Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/__init__.py."""
 
-__version__ = "0.33.1"
+__version__ = "0.35.1"
 
 from typing import TYPE_CHECKING
 
@@ -15,7 +15,43 @@ from .utils import _LazyModule
 
 _import_structure = {
     "configuration_utils": ["ConfigMixin"],
+    "guiders": [
+        "AdaptiveProjectedGuidance",
+        "AutoGuidance",
+        "ClassifierFreeGuidance",
+        "ClassifierFreeZeroStarGuidance",
+        "FrequencyDecoupledGuidance",
+        "PerturbedAttentionGuidance",
+        "SkipLayerGuidance",
+        "SmoothedEnergyGuidance",
+        "TangentialClassifierFreeGuidance",
+    ],
+    "hooks": [
+        "FasterCacheConfig",
+        "FirstBlockCacheConfig",
+        "HookRegistry",
+        "LayerSkipConfig",
+        "PyramidAttentionBroadcastConfig",
+        "SmoothedEnergyGuidanceConfig",
+        "apply_faster_cache",
+        "apply_first_block_cache",
+        "apply_layer_skip",
+        "apply_layerwise_casting",
+        "apply_pyramid_attention_broadcast",
+    ],
     "loaders": ["FromOriginalModelMixin"],
+    "modular_pipelines": [
+        "ComponentsManager",
+        "ComponentSpec",
+        "ModularPipeline",
+        "ModularPipelineBlocks",
+        "FluxAutoBlocks",
+        "FluxModularPipeline",
+        "StableDiffusionXLAutoBlocks",
+        "StableDiffusionXLModularPipeline",
+        "WanAutoBlocks",
+        "WanModularPipeline",
+    ],
     "models": [
         "AllegroTransformer3DModel",
         "AsymmetricAutoencoderKL",
@@ -93,6 +129,7 @@ _import_structure = {
         "UVit2DModel",
         "VQModel",
         "WanTransformer3DModel",
+        "WanVACETransformer3DModel",
     ],
     "optimization": [
         "get_constant_schedule",
@@ -316,6 +353,7 @@ _import_structure = {
         "VisualClozePipeline",
         "WanImageToVideoPipeline",
         "WanPipeline",
+        "WanVACEPipeline",
         "WanVideoToVideoPipeline",
         "WuerstchenCombinedPipeline",
         "WuerstchenDecoderPipeline",
@@ -369,6 +407,30 @@ _import_structure = {
 
 if TYPE_CHECKING:
     from .configuration_utils import ConfigMixin
+    from .guiders import (
+        AdaptiveProjectedGuidance,
+        AutoGuidance,
+        ClassifierFreeGuidance,
+        ClassifierFreeZeroStarGuidance,
+        FrequencyDecoupledGuidance,
+        PerturbedAttentionGuidance,
+        SkipLayerGuidance,
+        SmoothedEnergyGuidance,
+        TangentialClassifierFreeGuidance,
+    )
+    from .hooks import (
+        FasterCacheConfig,
+        FirstBlockCacheConfig,
+        HookRegistry,
+        LayerSkipConfig,
+        PyramidAttentionBroadcastConfig,
+        SmoothedEnergyGuidanceConfig,
+        apply_faster_cache,
+        apply_first_block_cache,
+        apply_layer_skip,
+        apply_layerwise_casting,
+        apply_pyramid_attention_broadcast,
+    )
     from .models import (
         AllegroTransformer3DModel,
         AsymmetricAutoencoderKL,
@@ -446,6 +508,19 @@ if TYPE_CHECKING:
         UVit2DModel,
         VQModel,
         WanTransformer3DModel,
+        WanVACETransformer3DModel,
+    )
+    from .modular_pipelines import (
+        ComponentsManager,
+        ComponentSpec,
+        FluxAutoBlocks,
+        FluxModularPipeline,
+        ModularPipeline,
+        ModularPipelineBlocks,
+        StableDiffusionXLAutoBlocks,
+        StableDiffusionXLModularPipeline,
+        WanAutoBlocks,
+        WanModularPipeline,
     )
     from .optimization import (
         get_constant_schedule,
@@ -669,6 +744,7 @@ if TYPE_CHECKING:
         VisualClozePipeline,
         WanImageToVideoPipeline,
         WanPipeline,
+        WanVACEPipeline,
         WanVideoToVideoPipeline,
         WuerstchenCombinedPipeline,
         WuerstchenDecoderPipeline,

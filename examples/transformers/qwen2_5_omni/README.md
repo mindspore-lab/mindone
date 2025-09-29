@@ -13,7 +13,8 @@ The abstract from the [Qwen2.5-Omni Technical Report](https://arxiv.org/abs/2503
 ## Requirements:
 |mindspore |	ascend driver | firmware | cann tookit/kernel|
 |--- | --- | --- | --- |
-|2.5.0 | 24.1RC3 | 7.3.0.1.231 | 8.0.RC3.beta1|
+|2.6.0 | 24.1.RC3 | 7.5.T11.0 | 8.1.RC1|
+|2.7.0 | 24.1.RC3 | 7.5.T11.0 | 8.1.RC1|
 
 ### Installation
 ```
@@ -23,15 +24,15 @@ pip install -r requirements.txt
 ```
 ### Model Checkpoints
 
-`Qwen2.5-Omni-7B` chekpoint can be found on the [Huggingface Hub](https://huggingface.co/collections/Qwen/qwen25-omni-67de1e5f0f9464dc6314b36e).
+`Qwen2.5-Omni-7B`, `Qwen2.5-Omni-3B` checkpoints can be found on the [Huggingface Hub](https://huggingface.co/collections/Qwen/qwen25-omni-67de1e5f0f9464dc6314b36e).
 
 The speakers checkpoint need to be converted before use:
 ```python
 python mindone\transformers\models\qwen2_5_omni\convert_spk_dict_pt2np.py \
     --spk_path "Qwen/Qwen2.5-Omni-7B/spk_dict.pt" \
-    --zip_spk_path"Qwen/Qwen2.5-Omni-7B/spk_dict.zip"
+    --zip_spk_path "Qwen/Qwen2.5-Omni-7B/spk_dict.zip"
 ```
-### Usage Examples
+### Inference Usage Examples
 
 
 Here are some usage chat examples and scripts with `mindone.transformers`:
@@ -41,13 +42,11 @@ Here are some usage chat examples and scripts with `mindone.transformers`:
 |[Universal Audio Understanding](universal_audio_understanding.py)|	Speech recongnition, speech-to-text translation and audio analysis.	|
 |[Voice Chatting](voice_chatting.py)	| Chatting with Qwen2.5-Omni by voice input and output.	|
 |[Video Information Extracting](video_information_extracting.py)	| Obtaining information from the video stream. |
-[Multi Round Omni Chatting](multi_round_omni_chatting.py)	|Conducted multiple rounds of audio and video dialogues with Qwen2.5-Omni to provide the most comprehensive ability demonstration.|
-
-<!-- OOM:
+|[Multi Round Omni Chatting](multi_round_omni_chatting.py)	|Conducted multiple rounds of audio and video dialogues with Qwen2.5-Omni to provide the most comprehensive ability demonstration.|
 |[Screen Recording Interaction](screen_recording_interaction.py)	| Get the information and content you want to know by asking questions in real time on the recording screen.	|
 |[Omni Chatting for Music](omni_chatting_for_music.py)	| Chat with Qwen2.5-Omni about music content in a audio and video stream.|
 | [Omni Chatting for Math](omni_chatting_for_math.py)	|Chat with Qwen2.5-Omni about math content in a audio and video stream.|
-|-->
+|
 
 ### Single Media inference
 
@@ -142,12 +141,12 @@ conversation = [
         "content": [
             {
                 "type": "video",
-                "video": "/path/to/video.mp4"
-                         "max_pixels": 360 * 420,
-},
-{"type": "text", "text": "What cant you hear and see in this video?"},
-],
-},
+                "video": "/path/to/video.mp4",
+                "max_pixels": 360 * 420,
+            },
+            {"type": "text", "text": "What cant you hear and see in this video?"},
+        ],
+    },
 ]
 
 # Preparation for inference
@@ -160,8 +159,7 @@ inputs = processor(text=text, audio=audios, images=images, videos=videos, return
 
 # convert input to Tensor
 for key, value in inputs.items():
-    if isinstance(value, np.ndarray):
-        inputs[key] = ms.Tensor(value)
+    inputs[key] = ms.Tensor(value)
     if inputs[key].dtype == ms.int64:
         inputs[key] = inputs[key].to(ms.int32)
     else:
@@ -358,22 +356,71 @@ model = Qwen2_5OmniForConditionalGeneration.from_pretrained(
 )
 ```
 
+### Finetuning
+
+There are example scripts `finetune_lora_with_mindspore_trainer.py` and `finetune_lora_in_native_mindspore.py` for finetuning the model for OCR task with LoRA.
+Here's an example code for finetuning:
+```
+DEVICE_ID=0 python finetune_lora_with_mindspore_trainer.py \
+    --model_path Qwen/Qwen2.5-Omni-3B \
+    --lora_rank 8 \
+    --lora_alpha 16 \
+    --dataset_path linxy/LaTex_OCR \
+    --output_dir ./outputs/lora \
+    --num_train_epochs 1 \
+    --learning_rate 1e-5 \
+    --save_total_limit 1
+```
+or
+```
+DEVICE_ID=0 python finetune_lora_in_native_mindspore.py \
+    --model_path Qwen/Qwen2.5-Omni-3B \
+    --dataset_path linxy/LaTex_OCR \
+    --enable_flash_attention \
+    --lora_rank 8 \
+    --lora_alpha 16 \
+    --output_dir ./outputs/lora \
+    --num_train_epochs 1
+```
+
+
 # Peformance
 
 ## Inference
-Experiments are tested on ascend 910* with mindspore 2.5.0 pynative mode.
+Experiments are tested on ascend 910* with mindspore 2.6.0 pynative mode.
 
-|model| precision | task | resolution| FA | s/step | steps|
+|model| precision | task | resolution| fa | tokens/s | steps|
 |---|---|---|---|---|---|---|
-|Qwen2.5-Omni-7B| fp32 | pure text Q&A | N.A. | OFF | 0.20 | 21 |
-|Qwen2.5-Omni-7B| fp32 | video VQA w/ audio| 20x280x504 | OFF | 0.16 | 80 |
-|Qwen2.5-Omni-7B| bf16 | pure text Q&A | N.A. | OFF | 0.20 | 21 |
-|Qwen2.5-Omni-7B| bf16 | video VQA w/ audio| 20x280x504 | OFF | 0.20 | 89 |
-|Qwen2.5-Omni-7B| fp16 | pure text Q&A | N.A. | OFF | 0.22 | 21 |
-|Qwen2.5-Omni-7B| fp16 | video VQA w/ audio| 20x280x504 | OFF | 0.23 | 30 |
-|Qwen2.5-Omni-7B| bf16 | pure text Q&A | N.A. | ON | 0.18 | 21 |
-|Qwen2.5-Omni-7B| bf16 | video VQA w/ audio| 20x280x504 | ON | 0.17 | 32 |
-|Qwen2.5-Omni-7B| fp16 | pure text Q&A | N.A. | ON | 0.17 | 21 |
-|Qwen2.5-Omni-7B| fp16 | video VQA w/ audio| 20x280x504 | ON | 0.21 | 32 |
+|Qwen2.5-Omni-7B| fp32 | pure text Q&A | N.A. | OFF | 1.88 | 22 |
+|Qwen2.5-Omni-7B| fp32 | video VQA w/ audio| 20x280x504 | OFF | 2.18 | 48 |
+|Qwen2.5-Omni-7B| bf16 | pure text Q&A | N.A. | OFF | 1.95 | 22 |
+|Qwen2.5-Omni-7B| bf16 | video VQA w/ audio| 20x280x504 | OFF | 1.78 | 48 |
+|Qwen2.5-Omni-7B| fp16 | pure text Q&A | N.A. | OFF | 1.87 | 22 |
+|Qwen2.5-Omni-7B| fp16 | video VQA w/ audio| 20x280x504 | OFF | 1.95 | 48 |
+|Qwen2.5-Omni-7B| bf16 | pure text Q&A | N.A. | ON | 4.77 | 22 |
+|Qwen2.5-Omni-7B| bf16 | video VQA w/ audio| 20x280x504 | ON | 5.93 | 48 |
+|Qwen2.5-Omni-7B| fp16 | pure text Q&A | N.A. | ON | 5.13 | 22 |
+|Qwen2.5-Omni-7B| fp16 | video VQA w/ audio| 20x280x504 | ON | 4.43 | 48 |
 
-*note：apply mixed precision, `Conv3d` use fp16, `AvgPool1d` uses fp32.
+*note：apply mixed precision, `AvgPool1d` uses fp32.
+
+## Finetuning
+Experiments are tested on ascend 910* with pynative mode.
+
+- mindspore 2.6.0
+
+|model| precision |amp| task | resolution| fa |card| batch size| max token| recompute |  s/step |
+|---|---|---|---|---|---|---|---|---|---|---|
+|Qwen2.5-Omni-3B| fp32 |0| image VQA | 128x512 | ON | 1 | 1 | 4096 |OFF | 6.61 |
+|Qwen2.5-Omni-3B| fp32 |0| image VQA | 128x512 | ON | 2 | 1 | 4096 |OFF | 5.32 |
+
+*note：apply mixed precision, `AvgPool1d` uses fp32.
+
+- mindspore 2.7.0
+
+|model| precision |amp| task | resolution| fa |card| batch size| max token| recompute |  s/step |
+|---|---|---|---|---|---|---|---|---|---|---|
+|Qwen2.5-Omni-3B| bf16 |0| image VQA | 128x512 | ON | 1 | 1 | 4096 |OFF | 6.32 |
+
+
+*note：only mindspore >=2.7.0 supports bf16; apply mixed precision, `AvgPool1d` uses fp32.
