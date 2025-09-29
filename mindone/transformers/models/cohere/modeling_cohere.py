@@ -323,6 +323,7 @@ class CoherePreTrainedModel(MSPreTrainedModel):
     _supports_quantized_cache = False
     _supports_static_cache = True
     _supports_attention_backend = False
+    _supports_dynamic_input = True
 
     def _init_weights(self, module):
         std = self.config.initializer_range
