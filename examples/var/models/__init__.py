@@ -1,3 +1,6 @@
+# This code is adapted from https://github.com/FoundationVision/VAR
+# with modifications to run on MindSpore.
+
 from typing import Tuple
 
 from mindspore import mint, nn

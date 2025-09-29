@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/animatediff/test_animatediff_controlnet.py."""
+
 import unittest
 
 import numpy as np
@@ -9,11 +11,7 @@ from transformers import CLIPTextConfig
 import mindspore as ms
 
 from mindone.diffusers import AnimateDiffControlNetPipeline, AutoencoderKL, ControlNetModel, LCMScheduler, MotionAdapter
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_numpy_from_hf_hub,
-    load_downloaded_video_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_video_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -240,8 +238,8 @@ class AnimateDiffControlNetPipelineIntegrationTests(PipelineTesterMixin, unittes
             conditioning_frames=conditioning_frames,
         )[0][0][1]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"controlnet_{dtype}.npy",
             subfolder="animatediff",
         )

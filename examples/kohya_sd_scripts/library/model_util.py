@@ -1,3 +1,4 @@
+# Adapted from https://github.com/kohya-ss/sd-scripts/blob/main/library/model_util.py
 # v1: split from train_db_fixed.py.
 # v2: support safetensors
 

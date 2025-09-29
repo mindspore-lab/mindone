@@ -1,3 +1,6 @@
+# This code is adapted from https://github.com/Vchitect/VEnhancer
+# with modifications to run on MindSpore.
+
 import sys
 
 from mindspore import Tensor

@@ -20,6 +20,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+# This code is adapted from https://github.com/Tencent-Hunyuan/Hunyuan3D-1 to work with MindSpore.
+
 import mindspore as ms
 from mindspore import mint, ops
 

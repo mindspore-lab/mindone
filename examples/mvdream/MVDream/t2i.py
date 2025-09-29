@@ -1,3 +1,5 @@
+# Adapted from https://github.com/bytedance/MVDream/blob/main/scripts/t2i.py
+
 import argparse
 import os
 import sys

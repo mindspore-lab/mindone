@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/controlnet/test_controlnet_union_sdxl.py."""
+
 import unittest
 
 import numpy as np
@@ -7,11 +9,7 @@ from ddt import data, ddt, unpack
 import mindspore as ms
 
 from mindone.diffusers import AutoencoderKL, ControlNetUnionModel, StableDiffusionXLControlNetUnionPipeline
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import THRESHOLD_PIXEL, PipelineTesterMixin
 
@@ -56,8 +54,8 @@ class ControlNetUnionPipelineSDXLIntegrationTests(PipelineTesterMixin, unittest.
         torch.manual_seed(0)
         image = pipe(prompt, control_image=[controlnet_img], control_mode=[3], height=1024, width=1024)[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"controlnet_union_sdxl_{dtype}.npy",
             subfolder="controlnet",
         )

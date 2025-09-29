@@ -1,6 +1,9 @@
 # coding=utf-8
-# Copyright 2024 The HuggingFace Inc. team.
+# Copyright 2025 The HuggingFace Inc. team.
 # Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,11 +28,13 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 
+from huggingface_hub import DDUFEntry
 from huggingface_hub.utils import EntryNotFoundError
 
 import mindspore as ms
 from mindspore import nn, ops
 
+from ...safetensors.mindspore import load as safe_load
 from ...safetensors.mindspore import load_file as safe_load_file
 from ..utils import (
     SAFE_WEIGHTS_INDEX_NAME,
@@ -71,18 +76,28 @@ def _fetch_remapped_cls_from_config(config, old_class):
         return old_class
 
 
-def load_state_dict(checkpoint_file: Union[str, os.PathLike], variant: Optional[str] = None):
+def load_state_dict(
+    checkpoint_file: Union[str, os.PathLike],
+    dduf_entries: Optional[Dict[str, DDUFEntry]] = None,
+    disable_mmap: bool = False,
+):
     """
     Reads a checkpoint file, returning properly formatted errors if they arise.
     """
-    # TODO: We merge the sharded checkpoints in case we're doing quantization. We can revisit this change
-    # when refactoring the _merge_sharded_checkpoints() method later.
+    # TODO: maybe refactor a bit this part where we pass a dict here
     if isinstance(checkpoint_file, dict):
         return checkpoint_file
     try:
         file_extension = os.path.basename(checkpoint_file).split(".")[-1]
         if file_extension == SAFETENSORS_FILE_EXTENSION:
-            return safe_load_file(checkpoint_file)
+            if dduf_entries:
+                # tensors are loaded on cpu
+                with dduf_entries[checkpoint_file].as_mmap() as mm:
+                    return safe_load(mm)
+            if disable_mmap:
+                return safe_load(open(checkpoint_file, "rb").read())
+            else:
+                return safe_load_file(checkpoint_file)
         else:
             raise NotImplementedError(
                 f"Only supports deserialization of weights file in safetensors format, but got {checkpoint_file}"
@@ -103,12 +118,12 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike], variant: Optional[
                     ) from e
         except (UnicodeDecodeError, ValueError):
             raise OSError(
-                f"Unable to load weights from checkpoint file for '{checkpoint_file}' " f"at '{checkpoint_file}'. "
+                f"Unable to load weights from checkpoint file for '{checkpoint_file}' at '{checkpoint_file}'. "
             )
 
 
 def _load_state_dict_into_model(
-    model_to_load, state_dict: OrderedDict, keep_in_fp32_modules=None, dtype=None
+    model_to_load, state_dict: OrderedDict, keep_in_fp32_modules=None, dtype=None, is_sharded=False
 ) -> List[str]:
     # TODO: error_msgs is always empty for now. Maybe we need to rewrite MindSpore's `load_param_into_net`.
     #  Error msgs should contain caught exception like size mismatch instead of missing/unexpected keys.
@@ -118,6 +133,7 @@ def _load_state_dict_into_model(
     local_state = {k: v for k, v in model_to_load.parameters_and_names()}
     for k, v in state_dict.items():
         if k in local_state:
+            # todo: unavailable mint interface
             if ops.is_floating_point(v):
                 if (
                     keep_in_fp32_modules is not None
@@ -131,7 +147,9 @@ def _load_state_dict_into_model(
                 v.set_dtype(local_state[k].dtype)
         else:
             pass  # unexpect key keeps origin dtype
-    ms.load_param_into_net(model_to_load, state_dict, strict_load=True)
+    cm = silence_mindspore_logger() if is_sharded else nullcontext()
+    with cm:
+        ms.load_param_into_net(model_to_load, state_dict, strict_load=True)
     return error_msgs
 
 
@@ -149,6 +167,7 @@ def _fetch_index_file(
     revision,
     user_agent,
     commit_hash,
+    dduf_entries: Optional[Dict[str, DDUFEntry]] = None,
 ):
     if is_local:
         index_file = Path(
@@ -174,41 +193,14 @@ def _fetch_index_file(
                 subfolder=None,
                 user_agent=user_agent,
                 commit_hash=commit_hash,
+                dduf_entries=dduf_entries,
             )
-            index_file = Path(index_file)
+            if not dduf_entries:
+                index_file = Path(index_file)
         except (EntryNotFoundError, EnvironmentError):
             index_file = None
 
     return index_file
-
-
-# Adapted from
-# https://github.com/bghira/SimpleTuner/blob/cea2457ab063f6dedb9e697830ae68a96be90641/helpers/training/save_hooks.py#L64
-def _merge_sharded_checkpoints(sharded_ckpt_cached_folder, sharded_metadata):
-    weight_map = sharded_metadata.get("weight_map", None)
-    if weight_map is None:
-        raise KeyError("'weight_map' key not found in the shard index file.")
-
-    # Collect all unique safetensors files from weight_map
-    files_to_load = set(weight_map.values())
-    is_safetensors = all(f.endswith(".safetensors") for f in files_to_load)
-    merged_state_dict = {}
-
-    # Load tensors from each unique file
-    for file_name in files_to_load:
-        part_file_path = os.path.join(sharded_ckpt_cached_folder, file_name)
-        if not os.path.exists(part_file_path):
-            raise FileNotFoundError(f"Part file {file_name} not found.")
-
-        if is_safetensors:
-            state_dict = safe_load_file(part_file_path)
-            for tensor_key in state_dict.keys():
-                if tensor_key in weight_map:
-                    merged_state_dict[tensor_key] = state_dict(tensor_key)
-        else:
-            logger.warning("Currently, only safetensors format is supported.")
-
-    return merged_state_dict
 
 
 def _fetch_index_file_legacy(
@@ -225,6 +217,7 @@ def _fetch_index_file_legacy(
     revision,
     user_agent,
     commit_hash,
+    dduf_entries: Optional[Dict[str, DDUFEntry]] = None,
 ):
     if is_local:
         index_file = Path(
@@ -265,6 +258,7 @@ def _fetch_index_file_legacy(
                     subfolder=None,
                     user_agent=user_agent,
                     commit_hash=commit_hash,
+                    dduf_entries=dduf_entries,
                 )
                 index_file = Path(index_file)
                 deprecation_message = f"This serialization format is now deprecated to standardize the serialization format between `transformers` and `diffusers`. We recommend you to remove the existing files associated with the current variant ({variant}) and re-obtain them by running a `save_pretrained()`."  # noqa: E501

@@ -1,3 +1,4 @@
+# Adapted from https://github.com/black-forest-labs/flux to work with MindSpore.
 from typing import List
 
 from transformers import CLIPTokenizer, T5Tokenizer

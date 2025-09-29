@@ -27,7 +27,7 @@ train:
     class_path: data.mulvideo_dataset.MulviewVideoDataset
     init_args:
       root_dir: itmh_training_data_9  # for overfitting exp
-      metadata: uid_set.pkl
+      metadata: uid_set.json
       image_dir: target               # for overfitting w/o pose
       frames: 5                       # to accomodate training with obj-rendering dataset
 

@@ -1,5 +1,8 @@
-# Copyright 2024 The CogVideoX team, Tsinghua University & ZhipuAI and The HuggingFace Team.
+# Copyright 2025 The CogVideoX team, Tsinghua University & ZhipuAI and The HuggingFace Team.
 # All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,7 +23,7 @@ import numpy as np
 from transformers import T5Tokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import T5EncoderModel
 
@@ -32,6 +35,8 @@ from ...schedulers import CogVideoXDDIMScheduler, CogVideoXDPMScheduler
 from ...utils import logging
 from ...utils.mindspore_utils import randn_tensor
 from .pipeline_output import CogView3PipelineOutput
+
+XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -153,9 +158,7 @@ class CogView3PlusPipeline(DiffusionPipeline):
         self.register_modules(
             tokenizer=tokenizer, text_encoder=text_encoder, vae=vae, transformer=transformer, scheduler=scheduler
         )
-        self.vae_scale_factor = (
-            2 ** (len(self.vae.config.block_out_channels) - 1) if hasattr(self, "vae") and self.vae is not None else 8
-        )
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
 
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
 
@@ -307,7 +310,7 @@ class CogView3PlusPipeline(DiffusionPipeline):
     def prepare_extra_step_kwargs(self, generator, eta):
         # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
         # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
-        # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
+        # eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502
         # and should be between [0, 1]
 
         accepts_eta = "eta" in set(inspect.signature(self.scheduler.step).parameters.keys())
@@ -378,7 +381,7 @@ class CogView3PlusPipeline(DiffusionPipeline):
         return self._guidance_scale
 
     # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-    # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
+    # of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`
     # corresponds to doing no classifier free guidance.
     @property
     def do_classifier_free_guidance(self):
@@ -439,11 +442,11 @@ class CogView3PlusPipeline(DiffusionPipeline):
                 in their `set_timesteps` method. If not defined, the default behavior when `num_inference_steps` is
                 passed will be used. Must be in descending order.
             guidance_scale (`float`, *optional*, defaults to `5.0`):
-                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).
-                `guidance_scale` is defined as `w` of equation 2. of [Imagen
-                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale >
-                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,
-                usually at the expense of lower image quality.
+                Guidance scale as defined in [Classifier-Free Diffusion
+                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.
+                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting
+                `guidance_scale > 1`. Higher guidance scale encourages to generate images that are closely linked to
+                the text `prompt`, usually at the expense of lower image quality.
             num_images_per_prompt (`int`, *optional*, defaults to `1`):
                 The number of images to generate per prompt.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
@@ -531,7 +534,7 @@ class CogView3PlusPipeline(DiffusionPipeline):
             batch_size = prompt_embeds.shape[0]
 
         # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-        # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
+        # of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`
         # corresponds to doing no classifier free guidance.
         do_classifier_free_guidance = guidance_scale > 1.0
 
@@ -546,7 +549,7 @@ class CogView3PlusPipeline(DiffusionPipeline):
             max_sequence_length=max_sequence_length,
         )
         if self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
 
         # 4. Prepare timesteps
         timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps)
@@ -573,9 +576,9 @@ class CogView3PlusPipeline(DiffusionPipeline):
         crops_coords_top_left = ms.tensor([crops_coords_top_left], dtype=prompt_embeds.dtype)
 
         if self.do_classifier_free_guidance:
-            original_size = ops.cat([original_size, original_size])
-            target_size = ops.cat([target_size, target_size])
-            crops_coords_top_left = ops.cat([crops_coords_top_left, crops_coords_top_left])
+            original_size = mint.cat([original_size, original_size])
+            target_size = mint.cat([target_size, target_size])
+            crops_coords_top_left = mint.cat([crops_coords_top_left, crops_coords_top_left])
 
         original_size = original_size.tile((batch_size * num_images_per_prompt, 1))
         target_size = target_size.tile((batch_size * num_images_per_prompt, 1))
@@ -591,7 +594,7 @@ class CogView3PlusPipeline(DiffusionPipeline):
                 if self.interrupt:
                     continue
 
-                latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML

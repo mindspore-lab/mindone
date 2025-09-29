@@ -1,3 +1,4 @@
+# Adapted from https://github.com/Tencent-Hunyuan/Hunyuan3D-1 to work with MindSpore.
 import os
 
 import cv2

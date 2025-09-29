@@ -1,3 +1,7 @@
+# This code is adapted from https://github.com/HVision-NKU/StoryDiffusion
+# with modifications to run on MindSpore.
+
+
 import os
 import sys
 

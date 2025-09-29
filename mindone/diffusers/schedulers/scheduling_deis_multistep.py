@@ -1,4 +1,7 @@
-# Copyright 2024 FLAIR Lab and The HuggingFace Team. All rights reserved.
+# Copyright 2025 FLAIR Lab and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# DISCLAIMER: check https://arxiv.org/abs/2204.13902 and https://github.com/qsh-zh/deis for more info
+# DISCLAIMER: check https://huggingface.co/papers/2204.13902 and https://github.com/qsh-zh/deis for more info
 # The codebase is modified based on https://github.com/huggingface/diffusers/blob/main/src/diffusers/schedulers/scheduling_dpmsolver_multistep.py
 
 import math
@@ -21,7 +24,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import deprecate, is_scipy_available
@@ -177,11 +180,11 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
             raise NotImplementedError(f"{beta_schedule} is not implemented for {self.__class__}")
 
         self.alphas = 1.0 - self.betas
-        self.alphas_cumprod = ops.cumprod(self.alphas, dim=0)
+        self.alphas_cumprod = mint.cumprod(self.alphas, dim=0)
         # Currently we only support VP-type noise schedule
-        self.alpha_t = ops.sqrt(self.alphas_cumprod)
-        self.sigma_t = ops.sqrt(1 - self.alphas_cumprod)
-        self.lambda_t = ops.log(self.alpha_t) - ops.log(self.sigma_t)
+        self.alpha_t = mint.sqrt(self.alphas_cumprod)
+        self.sigma_t = mint.sqrt(1 - self.alphas_cumprod)
+        self.lambda_t = mint.log(self.alpha_t) - mint.log(self.sigma_t)
         self.sigmas = ((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5
 
         # standard deviation of the initial noise distribution
@@ -203,7 +206,7 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
         # setable values
         self.num_inference_steps = None
         timesteps = np.linspace(0, num_train_timesteps - 1, num_train_timesteps, dtype=np.float32)[::-1].copy()
-        self.timesteps = ms.Tensor(timesteps)
+        self.timesteps = ms.tensor(timesteps)
         self.model_outputs = [None] * solver_order
         self.lower_order_nums = 0
         self._step_index = None
@@ -242,7 +245,7 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
             num_inference_steps (`int`):
                 The number of diffusion steps used when generating samples with a pre-trained model.
         """
-        # "linspace", "leading", "trailing" corresponds to annotation of Table 2. of https://arxiv.org/abs/2305.08891
+        # "linspace", "leading", "trailing" corresponds to annotation of Table 2. of https://huggingface.co/papers/2305.08891
         if self.config.timestep_spacing == "linspace":
             timesteps = (
                 np.linspace(0, self.config.num_train_timesteps - 1, num_inference_steps + 1)
@@ -295,7 +298,7 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
             sigma_last = ((1 - self.alphas_cumprod[0]) / self.alphas_cumprod[0]) ** 0.5
             sigmas = np.concatenate([sigmas, [sigma_last]]).astype(np.float32)
 
-        self.sigmas = ms.Tensor(sigmas)
+        self.sigmas = ms.tensor(sigmas)
         self.timesteps = ms.tensor(timesteps, dtype=ms.int64)
 
         self.num_inference_steps = len(timesteps)
@@ -318,7 +321,7 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
         pixels from saturation at each step. We find that dynamic thresholding results in significantly better
         photorealism as well as better image-text alignment, especially when using very large guidance weights."
 
-        https://arxiv.org/abs/2205.11487
+        https://huggingface.co/papers/2205.11487
         """
         dtype = sample.dtype
         batch_size, channels, *remaining_dims = sample.shape
@@ -332,11 +335,11 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
         abs_sample = sample.abs()  # "a certain percentile absolute pixel value"
 
         s = ms.Tensor.from_numpy(np.quantile(abs_sample.asnumpy(), self.config.dynamic_thresholding_ratio, axis=1))
-        s = ops.clamp(
+        s = mint.clamp(
             s, min=1, max=self.config.sample_max_value
         )  # When clamped to min=1, equivalent to standard clipping to [-1, 1]
         s = s.unsqueeze(1)  # (batch_size, 1) because clamp will broadcast along dim=0
-        sample = ops.clamp(sample, -s, s) / s  # "we threshold xt0 to the range [-s, s] and then divide by s"
+        sample = mint.clamp(sample, -s, s) / s  # "we threshold xt0 to the range [-s, s] and then divide by s"
 
         sample = sample.reshape(batch_size, channels, *remaining_dims)
         sample = sample.to(dtype)
@@ -485,7 +488,7 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 1:
                 sample = args[1]
             else:
-                raise ValueError("missing `sample` as a required keyward argument")
+                raise ValueError("missing `sample` as a required keyword argument")
         if timestep is not None:
             deprecate(
                 "timesteps",
@@ -549,7 +552,7 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 2:
                 sample = args[2]
             else:
-                raise ValueError(" missing `sample` as a required keyward argument")
+                raise ValueError("missing `sample` as a required keyword argument")
         if timestep is not None:
             deprecate(
                 "timesteps",
@@ -567,12 +570,12 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
         sigma_t, sigma_s = self.sigmas[self.step_index + 1], self.sigmas[self.step_index]
         alpha_t, sigma_t = self._sigma_to_alpha_sigma_t(sigma_t)
         alpha_s, sigma_s = self._sigma_to_alpha_sigma_t(sigma_s)
-        lambda_t = ops.log(alpha_t) - ops.log(sigma_t)
-        lambda_s = ops.log(alpha_s) - ops.log(sigma_s)
+        lambda_t = mint.log(alpha_t) - mint.log(sigma_t)
+        lambda_s = mint.log(alpha_s) - mint.log(sigma_s)
 
         h = lambda_t - lambda_s
         if self.config.algorithm_type == "deis":
-            x_t = (alpha_t / alpha_s).to(dtype) * sample - (sigma_t * (ops.exp(h) - 1.0)).to(dtype) * model_output
+            x_t = (alpha_t / alpha_s).to(dtype) * sample - (sigma_t * (mint.exp(h) - 1.0)).to(dtype) * model_output
         else:
             raise NotImplementedError("only support log-rho multistep deis now")
         return x_t
@@ -604,7 +607,7 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 2:
                 sample = args[2]
             else:
-                raise ValueError(" missing `sample` as a required keyward argument")
+                raise ValueError("missing `sample` as a required keyword argument")
         if timestep_list is not None:
             deprecate(
                 "timestep_list",
@@ -675,7 +678,7 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 2:
                 sample = args[2]
             else:
-                raise ValueError(" missing`sample` as a required keyward argument")
+                raise ValueError("missing `sample` as a required keyword argument")
         if timestep_list is not None:
             deprecate(
                 "timestep_list",
@@ -876,7 +879,7 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
         sigma = sigmas[step_indices].flatten()
         # while len(sigma.shape) < len(original_samples.shape):
         #     sigma = sigma.unsqueeze(-1)
-        sigma = ops.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sigma = mint.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         alpha_t, sigma_t = self._sigma_to_alpha_sigma_t(sigma)
         noisy_samples = alpha_t * original_samples + sigma_t * noise

@@ -1,3 +1,5 @@
+# Adapted from https://github.com/hpcaitech/Open-Sora/blob/main/opensora/models/dc_ae/models/nn/vo_ops.py
+
 import math
 from inspect import signature
 from typing import Any, Callable, Optional, Union

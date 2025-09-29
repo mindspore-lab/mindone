@@ -20,7 +20,7 @@ def hash_prompt(model: str, prompt: str) -> str:
     import hashlib
 
     identifier = f"{model}-{prompt}"
-    return hashlib.md5(identifier.encode()).hexdigest()
+    return hashlib.md5(identifier.encode(), usedforsecurity=False).hexdigest()
 
 
 @dataclass

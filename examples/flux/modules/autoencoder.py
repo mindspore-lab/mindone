@@ -1,3 +1,4 @@
+# Adapted from https://github.com/black-forest-labs/flux to work with MindSpore.
 import math
 from dataclasses import dataclass
 from typing import List

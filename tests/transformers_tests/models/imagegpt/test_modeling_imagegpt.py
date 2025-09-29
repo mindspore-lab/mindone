@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/tests//models/imagegpt/test_modeling_imagegpt.py."""
+
 import logging
 
 import numpy as np

@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2021 The HuggingFace Inc. team.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -561,7 +564,9 @@ class _BaseAutoModelClass:
             )
         elif type(config) in cls._model_mapping.keys():
             model_class = _get_model_class(config, cls._model_mapping)
-            return model_class.from_pretrained(pretrained_model_name_or_path, *model_args, config=config, **hub_kwargs)
+            return model_class.from_pretrained(
+                pretrained_model_name_or_path, *model_args, config=config, **hub_kwargs, **kwargs
+            )
         raise ValueError(
             f"Unrecognized configuration class {config.__class__} for this kind of AutoModel: {cls.__name__}.\n"
             f"Model type should be one of {', '.join(c.__name__ for c in cls._model_mapping.keys())}."

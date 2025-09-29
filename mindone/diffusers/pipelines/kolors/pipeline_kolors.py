@@ -1,4 +1,7 @@
-# Copyright 2024 Stability AI, Kwai-Kolors Team and The HuggingFace Team. All rights reserved.
+# Copyright 2025 Stability AI, Kwai-Kolors Team and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,13 +21,13 @@ import numpy as np
 from transformers import CLIPImageProcessor
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import CLIPVisionModelWithProjection
 
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...image_processor import PipelineImageInput, VaeImageProcessor
-from ...loaders import IPAdapterMixin, StableDiffusionXLLoraLoaderMixin
+from ...loaders import IPAdapterMixin, StableDiffusionLoraLoaderMixin
 from ...models import AutoencoderKL, ImageProjection, UNet2DConditionModel
 from ...schedulers import KarrasDiffusionSchedulers
 from ...utils import logging
@@ -115,7 +118,7 @@ def retrieve_timesteps(
     return timesteps, num_inference_steps
 
 
-class KolorsPipeline(DiffusionPipeline, StableDiffusionMixin, StableDiffusionXLLoraLoaderMixin, IPAdapterMixin):
+class KolorsPipeline(DiffusionPipeline, StableDiffusionMixin, StableDiffusionLoraLoaderMixin, IPAdapterMixin):
     r"""
     Pipeline for text-to-image generation using Kolors.
 
@@ -123,8 +126,8 @@ class KolorsPipeline(DiffusionPipeline, StableDiffusionMixin, StableDiffusionXLL
     library implements for all the pipelines (such as downloading or saving, running on a particular device, etc.)
 
     The pipeline also inherits the following loading methods:
-        - [`~loaders.StableDiffusionXLLoraLoaderMixin.load_lora_weights`] for loading LoRA weights
-        - [`~loaders.StableDiffusionXLLoraLoaderMixin.save_lora_weights`] for saving LoRA weights
+        - [`~loaders.StableDiffusionLoraLoaderMixin.load_lora_weights`] for loading LoRA weights
+        - [`~loaders.StableDiffusionLoraLoaderMixin.save_lora_weights`] for saving LoRA weights
         - [`~loaders.IPAdapterMixin.load_ip_adapter`] for loading IP Adapters
 
     Args:
@@ -182,12 +185,14 @@ class KolorsPipeline(DiffusionPipeline, StableDiffusionMixin, StableDiffusionXLL
             feature_extractor=feature_extractor,
         )
         self.register_to_config(force_zeros_for_empty_prompt=force_zeros_for_empty_prompt)
-        self.vae_scale_factor = (
-            2 ** (len(self.vae.config.block_out_channels) - 1) if hasattr(self, "vae") and self.vae is not None else 8
-        )
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
 
-        self.default_sample_size = self.unet.config.sample_size
+        self.default_sample_size = (
+            self.unet.config.sample_size
+            if hasattr(self, "unet") and self.unet is not None and hasattr(self.unet.config, "sample_size")
+            else 128
+        )
 
     def encode_prompt(
         self,
@@ -278,7 +283,7 @@ class KolorsPipeline(DiffusionPipeline, StableDiffusionMixin, StableDiffusionXLL
         zero_out_negative_prompt = negative_prompt is None and self.config.force_zeros_for_empty_prompt
 
         if do_classifier_free_guidance and negative_prompt_embeds is None and zero_out_negative_prompt:
-            negative_prompt_embeds = ops.zeros_like(prompt_embeds)
+            negative_prompt_embeds = mint.zeros_like(prompt_embeds)
         elif do_classifier_free_guidance and negative_prompt_embeds is None:
             uncond_tokens: List[str]
             if negative_prompt is None:
@@ -363,7 +368,9 @@ class KolorsPipeline(DiffusionPipeline, StableDiffusionMixin, StableDiffusionXLL
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
             image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_enc_hidden_states = self.image_encoder(ops.zeros_like(image), output_hidden_states=True)[2][-2]
+            uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[2][
+                -2
+            ]
             uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
                 num_images_per_prompt, dim=0
             )
@@ -371,7 +378,7 @@ class KolorsPipeline(DiffusionPipeline, StableDiffusionMixin, StableDiffusionXLL
         else:
             image_embeds = self.image_encoder(image)[0]
             image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_embeds = ops.zeros_like(image_embeds)
+            uncond_image_embeds = mint.zeros_like(image_embeds)
 
             return image_embeds, uncond_image_embeds
 
@@ -412,10 +419,10 @@ class KolorsPipeline(DiffusionPipeline, StableDiffusionMixin, StableDiffusionXLL
 
         ip_adapter_image_embeds = []
         for i, single_image_embeds in enumerate(image_embeds):
-            single_image_embeds = ops.cat([single_image_embeds] * num_images_per_prompt, axis=0)
+            single_image_embeds = mint.cat([single_image_embeds] * num_images_per_prompt, dim=0)
             if do_classifier_free_guidance:
-                single_negative_image_embeds = ops.cat([negative_image_embeds[i]] * num_images_per_prompt, axis=0)
-                single_image_embeds = ops.cat([single_negative_image_embeds, single_image_embeds], axis=0)
+                single_negative_image_embeds = mint.cat([negative_image_embeds[i]] * num_images_per_prompt, dim=0)
+                single_image_embeds = mint.cat([single_negative_image_embeds, single_image_embeds], dim=0)
 
             ip_adapter_image_embeds.append(single_image_embeds)
 
@@ -425,7 +432,7 @@ class KolorsPipeline(DiffusionPipeline, StableDiffusionMixin, StableDiffusionXLL
     def prepare_extra_step_kwargs(self, generator, eta):
         # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
         # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
-        # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
+        # eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502
         # and should be between [0, 1]
 
         accepts_eta = "eta" in set(inspect.signature(self.scheduler.step).parameters.keys())
@@ -558,7 +565,7 @@ class KolorsPipeline(DiffusionPipeline, StableDiffusionMixin, StableDiffusionXLL
         passed_add_embed_dim = (
             self.unet.config.addition_time_embed_dim * len(add_time_ids) + text_encoder_projection_dim
         )
-        expected_add_embed_dim = self.unet.add_embedding.linear_1.in_channels
+        expected_add_embed_dim = self.unet.add_embedding.linear_1.in_features
 
         if expected_add_embed_dim != passed_add_embed_dim:
             raise ValueError(
@@ -595,12 +602,12 @@ class KolorsPipeline(DiffusionPipeline, StableDiffusionMixin, StableDiffusionXLL
         w = w * 1000.0
 
         half_dim = embedding_dim // 2
-        emb = ops.log(ms.tensor(10000.0)) / (half_dim - 1)
-        emb = ops.exp(ops.arange(half_dim, dtype=dtype) * -emb)
+        emb = mint.log(ms.tensor(10000.0)) / (half_dim - 1)
+        emb = mint.exp(mint.arange(half_dim, dtype=dtype) * -emb)
         emb = w.to(dtype)[:, None] * emb[None, :]
-        emb = ops.cat([ops.sin(emb), ops.cos(emb)], axis=1)
+        emb = mint.cat([mint.sin(emb), mint.cos(emb)], dim=1)
         if embedding_dim % 2 == 1:  # zero pad
-            emb = ops.Pad((0, 1))(emb)
+            emb = mint.nn.functional.pad(emb, (0, 1))
         assert emb.shape == (w.shape[0], embedding_dim)
         return emb
 
@@ -609,7 +616,7 @@ class KolorsPipeline(DiffusionPipeline, StableDiffusionMixin, StableDiffusionXLL
         return self._guidance_scale
 
     # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-    # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
+    # of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`
     # corresponds to doing no classifier free guidance.
     @property
     def do_classifier_free_guidance(self):
@@ -703,11 +710,11 @@ class KolorsPipeline(DiffusionPipeline, StableDiffusionMixin, StableDiffusionXLL
                 "Mixture of Denoisers" multi-pipeline setup, as elaborated in [**Refining the Image
                 Output**](https://huggingface.co/docs/diffusers/api/pipelines/stable_diffusion/stable_diffusion_xl#refining-the-image-output)
             guidance_scale (`float`, *optional*, defaults to 5.0):
-                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).
-                `guidance_scale` is defined as `w` of equation 2. of [Imagen
-                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale >
-                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,
-                usually at the expense of lower image quality.
+                Guidance scale as defined in [Classifier-Free Diffusion
+                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.
+                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting
+                `guidance_scale > 1`. Higher guidance scale encourages to generate images that are closely linked to
+                the text `prompt`, usually at the expense of lower image quality.
             negative_prompt (`str` or `List[str]`, *optional*):
                 The prompt or prompts not to guide the image generation. If not defined, one has to pass
                 `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is
@@ -715,8 +722,8 @@ class KolorsPipeline(DiffusionPipeline, StableDiffusionMixin, StableDiffusionXLL
             num_images_per_prompt (`int`, *optional*, defaults to 1):
                 The number of images to generate per prompt.
             eta (`float`, *optional*, defaults to 0.0):
-                Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to
-                [`schedulers.DDIMScheduler`], will be ignored for others.
+                Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only
+                applies to [`schedulers.DDIMScheduler`], will be ignored for others.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
                 One or a list of [np.random.Generator(s)](https://numpy.org/doc/stable/reference/random/generator.html)
                 to make generation deterministic.
@@ -899,9 +906,9 @@ class KolorsPipeline(DiffusionPipeline, StableDiffusionMixin, StableDiffusionXLL
             negative_add_time_ids = add_time_ids
 
         if self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
-            add_text_embeds = ops.cat([negative_pooled_prompt_embeds, add_text_embeds], axis=0)
-            add_time_ids = ops.cat([negative_add_time_ids, add_time_ids], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
+            add_text_embeds = mint.cat([negative_pooled_prompt_embeds, add_text_embeds], dim=0)
+            add_time_ids = mint.cat([negative_add_time_ids, add_time_ids], dim=0)
 
         add_time_ids = add_time_ids.tile((batch_size * num_images_per_prompt, 1))
 
@@ -947,7 +954,7 @@ class KolorsPipeline(DiffusionPipeline, StableDiffusionMixin, StableDiffusionXLL
                     continue
 
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
 
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 

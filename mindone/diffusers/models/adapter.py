@@ -1,5 +1,8 @@
 # Copyright 2022 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,7 +18,7 @@ import os
 from typing import Callable, List, Optional, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import logging
@@ -84,9 +87,9 @@ class MultiAdapter(ModelMixin):
                 summing them together. If `None`, equal weights will be used for all adapters.
         """
         if adapter_weights is None:
-            adapter_weights = ms.Tensor([1 / self.num_adapter] * self.num_adapter)
+            adapter_weights = ms.tensor([1 / self.num_adapter] * self.num_adapter)
         else:
-            adapter_weights = ms.Tensor(adapter_weights)
+            adapter_weights = ms.tensor(adapter_weights)
 
         accume_state = None
         for x, w, adapter in zip(xs, adapter_weights, self.adapters):
@@ -122,7 +125,7 @@ class MultiAdapter(ModelMixin):
                 for the main process to avoid race conditions.
             save_function (`Callable`):
                 Function used to save the state dictionary. Useful for distributed training (e.g., TPUs) to replace
-                `torch.save` with another method. Can also be configured using`DIFFUSERS_SAVE_MODE` environment
+                `mindspore.save_checkpoint` with another method. Can also be configured using`DIFFUSERS_SAVE_MODE` environment
                 variable.
             safe_serialization (`bool`, optional, defaults=True):
                 If `True`, save the model using `safetensors`. If `False`, save the model with `pickle`.
@@ -160,27 +163,13 @@ class MultiAdapter(ModelMixin):
             pretrained_model_path (`os.PathLike`):
                 A path to a *directory* containing model weights saved using
                 [`~diffusers.models.adapter.MultiAdapter.save_pretrained`], e.g., `./my_model_directory/adapter`.
-            torch_dtype (`str` or `torch.dtype`, *optional*):
-                Override the default `torch.dtype` and load the model under this dtype. If `"auto"` is passed the dtype
-                will be automatically derived from the model's weights.
+            mindspore_dtype (`ms.Type`, *optional*):
+                Override the default `ms.Type` and load the model under this dtype.
             output_loading_info(`bool`, *optional*, defaults to `False`):
                 Whether or not to also return a dictionary containing missing keys, unexpected keys and error messages.
-            device_map (`str` or `Dict[str, Union[int, str, torch.device]]`, *optional*):
-                A map that specifies where each submodule should go. It doesn't need to be refined to each
-                parameter/buffer name, once a given module name is inside, every submodule of it will be sent to the
-                same device.
-
-                To have Accelerate compute the most optimized `device_map` automatically, set `device_map="auto"`. For
-                more information about each option see [designing a device
-                map](https://hf.co/docs/accelerate/main/en/usage_guides/big_modeling#designing-a-device-map).
             max_memory (`Dict`, *optional*):
                 A dictionary mapping device identifiers to their maximum memory. Default to the maximum memory
                 available for each GPU and the available CPU RAM if unset.
-            low_cpu_mem_usage (`bool`, *optional*, defaults to `True` if torch version >= 1.9.0 else `False`):
-                Speed up model loading by not initializing the weights and only loading the pre-trained weights. This
-                also tries to not use more than 1x model size in CPU memory (including peak memory) while loading the
-                model. This is only supported when torch version >= 1.9.0. If you are using an older version of torch,
-                setting this argument to `True` will raise an error.
             variant (`str`, *optional*):
                 If specified, load weights from a `variant` file (*e.g.* pytorch_model.<variant>.bin). `variant` will
                 be ignored when using `from_flax`.
@@ -303,8 +292,9 @@ class FullAdapter(nn.Cell):
 
         in_channels = in_channels * downscale_factor**2
 
+        # todo: unavailable mint interface nn.PixelUnshuffle
         self.unshuffle = nn.PixelUnshuffle(downscale_factor)
-        self.conv_in = nn.Conv2d(in_channels, channels[0], kernel_size=3, pad_mode="pad", padding=1, has_bias=True)
+        self.conv_in = mint.nn.Conv2d(in_channels, channels[0], kernel_size=3, padding=1)
 
         self.body = nn.CellList(
             [
@@ -353,8 +343,9 @@ class FullAdapterXL(nn.Cell):
 
         in_channels = in_channels * downscale_factor**2
 
+        # todo unavailable mint interface nn.PixelUnshuffle
         self.unshuffle = nn.PixelUnshuffle(downscale_factor)
-        self.conv_in = nn.Conv2d(in_channels, channels[0], kernel_size=3, pad_mode="pad", padding=1, has_bias=True)
+        self.conv_in = mint.nn.Conv2d(in_channels, channels[0], kernel_size=3, padding=1)
 
         self.body = []
         # blocks to extract XL features with dimensions of [320, 64, 64], [640, 64, 64], [1280, 32, 32], [1280, 32, 32]
@@ -408,11 +399,11 @@ class AdapterBlock(nn.Cell):
 
         self.downsample = None
         if down:
-            self.downsample = AvgPool2dDownsample()
+            self.downsample = mint.nn.AvgPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
         self.in_conv = None
         if in_channels != out_channels:
-            self.in_conv = nn.Conv2d(in_channels, out_channels, kernel_size=1, has_bias=True)
+            self.in_conv = mint.nn.Conv2d(in_channels, out_channels, kernel_size=1)
 
         self.resnets = nn.SequentialCell(
             *[AdapterResnetBlock(out_channels) for _ in range(num_res_blocks)],
@@ -446,9 +437,9 @@ class AdapterResnetBlock(nn.Cell):
 
     def __init__(self, channels: int):
         super().__init__()
-        self.block1 = nn.Conv2d(channels, channels, kernel_size=3, pad_mode="pad", padding=1, has_bias=True)
-        self.act = nn.ReLU()
-        self.block2 = nn.Conv2d(channels, channels, kernel_size=1, has_bias=True)
+        self.block1 = mint.nn.Conv2d(channels, channels, kernel_size=3, padding=1)
+        self.act = mint.nn.ReLU()
+        self.block2 = mint.nn.Conv2d(channels, channels, kernel_size=1)
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         r"""
@@ -481,6 +472,7 @@ class LightAdapter(nn.Cell):
 
         in_channels = in_channels * downscale_factor**2
 
+        # todo unavailable mint interface nn.PixelUnshuffle
         self.unshuffle = nn.PixelUnshuffle(downscale_factor)
 
         self.body = nn.CellList(
@@ -534,11 +526,11 @@ class LightAdapterBlock(nn.Cell):
 
         self.downsample = None
         if down:
-            self.downsample = AvgPool2dDownsample()
+            self.downsample = mint.nn.AvgPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
-        self.in_conv = nn.Conv2d(in_channels, mid_channels, kernel_size=1, has_bias=True)
+        self.in_conv = mint.nn.Conv2d(in_channels, mid_channels, kernel_size=1)
         self.resnets = nn.SequentialCell(*[LightAdapterResnetBlock(mid_channels) for _ in range(num_res_blocks)])
-        self.out_conv = nn.Conv2d(mid_channels, out_channels, kernel_size=1, has_bias=True)
+        self.out_conv = mint.nn.Conv2d(mid_channels, out_channels, kernel_size=1)
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         r"""
@@ -567,9 +559,9 @@ class LightAdapterResnetBlock(nn.Cell):
 
     def __init__(self, channels: int):
         super().__init__()
-        self.block1 = nn.Conv2d(channels, channels, kernel_size=3, pad_mode="pad", padding=1, has_bias=True)
-        self.act = nn.ReLU()
-        self.block2 = nn.Conv2d(channels, channels, kernel_size=3, pad_mode="pad", padding=1, has_bias=True)
+        self.block1 = mint.nn.Conv2d(channels, channels, kernel_size=3, padding=1)
+        self.act = mint.nn.ReLU()
+        self.block2 = mint.nn.Conv2d(channels, channels, kernel_size=3, padding=1)
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         r"""
@@ -581,21 +573,3 @@ class LightAdapterResnetBlock(nn.Cell):
         h = self.block2(h)
 
         return h + x
-
-
-class AvgPool2dDownsample(nn.Cell):
-    """
-    AdapterBlocks/LightAdapterBlock employ MindSpore Cell nn.AvgPool2d(kernel_size=2, stride=2, ceil_mode=True) during
-    downsampling, which internally calls ops.operations.AvgPool3D and it may not be supported in certain scenarios.
-    This class serves as an equivalent replacement for nn.AvgPool2d(kernel_size=2, stride=2, ceil_mode=True)."""
-
-    def construct(self, x):
-        # ceil_mode
-        paddings = ((0, 0),) * (x.ndim - 2) + ((0, x.shape[-2] % 2), (0, x.shape[-1] % 2))
-        paddings = ms.Tensor(paddings, dtype=ms.int64)
-        x = ops.MirrorPad(mode="SYMMETRIC")(x, paddings)
-
-        # AvgPool(kernel_size=2, stride=2)
-        b, c, h, w = x.shape
-        x = x.reshape(b, c, h // 2, 2, w // 2, 2).transpose(0, 1, 2, 4, 3, 5).mean(axis=(4, 5))
-        return x

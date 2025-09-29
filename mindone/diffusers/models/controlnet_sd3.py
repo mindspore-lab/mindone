@@ -1,4 +1,7 @@
-# Copyright 2024 Stability AI, The HuggingFace Team and The InstantX Team. All rights reserved.
+# Copyright 2025 Stability AI, The HuggingFace Team and The InstantX Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,8 +24,8 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 class SD3ControlNetOutput(SD3ControlNetOutput):
     def __init__(self, *args, **kwargs):
-        deprecation_message = "Importing `SD3ControlNetOutput` from `diffusers.models.controlnet_sd3` is deprecated and this will be removed in a future version. Please use `from diffusers.models.controlnets.controlnet_sd3 import SD3ControlNetOutput`, instead."  # noqa: E501
-        deprecate("diffusers.models.controlnet_sd3.SD3ControlNetOutput", "0.34", deprecation_message)
+        deprecation_message = "Importing `SD3ControlNetOutput` from `mindone.diffusers.models.controlnet_sd3` is deprecated and this will be removed in a future version. Please use `from mindone.diffusers.models.controlnets.controlnet_sd3 import SD3ControlNetOutput`, instead."  # noqa: E501
+        deprecate("mindone.diffusers.models.controlnet_sd3.SD3ControlNetOutput", "0.34", deprecation_message)
         super().__init__(*args, **kwargs)
 
 
@@ -42,8 +45,8 @@ class SD3ControlNetModel(SD3ControlNetModel):
         pos_embed_max_size: int = 96,
         extra_conditioning_channels: int = 0,
     ):
-        deprecation_message = "Importing `SD3ControlNetModel` from `diffusers.models.controlnet_sd3` is deprecated and this will be removed in a future version. Please use `from diffusers.models.controlnets.controlnet_sd3 import SD3ControlNetModel`, instead."  # noqa: E501
-        deprecate("diffusers.models.controlnet_sd3.SD3ControlNetModel", "0.34", deprecation_message)
+        deprecation_message = "Importing `SD3ControlNetModel` from `mindone.diffusers.models.controlnet_sd3` is deprecated and this will be removed in a future version. Please use `from mindone.diffusers.models.controlnets.controlnet_sd3 import SD3ControlNetModel`, instead."  # noqa: E501
+        deprecate("mindone.diffusers.models.controlnet_sd3.SD3ControlNetModel", "0.34", deprecation_message)
         super().__init__(
             sample_size=sample_size,
             patch_size=patch_size,
@@ -62,6 +65,6 @@ class SD3ControlNetModel(SD3ControlNetModel):
 
 class SD3MultiControlNetModel(SD3MultiControlNetModel):
     def __init__(self, *args, **kwargs):
-        deprecation_message = "Importing `SD3MultiControlNetModel` from `diffusers.models.controlnet_sd3` is deprecated and this will be removed in a future version. Please use `from diffusers.models.controlnets.controlnet_sd3 import SD3MultiControlNetModel`, instead."  # noqa: E501
-        deprecate("diffusers.models.controlnet_sd3.SD3MultiControlNetModel", "0.34", deprecation_message)
+        deprecation_message = "Importing `SD3MultiControlNetModel` from `mindone.diffusers.models.controlnet_sd3` is deprecated and this will be removed in a future version. Please use `from mindone.diffusers.models.controlnets.controlnet_sd3 import SD3MultiControlNetModel`, instead."  # noqa: E501
+        deprecate("mindone.diffusers.models.controlnet_sd3.SD3MultiControlNetModel", "0.34", deprecation_message)
         super().__init__(*args, **kwargs)

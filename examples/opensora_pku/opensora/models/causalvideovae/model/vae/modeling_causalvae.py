@@ -1,3 +1,6 @@
+# Adapted from
+# https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/models/causalvideovae/model/vae/modeling_causalvae.py
+
 import logging
 import os
 from typing import Tuple

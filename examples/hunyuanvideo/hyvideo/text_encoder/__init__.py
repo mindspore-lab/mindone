@@ -1,3 +1,4 @@
+# Adapted from https://github.com/Tencent-Hunyuan/HunyuanVideo to work with MindSpore.
 from dataclasses import dataclass
 from typing import Optional, Tuple
 

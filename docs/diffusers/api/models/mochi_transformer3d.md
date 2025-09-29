@@ -18,7 +18,7 @@ The model can be loaded with the following code snippet.
 ```python
 from mindone.diffusers import MochiTransformer3DModel
 
-vae = MochiTransformer3DModel.from_pretrained("genmo/mochi-1-preview", subfolder="transformer", mindspore_dtype=ms.float16)
+transformer = MochiTransformer3DModel.from_pretrained("genmo/mochi-1-preview", subfolder="transformer", mindspore_dtype=ms.float16)
 ```
 
 ::: mindone.diffusers.MochiTransformer3DModel

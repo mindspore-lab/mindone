@@ -1,3 +1,5 @@
+# Adapted from https://github.com/VectorSpaceLab/OmniGen/blob/main/OmniGen/scheduler.py
+
 from typing import Any, Dict, Optional, Tuple
 
 from tqdm import tqdm

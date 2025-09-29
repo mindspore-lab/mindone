@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,14 +19,22 @@ PEFT utilities: Utilities related to peft library
 """
 
 import collections
+import importlib
 from typing import Optional
+
+from packaging import version
+
+from . import logging
+from .import_utils import is_peft_version
+
+logger = logging.get_logger(__name__)
 
 
 def recurse_remove_peft_layers(model):
     r"""
     Recursively replace all instances of `LoraLayer` with corresponding new layers in `model`.
     """
-    from mindone.diffusers._peft.utils import _get_submodules
+    from mindone.peft.utils import _get_submodules
 
     key_list = [key for key, _ in model.cells_and_names() if "lora" not in key]
     for key in key_list:
@@ -41,12 +52,12 @@ def scale_lora_layers(model, weight):
     Adjust the weightage given to the LoRA layers of the model.
 
     Args:
-        model (`torch.nn.Module`):
+        model (`nn.Cell`):
             The model to scale.
         weight (`float`):
             The weight to be given to the LoRA layers.
     """
-    from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+    from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
     if weight == 1.0:
         return
@@ -61,14 +72,14 @@ def unscale_lora_layers(model, weight: Optional[float] = None):
     Removes the previously passed weight given to the LoRA layers of the model.
 
     Args:
-        model (`torch.nn.Module`):
+        model (`nn.Cell`):
             The model to scale.
         weight (`float`, *optional*):
             The weight to be given to the LoRA layers. If no scale is passed the scale of the lora layer will be
             re-initialized to the correct value. If 0.0 is passed, we will re-initialize the scale with the correct
             value.
     """
-    from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+    from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
     if weight is None or weight == 1.0:
         return
@@ -89,19 +100,19 @@ def get_peft_kwargs(rank_dict, network_alpha_dict, peft_state_dict, is_unet=True
     r = lora_alpha = list(rank_dict.values())[0]
 
     if len(set(rank_dict.values())) > 1:
-        # get the rank occuring the most number of times
+        # get the rank occurring the most number of times
         r = collections.Counter(rank_dict.values()).most_common()[0][0]
 
-        # for modules with rank different from the most occuring rank, add it to the `rank_pattern`
+        # for modules with rank different from the most occurring rank, add it to the `rank_pattern`
         rank_pattern = dict(filter(lambda x: x[1] != r, rank_dict.items()))
         rank_pattern = {k.split(".lora_B.")[0]: v for k, v in rank_pattern.items()}
 
     if network_alpha_dict is not None and len(network_alpha_dict) > 0:
         if len(set(network_alpha_dict.values())) > 1:
-            # get the alpha occuring the most number of times
+            # get the alpha occurring the most number of times
             lora_alpha = collections.Counter(network_alpha_dict.values()).most_common()[0][0]
 
-            # for modules with alpha different from the most occuring alpha, add it to the `alpha_pattern`
+            # for modules with alpha different from the most occurring alpha, add it to the `alpha_pattern`
             alpha_pattern = dict(filter(lambda x: x[1] != lora_alpha, network_alpha_dict.items()))
             if is_unet:
                 alpha_pattern = {
@@ -132,7 +143,7 @@ def get_peft_kwargs(rank_dict, network_alpha_dict, peft_state_dict, is_unet=True
 
 
 def get_adapter_name(model):
-    from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+    from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
     for _, module in model.cells_and_names():
         if isinstance(module, BaseTunerLayer):
@@ -141,7 +152,7 @@ def get_adapter_name(model):
 
 
 def set_adapter_layers(model, enabled=True):
-    from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+    from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
     for _, module in model.cells_and_names():
         if isinstance(module, BaseTunerLayer):
@@ -153,7 +164,7 @@ def set_adapter_layers(model, enabled=True):
 
 
 def delete_adapter_layers(model, adapter_name):
-    from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+    from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
     for _, module in model.cells_and_names():
         if isinstance(module, BaseTunerLayer):
@@ -173,7 +184,7 @@ def delete_adapter_layers(model, adapter_name):
 
 
 def set_weights_and_activate_adapters(model, adapter_names, weights):
-    from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+    from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
     def get_module_weight(weight_for_adapter, module_name):
         if not isinstance(weight_for_adapter, dict):
@@ -191,22 +202,116 @@ def set_weights_and_activate_adapters(model, adapter_names, weights):
 
         return block_weight
 
-    # iterate over each adapter, make it active and set the corresponding scaling weight
-    for adapter_name, weight in zip(adapter_names, weights):
-        for module_name, module in model.cells_and_names():
-            if isinstance(module, BaseTunerLayer):
-                # For backward compatibility with previous PEFT versions
-                if hasattr(module, "set_adapter"):
-                    module.set_adapter(adapter_name)
-                else:
-                    raise RuntimeError("'BaseTunerLayer' object has no attribute 'set_adapter'")
-                module.set_scale(adapter_name, get_module_weight(weight, module_name))
-
-    # set multiple active adapters
-    for _, module in model.cells_and_names():
+    for module_name, module in model.cells_and_names():
         if isinstance(module, BaseTunerLayer):
-            # For backward compatibility with previous PEFT versions
+            # For backward compatibility with previous PEFT versions, set multiple active adapters
             if hasattr(module, "set_adapter"):
                 module.set_adapter(adapter_names)
             else:
                 raise RuntimeError("'BaseTunerLayer' object has no attribute 'set_adapter'")
+
+            # Set the scaling weight for each adapter for this module
+            for adapter_name, weight in zip(adapter_names, weights):
+                module.set_scale(adapter_name, get_module_weight(weight, module_name))
+
+
+def check_peft_version(min_version: str) -> None:
+    r"""
+    Checks if the version of PEFT is compatible.
+
+    Args:
+        version (`str`):
+            The version of PEFT to check against.
+    """
+    is_peft_version_compatible = version.parse(importlib.metadata.version("mindone.peft")) > version.parse(min_version)
+
+    if not is_peft_version_compatible:
+        raise ValueError(
+            f"The version of PEFT you are using is not compatible, please use a version that is greater"
+            f" than {min_version}"
+        )
+
+
+def _create_lora_config(
+    state_dict,
+    network_alphas,
+    metadata,
+    rank_pattern_dict,
+    is_unet: bool = True,
+):
+    from mindone.peft import LoraConfig
+
+    if metadata is not None:
+        lora_config_kwargs = metadata
+    else:
+        lora_config_kwargs = get_peft_kwargs(
+            rank_pattern_dict, network_alpha_dict=network_alphas, peft_state_dict=state_dict, is_unet=is_unet
+        )
+
+    _maybe_raise_error_for_ambiguous_keys(lora_config_kwargs)
+
+    # Version checks for DoRA and lora_bias
+    if "use_dora" in lora_config_kwargs and lora_config_kwargs["use_dora"]:
+        if is_peft_version("<", "0.9.0"):
+            raise ValueError("DoRA requires PEFT >= 0.9.0. Please upgrade.")
+
+    if "lora_bias" in lora_config_kwargs and lora_config_kwargs["lora_bias"]:
+        if is_peft_version("<=", "0.13.2"):
+            raise ValueError("lora_bias requires PEFT >= 0.14.0. Please upgrade.")
+
+    try:
+        # TODO: Remove the following workaround after weixi upgrades mindone.peft to support these arguments properly
+        if not lora_config_kwargs.get("use_dora", True):
+            lora_config_kwargs.pop("use_dora", None)
+        if not lora_config_kwargs.get("lora_bias", True):
+            lora_config_kwargs.pop("lora_bias", None)
+        return LoraConfig(**lora_config_kwargs)
+    except TypeError as e:
+        raise TypeError("`LoraConfig` class could not be instantiated.") from e
+
+
+def _maybe_raise_error_for_ambiguous_keys(config):
+    rank_pattern = config["rank_pattern"].copy()
+    target_modules = config["target_modules"]
+
+    for key in list(rank_pattern.keys()):
+        # try to detect ambiguity
+        # `target_modules` can also be a str, in which case this loop would loop
+        # over the chars of the str. The technically correct way to match LoRA keys
+        # in PEFT is to use LoraModel._check_target_module_exists (lora_config, key).
+        # But this cuts it for now.
+        exact_matches = [mod for mod in target_modules if mod == key]
+        substring_matches = [mod for mod in target_modules if key in mod and mod != key]
+
+        if exact_matches and substring_matches:
+            if is_peft_version("<", "0.14.1"):
+                raise ValueError(
+                    "There are ambiguous keys present in this LoRA. To load it, please update your `peft` installation - `pip install -U peft`."
+                )
+
+
+def _maybe_warn_for_unhandled_keys(incompatible_keys, adapter_name):
+    warn_msg = ""
+    if incompatible_keys is not None:
+        # Check only for unexpected keys.
+        unexpected_keys = getattr(incompatible_keys, "unexpected_keys", None)
+        if unexpected_keys:
+            lora_unexpected_keys = [k for k in unexpected_keys if "lora_" in k and adapter_name in k]
+            if lora_unexpected_keys:
+                warn_msg = (
+                    f"Loading adapter weights from state_dict led to unexpected keys found in the model:"
+                    f" {', '.join(lora_unexpected_keys)}. "
+                )
+
+        # Filter missing keys specific to the current adapter.
+        missing_keys = getattr(incompatible_keys, "missing_keys", None)
+        if missing_keys:
+            lora_missing_keys = [k for k in missing_keys if "lora_" in k and adapter_name in k]
+            if lora_missing_keys:
+                warn_msg += (
+                    f"Loading adapter weights from state_dict led to missing keys in the model:"
+                    f" {', '.join(lora_missing_keys)}."
+                )
+
+    if warn_msg:
+        logger.warning(warn_msg)

@@ -1,5 +1,8 @@
 # Copyright 2023 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -328,9 +331,6 @@ def _make_causal_mask(
     mask = mask.masked_fill(mask_cond < (mask_cond + 1).view(mask.shape[-1], 1), ms.tensor(0).to(dtype))
 
     mask = mask.to(dtype)
-
-    if past_key_values_length > 0:
-        mask = ops.cat([ops.zeros((tgt_len, past_key_values_length), dtype=dtype), mask], axis=-1)
 
     # add lower triangular sliding window mask if necessary
     if sliding_window is not None:

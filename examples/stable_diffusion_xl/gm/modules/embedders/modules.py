@@ -1,4 +1,7 @@
-# reference to https://github.com/Stability-AI/generative-models
+# This code is adapted from https://github.com/Stability-AI/generative-models
+# with modifications to run on MindSpore.
+
+
 from functools import partial
 from json import load as json_load
 from typing import Dict, List, Optional, Tuple, Union

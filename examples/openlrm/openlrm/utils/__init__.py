@@ -47,6 +47,7 @@ def instantiate_from_config(config):
     return get_obj_from_str(config["target"])(**config.get("params", dict()))
 
 
+# Copied from https://github.com/CompVis/taming-transformers/blob/master/main.py to run openlrm on mindspore.
 def get_obj_from_str(string, reload=False):
     module, cls = string.rsplit(".", 1)
     if reload:

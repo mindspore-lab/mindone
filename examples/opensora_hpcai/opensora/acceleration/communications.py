@@ -1,3 +1,5 @@
+# Adapted from https://github.com/hpcaitech/Open-Sora/blob/main/opensora/acceleration/communications.py
+
 from typing import Callable, Tuple, Union
 
 import mindspore.mint as mint

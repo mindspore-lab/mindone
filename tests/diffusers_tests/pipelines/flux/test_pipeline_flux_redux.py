@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/flux/test_pipeline_flux_redux.py."""
+
 import unittest
 
 import numpy as np
@@ -7,8 +9,7 @@ from ddt import data, ddt, unpack
 import mindspore as ms
 
 from mindone.diffusers import FluxPipeline, FluxPriorReduxPipeline
-from mindone.diffusers.utils import load_image
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import THRESHOLD_PIXEL, PipelineTesterMixin
 
@@ -34,8 +35,13 @@ class FluxReduxSlowTests(PipelineTesterMixin, unittest.TestCase):
         pipe_prior_redux = FluxPriorReduxPipeline.from_pretrained(repo_redux, mindspore_dtype=ms_dtype)
         pipe = FluxPipeline.from_pretrained(repo_base, text_encoder=None, text_encoder_2=None, mindspore_dtype=ms_dtype)
 
-        image = load_image("https://huggingface.co/datasets/YiYiXu/testing-images/resolve/main/style_ziggy/img5.png")
+        image = load_downloaded_image_from_hf_hub(
+            "YiYiXu/testing-images",
+            "img5.png",
+            subfolder="style_ziggy",
+        )
         prompt_embeds, pooled_prompt_embeds = pipe_prior_redux(image)
+
         torch.manual_seed(0)
         image = pipe(
             num_inference_steps=2,
@@ -44,8 +50,8 @@ class FluxReduxSlowTests(PipelineTesterMixin, unittest.TestCase):
             pooled_prompt_embeds=pooled_prompt_embeds,
         )[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"redux_{dtype}.npy",
             subfolder="flux",
         )

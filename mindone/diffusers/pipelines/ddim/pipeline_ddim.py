@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,9 +18,12 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
+from ...models import UNet2DModel
 from ...schedulers import DDIMScheduler
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
+
+XLA_AVAILABLE = False
 
 
 class DDIMPipeline(DiffusionPipeline):
@@ -37,7 +43,7 @@ class DDIMPipeline(DiffusionPipeline):
 
     model_cpu_offload_seq = "unet"
 
-    def __init__(self, unet, scheduler):
+    def __init__(self, unet: UNet2DModel, scheduler: DDIMScheduler):
         super().__init__()
 
         # make sure scheduler can always be converted to DDIM
@@ -65,9 +71,9 @@ class DDIMPipeline(DiffusionPipeline):
                 A [`np.random.Generator`](https://numpy.org/doc/stable/reference/random/generator.html) to make
                 generation deterministic.
             eta (`float`, *optional*, defaults to 0.0):
-                Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies
-                to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers. A value of `0` corresponds to
-                DDIM and `1` corresponds to DDPM.
+                Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only
+                applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers. A value of `0`
+                corresponds to DDIM and `1` corresponds to DDPM.
             num_inference_steps (`int`, *optional*, defaults to 50):
                 The number of denoising steps. More denoising steps usually lead to a higher quality image at the
                 expense of slower inference.
@@ -93,7 +99,7 @@ class DDIMPipeline(DiffusionPipeline):
         >>> image = pipe(eta=0.0, num_inference_steps=50)
 
         >>> # process image to PIL
-        >>> image_processed = image.cpu().permute(0, 2, 3, 1)
+        >>> image_processed = image.permute(0, 2, 3, 1)
         >>> image_processed = (image_processed + 1.0) * 127.5
         >>> image_processed = image_processed.numpy().astype(np.uint8)
         >>> image_pil = PIL.Image.fromarray(image_processed[0])

@@ -1,3 +1,5 @@
+# Adapted from https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/dataset/__init__.py
+
 from functools import partial
 
 import cv2

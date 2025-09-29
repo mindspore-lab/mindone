@@ -1,3 +1,4 @@
+# Adapted from https://github.com/Tencent-Hunyuan/Hunyuan3D-1 to work with MindSpore.
 from __future__ import annotations
 
 import numpy as np

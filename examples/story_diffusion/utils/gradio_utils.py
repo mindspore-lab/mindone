@@ -1,3 +1,6 @@
+# This code is adapted from https://github.com/HVision-NKU/StoryDiffusion
+# with modifications to run on MindSpore.
+
 import random
 from typing import Optional
 

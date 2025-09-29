@@ -1,3 +1,8 @@
+"""
+Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/
+pipelines/ledits_pp/pipeline_leditspp_stable_diffusion.py.
+"""
+
 import inspect
 import math
 from itertools import repeat
@@ -22,27 +27,28 @@ from ...utils.mindspore_utils import pynative_context, randn_tensor
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import LEditsPPDiffusionPipelineOutput, LEditsPPInversionPipelineOutput
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
         ```py
-        >>> import PIL
-        >>> import requests
         >>> import mindspore as ms
-        >>> from io import BytesIO
 
         >>> from mindone.diffusers import LEditsPPPipelineStableDiffusion
         >>> from mindone.diffusers.utils import load_image
 
         >>> pipe = LEditsPPPipelineStableDiffusion.from_pretrained(
-        ...     "stable-diffusion-v1-5/stable-diffusion-v1-5", mindspore_dtype=ms.float16
+        ...     "stable-diffusion-v1-5/stable-diffusion-v1-5", variant="fp16", mindspore_dtype=ms.float16
         ... )
+        >>> pipe.enable_vae_tiling()
 
         >>> img_url = "https://www.aiml.informatik.tu-darmstadt.de/people/mbrack/cherry_blossom.png"
-        >>> image = load_image(img_url).convert("RGB")
+        >>> image = load_image(img_url).resize((512, 512))
 
-        >>> _ = pipe.invert(image=image, num_inversion_steps=50, skip=0.1, height=512, width=512)
+        >>> _ = pipe.invert(image=image, num_inversion_steps=50, skip=0.1)
 
         >>> edited_image = pipe(
         ...     editing_prompt=["cherry blossom"], edit_guidance_scale=10.0, edit_threshold=0.75
@@ -144,7 +150,7 @@ class LeditsGaussianSmoothing:
 
         # The gaussian kernel is the product of the gaussian function of each dimension.
         kernel = 1
-        meshgrids = mint.meshgrid(*[mint.arange(size, dtype=ms.float32) for size in kernel_size])
+        meshgrids = mint.meshgrid(*[mint.arange(size, dtype=ms.float32) for size in kernel_size], indexing="ij")
         for size, std, mgrid in zip(kernel_size, sigma, meshgrids):
             mean = (size - 1) / 2
             kernel *= 1 / (std * math.sqrt(2 * math.pi)) * mint.exp(-(((mgrid - mean) / (2 * std)) ** 2))
@@ -229,7 +235,7 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
     r"""
     Rescales `noise_cfg` tensor based on `guidance_rescale` to improve image quality and fix overexposure. Based on
     Section 3.4 from [Common Diffusion Noise Schedules and Sample Steps are
-    Flawed](https://arxiv.org/pdf/2305.08891.pdf).
+    Flawed](https://huggingface.co/papers/2305.08891).
 
     Args:
         noise_cfg (`ms.Tensor`):
@@ -310,7 +316,7 @@ class LEditsPPPipelineStableDiffusion(
                 "The scheduler has been changed to DPMSolverMultistepScheduler."
             )
 
-        if hasattr(scheduler.config, "steps_offset") and scheduler.config.steps_offset != 1:
+        if scheduler is not None and getattr(scheduler.config, "steps_offset", 1) != 1:
             deprecation_message = (
                 f"The configuration file of this scheduler: {scheduler} is outdated. `steps_offset`"
                 f" should be set to 1 instead of {scheduler.config.steps_offset}. Please make sure "
@@ -324,7 +330,7 @@ class LEditsPPPipelineStableDiffusion(
             new_config["steps_offset"] = 1
             scheduler._internal_dict = FrozenDict(new_config)
 
-        if hasattr(scheduler.config, "clip_sample") and scheduler.config.clip_sample is True:
+        if scheduler is not None and getattr(scheduler.config, "clip_sample", False) is True:
             deprecation_message = (
                 f"The configuration file of this scheduler: {scheduler} has not set the configuration `clip_sample`."
                 " `clip_sample` should be set to False in the configuration file. Please make sure to update the"
@@ -353,10 +359,14 @@ class LEditsPPPipelineStableDiffusion(
                 " checker. If you do not want to use the safety checker, you can pass `'safety_checker=None'` instead."
             )
 
-        is_unet_version_less_0_9_0 = hasattr(unet.config, "_diffusers_version") and version.parse(
-            version.parse(unet.config._diffusers_version).base_version
-        ) < version.parse("0.9.0.dev0")
-        is_unet_sample_size_less_64 = hasattr(unet.config, "sample_size") and unet.config.sample_size < 64
+        is_unet_version_less_0_9_0 = (
+            unet is not None
+            and hasattr(unet.config, "_diffusers_version")
+            and version.parse(version.parse(unet.config._diffusers_version).base_version) < version.parse("0.9.0.dev0")
+        )
+        is_unet_sample_size_less_64 = (
+            unet is not None and hasattr(unet.config, "sample_size") and unet.config.sample_size < 64
+        )
         if is_unet_version_less_0_9_0 and is_unet_sample_size_less_64:
             deprecation_message = (
                 "The configuration file of the unet has set the default `sample_size` to smaller than"
@@ -383,7 +393,7 @@ class LEditsPPPipelineStableDiffusion(
             safety_checker=safety_checker,
             feature_extractor=feature_extractor,
         )
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
         self.register_to_config(requires_safety_checker=requires_safety_checker)
 
@@ -420,7 +430,7 @@ class LEditsPPPipelineStableDiffusion(
     def prepare_extra_step_kwargs(self, eta, generator=None):
         # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
         # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
-        # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
+        # eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502
         # and should be between [0, 1]
 
         accepts_eta = "eta" in set(inspect.signature(self.scheduler.step).parameters.keys())
@@ -693,6 +703,35 @@ class LEditsPPPipelineStableDiffusion(
     def cross_attention_kwargs(self):
         return self._cross_attention_kwargs
 
+    def enable_vae_slicing(self):
+        r"""
+        Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
+        compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.
+        """
+        self.vae.enable_slicing()
+
+    def disable_vae_slicing(self):
+        r"""
+        Disable sliced VAE decoding. If `enable_vae_slicing` was previously enabled, this method will go back to
+        computing decoding in one step.
+        """
+        self.vae.disable_slicing()
+
+    def enable_vae_tiling(self):
+        r"""
+        Enable tiled VAE decoding. When this option is enabled, the VAE will split the input tensor into tiles to
+        compute decoding and encoding in several steps. This is useful for saving a large amount of memory and to allow
+        processing larger images.
+        """
+        self.vae.enable_tiling()
+
+    def disable_vae_tiling(self):
+        r"""
+        Disable tiled VAE decoding. If `enable_vae_tiling` was previously enabled, this method will go back to
+        computing decoding in one step.
+        """
+        self.vae.disable_tiling()
+
     def __call__(
         self,
         negative_prompt: Optional[Union[str, List[str]]] = None,
@@ -753,7 +792,7 @@ class LEditsPPPipelineStableDiffusion(
             edit_guidance_scale (`float` or `List[float]`, *optional*, defaults to 5):
                 Guidance scale for guiding the image generation. If provided as list values should correspond to
                 `editing_prompt`. `edit_guidance_scale` is defined as `s_e` of equation 12 of [LEDITS++
-                Paper](https://arxiv.org/abs/2301.12247).
+                Paper](https://huggingface.co/papers/2301.12247).
             edit_warmup_steps (`float` or `List[float]`, *optional*, defaults to 10):
                 Number of diffusion steps (for each prompt) for which guidance will not be applied.
             edit_cooldown_steps (`float` or `List[float]`, *optional*, defaults to `None`):
@@ -761,7 +800,7 @@ class LEditsPPPipelineStableDiffusion(
             edit_threshold (`float` or `List[float]`, *optional*, defaults to 0.9):
                 Masking threshold of guidance. Threshold should be proportional to the image region that is modified.
                 'edit_threshold' is defined as 'λ' of equation 12 of [LEDITS++
-                Paper](https://arxiv.org/abs/2301.12247).
+                Paper](https://huggingface.co/papers/2301.12247).
             user_mask (`ms.Tensor`, *optional*):
                 User-provided mask for even better control over the editing process. This is helpful when LEDITS++'s
                 implicit masks do not meet user preferences.
@@ -771,11 +810,11 @@ class LEditsPPPipelineStableDiffusion(
             use_cross_attn_mask (`bool`, defaults to `False`):
                 Whether cross-attention masks are used. Cross-attention masks are always used when use_intersect_mask
                 is set to true. Cross-attention masks are defined as 'M^1' of equation 12 of [LEDITS++
-                paper](https://arxiv.org/pdf/2311.16711.pdf).
+                paper](https://huggingface.co/papers/2311.16711).
             use_intersect_mask (`bool`, defaults to `True`):
                 Whether the masking term is calculated as intersection of cross-attention masks and masks derived from
                 the noise estimate. Cross-attention mask are defined as 'M^1' and masks derived from the noise estimate
-                are defined as 'M^2' of equation 12 of [LEDITS++ paper](https://arxiv.org/pdf/2311.16711.pdf).
+                are defined as 'M^2' of equation 12 of [LEDITS++ paper](https://huggingface.co/papers/2311.16711).
             attn_store_steps (`List[int]`, *optional*):
                 Steps for which the attention maps are stored in the AttentionStore. Just for visualization purposes.
             store_averaged_over_steps (`bool`, defaults to `True`):
@@ -786,7 +825,7 @@ class LEditsPPPipelineStableDiffusion(
                 [`self.processor`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).
             guidance_rescale (`float`, *optional*, defaults to 0.0):
                 Guidance rescale factor from [Common Diffusion Noise Schedules and Sample Steps are
-                Flawed](https://arxiv.org/pdf/2305.08891.pdf). Guidance rescale factor should fix overexposure when
+                Flawed](https://huggingface.co/papers/2305.08891). Guidance rescale factor should fix overexposure when
                 using zero terminal SNR.
             clip_skip (`int`, *optional*):
                 Number of layers to be skipped from CLIP while computing the prompt embeddings. A value of 1 means that
@@ -1148,7 +1187,7 @@ class LEditsPPPipelineStableDiffusion(
                     noise_pred = noise_pred_uncond + noise_guidance_edit
 
                     if enable_edit_guidance and self.guidance_rescale > 0.0:
-                        # Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf
+                        # Based on 3.4. in https://huggingface.co/papers/2305.08891
                         noise_pred = rescale_noise_cfg(
                             noise_pred,
                             noise_pred_edit_concepts.mean(dim=0, keepdim=False),
@@ -1216,8 +1255,8 @@ class LEditsPPPipelineStableDiffusion(
     ):
         r"""
         The function to the pipeline for image inversion as described by the [LEDITS++
-        Paper](https://arxiv.org/abs/2301.12247). If the scheduler is set to [`~schedulers.DDIMScheduler`] the
-        inversion proposed by [edit-friendly DPDM](https://arxiv.org/abs/2304.06140) will be performed instead.
+        Paper](https://huggingface.co/papers/2301.12247). If the scheduler is set to [`~schedulers.DDIMScheduler`] the
+        inversion proposed by [edit-friendly DPDM](https://huggingface.co/papers/2304.06140) will be performed instead.
 
         Args:
             image (`PipelineImageInput`):
@@ -1262,6 +1301,8 @@ class LEditsPPPipelineStableDiffusion(
             [`~pipelines.ledits_pp.LEditsPPInversionPipelineOutput`]: Output will contain the resized input image(s)
             and respective VAE reconstruction(s).
         """
+        if height is not None and height % 32 != 0 or width is not None and width % 32 != 0:
+            raise ValueError("height and width must be a factor of 32.")
         # Reset attn processor, we do not want to store attn maps during inversion
         self.unet.set_attn_processor(AttnProcessor())
 
@@ -1349,6 +1390,12 @@ class LEditsPPPipelineStableDiffusion(
         image = self.image_processor.preprocess(
             image=image, height=height, width=width, resize_mode=resize_mode, crops_coords=crops_coords
         )
+        height, width = image.shape[-2:]
+        if height % 32 != 0 or width % 32 != 0:
+            raise ValueError(
+                "Image height and width must be a factor of 32. "
+                "Consider down-sampling the input using the `height` and `width` parameters"
+            )
         resized = self.image_processor.postprocess(image=image, output_type="pil")
 
         if max(image.shape[-2:]) > self.vae.config["sample_size"] * 1.5:
@@ -1376,7 +1423,7 @@ def compute_noise_ddim(scheduler, prev_latents, latents, timestep, noise_pred, e
     beta_prod_t = 1 - alpha_prod_t
 
     # 3. compute predicted original sample from predicted noise also called
-    # "predicted x_0" of formula (12) from https://arxiv.org/pdf/2010.02502.pdf
+    # "predicted x_0" of formula (12) from https://huggingface.co/papers/2010.02502
     pred_original_sample = (latents - beta_prod_t ** (0.5) * noise_pred) / alpha_prod_t ** (0.5)
 
     # 4. Clip "predicted x_0"
@@ -1388,10 +1435,10 @@ def compute_noise_ddim(scheduler, prev_latents, latents, timestep, noise_pred, e
     variance = scheduler._get_variance(timestep, prev_timestep)
     std_dev_t = eta * variance ** (0.5)
 
-    # 6. compute "direction pointing to x_t" of formula (12) from https://arxiv.org/pdf/2010.02502.pdf
+    # 6. compute "direction pointing to x_t" of formula (12) from https://huggingface.co/papers/2010.02502
     pred_sample_direction = (1 - alpha_prod_t_prev - std_dev_t**2) ** (0.5) * noise_pred
 
-    # modifed so that updated xtm1 is returned as well (to avoid error accumulation)
+    # modified so that updated xtm1 is returned as well (to avoid error accumulation)
     mu_xt = alpha_prod_t_prev ** (0.5) * pred_original_sample + pred_sample_direction
     if variance > 0.0:
         noise = (prev_latents - mu_xt) / (variance ** (0.5) * eta)

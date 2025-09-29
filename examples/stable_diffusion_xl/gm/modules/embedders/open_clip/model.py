@@ -1,4 +1,10 @@
-# Reference to https://github.com/mlfoundations/open_clip
+# This code is adapted from https://github.com/mlfoundations/open_clip
+# with modifications to run on MindSpore.
+
+""" CLIP Model
+
+Adapted from https://github.com/openai/CLIP. Originally MIT License, Copyright (c) 2021 OpenAI.
+"""
 
 from dataclasses import dataclass
 from functools import partial

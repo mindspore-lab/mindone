@@ -2,6 +2,7 @@
 # SPDX-FileCopyrightText: Copyright (c) 2021-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: LicenseRef-NvidiaProprietary
 #
+# Adapted from https://github.com/3DTopia/OpenLRM/blob/main/openlrm/models/rendering/synthesizer.py
 # Modified by Zexin He in 2023-2024.
 # The modifications are subject to the same license as the original.
 

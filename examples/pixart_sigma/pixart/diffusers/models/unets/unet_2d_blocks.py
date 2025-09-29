@@ -10,6 +10,7 @@ from mindone.diffusers.models.unets.unet_2d_blocks import get_down_block as get_
 from ..resnet import ResnetBlock2D
 
 
+# Adapted from https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/unets/unet_2d_blocks.py
 def get_down_block(
     down_block_type: str,
     num_layers: int,

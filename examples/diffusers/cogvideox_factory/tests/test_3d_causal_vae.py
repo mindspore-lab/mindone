@@ -5,7 +5,7 @@ from cogvideox.acceleration import create_parallel_group
 from cogvideox.models.autoencoder_kl_cogvideox_sp import AutoencoderKLCogVideoX_SP
 
 import mindspore as ms
-import mindspore.ops as ops
+import mindspore.ops as mint
 from mindspore.communication import get_group_size, init
 
 from mindone.diffusers import AutoencoderKLCogVideoX
@@ -23,9 +23,9 @@ def get_sample_data(encoder=True, dtype=ms.bfloat16):
     w = 1360
     h = 768
     if encoder:
-        x = ops.rand([batch_size, 3, frame, h, w], dtype=dtype)  # [B, C, F, H, W]
+        x = mint.rand([batch_size, 3, frame, h, w], dtype=dtype)  # [B, C, F, H, W]
         return dict(x=x)
-    z = ops.rand([batch_size, 16, (frame - 1) // 4 + 1, h // 8, w // 8], dtype=dtype)  # [B, C, F, H, W]
+    z = mint.rand([batch_size, 16, (frame - 1) // 4 + 1, h // 8, w // 8], dtype=dtype)  # [B, C, F, H, W]
     return dict(z=z)
 
 

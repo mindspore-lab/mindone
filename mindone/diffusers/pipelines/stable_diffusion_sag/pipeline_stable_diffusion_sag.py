@@ -1,4 +1,7 @@
-# Copyright 2024 Susung Hong and The HuggingFace Team. All rights reserved.
+# Copyright 2025 Susung Hong and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,11 +32,14 @@ from ...models import AutoencoderKL, ImageProjection, UNet2DConditionModel
 from ...schedulers import KarrasDiffusionSchedulers
 from ...utils import deprecate, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
-from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
+from ..pipeline_utils import DeprecatedPipelineMixin, DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion import StableDiffusionPipelineOutput
 from ..stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -91,8 +97,10 @@ class CrossAttnStoreProcessor:
         return hidden_states
 
 
-# Modified to get self-attention guidance scale in this paper (https://arxiv.org/pdf/2210.00939.pdf) as an input
-class StableDiffusionSAGPipeline(DiffusionPipeline, StableDiffusionMixin, TextualInversionLoaderMixin, IPAdapterMixin):
+# Modified to get self-attention guidance scale in this paper (https://huggingface.co/papers/2210.00939) as an input
+class StableDiffusionSAGPipeline(
+    DeprecatedPipelineMixin, DiffusionPipeline, StableDiffusionMixin, TextualInversionLoaderMixin, IPAdapterMixin
+):
     r"""
     Pipeline for text-to-image generation using Stable Diffusion.
 
@@ -117,8 +125,8 @@ class StableDiffusionSAGPipeline(DiffusionPipeline, StableDiffusionMixin, Textua
             [`DDIMScheduler`], [`LMSDiscreteScheduler`], or [`PNDMScheduler`].
         safety_checker ([`StableDiffusionSafetyChecker`]):
             Classification module that estimates whether generated images could be considered offensive or harmful.
-            Please refer to the [model card](https://huggingface.co/runwayml/stable-diffusion-v1-5) for more details
-            about a model's potential harms.
+            Please refer to the [model card](https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5) for
+            more details about a model's potential harms.
         feature_extractor ([`~transformers.CLIPImageProcessor`]):
             A `CLIPImageProcessor` to extract features from generated images; used as inputs to the `safety_checker`.
     """
@@ -151,7 +159,7 @@ class StableDiffusionSAGPipeline(DiffusionPipeline, StableDiffusionMixin, Textua
             feature_extractor=feature_extractor,
             image_encoder=image_encoder,
         )
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
         self.register_to_config(requires_safety_checker=requires_safety_checker)
 
@@ -265,16 +273,16 @@ class StableDiffusionSAGPipeline(DiffusionPipeline, StableDiffusionMixin, Textua
                 )
 
             if hasattr(self.text_encoder.config, "use_attention_mask") and self.text_encoder.config.use_attention_mask:
-                attention_mask = ms.Tensor(text_inputs.attention_mask)
+                attention_mask = ms.tensor(text_inputs.attention_mask)
             else:
                 attention_mask = None
 
             if clip_skip is None:
-                prompt_embeds = self.text_encoder(ms.Tensor(text_input_ids), attention_mask=attention_mask)
+                prompt_embeds = self.text_encoder(ms.tensor(text_input_ids), attention_mask=attention_mask)
                 prompt_embeds = prompt_embeds[0]
             else:
                 prompt_embeds = self.text_encoder(
-                    ms.Tensor(text_input_ids), attention_mask=attention_mask, output_hidden_states=True
+                    ms.tensor(text_input_ids), attention_mask=attention_mask, output_hidden_states=True
                 )
                 # Access the `hidden_states` first, that contains a tuple of
                 # all the hidden states from the encoder layers. Then index into
@@ -335,12 +343,12 @@ class StableDiffusionSAGPipeline(DiffusionPipeline, StableDiffusionMixin, Textua
             )
 
             if hasattr(self.text_encoder.config, "use_attention_mask") and self.text_encoder.config.use_attention_mask:
-                attention_mask = ms.Tensor(uncond_input.attention_mask)
+                attention_mask = ms.tensor(uncond_input.attention_mask)
             else:
                 attention_mask = None
 
             negative_prompt_embeds = self.text_encoder(
-                ms.Tensor(uncond_input.input_ids),
+                ms.tensor(uncond_input.input_ids),
                 attention_mask=attention_mask,
             )
             negative_prompt_embeds = negative_prompt_embeds[0]
@@ -367,7 +375,7 @@ class StableDiffusionSAGPipeline(DiffusionPipeline, StableDiffusionMixin, Textua
 
         if not isinstance(image, ms.Tensor):
             image = self.feature_extractor(image, return_tensors="np").pixel_values
-            image = ms.Tensor(image)
+            image = ms.tensor(image)
 
         image = image.to(dtype=dtype)
         if output_hidden_states:
@@ -429,7 +437,7 @@ class StableDiffusionSAGPipeline(DiffusionPipeline, StableDiffusionMixin, Textua
                 feature_extractor_input = self.image_processor.numpy_to_pil(image)
             safety_checker_input = self.feature_extractor(feature_extractor_input, return_tensors="np")
             image, has_nsfw_concept = self.safety_checker(
-                images=image, clip_input=ms.Tensor(safety_checker_input.pixel_values).to(dtype)
+                images=image, clip_input=ms.tensor(safety_checker_input.pixel_values).to(dtype)
             )
 
             # Warning for safety checker operations here as it couldn't been done in construct()
@@ -456,7 +464,7 @@ class StableDiffusionSAGPipeline(DiffusionPipeline, StableDiffusionMixin, Textua
     def prepare_extra_step_kwargs(self, generator, eta):
         # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
         # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
-        # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
+        # eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502
         # and should be between [0, 1]
 
         accepts_eta = "eta" in set(inspect.signature(self.scheduler.step).parameters.keys())
@@ -596,8 +604,8 @@ class StableDiffusionSAGPipeline(DiffusionPipeline, StableDiffusionMixin, Textua
             num_images_per_prompt (`int`, *optional*, defaults to 1):
                 The number of images to generate per prompt.
             eta (`float`, *optional*, defaults to 0.0):
-                Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies
-                to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.
+                Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only
+                applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
                 A [`np.random.Generator`](https://numpy.org/doc/stable/reference/random/generator.html) to make
                 generation deterministic.
@@ -658,11 +666,11 @@ class StableDiffusionSAGPipeline(DiffusionPipeline, StableDiffusionMixin, Textua
             batch_size = prompt_embeds.shape[0]
 
         # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-        # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
+        # of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`
         # corresponds to doing no classifier free guidance.
         do_classifier_free_guidance = guidance_scale > 1.0
         # and `sag_scale` is` `s` of equation (16)
-        # of the self-attention guidance paper: https://arxiv.org/pdf/2210.00939.pdf
+        # of the self-attention guidance paper: https://huggingface.co/papers/2210.00939
         # `sag_scale = 0` means no self-attention guidance
         do_self_attention_guidance = sag_scale > 0.0
 
@@ -775,7 +783,7 @@ class StableDiffusionSAGPipeline(DiffusionPipeline, StableDiffusionMixin, Textua
                 if do_self_attention_guidance:
                     # classifier-free guidance produces two chunks of attention map
                     # and we only use unconditional one according to equation (25)
-                    # in https://arxiv.org/pdf/2210.00939.pdf
+                    # in https://huggingface.co/papers/2210.00939
                     if do_classifier_free_guidance:
                         # DDIM-like prediction of x0
                         pred_x0 = self.pred_x0(latents, noise_pred_uncond, t)
@@ -845,7 +853,7 @@ class StableDiffusionSAGPipeline(DiffusionPipeline, StableDiffusionMixin, Textua
         return StableDiffusionPipelineOutput(images=image, nsfw_content_detected=has_nsfw_concept)
 
     def sag_masking(self, original_latents, attn_map, map_size, t, eps):
-        # Same masking process as in SAG paper: https://arxiv.org/pdf/2210.00939.pdf
+        # Same masking process as in SAG paper: https://huggingface.co/papers/2210.00939
         bh, hw1, hw2 = attn_map.shape
         b, latent_channel, latent_h, latent_w = original_latents.shape
         h = self.unet.config.attention_head_dim

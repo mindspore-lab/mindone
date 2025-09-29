@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
@@ -349,9 +350,12 @@ class CogVideoXTransformer3DModel_SP(ModelMixin, ConfigMixin, PeftAdapterMixin):
                     # logger.warning("FA not enable gradient_checkpointing!!!")
                     block.attn1.processor.fa.recompute(False)
 
-    def _set_gradient_checkpointing(self, module, value=False):
+    def _set_gradient_checkpointing_cogvideox(self, module, enable=False):
         if hasattr(module, "gradient_checkpointing"):
-            module.gradient_checkpointing = value
+            module.gradient_checkpointing = enable
+
+    def _set_gradient_checkpointing(self, enable=False):
+        self.apply(partial(self._set_gradient_checkpointing_cogvideox, enable=enable))
 
     @property
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.attn_processors

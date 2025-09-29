@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/pag/test_pag_sd3_img2img.py."""
+
 import random
 import unittest
 
@@ -8,11 +10,7 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -255,8 +253,8 @@ class StableDiffusion3PAGImg2ImgPipelineIntegrationTests(PipelineTesterMixin, un
             pag_scale=0.7,
         )[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"pag_sd3_img2img_{dtype}.npy",
             subfolder="pag",
         )

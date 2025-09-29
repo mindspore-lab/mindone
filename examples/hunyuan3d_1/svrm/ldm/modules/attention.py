@@ -1,3 +1,5 @@
+# Adapted from https://github.com/Tencent-Hunyuan/Hunyuan3D-1 to work with MindSpore.
+
 # ref to `stable_diffusion_v2/ldm/modules/attention.py`
 
 import math

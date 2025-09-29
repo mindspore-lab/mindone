@@ -1,3 +1,4 @@
+# Adapted from https://github.com/black-forest-labs/flux to work with MindSpore.
 import math
 from typing import Callable, Dict, List, Union
 

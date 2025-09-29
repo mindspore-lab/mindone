@@ -1,7 +1,10 @@
+# This code is adapted from https://github.com/stepfun-ai/Step-Video-T2V
+# with modifications to run on MindSpore.
+
+
 import argparse
 import ast
 import os
-import pickle
 import threading
 
 from flask import Blueprint, Flask, Response, request
@@ -87,14 +90,20 @@ class VAEapi(Resource):
             #         print("Caught Exception: ", e)
             #         return Response(e)
 
-            feature = pickle.loads(request.get_data())
-            feature["api"] = "vae"
-
-            feature = {k: v for k, v in feature.items() if v is not None}
-            video_latents = self.vae_pipeline.decode(**feature)
-
-            response = pickle.dumps(video_latents)
-
+            print(
+                "Using pickle to transfer data may bring security risks. "
+                "Please confirm the security risks before using this API."
+                "You can remove the comment markers of L99 ~ L104 and "
+                "add a comment marker at L105 ~ L106 to re-enable the code."
+            )
+            # import pickle
+            # feature = pickle.loads(request.get_data())
+            # feature["api"] = "vae"
+            # feature = {k: v for k, v in feature.items() if v is not None}
+            # video_latents = self.vae_pipeline.decode(**feature)
+            # response = pickle.dumps(video_latents)
+            feature = request.get_data()
+            response = feature
             return Response(response)
 
 
@@ -160,13 +169,20 @@ class Captionapi(Resource):
             #     print("Caught Exception: ", e)
             #     return Response(e)
 
-            feature = pickle.loads(request.get_data())
-            feature["api"] = "caption"
-
-            feature = {k: v for k, v in feature.items() if v is not None}
-            embeddings = self.caption_pipeline.embedding(**feature)
-            response = pickle.dumps(embeddings)
-
+            print(
+                "Using pickle to transfer data may bring security risks. "
+                "Please confirm the security risks before using this API."
+                "You can remove the comment markers of L178 ~ L183 and "
+                "add a comment marker at L184 ~ L185 to re-enable the code."
+            )
+            # import pickle
+            # feature = pickle.loads(request.get_data())
+            # feature["api"] = "caption"
+            # feature = {k: v for k, v in feature.items() if v is not None}
+            # embeddings = self.caption_pipeline.embedding(**feature)
+            # response = pickle.dumps(embeddings)
+            feature = request.get_data()
+            response = feature
             return Response(response)
 
 
@@ -203,7 +219,7 @@ class RemoteServer(object):
                 resource_class_args=[self.caption_pipeline],
             )
 
-    def run(self, host="0.0.0.0", port=8080):
+    def run(self, host="127.0.0.1", port=8080):
         if self.enable_vae:
             port = 5001
             print(f"enable vae, port setting to {port}")
@@ -229,4 +245,4 @@ if __name__ == "__main__":
     )
 
     flask_server = RemoteServer(args)
-    flask_server.run(host="0.0.0.0", port=args.port)
+    flask_server.run(host="127.0.0.1", port=args.port)

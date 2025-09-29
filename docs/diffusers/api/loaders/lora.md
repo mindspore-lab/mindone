@@ -16,7 +16,17 @@ LoRA is a fast and lightweight training method that inserts and trains a signifi
 
 - `StableDiffusionLoraLoaderMixin` provides functions for loading and unloading, fusing and unfusing, enabling and disabling, and more functions for managing LoRA weights. This class can be used with any model.
 - `StableDiffusionXLLoraLoaderMixin` is a [Stable Diffusion (SDXL)](../../api/pipelines/stable_diffusion/stable_diffusion_xl.md) version of the `StableDiffusionLoraLoaderMixin` class for loading and saving LoRA weights. It can only be used with the SDXL model.
-- `SD3LoraLoaderMixin` provides similar functions for [Stable Diffusion 3](../../api/pipelines/stable_diffusion/stable_diffusion_3.md)
+- `SD3LoraLoaderMixin` provides similar functions for [Stable Diffusion 3](../../api/pipelines/stable_diffusion/stable_diffusion_3.md).
+- `FluxLoraLoaderMixin` provides similar functions for [Flux](../../api/pipelines/flux.md).
+- `CogVideoXLoraLoaderMixin` provides similar functions for [CogVideoX](../../api/pipelines/cogvideox.md).
+- `Mochi1LoraLoaderMixin` provides similar functions for [Mochi](../../api/pipelines/mochi.md).
+- `LTXVideoLoraLoaderMixin` provides similar functions for [LTX-Video](../../api/pipelines/ltx_video.md).
+- `SanaLoraLoaderMixin` provides similar functions for [Sana](../../api/pipelines/sana.md).
+- `HunyuanVideoLoraLoaderMixin` provides similar functions for [HunyuanVideo](../../api/pipelines/hunyuan_video.md).
+- `Lumina2LoraLoaderMixin` provides similar functions for [Lumina2](../../api/pipelines/lumina2.md).
+- `WanLoraLoaderMixin` provides similar functions for [Wan](../../api/pipelines/wan.md).
+- `SkyReelsV2LoraLoaderMixin` provides similar functions for [SkyReels-V2](../../api/pipelines/skyreels_v2.md).
+- `AmusedLoraLoaderMixin` is for the [AmusedPipeline](../../api/pipelines/amused.md).
 - `LoraBaseMixin` provides a base class with several utility methods to fuse, unfuse, unload, LoRAs and more.
 
 !!! tip
@@ -29,5 +39,25 @@ LoRA is a fast and lightweight training method that inserts and trains a signifi
 ::: mindone.diffusers.loaders.lora_pipeline.StableDiffusionXLLoraLoaderMixin
 
 ::: mindone.diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin
+
+::: mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin
+
+::: mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin
+
+::: mindone.diffusers.loaders.lora_pipeline.Mochi1LoraLoaderMixin
+
+::: mindone.diffusers.loaders.lora_pipeline.LTXVideoLoraLoaderMixin
+
+::: mindone.diffusers.loaders.lora_pipeline.SanaLoraLoaderMixin
+
+::: mindone.diffusers.loaders.lora_pipeline.HunyuanVideoLoraLoaderMixin
+
+::: mindone.diffusers.loaders.lora_pipeline.Lumina2LoraLoaderMixin
+
+::: mindone.diffusers.loaders.lora_pipeline.WanLoraLoaderMixin
+
+::: mindone.diffusers.loaders.lora_pipeline.SkyReelsV2LoraLoaderMixin
+
+::: mindone.diffusers.loaders.lora_pipeline.AmusedLoraLoaderMixin
 
 ::: mindone.diffusers.loaders.lora_base.LoraBaseMixin

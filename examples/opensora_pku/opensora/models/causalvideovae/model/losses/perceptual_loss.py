@@ -1,3 +1,6 @@
+# Adapted from
+# https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/models/causalvideovae/model/losses/perceptual_loss.py
+
 import mindspore as ms
 from mindspore import mint, nn, ops
 

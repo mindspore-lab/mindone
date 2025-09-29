@@ -1,3 +1,6 @@
+# Adapted from
+# https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/models/causalvideovae/model/utils/video_utils.py
+
 import numpy as np
 
 from mindspore import mint

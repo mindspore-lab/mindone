@@ -1,10 +1,10 @@
 import logging
 import os
-import pickle
 import sys
 from pathlib import Path
 from typing import Dict, Tuple, Union
 
+import numpy as np
 from jsonargparse import ActionConfigFile, ArgumentParser
 from jsonargparse.typing import path_type
 
@@ -123,11 +123,10 @@ def main(args):
             item = item.float().asnumpy()
             data.append(item)
 
-        save_path = f"{save_path_prefix}{batch_count}.pkl"
+        save_path = f"{save_path_prefix}{batch_count}.npz"
         save_path = str(Path(save_path).absolute())
 
-        with open(save_path, "wb") as f:
-            pickle.dump(data, f)
+        np.savez(save_path, *data)
 
         batch_count += 1
         print(f"The batch {batch_count} data has been saved to {save_path}")

@@ -2,6 +2,9 @@
 # Copyright 2018 The OpenAI Team Authors and HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -446,6 +449,7 @@ class GPT2PreTrainedModel(MSPreTrainedModel):
     _skip_keys_device_placement = "past_key_values"
     _supports_flash_attn_2 = False
     _supports_sdpa = False
+    _supports_dynamic_input = True
 
     def __init__(self, *inputs, **kwargs):
         super().__init__(*inputs, **kwargs)

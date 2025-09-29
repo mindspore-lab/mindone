@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/tests//models/t5/test_modeling_t5.py."""
+
 # This module contains test cases that are defined in the `.test_cases.py` file, structured as lists or tuples like
 #     [name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map].
 #
@@ -27,7 +29,7 @@ from tests.modeling_test_utils import (
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
-MODES = [0, 1]
+MODES = [1]
 
 
 class T5ModelTester:

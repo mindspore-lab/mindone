@@ -1,3 +1,4 @@
+# Copied from https://github.com/Tencent-Hunyuan/Hunyuan3D-1 to work with MindSpore.
 """
 This module contains type annotations for the project, using
 1. Python type hints (https://docs.python.org/3/library/typing.html) for Python objects

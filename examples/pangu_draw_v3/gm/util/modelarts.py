@@ -18,6 +18,7 @@ def get_rank_id():
     return int(global_rank_id)
 
 
+# Adapted from https://gitee.com/mindspore/models/blob/master/research/cv/FaceRecognition/model_utils/moxing_adapter.py
 def sync_data(from_path, to_path):
     """
     Download data from remote obs to local directory if the first url is remote url and the second one is local path

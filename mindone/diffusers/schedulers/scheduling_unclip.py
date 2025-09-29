@@ -1,4 +1,7 @@
-# Copyright 2024 Kakao Brain and The HuggingFace Team. All rights reserved.
+# Copyright 2025 Kakao Brain and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +22,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput
@@ -136,7 +139,7 @@ class UnCLIPScheduler(SchedulerMixin, ConfigMixin):
         self.betas = betas_for_alpha_bar(num_train_timesteps)
 
         self.alphas = 1.0 - self.betas
-        self.alphas_cumprod = ops.cumprod(self.alphas, dim=0)
+        self.alphas_cumprod = mint.cumprod(self.alphas, dim=0)
         self.one = ms.tensor(1.0)
 
         # standard deviation of the initial noise distribution
@@ -193,7 +196,7 @@ class UnCLIPScheduler(SchedulerMixin, ConfigMixin):
         else:
             beta = 1 - alpha_prod_t / alpha_prod_t_prev
 
-        # For t > 0, compute predicted variance βt (see formula (6) and (7) from https://arxiv.org/pdf/2006.11239.pdf)
+        # For t > 0, compute predicted variance βt (see formula (6) and (7) from https://huggingface.co/papers/2006.11239)
         # and sample from it to get previous sample
         # x_{t-1} ~ N(pred_prev_sample, variance) == add variance to pred_sample
         variance = beta_prod_t_prev / beta_prod_t * beta
@@ -203,8 +206,8 @@ class UnCLIPScheduler(SchedulerMixin, ConfigMixin):
 
         # hacks - were probably added for training stability
         if variance_type == "fixed_small_log":
-            variance = ops.log(ops.clamp(variance, min=1e-20))
-            variance = ops.exp(0.5 * variance)
+            variance = mint.log(mint.clamp(variance, min=1e-20))
+            variance = mint.exp(0.5 * variance)
         elif variance_type == "learned_range":
             # NOTE difference with DDPM scheduler
             min_log = variance.log()
@@ -248,7 +251,7 @@ class UnCLIPScheduler(SchedulerMixin, ConfigMixin):
         t = timestep
 
         if model_output.shape[1] == sample.shape[1] * 2 and self.variance_type == "learned_range":
-            model_output, predicted_variance = ops.split(model_output, sample.shape[1], axis=1)
+            model_output, predicted_variance = mint.split(model_output, sample.shape[1], dim=1)
         else:
             predicted_variance = None
 
@@ -269,7 +272,7 @@ class UnCLIPScheduler(SchedulerMixin, ConfigMixin):
             alpha = 1 - beta
 
         # 2. compute predicted original sample from predicted noise also called
-        # "predicted x_0" of formula (15) from https://arxiv.org/pdf/2006.11239.pdf
+        # "predicted x_0" of formula (15) from https://huggingface.co/papers/2006.11239
         if self.config.prediction_type == "epsilon":
             pred_original_sample = ((sample - beta_prod_t ** (0.5) * model_output) / alpha_prod_t ** (0.5)).to(
                 sample.dtype
@@ -284,17 +287,17 @@ class UnCLIPScheduler(SchedulerMixin, ConfigMixin):
 
         # 3. Clip "predicted x_0"
         if self.config.clip_sample:
-            pred_original_sample = ops.clamp(
+            pred_original_sample = mint.clamp(
                 pred_original_sample, -self.config.clip_sample_range, self.config.clip_sample_range
             )
 
         # 4. Compute coefficients for pred_original_sample x_0 and current sample x_t
-        # See formula (7) from https://arxiv.org/pdf/2006.11239.pdf
+        # See formula (7) from https://huggingface.co/papers/2006.11239
         pred_original_sample_coeff = (alpha_prod_t_prev ** (0.5) * beta) / beta_prod_t
         current_sample_coeff = alpha ** (0.5) * beta_prod_t_prev / beta_prod_t
 
         # 5. Compute predicted previous sample µ_t
-        # See formula (7) from https://arxiv.org/pdf/2006.11239.pdf
+        # See formula (7) from https://huggingface.co/papers/2006.11239
         pred_prev_sample = (
             pred_original_sample_coeff.to(dtype) * pred_original_sample + current_sample_coeff.to(dtype) * sample
         )
@@ -349,13 +352,13 @@ class UnCLIPScheduler(SchedulerMixin, ConfigMixin):
         sqrt_alpha_prod = sqrt_alpha_prod.flatten()
         # while len(sqrt_alpha_prod.shape) < len(original_samples.shape):
         #     sqrt_alpha_prod = sqrt_alpha_prod.unsqueeze(-1)
-        sqrt_alpha_prod = ops.reshape(sqrt_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sqrt_alpha_prod = mint.reshape(sqrt_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         sqrt_one_minus_alpha_prod = (1 - alphas_cumprod[timesteps]) ** 0.5
         sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.flatten()
         # while len(sqrt_one_minus_alpha_prod.shape) < len(original_samples.shape):
         #     sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
-        sqrt_one_minus_alpha_prod = ops.reshape(
+        sqrt_one_minus_alpha_prod = mint.reshape(
             sqrt_one_minus_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1)
         )
 

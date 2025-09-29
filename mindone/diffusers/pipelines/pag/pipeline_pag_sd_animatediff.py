@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +22,7 @@ import numpy as np
 from transformers import CLIPImageProcessor, CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import CLIPTextModel, CLIPVisionModelWithProjection
 
@@ -36,7 +39,10 @@ from ..free_noise_utils import AnimateDiffFreeNoiseMixin
 from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from .pag_utils import PAGMixin
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -141,7 +147,7 @@ class AnimateDiffPAGPipeline(
             feature_extractor=feature_extractor,
             image_encoder=image_encoder,
         )
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.video_processor = VideoProcessor(do_resize=False, vae_scale_factor=self.vae_scale_factor)
 
         self.set_pag_applied_layers(pag_applied_layers)
@@ -334,7 +340,9 @@ class AnimateDiffPAGPipeline(
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
             image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_enc_hidden_states = self.image_encoder(ops.zeros_like(image), output_hidden_states=True)[2][-2]
+            uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[2][
+                -2
+            ]
             uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
                 num_images_per_prompt, dim=0
             )
@@ -342,7 +350,7 @@ class AnimateDiffPAGPipeline(
         else:
             image_embeds = self.image_encoder(image)[0]
             image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_embeds = ops.zeros_like(image_embeds)
+            uncond_image_embeds = mint.zeros_like(image_embeds)
 
             return image_embeds, uncond_image_embeds
 
@@ -383,10 +391,10 @@ class AnimateDiffPAGPipeline(
 
         ip_adapter_image_embeds = []
         for i, single_image_embeds in enumerate(image_embeds):
-            single_image_embeds = ops.cat([single_image_embeds] * num_images_per_prompt, axis=0)
+            single_image_embeds = mint.cat([single_image_embeds] * num_images_per_prompt, dim=0)
             if do_classifier_free_guidance:
-                single_negative_image_embeds = ops.cat([negative_image_embeds[i]] * num_images_per_prompt, axis=0)
-                single_image_embeds = ops.cat([single_negative_image_embeds, single_image_embeds], axis=0)
+                single_negative_image_embeds = mint.cat([negative_image_embeds[i]] * num_images_per_prompt, dim=0)
+                single_image_embeds = mint.cat([single_negative_image_embeds, single_image_embeds], dim=0)
 
             ip_adapter_image_embeds.append(single_image_embeds)
 
@@ -405,7 +413,7 @@ class AnimateDiffPAGPipeline(
             batch_latents = self.vae.decode(batch_latents)[0]
             video.append(batch_latents)
 
-        video = ops.cat(video)
+        video = mint.cat(video)
         video = video[None, :].reshape((batch_size, num_frames, -1) + video.shape[2:]).permute(0, 2, 1, 3, 4)
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloat16
         video = video.float()
@@ -415,7 +423,7 @@ class AnimateDiffPAGPipeline(
     def prepare_extra_step_kwargs(self, generator, eta):
         # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
         # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
-        # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
+        # eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502
         # and should be between [0, 1]
 
         accepts_eta = "eta" in set(inspect.signature(self.scheduler.step).parameters.keys())
@@ -498,7 +506,7 @@ class AnimateDiffPAGPipeline(
     def prepare_latents(
         self, batch_size, num_channels_latents, num_frames, height, width, dtype, generator, latents=None
     ):
-        # If FreeNoise is enabled, generate latents as described in Equation (7) of [FreeNoise](https://arxiv.org/abs/2310.15169)
+        # If FreeNoise is enabled, generate latents as described in Equation (7) of [FreeNoise](https://huggingface.co/papers/2310.15169)
         if self.free_noise_enabled:
             latents = self._prepare_latents_free_noise(
                 batch_size, num_channels_latents, num_frames, height, width, dtype, generator, latents
@@ -534,7 +542,7 @@ class AnimateDiffPAGPipeline(
         return self._clip_skip
 
     # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-    # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
+    # of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`
     # corresponds to doing no classifier free guidance.
     @property
     def do_classifier_free_guidance(self):
@@ -598,8 +606,8 @@ class AnimateDiffPAGPipeline(
                 The prompt or prompts to guide what to not include in image generation. If not defined, you need to
                 pass `negative_prompt_embeds` instead. Ignored when not using guidance (`guidance_scale < 1`).
             eta (`float`, *optional*, defaults to 0.0):
-                Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies
-                to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.
+                Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only
+                applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
                 A [`np.random.Generator`](https://numpy.org/doc/stable/reference/random/generator.html) to make
                 generation deterministic.
@@ -712,7 +720,7 @@ class AnimateDiffPAGPipeline(
                 prompt_embeds, negative_prompt_embeds, self.do_classifier_free_guidance
             )
         elif self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
 
         prompt_embeds = prompt_embeds.repeat_interleave(repeats=num_frames, dim=0)
 
@@ -733,7 +741,7 @@ class AnimateDiffPAGPipeline(
                         image_embeds, negative_image_embeds, self.do_classifier_free_guidance
                     )
                 elif self.do_classifier_free_guidance:
-                    image_embeds = ops.cat([negative_image_embeds, image_embeds], axis=0)
+                    image_embeds = mint.cat([negative_image_embeds, image_embeds], dim=0)
                 ip_adapter_image_embeds[i] = image_embeds
 
         # 4. Prepare timesteps
@@ -781,7 +789,7 @@ class AnimateDiffPAGPipeline(
         with self.progress_bar(total=self._num_timesteps) as progress_bar:
             for i, t in enumerate(timesteps):
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * (prompt_embeds.shape[0] // num_frames // latents.shape[0]))
+                latent_model_input = mint.cat([latents] * (prompt_embeds.shape[0] // num_frames // latents.shape[0]))
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 # predict the noise residual

@@ -1,4 +1,7 @@
-# reference to https://github.com/Stability-AI/generative-models
+# This code is adapted from https://github.com/Stability-AI/generative-models
+# with modifications to run on MindSpore.
+
+
 from typing import Any, Dict, Tuple, Union
 
 from omegaconf import ListConfig

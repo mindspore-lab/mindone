@@ -26,6 +26,24 @@ Customized normalization layers for supporting various models in 🤗 Diffusers.
 
 ::: mindone.diffusers.models.normalization.LayerNorm
 
-::: mindone.diffusers.models.normalization.GroupNorm
-
 ::: mindone.diffusers.models.normalization.RMSNorm
+
+::: mindone.diffusers.models.normalization.GlobalResponseNorm
+
+::: mindone.diffusers.models.normalization.LuminaLayerNormContinuous
+
+::: mindone.diffusers.models.normalization.SD35AdaLayerNormZeroX
+
+::: mindone.diffusers.models.normalization.AdaLayerNormZeroSingle
+
+::: mindone.diffusers.models.normalization.LuminaRMSNormZero
+
+::: mindone.diffusers.models.normalization.LpNorm
+
+::: mindone.diffusers.models.normalization.CogView3PlusAdaLayerNormZeroTextImage
+
+::: mindone.diffusers.models.normalization.CogVideoXLayerNormZero
+
+::: mindone.diffusers.models.transformers.transformer_mochi.MochiRMSNormZero
+
+::: mindone.diffusers.models.normalization.MochiRMSNorm

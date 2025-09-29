@@ -1,3 +1,4 @@
+# Adapted from https://github.com/mlfoundations/open_clip/blob/main/src/open_clip/modified_resnet.py
 # reference to https://github.com/mlfoundations/open_clip
 
 from collections import OrderedDict

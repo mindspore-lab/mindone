@@ -1,3 +1,5 @@
+# Copied from https://github.com/idealo/imagededup/blob/master/imagededup/utils/image_utils.py
+
 from pathlib import PurePath
 from typing import List, Tuple, Union
 

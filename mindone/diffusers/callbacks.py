@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/callbacks.py."""
+
 from typing import Any, Dict, List
 
 from .configuration_utils import ConfigMixin, register_to_config

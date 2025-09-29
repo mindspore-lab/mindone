@@ -1,5 +1,7 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/Tencent-Hunyuan/HunyuanVideo to work with MindSpore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -906,6 +908,10 @@ class HunyuanVideoPipeline(DiffusionPipeline):
         self._num_timesteps = len(timesteps)
 
         print("D--: prompt embed:", prompt_embeds.shape)
+
+        self.transformer.init_teacache(  # (re)initialize TeaCache, if enabled
+            ((latents.shape[0] * 2) if self.do_classifier_free_guidance else latents.shape[0],) + latents.shape[1:]
+        )
 
         # if is_progress_bar:
         with self.progress_bar(total=num_inference_steps) as progress_bar:

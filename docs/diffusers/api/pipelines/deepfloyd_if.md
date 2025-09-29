@@ -12,6 +12,10 @@ specific language governing permissions and limitations under the License.
 
 # DeepFloyd IF
 
+<div class="flex flex-wrap space-x-1">
+  <img alt="LoRA" src="https://img.shields.io/badge/LoRA-d8b4fe?style=flat"/>
+</div>
+
 ## Overview
 
 DeepFloyd IF is a novel state-of-the-art open-source text-to-image model with a high degree of photorealism and language understanding.
@@ -48,11 +52,15 @@ and enter your [Hugging Face Hub access token](https://huggingface.co/docs/hub/s
 
 The following sections give more in-detail examples of how to use IF. Specifically:
 
-- [Text-to-Image Generation](#text-to-image-generation)
-- [Image-to-Image Generation](#text-guided-image-to-image-generation)
-- [Inpainting](#text-guided-inpainting-generation)
-- [Reusing model weights](#converting-between-different-pipelines)
-- [Speed optimization](#optimizing-for-speed)
+- [DeepFloyd IF](#deepfloyd-if)
+  - [Overview](#overview)
+  - [Usage](#usage)
+    - [Text-to-Image Generation](#text-to-image-generation)
+    - [Text Guided Image-to-Image Generation](#text-guided-image-to-image-generation)
+    - [Text Guided Inpainting Generation](#text-guided-inpainting-generation)
+    - [Converting between different pipelines](#converting-between-different-pipelines)
+    - [Optimizing for speed](#optimizing-for-speed)
+  - [Available Pipelines:](#available-pipelines)
 
 **Available checkpoints**
 - *Stage-1*

@@ -1,5 +1,7 @@
 import glob
 import os
+import shlex
+import subprocess
 import sys
 
 from tqdm import tqdm
@@ -16,7 +18,8 @@ with open(output_data_path, "w") as f:
             print(f"WARNING: Skip video '{video_path}' because its text label file doesn't exist in '{data_dir}'.")
             continue
         read_caption_cmd = f"cat {caption_path}"
-        caption_text = os.popen(read_caption_cmd).read()
+        result = subprocess.run(shlex.split(read_caption_cmd), capture_output=True, text=True, shell=False)
+        caption_text = result.stdout
         caption_text = (
             '"' + caption_text.replace('"', "'") + '"'
         )  # There is comma(,) in the caption text, which cause bug when loading csv file. Replace " by ', and then add "" to avoid ambiguity.

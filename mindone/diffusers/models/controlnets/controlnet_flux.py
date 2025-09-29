@@ -1,4 +1,7 @@
-# Copyright 2024 Black Forest Labs, The HuggingFace Team and The InstantX Team. All rights reserved.
+# Copyright 2025 Black Forest Labs, The HuggingFace Team and The InstantX Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,17 +19,17 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 from mindspore.common.initializer import initializer
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import PeftAdapterMixin
-from ...models.attention_processor import AttentionProcessor
-from ...models.modeling_utils import ModelMixin
 from ...utils import BaseOutput, logging
-from ..controlnets.controlnet import ControlNetConditioningEmbedding
+from ..attention_processor import AttentionProcessor
+from ..controlnets.controlnet import ControlNetConditioningEmbedding, zero_module
 from ..embeddings import CombinedTimestepGuidanceTextProjEmbeddings, CombinedTimestepTextProjEmbeddings, FluxPosEmbed
 from ..modeling_outputs import Transformer2DModelOutput
+from ..modeling_utils import ModelMixin
 from ..transformers.transformer_flux import FluxSingleTransformerBlock, FluxTransformerBlock
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -69,8 +72,8 @@ class FluxControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
             embedding_dim=self.inner_dim, pooled_projection_dim=pooled_projection_dim
         )
 
-        self.context_embedder = nn.Dense(joint_attention_dim, self.inner_dim)
-        self.x_embedder = nn.Dense(in_channels, self.inner_dim)
+        self.context_embedder = mint.nn.Linear(joint_attention_dim, self.inner_dim)
+        self.x_embedder = mint.nn.Linear(in_channels, self.inner_dim)
 
         self.transformer_blocks = nn.CellList(
             [
@@ -97,32 +100,26 @@ class FluxControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         # controlnet_blocks
         controlnet_blocks = []
         for _ in range(len(self.transformer_blocks)):
-            controlnet_blocks.append(
-                nn.Dense(self.inner_dim, self.inner_dim, weight_init="zeros", bias_init="zeros")
-            )  # zero_module
+            controlnet_blocks.append(zero_module(mint.nn.Linear(self.inner_dim, self.inner_dim)))  # zero_module
         self.controlnet_blocks = nn.CellList(controlnet_blocks)
 
         controlnet_single_blocks = []
         for _ in range(len(self.single_transformer_blocks)):
-            controlnet_single_blocks.append(
-                nn.Dense(self.inner_dim, self.inner_dim, weight_init="zeros", bias_init="zeros")
-            )  # zero_module
+            controlnet_single_blocks.append(zero_module(mint.nn.Linear(self.inner_dim, self.inner_dim)))  # zero_module
         self.controlnet_single_blocks = nn.CellList(controlnet_single_blocks)
 
         self.union = num_mode is not None
         if self.union:
-            self.controlnet_mode_embedder = nn.Embedding(num_mode, self.inner_dim)
+            self.controlnet_mode_embedder = mint.nn.Embedding(num_mode, self.inner_dim)
 
         if conditioning_embedding_channels is not None:
             self.input_hint_block = ControlNetConditioningEmbedding(
                 conditioning_embedding_channels=conditioning_embedding_channels, block_out_channels=(16, 16, 16, 16)
             )
-            self.controlnet_x_embedder = nn.Dense(in_channels, self.inner_dim)
+            self.controlnet_x_embedder = mint.nn.Linear(in_channels, self.inner_dim)
         else:
             self.input_hint_block = None
-            self.controlnet_x_embedder = nn.Dense(
-                in_channels, self.inner_dim, weight_init="zeros", bias_init="zeros"
-            )  # zero_module
+            self.controlnet_x_embedder = zero_module(mint.nn.Linear(in_channels, self.inner_dim))  # zero_module
 
         self.gradient_checkpointing = False
         self.patch_size = self.config.patch_size
@@ -186,10 +183,6 @@ class FluxControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
 
         for name, module in self.name_cells().items():
             fn_recursive_attn_processor(name, module, processor)
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if hasattr(module, "gradient_checkpointing"):
-            module.gradient_checkpointing = value
 
     @classmethod
     def from_transformer(
@@ -320,15 +313,6 @@ class FluxControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         )
         encoder_hidden_states = self.context_embedder(encoder_hidden_states)
 
-        if self.union:
-            # union mode
-            if controlnet_mode is None:
-                raise ValueError("`controlnet_mode` cannot be `None` when applying ControlNet-Union")
-            # union mode emb
-            controlnet_mode_emb = self.controlnet_mode_embedder(controlnet_mode)
-            encoder_hidden_states = ops.cat([controlnet_mode_emb, encoder_hidden_states], axis=1)
-            txt_ids = ops.cat([txt_ids[:1], txt_ids], axis=0)
-
         if txt_ids.ndim == 3:
             logger.warning(
                 "Passing `txt_ids` 3d ms.Tensor is deprecated."
@@ -342,7 +326,16 @@ class FluxControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
             )
             img_ids = img_ids[0]
 
-        ids = ops.cat((txt_ids, img_ids), axis=0)
+        if self.union:
+            # union mode
+            if controlnet_mode is None:
+                raise ValueError("`controlnet_mode` cannot be `None` when applying ControlNet-Union")
+            # union mode emb
+            controlnet_mode_emb = self.controlnet_mode_embedder(controlnet_mode)
+            encoder_hidden_states = mint.cat([controlnet_mode_emb, encoder_hidden_states], dim=1)
+            txt_ids = mint.cat([txt_ids[:1], txt_ids], dim=0)
+
+        ids = mint.cat((txt_ids, img_ids), dim=0)
         image_rotary_emb = self.pos_embed(ids)
 
         block_samples = ()
@@ -355,7 +348,7 @@ class FluxControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
             )
             block_samples = block_samples + (hidden_states,)
 
-        hidden_states = ops.cat([encoder_hidden_states, hidden_states], axis=1)
+        hidden_states = mint.cat([encoder_hidden_states, hidden_states], dim=1)
 
         single_block_samples = ()
         for index_block, block in enumerate(self.single_transformer_blocks):
@@ -429,7 +422,7 @@ class FluxMultiControlNetModel(ModelMixin):
     ) -> Union[FluxControlNetOutput, Tuple]:
         # ControlNet-Union with multiple conditions
         # only load one ControlNet for saving memories
-        if len(self.nets) == 1 and self.nets[0].union:
+        if len(self.nets) == 1:
             controlnet = self.nets[0]
 
             for i, (image, mode, scale) in enumerate(zip(controlnet_cond, controlnet_mode, conditioning_scale)):
@@ -453,17 +446,18 @@ class FluxMultiControlNetModel(ModelMixin):
                     control_block_samples = block_samples
                     control_single_block_samples = single_block_samples
                 else:
-                    control_block_samples = [
-                        control_block_sample + block_sample
-                        for control_block_sample, block_sample in zip(control_block_samples, block_samples)
-                    ]
-
-                    control_single_block_samples = [
-                        control_single_block_sample + block_sample
-                        for control_single_block_sample, block_sample in zip(
-                            control_single_block_samples, single_block_samples
-                        )
-                    ]
+                    if block_samples is not None and control_block_samples is not None:
+                        control_block_samples = [
+                            control_block_sample + block_sample
+                            for control_block_sample, block_sample in zip(control_block_samples, block_samples)
+                        ]
+                    if single_block_samples is not None and control_single_block_samples is not None:
+                        control_single_block_samples = [
+                            control_single_block_sample + block_sample
+                            for control_single_block_sample, block_sample in zip(
+                                control_single_block_samples, single_block_samples
+                            )
+                        ]
 
         # Regular Multi-ControlNets
         # load all ControlNets into memories

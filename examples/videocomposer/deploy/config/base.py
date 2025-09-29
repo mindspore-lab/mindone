@@ -1,3 +1,6 @@
+# This code is adapted from https://github.com/ali-vilab/videocomposer
+# with modifications to run on MindSpore.
+
 from easydict import EasyDict
 
 cfg = EasyDict(__name__="Config: VideoComposer")

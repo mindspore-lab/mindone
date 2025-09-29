@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/animatediff/test_animatediff_sparsectrl.py."""
+
 import unittest
 
 import numpy as np
@@ -15,11 +17,7 @@ from mindone.diffusers import (
     MotionAdapter,
     SparseControlNetModel,
 )
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -263,8 +261,8 @@ class AnimateDiffSparseControlNetPipelineIntegrationTests(PipelineTesterMixin, u
             controlnet_frame_indices=condition_frame_indices,
         )[0][0][1]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"sparsecontrolnet_{dtype}.npy",
             subfolder="animatediff",
         )

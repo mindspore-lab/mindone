@@ -1,3 +1,4 @@
+# Adapted from https://github.com/Vchitect/Latte/blob/main/diffusion/gaussian_diffusion.py
 # Modified from OpenAI's diffusion repos
 #     GLIDE: https://github.com/openai/glide-text2im/blob/main/glide_text2im/gaussian_diffusion.py
 #     ADM:   https://github.com/openai/guided-diffusion/blob/main/guided_diffusion

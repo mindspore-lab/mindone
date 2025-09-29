@@ -1,3 +1,21 @@
+# coding=utf-8
+# Copyright 2020 The Google AI Language Team Authors, Facebook AI Research authors and The HuggingFace Inc. team.
+# Copyright (c) 2020, NVIDIA CORPORATION.  All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 import copy
 import inspect
 import time
@@ -20,6 +38,10 @@ from mindone.transformers.cache_utils import (
     Cache,
     DynamicCache,
     EncoderDecoderCache,
+    HybridCache,
+    MambaCache,
+    OffloadedStaticCache,
+    SlidingWindowCache,
     StaticCache,
     get_seq_length,
     init_static_cache,
@@ -69,6 +91,7 @@ from mindone.transformers.generation.stopping_criteria import (
     MaxTimeCriteria,
     StoppingCriteria,
     StoppingCriteriaList,
+    StopStringCriteria,
 )
 from mindone.transformers.mindspore_adapter.paged_attention_block_tables import BlockTables
 from mindone.transformers.mindspore_adapter.select_operator import get_multinomial_op
@@ -82,7 +105,13 @@ if TYPE_CHECKING:
 logger = logging.get_logger(__name__)
 
 
-NEED_SETUP_CACHE_CLASSES_MAPPING = {}
+NEED_SETUP_CACHE_CLASSES_MAPPING = {
+    "static": StaticCache,
+    "offloaded_static": OffloadedStaticCache,
+    "sliding_window": SlidingWindowCache,
+    "hybrid": HybridCache,
+    "mamba": MambaCache,
+}
 QUANT_BACKEND_CLASSES_MAPPING = {}
 
 # Variable names used to hold the cache at generation time
@@ -758,7 +787,7 @@ class GenerationMixin:
                 )
             decoder_start_token_id = decoder_start_token_id.view(-1, 1)
         else:
-            decoder_start_token_id = ops.ones((batch_size, 1), dtype=ms.int32) * decoder_start_token_id
+            decoder_start_token_id = mint.ones((batch_size, 1), dtype=ms.int64) * decoder_start_token_id
 
         # 3. Encoder-decoder models expect the `decoder_input_ids` to start with a special token. Let's ensure that.
         # no user input -> use decoder_start_token_id as decoder_input_ids
@@ -1148,11 +1177,13 @@ class GenerationMixin:
                     begin_index,
                 )
             )
-        if generation_config.forced_decoder_ids is not None:
-            raise ValueError(
-                "You have explicitly specified `forced_decoder_ids`. Please remove the `forced_decoder_ids` argument "
-                "in favour of `input_ids` or `decoder_input_ids` respectively.",
-            )
+
+        # Fixme
+        # if generation_config.forced_decoder_ids is not None:
+        #     raise ValueError(
+        #         "You have explicitly specified `forced_decoder_ids`. Please remove the `forced_decoder_ids` argument "
+        #         "in favour of `input_ids` or `decoder_input_ids` respectively.",
+        #     )
 
         processors = self._merge_criteria_processor_list(processors, logits_processor)
 
@@ -1234,8 +1265,7 @@ class GenerationMixin:
                     "model's generation config, but we could not locate a tokenizer. When generating with "
                     "stop strings, you must pass the model's tokenizer to the `tokenizer` argument of `generate`."
                 )
-            # criteria.append(StopStringCriteria(stop_strings=generation_config.stop_strings, tokenizer=tokenizer))
-            raise NotImplementedError
+            criteria.append(StopStringCriteria(stop_strings=generation_config.stop_strings, tokenizer=tokenizer))
         if generation_config._eos_token_tensor is not None:
             criteria.append(EosTokenCriteria(eos_token_id=generation_config._eos_token_tensor))
         if (
@@ -1321,7 +1351,7 @@ class GenerationMixin:
 
         ```python
         >>> from transformers import GPT2Tokenizer
-        >>> from mindway.transformers import AutoModelForCausalLM
+        >>> from mindone.transformers import AutoModelForCausalLM
         >>> import numpy as np
 
         >>> tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
@@ -1372,7 +1402,7 @@ class GenerationMixin:
         # 1. In absence of `beam_indices`, we can assume that we come from e.g. greedy search, which is equivalent
         # to a beam search approach were the first (and only) beam is always selected
         if beam_indices is None:
-            beam_indices = mint.arange(scores[0].shape[0]).view(-1, 1).to(sequences.device)
+            beam_indices = mint.arange(scores[0].shape[0]).view(-1, 1)
             beam_indices = beam_indices.expand(-1, len(scores))
 
         # 2. reshape scores as [batch_size*vocab_size, # generation steps] with # generation steps being
@@ -1800,6 +1830,7 @@ class GenerationMixin:
             and "jamba" not in self.__class__.__name__.lower()
             and "zamba" not in self.__class__.__name__.lower()
             and "bamba" not in self.__class__.__name__.lower()
+            and "minimax" not in self.__class__.__name__.lower()
         )
 
     def _supports_default_dynamic_input(self) -> bool:
@@ -3096,6 +3127,10 @@ class GenerationMixin:
         running_beam_indices = mint.full((batch_size, num_beams, max_length - cur_len), fill_value=-1, dtype=ms.int32)
         beam_indices = running_beam_indices.copy()  # .detach()
 
+        step = 0
+        s_time = time.time()
+        graph_compiled_time_buffer = []
+
         # 4. run the generation loop
         while self._has_unfinished_sequences(this_peer_finished, synced_gpus):
             # a. Forward current tokens, obtain the logits
@@ -3116,6 +3151,18 @@ class GenerationMixin:
             )
             if synced_gpus and this_peer_finished:
                 continue
+
+            step_time = time.time() - s_time
+            if step < 2:
+                print(f"==> sampling, step: {step}, time cost: {step_time:.5f}s")
+            else:
+                graph_compiled_time_buffer.append(step_time)
+                token_speed = len(graph_compiled_time_buffer) / sum(graph_compiled_time_buffer)
+                print(
+                    f"==> sampling, step: {step}, time cost: {step_time:.5f}s, running avg speed: {token_speed:.5f}token/s"
+                )
+            s_time = time.time()
+            step += 1
 
             logits = model_outputs.logits[:, -1, :].copy().float()  # copy is needed to avoid keeping a hanging ref
 

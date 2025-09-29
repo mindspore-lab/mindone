@@ -1,3 +1,6 @@
+# This code is adapted from https://github.com/Wan-Video/Wan2.1
+# with modifications to run on MindSpore.
+
 # Copied from https://github.com/huggingface/diffusers/blob/main/src/diffusers/schedulers/scheduling_dpmsolver_multistep.py
 # Convert dpm solver for flow matching
 # Copyright 2024-2025 The Alibaba Wan Team Authors. All rights reserved.

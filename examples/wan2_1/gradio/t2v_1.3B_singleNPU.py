@@ -1,3 +1,6 @@
+# This code is adapted from https://github.com/Wan-Video/Wan2.1
+# with modifications to run on MindSpore.
+
 # Copyright 2024-2025 The Alibaba Wan Team Authors. All rights reserved.
 import argparse
 import os
@@ -146,4 +149,4 @@ if __name__ == "__main__":
     print("done", flush=True)
 
     demo = gradio_interface()
-    demo.launch(server_name="0.0.0.0", share=False, server_port=7860)
+    demo.launch(server_name="127.0.0.1", share=False, server_port=7860)

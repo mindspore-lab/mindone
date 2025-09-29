@@ -204,7 +204,7 @@ def _read_video_mindspore(
         end_pts=ele.get("video_end", None),
         pts_unit="sec",
     )  # output format: video in THWC numpy, audio in CL, info is dict {"video_fps", "audio_fps"}
-    total_frames, video_fps = video.size(0), info["video_fps"]
+    total_frames, video_fps = video.shape[0], info["video_fps"]
     logger.info(f"mindspore vision:  {video_path=}, {total_frames=}, {video_fps=}, time={time.time() - st:.3f}s")
     nframes = smart_nframes(ele, total_frames=total_frames, video_fps=video_fps)
     idx = np.linspace(0, total_frames - 1, nframes).round().astype(np.int32)
@@ -298,8 +298,8 @@ def fetch_video(
                 min_pixels=min_pixels,
                 max_pixels=max_pixels,
             )
-        logger.info("video.shape (frames, h, w, channel)=%s" % (str(video.shape)))
-        logger.info("resize to (h, w)=(%d, %d)" % (resized_height, resized_width))
+        print("video.shape (frames, h, w, channel)=%s" % (str(video.shape)))
+        print("resize to (h, w)=(%d, %d)" % (resized_height, resized_width))
         images = [
             vision.Resize(
                 size=[resized_height, resized_width],

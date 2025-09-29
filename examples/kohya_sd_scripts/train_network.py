@@ -1,3 +1,5 @@
+# Adapted from https://github.com/kohya-ss/sd-scripts/blob/main/train_network.py
+
 import argparse
 import importlib
 import json

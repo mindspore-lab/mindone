@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,7 +27,10 @@ from mindone.transformers import CLIPTextModelWithProjection
 from ...image_processor import VaeImageProcessor
 from ...models import UVit2DModel, VQModel
 from ...schedulers import AmusedScheduler
-from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
+from ..pipeline_utils import DeprecatedPipelineMixin, DiffusionPipeline, ImagePipelineOutput
+
+XLA_AVAILABLE = False
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -40,7 +46,8 @@ EXAMPLE_DOC_STRING = """
 """
 
 
-class AmusedPipeline(DiffusionPipeline):
+class AmusedPipeline(DeprecatedPipelineMixin, DiffusionPipeline):
+    _last_supported_version = "0.33.1"
     image_processor: VaeImageProcessor
     vqvae: VQModel
     tokenizer: CLIPTokenizer
@@ -67,7 +74,9 @@ class AmusedPipeline(DiffusionPipeline):
             transformer=transformer,
             scheduler=scheduler,
         )
-        self.vae_scale_factor = 2 ** (len(self.vqvae.config.block_out_channels) - 1)
+        self.vae_scale_factor = (
+            2 ** (len(self.vqvae.config.block_out_channels) - 1) if getattr(self, "vqvae", None) else 8
+        )
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor, do_normalize=False)
 
     def __call__(
@@ -120,7 +129,7 @@ class AmusedPipeline(DiffusionPipeline):
                 generation deterministic.
             latents (`ms.Tensor`, *optional*):
                 Pre-generated tokens representing latent vectors in `self.vqvae`, to be used as inputs for image
-                gneration. If not provided, the starting latents will be completely masked.
+                generation. If not provided, the starting latents will be completely masked.
             prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated text embeddings. Can be used to easily tweak text inputs (prompt weighting). If not
                 provided, text embeddings are generated from the `prompt` input argument. A single vector from the
@@ -149,10 +158,10 @@ class AmusedPipeline(DiffusionPipeline):
             micro_conditioning_aesthetic_score (`int`, *optional*, defaults to 6):
                 The targeted aesthetic score according to the laion aesthetic classifier. See
                 https://laion.ai/blog/laion-aesthetics/ and the micro-conditioning section of
-                https://arxiv.org/abs/2307.01952.
+                https://huggingface.co/papers/2307.01952.
             micro_conditioning_crop_coord (`Tuple[int]`, *optional*, defaults to (0, 0)):
                 The targeted height, width crop coordinates. See the micro-conditioning section of
-                https://arxiv.org/abs/2307.01952.
+                https://huggingface.co/papers/2307.01952.
             temperature (`Union[int, Tuple[int, int], List[int]]`, *optional*, defaults to (2, 0)):
                 Configures the temperature scheduler on `self.scheduler` see `AmusedScheduler#set_timesteps`.
 

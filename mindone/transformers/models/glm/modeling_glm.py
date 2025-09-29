@@ -8,6 +8,9 @@
 # Copyright 2024 The GLM & ZhipuAI team and HuggingFace Inc. team. All rights reserved.
 #
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,29 +23,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import math
-from typing import Optional, Tuple, Union
+from typing import Callable, Optional, Tuple, Union
 
-import numpy as np
 from transformers import GlmConfig
-from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging
+from transformers.utils import LossKwargs, add_start_docstrings, add_start_docstrings_to_model_forward, logging
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ...activations import ACT2FN
 from ...cache_utils import get_max_length, get_seq_length, init_static_cache, update
 from ...generation import GenerationMixin
 from ...mindspore_adapter import recompute_except_output
-from ...mindspore_adapter.attention import FlashAttention2
-from ...mindspore_adapter.utils import _MIN_FP16
 from ...modeling_attn_mask_utils import dtype_to_min
+from ...modeling_flash_attention_utils import FlashAttentionKwargs
 from ...modeling_outputs import (
     BaseModelOutputWithPast,
     CausalLMOutputWithPast,
     SequenceClassifierOutputWithPast,
     TokenClassifierOutput,
 )
-from ...modeling_utils import MSPreTrainedModel as PreTrainedModel
+from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
+from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
+from ...processing_utils import Unpack
 
 
 class GlmRMSNorm(nn.Cell):
@@ -57,20 +60,25 @@ class GlmRMSNorm(nn.Cell):
     def construct(self, hidden_states):
         input_dtype = hidden_states.dtype
         hidden_states = hidden_states.to(ms.float32)
-        variance = hidden_states.pow(2).mean(-1, keep_dims=True)
+        variance = hidden_states.pow(2).mean(-1, keepdim=True)
         hidden_states = hidden_states * ops.rsqrt(variance + self.variance_epsilon)
         return self.weight * hidden_states.to(input_dtype)
 
 
 class GlmRotaryEmbedding(nn.Cell):
-    def __init__(self, dim, max_position_embeddings=2048, base=10000):
+    def __init__(self, config: GlmConfig):
         super().__init__()
 
-        self.dim = dim
-        self.max_position_embeddings = max_position_embeddings
-        self.base = base
+        # BC: "rope_type" was originally "type"
+        if hasattr(config, "rope_scaling") and config.rope_scaling is not None:
+            rope_type = config.rope_scaling.get("rope_type", config.rope_scaling.get("type"))
+        else:
+            rope_type = "default"
 
-        inv_freq = 1.0 / (self.base ** (np.arange(0, self.dim, 2, dtype=np.int64).astype(np.float32) / self.dim))
+        rope_init_fn = ROPE_INIT_FUNCTIONS[rope_type]
+
+        inv_freq, _ = rope_init_fn(config)
+
         # self.inv_freq = Parameter(ms.tensor(inv_freq, ms.float32), requires_grad=False, name="inv_freq_buffer")
         self.inv_freq = ms.tensor(inv_freq, ms.float32)
 
@@ -169,6 +177,32 @@ def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 
+def eager_attention_forward(
+    module: nn.Cell,
+    query: ms.Tensor,
+    key: ms.Tensor,
+    value: ms.Tensor,
+    attention_mask: Optional[ms.Tensor],
+    scaling: float,
+    dropout: float = 0.0,
+    **kwargs,
+):
+    key_states = repeat_kv(key, module.num_key_value_groups)
+    value_states = repeat_kv(value, module.num_key_value_groups)
+
+    attn_weights = mint.matmul(query, key_states.swapaxes(2, 3)) / mint.sqrt(ms.tensor(module.head_dim))
+    if attention_mask is not None:
+        causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
+        attn_weights = attn_weights + causal_mask
+
+    attn_weights = mint.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query.dtype)
+    attn_weights = ops.dropout(attn_weights, p=dropout, training=module.training)
+    attn_output = mint.matmul(attn_weights, value_states)
+    attn_output = attn_output.swapaxes(1, 2).contiguous()
+
+    return attn_output, attn_weights
+
+
 class GlmAttention(nn.Cell):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
 
@@ -217,7 +251,7 @@ class GlmAttention(nn.Cell):
         use_cache: bool = False,
         cache_position: Optional[ms.Tensor] = None,
         position_embeddings: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,  # will become mandatory in v4.45
-        **kwargs,
+        **kwargs: Unpack[FlashAttentionKwargs],
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
         bsz, q_len, _ = hidden_states.shape
 
@@ -236,27 +270,26 @@ class GlmAttention(nn.Cell):
             key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
             past_key_value = (key_states, value_states)
 
-        key_states = repeat_kv(key_states, self.num_key_value_groups)
-        value_states = repeat_kv(value_states, self.num_key_value_groups)
+        attention_interface: Callable = eager_attention_forward
+        if self.config._attn_implementation != "eager":
+            if self.config._attn_implementation == "sdpa" and kwargs.get("output_attentions", False):
+                logger.warning_once(
+                    "`mindspore.ops.scaled_dot_product_attention` does not support `output_attentions=True`. Falling back to "
+                    'eager attention. This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
+                )
+            else:
+                attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
 
-        attn_weights = ops.matmul(query_states, key_states.swapaxes(2, 3)) * self.scaling
-
-        if attention_mask is not None:  # no matter the length, we just slice it
-            causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
-            attn_weights = attn_weights + causal_mask
-
-        # upcast attention to fp32
-        attn_weights = ops.softmax(attn_weights, axis=-1, dtype=ms.float32).to(query_states.dtype)
-        attn_weights = ops.dropout(attn_weights, p=self.attention_dropout, training=self.training)
-        attn_output = ops.matmul(attn_weights, value_states)
-
-        if attn_output.shape != (bsz, self.num_heads, q_len, self.head_dim):
-            raise ValueError(
-                f"`attn_output` should be of size {(bsz, self.num_heads, q_len, self.head_dim)}, but is"
-                f" {attn_output.shape}"
-            )
-
-        attn_output = attn_output.swapaxes(1, 2)
+        attn_output, attn_weights = attention_interface(
+            self,
+            query_states,
+            key_states,
+            value_states,
+            attention_mask,
+            dropout=0.0 if not self.training else self.attention_dropout,
+            scaling=self.scaling,
+            **kwargs,
+        )
 
         attn_output = attn_output.view(bsz, q_len, -1)
         attn_output = self.o_proj(attn_output)
@@ -267,101 +300,12 @@ class GlmAttention(nn.Cell):
         return attn_output, attn_weights, past_key_value
 
 
-class GlmFlashAttention2(GlmAttention):
-    """
-    Glm flash attention module. This module inherits from `GlmAttention` as the weights of the module stays
-    untouched. The only required change would be on the forward pass where it needs to correctly call the public API of
-    flash attention and deal with padding tokens in case the input contains any of them.
-    """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.flash_attention = FlashAttention2(
-            self.head_dim, self.num_heads, self.attention_dropout, input_layout="BNSD", dtype=ms.float16
-        )
-
-    def convert_mask_to_fa_format(self, attention_mask):
-        if attention_mask is not None:
-            if attention_mask.dtype == ms.bool_:
-                # flip mask, since ms FA treats 1 as discard, 0 as retain.
-                attention_mask = 1 - attention_mask
-                attention_mask = attention_mask.to(ms.uint8)
-            else:
-                attention_mask = attention_mask.to(ms.float16)
-                attention_mask = ops.select(
-                    ops.equal(attention_mask, _MIN_FP16),
-                    ops.ones((), ms.uint8),
-                    ops.zeros((), ms.uint8),
-                )
-
-        return attention_mask
-
-    def construct(
-        self,
-        hidden_states: ms.Tensor,
-        attention_mask: Optional[ms.Tensor] = None,
-        position_ids: Optional[ms.Tensor] = None,
-        past_key_value: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
-        output_attentions: bool = False,
-        use_cache: bool = False,
-        cache_position: Optional[ms.Tensor] = None,
-        position_embeddings: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,  # will become mandatory in v4.45
-    ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
-        output_attentions = False
-
-        bsz, q_len, _ = hidden_states.shape
-
-        query_states = self.q_proj(hidden_states)
-        key_states = self.k_proj(hidden_states)
-        value_states = self.v_proj(hidden_states)
-
-        # Flash attention requires the input to have the shape
-        # batch_size x seq_length x head_dim x hidden_dim
-        # therefore we just need to keep the original shape
-        query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).swapaxes(1, 2)
-        key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).swapaxes(1, 2)
-        value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).swapaxes(1, 2)
-
-        cos, sin = position_embeddings
-        query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
-
-        if past_key_value is not None:
-            key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
-            past_key_value = (key_states, value_states)
-
-        key_states = repeat_kv(key_states, self.num_key_value_groups)
-        value_states = repeat_kv(value_states, self.num_key_value_groups)
-
-        # 1. flash attention
-        if attention_mask is not None:  # no matter the length, we just slice it
-            attention_mask = attention_mask[:, :, :, : key_states.shape[-2]]
-        attention_mask = self.convert_mask_to_fa_format(attention_mask)
-        attn_output = self.flash_attention(query_states, key_states, value_states, attention_mask)
-
-        attn_output = attn_output.swapdims(1, 2)
-        attn_output = attn_output.reshape(bsz, q_len, -1)
-        attn_output = self.o_proj(attn_output)
-
-        if not output_attentions:
-            attn_weights = None
-
-        return attn_output, attn_weights, past_key_value
-
-
-GLM_ATTENTION_CLASSES = {
-    "eager": GlmAttention,
-    "flash_attention_2": GlmFlashAttention2,
-    # "sdpa": None,  # not support sdpa
-}
-
-
 class GlmDecoderLayer(nn.Cell):
     def __init__(self, config: GlmConfig, layer_idx: Optional[int] = None):
         super().__init__()
         self.hidden_size = config.hidden_size
 
-        self.self_attn = GLM_ATTENTION_CLASSES[config._attn_implementation](config=config, layer_idx=layer_idx)
+        self.self_attn = GlmAttention(config=config, layer_idx=layer_idx)
 
         self.mlp = GlmMLP(config)
         self.input_layernorm = GlmRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
@@ -377,7 +321,7 @@ class GlmDecoderLayer(nn.Cell):
         use_cache: Optional[bool] = False,
         cache_position: Optional[ms.Tensor] = None,
         position_embeddings: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,  # will become mandatory in v4.46
-        **kwargs,
+        **kwargs: Unpack[FlashAttentionKwargs],
     ) -> Tuple[ms.Tensor, Optional[Tuple[ms.Tensor, ms.Tensor]]]:
         """
         Args:
@@ -468,6 +412,7 @@ class GlmPreTrainedModel(PreTrainedModel):
     _supports_cache_class = True
     _supports_quantized_cache = True
     _supports_static_cache = True
+    _support_attention_backend = True
 
     def _init_weights(self, module):
         std = self.config.initializer_range
@@ -579,9 +524,7 @@ class GlmModel(GlmPreTrainedModel):
         self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=self.padding_idx)
         self.layers = nn.CellList([GlmDecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)])
         self.norm = GlmRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-        self.rotary_emb = GlmRotaryEmbedding(
-            dim=config.head_dim // 2, max_position_embeddings=config.max_position_embeddings, base=config.rope_theta
-        )
+        self.rotary_emb = GlmRotaryEmbedding(config)
         self.gradient_checkpointing = False
         self.output_attentions = config.output_attentions
         self.use_cache = config.use_cache
@@ -640,6 +583,7 @@ class GlmModel(GlmPreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = False,
         cache_position: Optional[ms.Tensor] = None,
+        **flash_attn_kwargs: Unpack[FlashAttentionKwargs],
     ) -> Union[Tuple, BaseModelOutputWithPast]:
         output_attentions = output_attentions if output_attentions is not None else self.output_attentions
         output_hidden_states = output_hidden_states if output_hidden_states is not None else self.output_hidden_states
@@ -682,6 +626,7 @@ class GlmModel(GlmPreTrainedModel):
                 use_cache=use_cache,
                 cache_position=cache_position,
                 position_embeddings=position_embeddings,
+                **flash_attn_kwargs,
             )
 
             hidden_states = layer_outputs[0]
@@ -791,6 +736,7 @@ class GlmModel(GlmPreTrainedModel):
             causal_mask *= ops.arange(target_length) > cache_position.reshape(-1, 1)
             causal_mask = causal_mask[None, None, :, :].broadcast_to((batch_size, 1, -1, -1))
             if attention_mask is not None:
+                causal_mask = causal_mask.copy()
                 mask_length = attention_mask.shape[-1]
                 padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :]
                 padding_mask = padding_mask == 0
@@ -801,6 +747,10 @@ class GlmModel(GlmPreTrainedModel):
         return causal_mask
 
 
+class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
+    ...
+
+
 class GlmForCausalLM(GlmPreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
 
@@ -809,7 +759,6 @@ class GlmForCausalLM(GlmPreTrainedModel, GenerationMixin):
         self.model = GlmModel(config)
         self.vocab_size = config.vocab_size
         self.lm_head = nn.Dense(config.hidden_size, config.vocab_size, has_bias=False)
-        self.loss_function = nn.CrossEntropyLoss()
         self.output_hidden_states = config.output_hidden_states
         self.use_return_dict = config.use_return_dict
 
@@ -850,8 +799,8 @@ class GlmForCausalLM(GlmPreTrainedModel, GenerationMixin):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = False,
         cache_position: Optional[ms.Tensor] = None,
-        num_logits_to_keep: int = 0,
-        **loss_kwargs,
+        logits_to_keep: int = 0,
+        **kwargs: Unpack[KwargsForCausalLM],
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
         Args:
@@ -900,23 +849,17 @@ class GlmForCausalLM(GlmPreTrainedModel, GenerationMixin):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
             cache_position=cache_position,
+            **kwargs,
         )
 
         hidden_states = outputs[0]
         # Only compute necessary logits, and do not upcast them to float if we are not computing the loss
-        logits = self.lm_head(hidden_states[:, -num_logits_to_keep:, :])
+        slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
+        logits = self.lm_head(hidden_states[:, slice_indices, :])
 
         loss = None
         if labels is not None:
-            # Upcast to float if we need to compute the loss to avoid potential precision issues
-            logits = logits.float()
-            # Shift so that tokens < n predict n
-            shift_logits = logits[..., :-1, :]
-            shift_labels = labels[..., 1:]
-            # Flatten the tokens
-            shift_logits = shift_logits.view(-1, self.vocab_size)
-            shift_labels = shift_labels.view(-1)
-            loss = self.loss_function(shift_logits, shift_labels)
+            loss = self.loss_function(logits=logits, labels=labels, vocab_size=self.config.vocab_size, **kwargs)
 
         if not return_dict:
             output = (logits,) + outputs[1:]
@@ -954,10 +897,6 @@ class GlmForSequenceClassification(GlmPreTrainedModel):
         self.score = nn.Dense(config.hidden_size, self.num_labels, has_bias=False)
         self.problem_type = config.problem_type
         self.pad_token_id = config.pad_token_id
-
-        self.loss_fct_regression = nn.MSELoss()
-        self.loss_fct_single_label_classification = nn.CrossEntropyLoss()
-        self.loss_fct_multi_label_classification = nn.BCEWithLogitsLoss()
 
         self.use_return_dict = config.use_return_dict
 
@@ -1027,26 +966,7 @@ class GlmForSequenceClassification(GlmPreTrainedModel):
 
         loss = None
         if labels is not None:
-            num_labels = self.num_labels
-            if self.problem_type is None:
-                if num_labels == 1:
-                    problem_type = "regression"
-                elif num_labels > 1 and (labels.dtype == ms.int64 or labels.dtype == ms.int32):
-                    problem_type = "single_label_classification"
-                else:
-                    problem_type = "multi_label_classification"
-            else:
-                problem_type = self.problem_type
-
-            if problem_type == "regression":
-                if num_labels == 1:
-                    loss = self.loss_fct_regression(pooled_logits.squeeze(), labels.squeeze())
-                else:
-                    loss = self.loss_fct_regression(pooled_logits, labels)
-            elif problem_type == "single_label_classification":
-                loss = self.loss_fct_single_label_classification(pooled_logits.view(-1, num_labels), labels.view(-1))
-            elif problem_type == "multi_label_classification":
-                loss = self.loss_fct_multi_label_classification(pooled_logits, labels)
+            loss = self.loss_function(logits=logits, labels=labels, pooled_logits=pooled_logits, config=self.config)
 
         if not return_dict:
             output = (pooled_logits,) + transformer_outputs[1:]
@@ -1081,7 +1001,6 @@ class GlmForTokenClassification(GlmPreTrainedModel):
             classifier_dropout = 0.1
         self.dropout = nn.Dropout(classifier_dropout)
         self.score = nn.Dense(config.hidden_size, config.num_labels)
-        self.loss_function = nn.CrossEntropyLoss()
 
         self.use_return_dict = config.use_return_dict
 
@@ -1133,12 +1052,7 @@ class GlmForTokenClassification(GlmPreTrainedModel):
 
         loss = None
         if labels is not None:
-            # Upcast to float if we need to compute the loss to avoid potential precision issues
-            logits = logits.view(-1, self.num_labels)
-            labels = labels.view(-1)
-            logits = logits.float()
-            # Flatten the tokens
-            loss = self.loss_function(logits, labels)
+            loss = self.loss_function(logits, labels, self.config)
 
         if not return_dict:
             output = (logits,) + outputs[2:]

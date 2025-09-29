@@ -1,4 +1,7 @@
-# Copyright 2024 TSAIL Team and The HuggingFace Team. All rights reserved.
+# Copyright 2025 TSAIL Team and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,7 +23,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import deprecate, is_scipy_available, logging
@@ -113,11 +116,11 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
             The threshold value for dynamic thresholding. Valid only when `thresholding=True` and
             `algorithm_type="dpmsolver++"`.
         algorithm_type (`str`, defaults to `dpmsolver++`):
-            Algorithm type for the solver; can be `dpmsolver` or `dpmsolver++`. The `dpmsolver` type implements the
-            algorithms in the [DPMSolver](https://huggingface.co/papers/2206.00927) paper, and the `dpmsolver++` type
-            implements the algorithms in the [DPMSolver++](https://huggingface.co/papers/2211.01095) paper. It is
-            recommended to use `dpmsolver++` or `sde-dpmsolver++` with `solver_order=2` for guided sampling like in
-            Stable Diffusion.
+            Algorithm type for the solver; can be `dpmsolver` or `dpmsolver++` or `sde-dpmsolver++`. The `dpmsolver`
+            type implements the algorithms in the [DPMSolver](https://huggingface.co/papers/2206.00927) paper, and the
+            `dpmsolver++` type implements the algorithms in the [DPMSolver++](https://huggingface.co/papers/2211.01095)
+            paper. It is recommended to use `dpmsolver++` or `sde-dpmsolver++` with `solver_order=2` for guided
+            sampling like in Stable Diffusion.
         solver_type (`str`, defaults to `midpoint`):
             Solver type for the second-order solver; can be `midpoint` or `heun`. The solver type slightly affects the
             sample quality, especially for a small number of steps. It is recommended to use `midpoint` solvers.
@@ -200,11 +203,11 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
             raise NotImplementedError(f"{beta_schedule} is not implemented for {self.__class__}")
 
         self.alphas = 1.0 - self.betas
-        self.alphas_cumprod = ops.cumprod(self.alphas, dim=0)
+        self.alphas_cumprod = mint.cumprod(self.alphas, dim=0)
         # Currently we only support VP-type noise schedule
-        self.alpha_t = ops.sqrt(self.alphas_cumprod)
-        self.sigma_t = ops.sqrt(1 - self.alphas_cumprod)
-        self.lambda_t = ops.log(self.alpha_t) - ops.log(self.sigma_t)
+        self.alpha_t = mint.sqrt(self.alphas_cumprod)
+        self.sigma_t = mint.sqrt(1 - self.alphas_cumprod)
+        self.lambda_t = mint.log(self.alpha_t) - mint.log(self.sigma_t)
         self.sigmas = ((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5
 
         # standard deviation of the initial noise distribution
@@ -224,13 +227,13 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
 
         if algorithm_type not in ["dpmsolver++", "sde-dpmsolver++"] and final_sigmas_type == "zero":
             raise ValueError(
-                f"`final_sigmas_type` {final_sigmas_type} is not supported for `algorithm_type` {algorithm_type}. Please chooose `sigma_min` instead."
+                f"`final_sigmas_type` {final_sigmas_type} is not supported for `algorithm_type` {algorithm_type}. Please choose `sigma_min` instead."
             )
 
         # setable values
         self.num_inference_steps = None
         timesteps = np.linspace(0, num_train_timesteps - 1, num_train_timesteps, dtype=np.float32)[::-1].copy()
-        self.timesteps = ms.Tensor(timesteps)
+        self.timesteps = ms.tensor(timesteps)
         self.model_outputs = [None] * solver_order
         self.sample = None
         self.order_list = self.get_order_list(num_train_timesteps)
@@ -333,7 +336,7 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
         else:
             # Clipping the minimum of all lambda(t) for numerical stability.
             # This is critical for cosine (squaredcos_cap_v2) noise schedule.
-            clipped_idx = np.searchsorted(ops.flip(self.lambda_t, [0]).asnumpy(), self.config.lambda_min_clipped)
+            clipped_idx = np.searchsorted(mint.flip(self.lambda_t, [0]).asnumpy(), self.config.lambda_min_clipped)
             clipped_idx = clipped_idx.item()
             timesteps = (
                 np.linspace(0, self.config.num_train_timesteps - 1 - clipped_idx, num_inference_steps + 1)
@@ -374,7 +377,7 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
             )
         sigmas = np.concatenate([sigmas, [sigma_last]]).astype(np.float32)
 
-        self.sigmas = ms.Tensor(sigmas)
+        self.sigmas = ms.tensor(sigmas)
 
         self.timesteps = ms.tensor(timesteps, dtype=ms.int64)
         self.model_outputs = [None] * self.config.solver_order
@@ -409,7 +412,7 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
         pixels from saturation at each step. We find that dynamic thresholding results in significantly better
         photorealism as well as better image-text alignment, especially when using very large guidance weights."
 
-        https://arxiv.org/abs/2205.11487
+        https://huggingface.co/papers/2205.11487
         """
         dtype = sample.dtype
         batch_size, channels, *remaining_dims = sample.shape
@@ -423,11 +426,11 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
         abs_sample = sample.abs()  # "a certain percentile absolute pixel value"
 
         s = ms.Tensor.from_numpy(np.quantile(abs_sample.asnumpy(), self.config.dynamic_thresholding_ratio, axis=1))
-        s = ops.clamp(
+        s = mint.clamp(
             s, min=1, max=self.config.sample_max_value
         )  # When clamped to min=1, equivalent to standard clipping to [-1, 1]
         s = s.unsqueeze(1)  # (batch_size, 1) because clamp will broadcast along dim=0
-        sample = ops.clamp(sample, -s, s) / s  # "we threshold xt0 to the range [-s, s] and then divide by s"
+        sample = mint.clamp(sample, -s, s) / s  # "we threshold xt0 to the range [-s, s] and then divide by s"
 
         sample = sample.reshape(batch_size, channels, *remaining_dims)
         sample = sample.to(dtype)
@@ -584,7 +587,7 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 1:
                 sample = args[1]
             else:
-                raise ValueError("missing `sample` as a required keyward argument")
+                raise ValueError("missing `sample` as a required keyword argument")
         if timestep is not None:
             deprecate(
                 "timesteps",
@@ -682,7 +685,7 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 2:
                 sample = args[2]
             else:
-                raise ValueError(" missing `sample` as a required keyward argument")
+                raise ValueError("missing `sample` as a required keyword argument")
         if timestep is not None:
             deprecate(
                 "timesteps",
@@ -699,19 +702,19 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
         sigma_t, sigma_s = sigmas[self.step_index + 1], sigmas[self.step_index]
         alpha_t, sigma_t = self._sigma_to_alpha_sigma_t(sigma_t)
         alpha_s, sigma_s = self._sigma_to_alpha_sigma_t(sigma_s)
-        lambda_t = ops.log(alpha_t) - ops.log(sigma_t)
-        lambda_s = ops.log(alpha_s) - ops.log(sigma_s)
+        lambda_t = mint.log(alpha_t) - mint.log(sigma_t)
+        lambda_s = mint.log(alpha_s) - mint.log(sigma_s)
         h = lambda_t - lambda_s
         if self.config.algorithm_type == "dpmsolver++":
-            x_t = (sigma_t / sigma_s) * sample - (alpha_t * (ops.exp(-h) - 1.0)) * model_output
+            x_t = (sigma_t / sigma_s) * sample - (alpha_t * (mint.exp(-h) - 1.0)) * model_output
         elif self.config.algorithm_type == "dpmsolver":
-            x_t = (alpha_t / alpha_s) * sample - (sigma_t * (ops.exp(h) - 1.0)) * model_output
+            x_t = (alpha_t / alpha_s) * sample - (sigma_t * (mint.exp(h) - 1.0)) * model_output
         elif self.config.algorithm_type == "sde-dpmsolver++":
             assert noise is not None
             x_t = (
-                (sigma_t / sigma_s * ops.exp(-h)) * sample
-                + (alpha_t * (1 - ops.exp(-2.0 * h))) * model_output
-                + sigma_t * ops.sqrt(1.0 - ops.exp(-2 * h)) * noise
+                (sigma_t / sigma_s * mint.exp(-h)) * sample
+                + (alpha_t * (1 - mint.exp(-2.0 * h))) * model_output
+                + sigma_t * mint.sqrt(1.0 - mint.exp(-2 * h)) * noise
             )
         return x_t
 
@@ -748,7 +751,7 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 2:
                 sample = args[2]
             else:
-                raise ValueError(" missing `sample` as a required keyward argument")
+                raise ValueError("missing `sample` as a required keyword argument")
         if timestep_list is not None:
             deprecate(
                 "timestep_list",
@@ -772,9 +775,9 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
         alpha_s0, sigma_s0 = self._sigma_to_alpha_sigma_t(sigma_s0)
         alpha_s1, sigma_s1 = self._sigma_to_alpha_sigma_t(sigma_s1)
 
-        lambda_t = ops.log(alpha_t) - ops.log(sigma_t)
-        lambda_s0 = ops.log(alpha_s0) - ops.log(sigma_s0)
-        lambda_s1 = ops.log(alpha_s1) - ops.log(sigma_s1)
+        lambda_t = mint.log(alpha_t) - mint.log(sigma_t)
+        lambda_s0 = mint.log(alpha_s0) - mint.log(sigma_s0)
+        lambda_s1 = mint.log(alpha_s1) - mint.log(sigma_s1)
 
         m0, m1 = model_output_list[-1], model_output_list[-2]
 
@@ -782,48 +785,48 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
         r0 = h_0 / h
         D0, D1 = m1, (1.0 / r0) * (m0 - m1)
         if self.config.algorithm_type == "dpmsolver++":
-            # See https://arxiv.org/abs/2211.01095 for detailed derivations
+            # See https://huggingface.co/papers/2211.01095 for detailed derivations
             if self.config.solver_type == "midpoint":
                 x_t = (
                     (sigma_t / sigma_s1) * sample
-                    - (alpha_t * (ops.exp(-h) - 1.0)) * D0
-                    - 0.5 * (alpha_t * (ops.exp(-h) - 1.0)) * D1
+                    - (alpha_t * (mint.exp(-h) - 1.0)) * D0
+                    - 0.5 * (alpha_t * (mint.exp(-h) - 1.0)) * D1
                 )
             elif self.config.solver_type == "heun":
                 x_t = (
                     (sigma_t / sigma_s1) * sample
-                    - (alpha_t * (ops.exp(-h) - 1.0)) * D0
-                    + (alpha_t * ((ops.exp(-h) - 1.0) / h + 1.0)) * D1
+                    - (alpha_t * (mint.exp(-h) - 1.0)) * D0
+                    + (alpha_t * ((mint.exp(-h) - 1.0) / h + 1.0)) * D1
                 )
         elif self.config.algorithm_type == "dpmsolver":
-            # See https://arxiv.org/abs/2206.00927 for detailed derivations
+            # See https://huggingface.co/papers/2206.00927 for detailed derivations
             if self.config.solver_type == "midpoint":
                 x_t = (
                     (alpha_t / alpha_s1) * sample
-                    - (sigma_t * (ops.exp(h) - 1.0)) * D0
-                    - 0.5 * (sigma_t * (ops.exp(h) - 1.0)) * D1
+                    - (sigma_t * (mint.exp(h) - 1.0)) * D0
+                    - 0.5 * (sigma_t * (mint.exp(h) - 1.0)) * D1
                 )
             elif self.config.solver_type == "heun":
                 x_t = (
                     (alpha_t / alpha_s1) * sample
-                    - (sigma_t * (ops.exp(h) - 1.0)) * D0
-                    - (sigma_t * ((ops.exp(h) - 1.0) / h - 1.0)) * D1
+                    - (sigma_t * (mint.exp(h) - 1.0)) * D0
+                    - (sigma_t * ((mint.exp(h) - 1.0) / h - 1.0)) * D1
                 )
         elif self.config.algorithm_type == "sde-dpmsolver++":
             assert noise is not None
             if self.config.solver_type == "midpoint":
                 x_t = (
-                    (sigma_t / sigma_s1 * ops.exp(-h)) * sample
-                    + (alpha_t * (1 - ops.exp(-2.0 * h))) * D0
-                    + 0.5 * (alpha_t * (1 - ops.exp(-2.0 * h))) * D1
-                    + sigma_t * ops.sqrt(1.0 - ops.exp(-2 * h)) * noise
+                    (sigma_t / sigma_s1 * mint.exp(-h)) * sample
+                    + (alpha_t * (1 - mint.exp(-2.0 * h))) * D0
+                    + 0.5 * (alpha_t * (1 - mint.exp(-2.0 * h))) * D1
+                    + sigma_t * mint.sqrt(1.0 - mint.exp(-2 * h)) * noise
                 )
             elif self.config.solver_type == "heun":
                 x_t = (
-                    (sigma_t / sigma_s1 * ops.exp(-h)) * sample
-                    + (alpha_t * (1 - ops.exp(-2.0 * h))) * D0
-                    + (alpha_t * ((1.0 - ops.exp(-2.0 * h)) / (-2.0 * h) + 1.0)) * D1
-                    + sigma_t * ops.sqrt(1.0 - ops.exp(-2 * h)) * noise
+                    (sigma_t / sigma_s1 * mint.exp(-h)) * sample
+                    + (alpha_t * (1 - mint.exp(-2.0 * h))) * D0
+                    + (alpha_t * ((1.0 - mint.exp(-2.0 * h)) / (-2.0 * h) + 1.0)) * D1
+                    + sigma_t * mint.sqrt(1.0 - mint.exp(-2 * h)) * noise
                 )
         return x_t
 
@@ -861,7 +864,7 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 2:
                 sample = args[2]
             else:
-                raise ValueError(" missing`sample` as a required keyward argument")
+                raise ValueError("missing `sample` as a required keyword argument")
         if timestep_list is not None:
             deprecate(
                 "timestep_list",
@@ -888,10 +891,10 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
         alpha_s1, sigma_s1 = self._sigma_to_alpha_sigma_t(sigma_s1)
         alpha_s2, sigma_s2 = self._sigma_to_alpha_sigma_t(sigma_s2)
 
-        lambda_t = ops.log(alpha_t) - ops.log(sigma_t)
-        lambda_s0 = ops.log(alpha_s0) - ops.log(sigma_s0)
-        lambda_s1 = ops.log(alpha_s1) - ops.log(sigma_s1)
-        lambda_s2 = ops.log(alpha_s2) - ops.log(sigma_s2)
+        lambda_t = mint.log(alpha_t) - mint.log(sigma_t)
+        lambda_s0 = mint.log(alpha_s0) - mint.log(sigma_s0)
+        lambda_s1 = mint.log(alpha_s1) - mint.log(sigma_s1)
+        lambda_s2 = mint.log(alpha_s2) - mint.log(sigma_s2)
 
         m0, m1, m2 = model_output_list[-1], model_output_list[-2], model_output_list[-3]
 
@@ -902,51 +905,51 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
         D1 = (r0 * D1_0 - r1 * D1_1) / (r0 - r1)
         D2 = 2.0 * (D1_1 - D1_0) / (r0 - r1)
         if self.config.algorithm_type == "dpmsolver++":
-            # See https://arxiv.org/abs/2206.00927 for detailed derivations
+            # See https://huggingface.co/papers/2206.00927 for detailed derivations
             if self.config.solver_type == "midpoint":
                 x_t = (
                     (sigma_t / sigma_s2) * sample
-                    - (alpha_t * (ops.exp(-h) - 1.0)) * D0
-                    + (alpha_t * ((ops.exp(-h) - 1.0) / h + 1.0)) * D1_1
+                    - (alpha_t * (mint.exp(-h) - 1.0)) * D0
+                    + (alpha_t * ((mint.exp(-h) - 1.0) / h + 1.0)) * D1_1
                 )
             elif self.config.solver_type == "heun":
                 x_t = (
                     (sigma_t / sigma_s2) * sample
-                    - (alpha_t * (ops.exp(-h) - 1.0)) * D0
-                    + (alpha_t * ((ops.exp(-h) - 1.0) / h + 1.0)) * D1
-                    - (alpha_t * ((ops.exp(-h) - 1.0 + h) / h**2 - 0.5)) * D2
+                    - (alpha_t * (mint.exp(-h) - 1.0)) * D0
+                    + (alpha_t * ((mint.exp(-h) - 1.0) / h + 1.0)) * D1
+                    - (alpha_t * ((mint.exp(-h) - 1.0 + h) / h**2 - 0.5)) * D2
                 )
         elif self.config.algorithm_type == "dpmsolver":
-            # See https://arxiv.org/abs/2206.00927 for detailed derivations
+            # See https://huggingface.co/papers/2206.00927 for detailed derivations
             if self.config.solver_type == "midpoint":
                 x_t = (
                     (alpha_t / alpha_s2) * sample
-                    - (sigma_t * (ops.exp(h) - 1.0)) * D0
-                    - (sigma_t * ((ops.exp(h) - 1.0) / h - 1.0)) * D1_1
+                    - (sigma_t * (mint.exp(h) - 1.0)) * D0
+                    - (sigma_t * ((mint.exp(h) - 1.0) / h - 1.0)) * D1_1
                 )
             elif self.config.solver_type == "heun":
                 x_t = (
                     (alpha_t / alpha_s2) * sample
-                    - (sigma_t * (ops.exp(h) - 1.0)) * D0
-                    - (sigma_t * ((ops.exp(h) - 1.0) / h - 1.0)) * D1
-                    - (sigma_t * ((ops.exp(h) - 1.0 - h) / h**2 - 0.5)) * D2
+                    - (sigma_t * (mint.exp(h) - 1.0)) * D0
+                    - (sigma_t * ((mint.exp(h) - 1.0) / h - 1.0)) * D1
+                    - (sigma_t * ((mint.exp(h) - 1.0 - h) / h**2 - 0.5)) * D2
                 )
         elif self.config.algorithm_type == "sde-dpmsolver++":
             assert noise is not None
             if self.config.solver_type == "midpoint":
                 x_t = (
-                    (sigma_t / sigma_s2 * ops.exp(-h)) * sample
-                    + (alpha_t * (1.0 - ops.exp(-2.0 * h))) * D0
-                    + (alpha_t * ((1.0 - ops.exp(-2.0 * h)) / (-2.0 * h) + 1.0)) * D1_1
-                    + sigma_t * ops.sqrt(1.0 - ops.exp(-2 * h)) * noise
+                    (sigma_t / sigma_s2 * mint.exp(-h)) * sample
+                    + (alpha_t * (1.0 - mint.exp(-2.0 * h))) * D0
+                    + (alpha_t * ((1.0 - mint.exp(-2.0 * h)) / (-2.0 * h) + 1.0)) * D1_1
+                    + sigma_t * mint.sqrt(1.0 - mint.exp(-2 * h)) * noise
                 )
             elif self.config.solver_type == "heun":
                 x_t = (
-                    (sigma_t / sigma_s2 * ops.exp(-h)) * sample
-                    + (alpha_t * (1.0 - ops.exp(-2.0 * h))) * D0
-                    + (alpha_t * ((1.0 - ops.exp(-2.0 * h)) / (-2.0 * h) + 1.0)) * D1
-                    + (alpha_t * ((1.0 - ops.exp(-2.0 * h) + (-2.0 * h)) / (-2.0 * h) ** 2 - 0.5)) * D2
-                    + sigma_t * ops.sqrt(1.0 - ops.exp(-2 * h)) * noise
+                    (sigma_t / sigma_s2 * mint.exp(-h)) * sample
+                    + (alpha_t * (1.0 - mint.exp(-2.0 * h))) * D0
+                    + (alpha_t * ((1.0 - mint.exp(-2.0 * h)) / (-2.0 * h) + 1.0)) * D1
+                    + (alpha_t * ((1.0 - mint.exp(-2.0 * h) + (-2.0 * h)) / (-2.0 * h) ** 2 - 0.5)) * D2
+                    + sigma_t * mint.sqrt(1.0 - mint.exp(-2 * h)) * noise
                 )
         return x_t
 
@@ -984,12 +987,12 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 2:
                 sample = args[2]
             else:
-                raise ValueError(" missing`sample` as a required keyward argument")
+                raise ValueError("missing `sample` as a required keyword argument")
         if order is None:
             if len(args) > 3:
                 order = args[3]
             else:
-                raise ValueError(" missing `order` as a required keyward argument")
+                raise ValueError("missing `order` as a required keyword argument")
         if timestep_list is not None:
             deprecate(
                 "timestep_list",
@@ -1155,7 +1158,7 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
         sigma = sigmas[step_indices].flatten()
         # while len(sigma.shape) < len(original_samples.shape):
         #     sigma = sigma.unsqueeze(-1)
-        sigma = ops.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sigma = mint.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         alpha_t, sigma_t = self._sigma_to_alpha_sigma_t(sigma)
         noisy_samples = alpha_t * original_samples + sigma_t * noise

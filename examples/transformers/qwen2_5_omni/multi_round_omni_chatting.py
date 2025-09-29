@@ -3,15 +3,13 @@ Multi Round Omni Chatting with Qwen2.5-Omni
 This script demonstrates how to use Qwen2.5-Omni for multiple rounds of audio and video dialogues.
 """
 
-import numpy as np
 import soundfile as sf
+from qwen_omni_utils import process_mm_info
 
 import mindspore as ms
 
 from mindone.transformers import Qwen2_5OmniForConditionalGeneration
 from mindone.transformers.models.qwen2_5_omni import Qwen2_5OmniProcessor
-
-from .qwen_omni_utils import process_mm_info
 
 
 def inference(conversations):
@@ -28,10 +26,7 @@ def inference(conversations):
     )
     # convert input to Tensor
     for key, value in inputs.items():  # by default input numpy array or list
-        if isinstance(value, np.ndarray):
-            inputs[key] = ms.Tensor(value)
-        elif isinstance(value, list):
-            inputs[key] = ms.Tensor(value)
+        inputs[key] = ms.Tensor(value)
         if inputs[key].dtype == ms.int64:
             inputs[key] = inputs[key].to(ms.int32)
         else:

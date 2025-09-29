@@ -1,3 +1,6 @@
+# This code is adapted from https://github.com/SparkAudio/Spark-TTS
+# with modifications to run on MindSpore.
+
 from typing import List
 
 from einx import get_at
