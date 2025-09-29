@@ -45,8 +45,6 @@ def test_named_modules(
     dtype,
     mode,
 ):
-    ms.set_context(mode=mode, jit_syntax_level=ms.STRICT)
-
     (
         pt_model,
         ms_model,
@@ -65,6 +63,8 @@ def test_named_modules(
 
     with torch.no_grad():
         pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
+    if mode == 0:
+        ms_model.construct = ms.jit(ms_model.construct)
     ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
 
     diffs = compute_diffs(pt_outputs, ms_outputs)

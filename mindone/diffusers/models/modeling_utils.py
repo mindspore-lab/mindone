@@ -18,6 +18,7 @@
 # limitations under the License.
 
 import copy
+import functools
 import inspect
 import json
 import os
@@ -40,6 +41,7 @@ from mindone.safetensors.mindspore import save_file as safe_save_file
 from .. import __version__
 from ..utils import (
     CONFIG_NAME,
+    HF_ENABLE_PARALLEL_LOADING,
     SAFE_WEIGHTS_INDEX_NAME,
     SAFETENSORS_WEIGHTS_NAME,
     WEIGHTS_INDEX_NAME,
@@ -54,7 +56,8 @@ from ..utils.hub_utils import PushToHubMixin, load_or_create_model_card, populat
 from .model_loading_utils import (
     _fetch_index_file,
     _fetch_index_file_legacy,
-    _load_state_dict_into_model,
+    _load_shard_file,
+    _load_shard_files_with_threadpool,
     load_state_dict,
     split_torch_state_dict_into_shards,
 )
@@ -131,15 +134,28 @@ def _convert_state_dict(m, state_dict_pt):
     return state_dict_ms
 
 
-def get_parameter_dtype(module: nn.Cell) -> ms.Type:
+def get_parameter_dtype(parameter: nn.Cell) -> ms.Type:
     """
     Returns the first found floating dtype in parameters if there is one, otherwise returns the last dtype it found.
     """
     last_dtype = None
-    for param in module.get_parameters():
+
+    for name, param in parameter.parameters_and_names():
         last_dtype = param.dtype
+        if (
+            hasattr(parameter, "_keep_in_fp32_modules")
+            and parameter._keep_in_fp32_modules
+            and any(m in name for m in parameter._keep_in_fp32_modules)
+        ):
+            continue
+
         if param.is_floating_point():
             return param.dtype
+
+    for buffer in parameter.buffers():
+        last_dtype = buffer.dtype
+        if buffer.is_floating_point():
+            return buffer.dtype
 
     if last_dtype is not None:
         # if no floating dtype was found return whatever the first dtype is
@@ -164,6 +180,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
     _keep_in_fp32_modules = None
     _skip_layerwise_casting_patterns = None
     _supports_group_offloading = True
+    _repeated_blocks = []
 
     def __init__(self):
         super().__init__()
@@ -622,8 +639,8 @@ class ModelMixin(nn.Cell, PushToHubMixin):
 
         <Tip>
 
-        To use private or [gated models](https://huggingface.co/docs/hub/models-gated#gated-models), log-in with
-        `huggingface-cli login`. You can also activate the special
+        To use private or [gated models](https://huggingface.co/docs/hub/models-gated#gated-models), log-in with `hf
+        auth login`. You can also activate the special
         ["offline-mode"](https://huggingface.co/diffusers/installation.html#offline-mode) to use this method in a
         firewalled environment.
 
@@ -661,6 +678,10 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         use_safetensors = kwargs.pop("use_safetensors", None)
         dduf_entries: Optional[Dict[str, DDUFEntry]] = kwargs.pop("dduf_entries", None)
         disable_mmap = kwargs.pop("disable_mmap", False)
+
+        is_parallel_loading_enabled = HF_ENABLE_PARALLEL_LOADING
+        if is_parallel_loading_enabled:
+            raise NotImplementedError("Parallel loading is not supported.")
 
         if mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
             mindspore_dtype = ms.float32
@@ -706,14 +727,27 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         # use_keep_in_fp32_modules = cls._keep_in_fp32_modules is not None and (
         #     hf_quantizer is None or getattr(hf_quantizer, "use_keep_in_fp32_modules", False)
         # )
-        use_keep_in_fp32_modules = cls._keep_in_fp32_modules is not None
 
-        if use_keep_in_fp32_modules:
-            keep_in_fp32_modules = cls._keep_in_fp32_modules
-            if not isinstance(keep_in_fp32_modules, list):
-                keep_in_fp32_modules = [keep_in_fp32_modules]
-        else:
-            keep_in_fp32_modules = []
+        # if use_keep_in_fp32_modules:
+        #     keep_in_fp32_modules = cls._keep_in_fp32_modules
+        #     if not isinstance(keep_in_fp32_modules, list):
+        #         keep_in_fp32_modules = [keep_in_fp32_modules]
+
+        #     if low_cpu_mem_usage is None:
+        #         low_cpu_mem_usage = True
+        #         logger.info("Set `low_cpu_mem_usage` to True as `_keep_in_fp32_modules` is not None.")
+        #     elif not low_cpu_mem_usage:
+        #         raise ValueError("`low_cpu_mem_usage` cannot be False when `keep_in_fp32_modules` is True.")
+        # else:
+        #     keep_in_fp32_modules = []
+
+        # Check if `_keep_in_fp32_modules` is not None
+        # use_keep_in_fp32_modules = cls._keep_in_fp32_modules is not None
+
+        # FIXME: In MindONE we don't support `low_cpu_mem_usage`,
+        # which is required to selectively keep some modules in fp32.
+        # Therefore, we disable this feature by setting `keep_in_fp32_modules = []`.
+        keep_in_fp32_modules = []
 
         is_sharded = False
         resolved_model_file = None
@@ -851,6 +885,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             dtype=mindspore_dtype,
             keep_in_fp32_modules=keep_in_fp32_modules,
             dduf_entries=dduf_entries,
+            is_parallel_loading_enabled=is_parallel_loading_enabled,
         )
         loading_info = {
             "missing_keys": missing_keys,
@@ -887,6 +922,39 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             p.set_dtype(ms.float32)
         return self
 
+    def compile_repeated_blocks(self, *args, **kwargs):
+        """
+        Compiles *only* the frequently repeated sub-modules of a model (e.g. the Transformer layers) instead of
+        compiling the entire model. This technique—often called **regional compilation** (see the PyTorch recipe
+        https://docs.pytorch.org/tutorials/recipes/regional_compilation.html) can reduce end-to-end compile time
+        substantially, while preserving the runtime speed-ups you would expect from a full `torch.compile`.
+
+        The set of sub-modules to compile is discovered by the presence of **`_repeated_blocks`** attribute in the
+        model definition. Define this attribute on your model subclass as a list/tuple of class names (strings). Every
+        module whose class name matches will be compiled.
+
+        Once discovered, each matching sub-module is compiled by calling `submodule.compile(*args, **kwargs)`. Any
+        positional or keyword arguments you supply to `compile_repeated_blocks` are forwarded verbatim to
+        `torch.compile`.
+        """
+        repeated_blocks = getattr(self, "_repeated_blocks", None)
+
+        if not repeated_blocks:
+            raise ValueError(
+                "`_repeated_blocks` attribute is empty. "
+                f"Set `_repeated_blocks` for the class `{self.__class__.__name__}` to benefit from faster compilation. "
+            )
+        has_compiled_region = False
+        for submod in self.cells():
+            if submod.__class__.__name__ in repeated_blocks:
+                submod.construct = ms.jit(submod.construct)
+                has_compiled_region = True
+
+        if not has_compiled_region:
+            raise ValueError(
+                f"Regional compilation failed because {repeated_blocks} classes are not found in the model. "
+            )
+
     @classmethod
     def _load_pretrained_model(
         cls,
@@ -899,6 +967,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         dtype: Optional[Union[str, ms.Type]] = None,
         keep_in_fp32_modules: Optional[List[str]] = None,
         dduf_entries: Optional[Dict[str, DDUFEntry]] = None,
+        is_parallel_loading_enabled: Optional[bool] = False,
     ):
         model_state_dict = {k: v for k, v in model.parameters_and_names()}
         expected_keys = list(model_state_dict.keys())
@@ -911,54 +980,44 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                 unexpected_keys = [k for k in unexpected_keys if re.search(pat, k) is None]
 
         mismatched_keys = []
-
         error_msgs = []
 
+        offload_index = None
+        state_dict_folder, state_dict_index = None, None
         if state_dict is not None:
             # load_state_dict will manage the case where we pass a dict instead of a file
             # if state dict is not None, it means that we don't need to read the files from resolved_model_file also
             resolved_model_file = [state_dict]
 
-        if len(resolved_model_file) > 1:
-            resolved_model_file = logging.tqdm(resolved_model_file, desc="Loading checkpoint shards")
+        # Prepare the loading function sharing the attributes shared between them.
+        load_fn = functools.partial(
+            _load_shard_files_with_threadpool if is_parallel_loading_enabled else _load_shard_file,
+            model=model,
+            model_state_dict=model_state_dict,
+            dtype=dtype,
+            keep_in_fp32_modules=keep_in_fp32_modules,
+            dduf_entries=dduf_entries,
+            loaded_keys=loaded_keys,
+            unexpected_keys=unexpected_keys,
+            offload_index=offload_index,
+            state_dict_index=state_dict_index,
+            state_dict_folder=state_dict_folder,
+            ignore_mismatched_sizes=ignore_mismatched_sizes,
+        )
 
-        for shard_file in resolved_model_file:
-            state_dict = load_state_dict(shard_file, dduf_entries=dduf_entries)
-
-            def _find_mismatched_keys(
-                state_dict,
-                model_state_dict,
-                loaded_keys,
-                ignore_mismatched_sizes,
-            ):
-                mismatched_keys = []
-                if ignore_mismatched_sizes:
-                    for checkpoint_key in loaded_keys:
-                        model_key = checkpoint_key
-                        # If the checkpoint is sharded, we may not have the key here.
-                        if checkpoint_key not in state_dict:
-                            continue
-
-                        if (
-                            model_key in model_state_dict
-                            and state_dict[checkpoint_key].shape != model_state_dict[model_key].shape
-                        ):
-                            mismatched_keys.append(
-                                (checkpoint_key, state_dict[checkpoint_key].shape, model_state_dict[model_key].shape)
-                            )
-                            del state_dict[checkpoint_key]
-                return mismatched_keys
-
-            mismatched_keys += _find_mismatched_keys(
-                state_dict,
-                model_state_dict,
-                loaded_keys,
-                ignore_mismatched_sizes,
-            )
+        if is_parallel_loading_enabled:
+            offload_index, state_dict_index, _mismatched_keys, _error_msgs = load_fn(resolved_model_file)
+            error_msgs += _error_msgs
+            mismatched_keys += _mismatched_keys
+        else:
+            shard_files = resolved_model_file
             if len(resolved_model_file) > 1:
-                error_msgs += _load_state_dict_into_model(model, state_dict, is_sharded=True)
-            else:
-                error_msgs += _load_state_dict_into_model(model, state_dict, is_sharded=False)
+                shard_files = logging.tqdm(resolved_model_file, desc="Loading checkpoint shards")
+
+            for shard_file in shard_files:
+                offload_index, state_dict_index, _mismatched_keys, _error_msgs = load_fn(shard_file)
+                error_msgs += _error_msgs
+                mismatched_keys += _mismatched_keys
 
         offload_index = None
 
@@ -1304,4 +1363,7 @@ class LegacyModelMixin(ModelMixin):
         # resolve remapping
         remapped_class = _fetch_remapped_cls_from_config(config, cls)
 
-        return remapped_class.from_pretrained(pretrained_model_name_or_path, **kwargs_copy)
+        if remapped_class is cls:
+            return super(LegacyModelMixin, remapped_class).from_pretrained(pretrained_model_name_or_path, **kwargs_copy)
+        else:
+            return remapped_class.from_pretrained(pretrained_model_name_or_path, **kwargs_copy)
