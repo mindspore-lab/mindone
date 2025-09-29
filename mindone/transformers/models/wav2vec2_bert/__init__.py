@@ -14,4 +14,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .modeling_xlm_roberta import *
+
+from .modeling_wav2vec2_bert import *
+from .processing_wav2vec2_bert import *

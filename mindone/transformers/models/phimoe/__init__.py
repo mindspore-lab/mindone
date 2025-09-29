@@ -1,4 +1,4 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2024 Microsoft and The HuggingFace Inc. team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/transformers
 # with modifications to run transformers on mindspore.
@@ -14,4 +14,5 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .modeling_xlm_roberta import *
+
+from .modeling_phimoe import *

@@ -1,4 +1,4 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2024 Cohere and The HuggingFace Inc. team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/transformers
 # with modifications to run transformers on mindspore.
@@ -12,6 +12,5 @@
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-from .modeling_xlm_roberta import *
+# See the License for the specific language gov
+from .modeling_cohere import CohereForCausalLM, CohereModel, CoherePreTrainedModel

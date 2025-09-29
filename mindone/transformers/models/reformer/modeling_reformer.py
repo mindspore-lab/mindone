@@ -829,6 +829,8 @@ class LSHSelfAttention(mindspore.nn.Cell, EfficientAttentionMixin):
         logits = mindspore.mint.logsumexp(query_key_dots, dim=-1, keepdim=True)
         # dots shape is `[batch_size, num_attn_heads, num_hashes * seq_len
         # // chunk_length, chunk_length, chunk_length * (1 + num_chunks_before + num_chunks_after)]`
+        # dots shape is `[batch_size, num_attn_heads, num_hashes * seq_len // chunk_length,
+        # chunk_length, chunk_length * (1 + num_chunks_before + num_chunks_after)]`
         attention_probs = mindspore.mint.exp(query_key_dots - logits)
 
         # free memory
@@ -1763,26 +1765,25 @@ class ReformerModelOutput(ModelOutput):
     Output type of [`ReformerModel`].
 
     Args:
-        last_hidden_state (`torch.FloatTensor` of shape `(batch_size, num_predict, hidden_size)`):
+        last_hidden_state (`ms.Tensor` of shape `(batch_size, num_predict, hidden_size)`):
             Sequence of hidden-states at the last layer of the model.
 
             `num_predict` corresponds to `target_mapping.shape[1]`. If `target_mapping` is `None`, then `num_predict`
             corresponds to `sequence_length`.
-        past_buckets_states (`List[Tuple(torch.LongTensor, torch.FloatTensor)]`, *optional*,
-            returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            List of `Tuple(torch.LongTensor, torch.FloatTensor` of length `config.n_layers`, with the first element
+        past_buckets_states (`List[Tuple(ms.Tensor, ms.Tensor)]`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            List of `Tuple(ms.Tensor, ms.Tensor` of length `config.n_layers`, with the first element
+            
             being the previous *buckets* of shape `(batch_size, num_heads, num_hashes, sequence_length)`) and the
             second being the previous *hidden_states* of shape `(batch_size, sequence_length, hidden_size)`).
-
             Contains precomputed buckets and hidden-states that can be used (see `past_buckets_states` input) to speed
             up sequential decoding.
-        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings and one for the output of each layer) of
+        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `ms.Tensor` (one for the output of the embeddings and one for the output of each layer) of
             shape `(batch_size, sequence_length, hidden_size)`.
 
             Hidden-states of the model at the output of each layer plus the initial embedding outputs.
-        attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`.
 
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
@@ -1801,28 +1802,28 @@ class ReformerModelWithLMHeadOutput(ModelOutput):
     Output type of [`ReformerModelWithLMHead`].
 
     Args:
-        loss (`torch.FloatTensor` of shape *(1,)*, *optional*, returned when `labels` is provided)
+        loss (`ms.Tensor` of shape *(1,)*, *optional*, returned when `labels` is provided)
             Language modeling loss (for next-token prediction).
-        logits (`torch.FloatTensor` of shape `(batch_size, num_predict, config.vocab_size)`):
+        logits (`ms.Tensor` of shape `(batch_size, num_predict, config.vocab_size)`):
             Prediction scores of the language modeling head (scores for each vocabulary token before SoftMax).
 
             `num_predict` corresponds to `target_mapping.shape[1]`. If `target_mapping` is `None`, then `num_predict`
             corresponds to `sequence_length`.
-        past_buckets_states (`List[Tuple(torch.LongTensor, torch.FloatTensor)]`, *optional*,
-            returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            List of `Tuple(torch.LongTensor, torch.FloatTensor` of length `config.n_layers`, with the first element
+        past_buckets_states (`List[Tuple(ms.Tensor, ms.Tensor)]`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            List of `Tuple(ms.Tensor, ms.Tensor` of length `config.n_layers`, with the first element
+
             being the previous *buckets* of shape `(batch_size, num_heads, num_hashes, sequence_length)`) and the
             second being the previous *hidden_states* of shape `(batch_size, sequence_length, hidden_size)`).
 
             Contains precomputed buckets and hidden-states that can be used (see `past_buckets_states` input) to speed
             up sequential decoding.
-        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            TTuple of `torch.FloatTensor` (one for the output of the embeddings and one for the output of each layer)
+        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            TTuple of `ms.Tensor` (one for the output of the embeddings and one for the output of each layer)
             of shape `(batch_size, sequence_length, hidden_size)`.
 
             Hidden-states of the model at the output of each layer plus the initial embedding outputs.
-        attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`.
 
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
@@ -1844,8 +1845,8 @@ REFORMER_START_DOCSTRING = r"""
     library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
     etc.)
 
-    This model is also a PyTorch [torch.nn.Module](https://pytorch.org/docs/stable/nn.html#torch.nn.Module) subclass.
-    Use it as a regular PyTorch Module and refer to the PyTorch documentation for all matter related to general usage
+    This model is also a MindSpore [mindspore.nn.Cell](https://www.mindspore.cn/docs/zh-CN/master/api_python/nn/mindspore.nn.Cell.html) subclass.
+    Use it as a regular MindSpore Cell and refer to the MindSpore documentation for all matter related to general usage
     and behavior.
 
     Parameters:
@@ -1856,7 +1857,7 @@ REFORMER_START_DOCSTRING = r"""
 
 REFORMER_INPUTS_DOCSTRING = r"""
     Args:
-        input_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`):
+        input_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`):
             Indices of input sequence tokens in the vocabulary. During training the input_ids sequence_length has to be
             a multiple of the relevant model's chunk lengths (lsh's, local's or both). During evaluation, the indices
             are automatically padded to be a multiple of the chunk length.
@@ -1865,25 +1866,25 @@ REFORMER_INPUTS_DOCSTRING = r"""
             [`PreTrainedTokenizer.__call__`] for details.
 
             [What are input IDs?](../glossary#input-ids)
-        attention_mask (`torch.FloatTensor` of shape `(batch_size, sequence_length)`, *optional*):
+        attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
 
             - 1 for tokens that are **not masked**,
             - 0 for tokens that are **masked**.
 
             [What are attention masks?](../glossary#attention-mask)
-        position_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+        position_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Indices of positions of each input sequence tokens in the position embeddings. Selected in the range `[0,
             config.max_position_embeddings - 1]`.
 
             [What are position IDs?](../glossary#position-ids)
-        head_mask (`torch.FloatTensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
+        head_mask (`ms.Tensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
             Mask to nullify selected heads of the self-attention modules. Mask values selected in `[0, 1]`:
 
             - 1 indicates the head is **not masked**,
             - 0 indicates the head is **masked**.
 
-        inputs_embeds (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
+        inputs_embeds (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
             Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation. This
             is useful if you want more control over how to convert `input_ids` indices into associated vectors than the
             model's internal embedding lookup matrix.
@@ -1892,8 +1893,8 @@ REFORMER_INPUTS_DOCSTRING = r"""
             the default defined in `config.num_hashes`.
 
             For more information, see `num_hashes` in [`ReformerConfig`].
-        past_buckets_states (`List[Tuple(torch.LongTensor, torch.FloatTensor)]`, *optional*):
-            List of `Tuple(torch.LongTensor, torch.FloatTensor` of length `config.n_layers`, with the first element
+        past_buckets_states (`List[Tuple(ms.Tensor, ms.Tensor)]`, *optional*):
+            List of `Tuple(ms.Tensor, ms.Tensor` of length `config.n_layers`, with the first element
             being the previous *buckets* of shape `(batch_size, num_heads, num_hashes, sequence_length)`) and the
             second being the previous *hidden_states* of shape `(batch_size, sequence_length, hidden_size)`).
 
@@ -2179,7 +2180,7 @@ class ReformerModelWithLMHead(ReformerPreTrainedModel, GenerationMixin):
         **kwargs,
     ) -> Union[Tuple, CausalLMOutput]:
         r"""
-        labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
+        labels (`ms.Tensor` of shape `(batch_size,)`, *optional*):
                 Labels for computing the sequence classification/regression loss. Indices should be in `[-100, 0, ...,
                 config.vocab_size - 1]`. All labels set to `-100` are ignored (masked), the loss is only computed for
                 labels in `[0, ..., config.vocab_size]`
@@ -2294,7 +2295,7 @@ class ReformerForMaskedLM(ReformerPreTrainedModel):
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, MaskedLMOutput]:
         r"""
-        labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+        labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
                 Labels for computing the masked language modeling loss. Indices should be in `[-100, 0, ...,
                 config.vocab_size]` (see `input_ids` docstring) Tokens with indices set to `-100` are ignored (masked),
                 the loss is only computed for the tokens with labels
@@ -2311,21 +2312,23 @@ class ReformerForMaskedLM(ReformerPreTrainedModel):
         Example:
 
         ```python
-        >>> import torch
-        >>> from transformers import AutoTokenizer, ReformerForMaskedLM
+        >>> import mindspore as ms
+        >>> from mindspore import mint
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import ReformerForMaskedLM
 
         >>> tokenizer = AutoTokenizer.from_pretrained("hf-internal-testing/tiny-random-reformer")
         >>> model = ReformerForMaskedLM.from_pretrained("hf-internal-testing/tiny-random-reformer")
 
         >>> # add mask_token
         >>> tokenizer.add_special_tokens({"mask_token": "[MASK]"})  # doctest: +IGNORE_RESULT
-        >>> inputs = tokenizer("The capital of France is [MASK].", return_tensors="pt")
+        >>> inputs = tokenizer("The capital of France is [MASK].", return_tensors="np")
+        >>> inputs = {k: ms.tensor(v) for k, v in inputs.items()}
 
         >>> # resize model's embedding matrix
         >>> model.resize_token_embeddings(new_num_tokens=model.config.vocab_size + 1)  # doctest: +IGNORE_RESULT
 
-        >>> with torch.no_grad():
-        ...     logits = model(**inputs).logits
+        >>> logits = model(**inputs).logits
 
         >>> # retrieve index of [MASK]
         >>> mask_token_index = (inputs.input_ids == tokenizer.mask_token_id)[0].nonzero(as_tuple=True)[0]
@@ -2335,9 +2338,9 @@ class ReformerForMaskedLM(ReformerPreTrainedModel):
         ```
 
         ```python
-        >>> labels = tokenizer("The capital of France is Paris.", return_tensors="pt")["input_ids"]
+        >>> labels = ms.tensor(tokenizer("The capital of France is Paris.", return_tensors="np")["input_ids"])
         >>> # mask labels of non-[MASK] tokens
-        >>> labels = torch.where(
+        >>> labels = mint.where(
         ...     inputs.input_ids == tokenizer.mask_token_id, labels[:, : inputs["input_ids"].shape[-1]], -100
         ... )
 
@@ -2417,7 +2420,7 @@ class ReformerForSequenceClassification(ReformerPreTrainedModel):
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, SequenceClassifierOutput]:
         r"""
-        labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
+        labels (`ms.Tensor` of shape `(batch_size,)`, *optional*):
             Labels for computing the sequence classification/regression loss. Indices should be in `[0, ...,
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
@@ -2427,16 +2430,17 @@ class ReformerForSequenceClassification(ReformerPreTrainedModel):
         Example of single-label classification:
 
         ```python
-        >>> import torch
-        >>> from transformers import AutoTokenizer, ReformerForSequenceClassification
+        >>> import mindspore as ms
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import ReformerForSequenceClassification
 
         >>> tokenizer = AutoTokenizer.from_pretrained("google/reformer-crime-and-punishment")
         >>> model = ReformerForSequenceClassification.from_pretrained("google/reformer-crime-and-punishment")
 
-        >>> inputs = tokenizer("Hello, my dog is cute", return_tensors="pt")
+        >>> inputs = tokenizer("Hello, my dog is cute", return_tensors="np")
+        >>> inputs = {k: ms.tensor(v) for k, v in inputs.items()}
 
-        >>> with torch.no_grad():
-        ...     logits = model(**inputs).logits
+        >>> logits = model(**inputs).logits
 
         >>> predicted_class_id = logits.argmax().item()
         >>> label = model.config.id2label[predicted_class_id]
@@ -2449,7 +2453,7 @@ class ReformerForSequenceClassification(ReformerPreTrainedModel):
         ...     "google/reformer-crime-and-punishment", num_labels=num_labels
         ... )
 
-        >>> labels = torch.tensor(1)
+        >>> labels = ms.tensor(1)
         >>> loss = model(**inputs, labels=labels).loss
         ```
         """
@@ -2567,11 +2571,11 @@ class ReformerForQuestionAnswering(ReformerPreTrainedModel):
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, QuestionAnsweringModelOutput]:
         r"""
-        start_positions (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
+        start_positions (`ms.Tensor` of shape `(batch_size,)`, *optional*):
             Labels for position (index) of the start of the labelled span for computing the token classification loss.
             Positions are clamped to the length of the sequence (`sequence_length`). Position outside of the sequence
             are not taken into account for computing the loss.
-        end_positions (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
+        end_positions (`ms.Tensor` of shape `(batch_size,)`, *optional*):
             Labels for position (index) of the end of the labelled span for computing the token classification loss.
             Positions are clamped to the length of the sequence (`sequence_length`). Position outside of the sequence
             are not taken into account for computing the loss.

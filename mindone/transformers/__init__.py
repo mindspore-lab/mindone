@@ -50,6 +50,12 @@ from .models.aria import (
     AriaTextModel,
     AriaTextPreTrainedModel,
 )
+from .models.audio_spectrogram_transformer import (
+    ASTFeatureExtractor,
+    ASTForAudioClassification,
+    ASTModel,
+    ASTPreTrainedModel,
+)
 from .models.auto import (
     MODEL_FOR_AUDIO_CLASSIFICATION_MAPPING,
     MODEL_FOR_AUDIO_FRAME_CLASSIFICATION_MAPPING,
@@ -325,6 +331,7 @@ from .models.clvp import (
     ClvpPreTrainedModel,
 )
 from .models.codegen import CodeGenForCausalLM, CodeGenModel, CodeGenPreTrainedModel
+from .models.cohere import CohereForCausalLM, CohereModel, CoherePreTrainedModel
 from .models.cohere2 import Cohere2ForCausalLM, Cohere2Model, Cohere2PreTrainedModel
 from .models.colpali import ColPaliForRetrieval, ColPaliPreTrainedModel, ColPaliProcessor
 from .models.convbert import (
@@ -924,6 +931,18 @@ from .models.mt5 import (
     MT5Model,
     MT5PreTrainedModel,
 )
+from .models.musicgen import (
+    MusicgenForCausalLM,
+    MusicgenForConditionalGeneration,
+    MusicgenModel,
+    MusicgenPreTrainedModel,
+)
+from .models.musicgen_melody import (
+    MusicgenMelodyForCausalLM,
+    MusicgenMelodyForConditionalGeneration,
+    MusicgenMelodyModel,
+    MusicgenMelodyPreTrainedModel,
+)
 from .models.mvp import (
     MvpForCausalLM,
     MvpForConditionalGeneration,
@@ -1027,6 +1046,7 @@ from .models.phi3 import (
     Phi3Model,
     Phi3PreTrainedModel,
 )
+from .models.phimoe import PhimoeForCausalLM, PhimoeForSequenceClassification, PhimoeModel, PhimoePreTrainedModel
 from .models.pix2struct import (
     Pix2StructForConditionalGeneration,
     Pix2StructPreTrainedModel,
@@ -1362,6 +1382,31 @@ from .models.wav2vec2 import (
     Wav2Vec2PreTrainedModel,
     Wav2Vec2Processor,
 )
+from .models.wav2vec2_bert import (
+    Wav2Vec2BertForAudioFrameClassification,
+    Wav2Vec2BertForCTC,
+    Wav2Vec2BertForSequenceClassification,
+    Wav2Vec2BertForXVector,
+    Wav2Vec2BertModel,
+    Wav2Vec2BertPreTrainedModel,
+)
+from .models.wav2vec2_conformer import (
+    Wav2Vec2ConformerForAudioFrameClassification,
+    Wav2Vec2ConformerForCTC,
+    Wav2Vec2ConformerForPreTraining,
+    Wav2Vec2ConformerForSequenceClassification,
+    Wav2Vec2ConformerForXVector,
+    Wav2Vec2ConformerModel,
+    Wav2Vec2ConformerPreTrainedModel,
+)
+from .models.wavlm import (
+    WavLMForAudioFrameClassification,
+    WavLMForCTC,
+    WavLMForSequenceClassification,
+    WavLMForXVector,
+    WavLMModel,
+    WavLMPreTrainedModel,
+)
 from .models.whisper import (
     WhisperForAudioClassification,
     WhisperForCausalLM,
@@ -1382,7 +1427,16 @@ from .models.xlm import (
     XLMPreTrainedModel,
     XLMWithLMHeadModel,
 )
-from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
+from .models.xlm_roberta import (
+    XLMRobertaForCausalLM,
+    XLMRobertaForMaskedLM,
+    XLMRobertaForMultipleChoice,
+    XLMRobertaForQuestionAnswering,
+    XLMRobertaForSequenceClassification,
+    XLMRobertaForTokenClassification,
+    XLMRobertaModel,
+    XLMRobertaPreTrainedModel,
+)
 from .models.xlm_roberta_xl import (
     XLMRobertaXLForCausalLM,
     XLMRobertaXLForMaskedLM,
