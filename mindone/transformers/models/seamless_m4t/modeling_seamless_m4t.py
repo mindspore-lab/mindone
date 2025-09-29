@@ -26,9 +26,9 @@ from transformers import SeamlessM4TConfig
 from transformers.utils import ModelOutput, logging
 
 import mindspore as ms
-from mindspore import mint, nn, ops, Tensor
+from mindspore import Tensor, mint, nn, ops
+from mindspore.common.initializer import Constant, HeNormal, Normal, Uniform, XavierUniform, initializer
 from mindspore.mint.nn import CrossEntropyLoss
-from mindspore.common.initializer import initializer, Constant, HeNormal, Normal, Uniform, XavierUniform
 
 from ...activations import ACT2FN
 from ...generation import GenerationMixin
@@ -42,11 +42,11 @@ from ...modeling_outputs import (
 )
 from ...modeling_utils import PreTrainedModel
 
-
 logger = logging.get_logger(__name__)
 
 _CHECKPOINT_FOR_DOC = "facebook/hf-seamless-m4t-medium"
 _CONFIG_FOR_DOC = "SeamlessM4TConfig"
+
 
 # Copied from mindone.transformers.models.speecht5.modeling_speecht5.pad_sequence
 def pad_sequence(
@@ -226,7 +226,7 @@ class SeamlessM4TConformerPositionalConvEmbedding(nn.Cell):
             config.hidden_size,
             config.hidden_size,
             kernel_size=config.num_conv_pos_embeddings,
-            pad_mode = "pad",
+            pad_mode="pad",
             padding=config.num_conv_pos_embeddings // 2,
             group=config.num_conv_pos_embedding_groups,
             has_bias=False,
@@ -443,7 +443,7 @@ class SeamlessM4TConformerConvolutionModule(nn.Cell):
         hidden_states = self.pointwise_conv1(hidden_states)
         # => (batch, channel, dim)
         hidden_states = self.glu(hidden_states)
-        
+
         # 1D Depthwise Conv
         hidden_states = self.depthwise_conv(hidden_states)
         hidden_states = self.batch_norm(hidden_states)
@@ -948,9 +948,7 @@ class SeamlessM4TSinusoidalPositionalEmbedding(nn.Cell):
 
         return emb.to(ms.float32)  # torch.get_default_dtype -> float32
 
-    def construct(
-        self, input_ids: ms.Tensor = None, inputs_embeds: ms.Tensor = None, past_key_values_length: int = 0
-    ):
+    def construct(self, input_ids: ms.Tensor = None, inputs_embeds: ms.Tensor = None, past_key_values_length: int = 0):
         if input_ids is not None:
             bsz, seq_len = input_ids.shape
             # Create the position ids from the input token ids. Any padded tokens remain padded.
@@ -964,7 +962,9 @@ class SeamlessM4TSinusoidalPositionalEmbedding(nn.Cell):
         if max_pos > self.weights.shape[0]:
             self.make_weights(max_pos + self.offset, self.embedding_dim, self.padding_idx)
 
-        return ops.stop_gradient(self.weights.index_select(0, position_ids.view(-1)).view(bsz, seq_len, self.weights.shape[-1]))
+        return ops.stop_gradient(
+            self.weights.index_select(0, position_ids.view(-1)).view(bsz, seq_len, self.weights.shape[-1])
+        )
 
     def create_position_ids_from_inputs_embeds(self, inputs_embeds, past_key_values_length):
         """
@@ -978,9 +978,7 @@ class SeamlessM4TSinusoidalPositionalEmbedding(nn.Cell):
         input_shape = inputs_embeds.shape[:-1]
         sequence_length = input_shape[1]
 
-        position_ids = mint.arange(
-            self.padding_idx + 1, sequence_length + self.padding_idx + 1, dtype=ms.int64
-        )
+        position_ids = mint.arange(self.padding_idx + 1, sequence_length + self.padding_idx + 1, dtype=ms.int64)
         return position_ids.unsqueeze(0).expand((input_shape)).contiguous() + past_key_values_length
 
 
@@ -1027,7 +1025,7 @@ class SeamlessM4TAttention(nn.Cell):
             # Create new mask, copy the original to the right side, unmask the past positions in the left side
             new_mask = mint.ones((batch_size, 1, tgt_len, target_src_len), dtype=attention_mask.dtype)
             new_mask[:, :, :, -current_src_len:] = attention_mask
-            new_mask[:, :, :, :target_src_len-current_src_len] = 0
+            new_mask[:, :, :, : target_src_len - current_src_len] = 0
             return new_mask
 
         elif target_src_len < current_src_len:
@@ -1102,6 +1100,7 @@ class SeamlessM4TAttention(nn.Cell):
             return attn_output, attn_weights, past_key_value
         else:
             return attn_output, None, past_key_value
+
 
 # Copied from transformers.models.nllb_moe.modeling_nllb_moe.NllbMoeDenseActDense with NllbMoe->SeamlessM4T,DenseActDense->FeedForwardNetwork, d_model->hidden_size
 class SeamlessM4TFeedForwardNetwork(nn.Cell):
@@ -1340,14 +1339,13 @@ class SeamlessM4TPreTrainedModel(PreTrainedModel):
                 )
         elif isinstance(module, SeamlessM4TConformerPositionalConvEmbedding):
             module.conv.weight.set_data(
-                initializer(Normal(mean=0, 
-                                   std=2 * math.sqrt(1 / (module.conv.kernel_size[0] * module.conv.in_channels))),
-                                   module.conv.weight.shape,
-                                   module.conv.weight.dtype)
+                initializer(
+                    Normal(mean=0, std=2 * math.sqrt(1 / (module.conv.kernel_size[0] * module.conv.in_channels))),
+                    module.conv.weight.shape,
+                    module.conv.weight.dtype,
+                )
             )
-            module.conv.bias.set_data(
-                initializer(Constant(0), module.conv.bias.shape, module.conv.bias.dtype)
-            )
+            module.conv.bias.set_data(initializer(Constant(0), module.conv.bias.shape, module.conv.bias.dtype))
         elif isinstance(module, SeamlessM4TConformerFeatureProjection):
             k = math.sqrt(1 / module.projection.in_features)
             module.projection.weight.set_data(
@@ -1360,14 +1358,10 @@ class SeamlessM4TPreTrainedModel(PreTrainedModel):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
         elif isinstance(module, nn.Conv1d):
-            module.weight.set_data(
-                initializer(HeNormal(), module.weight.shape, module.weight.dtype)
-            )
+            module.weight.set_data(initializer(HeNormal(), module.weight.shape, module.weight.dtype))
             if module.bias is not None:
                 k = math.sqrt(module.group / (module.in_channels * module.kernel_size[0]))
-                module.bias.set_data(
-                    initializer(Uniform(scale=k), module.bias.shape, module.bias.dtype)
-                )
+                module.bias.set_data(initializer(Uniform(scale=k), module.bias.shape, module.bias.dtype))
 
     def _compute_sub_sample_lengths_from_attention_mask(self, attention_mask):
         kernel_size, stride = self.config.adaptor_kernel_size, self.config.adaptor_stride
@@ -1431,6 +1425,7 @@ class SeamlessM4TPreTrainedModel(PreTrainedModel):
 
         return last_hidden_states
 
+
 class SeamlessM4TSpeechEncoder(SeamlessM4TPreTrainedModel):
     main_input_name = "input_features"
 
@@ -1466,7 +1461,7 @@ class SeamlessM4TSpeechEncoder(SeamlessM4TPreTrainedModel):
                 """Both `input_features` and `inputs_embeds` are `None` in `SeamlessM4TSpeechEncoder.forward`.
                 Make sure one of them is not `None`."""
             )
-        
+
         hidden_states = self.feature_projection(input_features)
 
         encoder_outputs = self.encoder(
@@ -1668,9 +1663,7 @@ class SeamlessM4TEncoder(SeamlessM4TPreTrainedModel):
 
         if not return_dict:
             return tuple(v for v in [hidden_states, encoder_states, all_attentions] if v is not None)
-        return BaseModelOutput(
-            last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions
-        )
+        return BaseModelOutput(last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions)
 
 
 class SeamlessM4TDecoder(SeamlessM4TPreTrainedModel):
@@ -1830,7 +1823,7 @@ class SeamlessM4TDecoder(SeamlessM4TPreTrainedModel):
 
         # embed positions
         positions = self.embed_positions(input, past_key_values_length=past_key_values_length)
-        
+
         hidden_states = inputs_embeds + positions
 
         hidden_states = mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
@@ -2136,7 +2129,7 @@ HIFIGAN_START_DOCSTRING = r"""
     etc.)
 
     This model is a Mindspore [mindspore.nn.Cell](https://www.mindspore.cn/docs/zh-CN/master/api_python/nn/mindspore.nn.Cell.html#mindspore.nn.Cell)
-    sub-class. Use it as a regular Mindspore Cell and refer to the Mindspore documentation for all matter related 
+    sub-class. Use it as a regular Mindspore Cell and refer to the Mindspore documentation for all matter related
     to general usage and behavior.
 
     Parameters:
@@ -2409,9 +2402,7 @@ class SeamlessM4TCodeHifiGan(PreTrainedModel):
 
         return input_lengths
 
-    def construct(
-        self, input_ids: ms.Tensor, spkr_id: ms.Tensor, lang_id: ms.Tensor
-    ) -> Tuple[ms.Tensor]:
+    def construct(self, input_ids: ms.Tensor, spkr_id: ms.Tensor, lang_id: ms.Tensor) -> Tuple[ms.Tensor]:
         """
         Args:
             input_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`):
@@ -3302,9 +3293,7 @@ class SeamlessM4TForTextToSpeech(SeamlessM4TPreTrainedModel, GenerationMixin):
         # replace eos per pad
         unit_ids[unit_ids == self.config.t2u_eos_token_id] = self.config.t2u_pad_token_id
         # offset of control symbols
-        unit_ids = mint.where(
-            unit_ids == self.config.t2u_pad_token_id, unit_ids, unit_ids - self.config.vocoder_offset
-        )
+        unit_ids = mint.where(unit_ids == self.config.t2u_pad_token_id, unit_ids, unit_ids - self.config.vocoder_offset)
 
         vocoder_tgt_lang_id = self.generation_config.vocoder_lang_code_to_id.get(tgt_lang)
         vocoder_tgt_lang_id = ms.Tensor([[vocoder_tgt_lang_id]] * len(unit_ids))
@@ -3419,7 +3408,7 @@ class SeamlessM4TForSpeechToSpeech(SeamlessM4TPreTrainedModel, GenerationMixin):
                 "This is the same forward method as `SeamlessM4TForSpeechToText`. It doesn't use `self.t2u_model`."
                 "If you want to generate speech, use the `generate` method."
             )
-            
+
             encoder_outputs = self.speech_encoder(
                 input_features=input_features,
                 attention_mask=attention_mask,
@@ -3607,7 +3596,7 @@ class SeamlessM4TForSpeechToSpeech(SeamlessM4TPreTrainedModel, GenerationMixin):
         ).last_hidden_state
 
         pad_token_id = self.generation_config.pad_token_id
-        
+
         # Compute new attention mask
         seq_lens = (sequences != pad_token_id).int().sum(1)
         t2u_model_attention_mask = _compute_new_attention_mask(t2u_input_embeds, seq_lens)
@@ -3628,9 +3617,7 @@ class SeamlessM4TForSpeechToSpeech(SeamlessM4TPreTrainedModel, GenerationMixin):
         # replace eos per pad
         unit_ids[unit_ids == self.config.t2u_eos_token_id] = self.config.t2u_pad_token_id
         # offset of control symbols
-        unit_ids = mint.where(
-            unit_ids == self.config.t2u_pad_token_id, unit_ids, unit_ids - self.config.vocoder_offset
-        )
+        unit_ids = mint.where(unit_ids == self.config.t2u_pad_token_id, unit_ids, unit_ids - self.config.vocoder_offset)
 
         vocoder_tgt_lang_id = self.generation_config.vocoder_lang_code_to_id.get(tgt_lang)
         vocoder_tgt_lang_id = ms.Tensor([[vocoder_tgt_lang_id]] * len(unit_ids))
@@ -4036,7 +4023,9 @@ class SeamlessM4TModel(SeamlessM4TPreTrainedModel, GenerationMixin):
         seq_lens = (sequences != pad_token_id).int().sum(1)
         t2u_model_attention_mask = _compute_new_attention_mask(t2u_input_embeds, seq_lens)
         # kwargs_speech["attention_mask"] = t2u_model_attention_mask
-        kwargs_speech["attention_mask"] = t2u_model_attention_mask[:, :seq_lens]  # only foward vaild tokens to fix Broadcasting Error
+        kwargs_speech["attention_mask"] = t2u_model_attention_mask[
+            :, :seq_lens
+        ]  # only foward vaild tokens to fix Broadcasting Error
 
         # Compute t2u decoder_input_ids
         t2u_decoder_input_ids = kwargs_speech.get("decoder_input_ids")
@@ -4046,7 +4035,9 @@ class SeamlessM4TModel(SeamlessM4TPreTrainedModel, GenerationMixin):
 
         # second generation
         # unit_ids = self.t2u_model.generate(inputs_embeds=t2u_input_embeds, **kwargs_speech)
-        unit_ids = self.t2u_model.generate(inputs_embeds=t2u_input_embeds[:, :seq_lens, :], **kwargs_speech)  # only foward vaild tokens to fix Broadcasting Error
+        unit_ids = self.t2u_model.generate(
+            inputs_embeds=t2u_input_embeds[:, :seq_lens, :], **kwargs_speech
+        )  # only foward vaild tokens to fix Broadcasting Error
         output_unit_ids = unit_ids.clone()
 
         # get rid of t2u_decoder_input_ids
@@ -4054,9 +4045,7 @@ class SeamlessM4TModel(SeamlessM4TPreTrainedModel, GenerationMixin):
         # replace eos per pad
         unit_ids[unit_ids == self.config.t2u_eos_token_id] = self.config.t2u_pad_token_id
         # offset of control symbols
-        unit_ids = mint.where(
-            unit_ids == self.config.t2u_pad_token_id, unit_ids, unit_ids - self.config.vocoder_offset
-        )
+        unit_ids = mint.where(unit_ids == self.config.t2u_pad_token_id, unit_ids, unit_ids - self.config.vocoder_offset)
 
         vocoder_tgt_lang_id = self.generation_config.vocoder_lang_code_to_id.get(tgt_lang)
         vocoder_tgt_lang_id = ms.Tensor([[vocoder_tgt_lang_id]] * len(unit_ids))
