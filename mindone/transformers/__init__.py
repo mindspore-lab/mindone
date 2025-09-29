@@ -1359,6 +1359,7 @@ from .models.whisper import (
     WhisperPreTrainedModel,
     WhisperProcessor,
 )
+from .models.xglm import XGLMForCausalLM, XGLMModel, XGLMPreTrainedModel
 from .models.x_clip import XCLIPModel, XCLIPPreTrainedModel, XCLIPTextModel, XCLIPVisionModel
 from .models.xlm import (
     XLMForMultipleChoice,

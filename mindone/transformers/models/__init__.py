@@ -238,6 +238,7 @@ from . import (
     vits,
     vivit,
     wav2vec2,
+    xglm,
     x_clip,
     xlm,
     xlm_roberta,
