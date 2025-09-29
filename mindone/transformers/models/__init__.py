@@ -245,6 +245,8 @@ from . import (
     vits,
     vivit,
     wav2vec2,
+    wav2vec2_bert,
+    wav2vec2_conformer,
     wavlm,
     xglm,
     x_clip,
