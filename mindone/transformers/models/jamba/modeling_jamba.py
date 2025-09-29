@@ -206,8 +206,8 @@ class HybridMambaAttentionDynamicCache(DynamicCache):
         self.transformer_layers = []
         for i in range(config.num_hidden_layers):
             if self.layers_block_type[i] == "mamba":
-                self.conv_states += [mint.zeros(batch_size, intermediate_size, conv_kernel_size, dtype=dtype)]
-                self.ssm_states += [mint.zeros(batch_size, intermediate_size, ssm_state_size, dtype=dtype)]
+                self.conv_states += [mint.zeros((batch_size, intermediate_size, conv_kernel_size), dtype=dtype)]
+                self.ssm_states += [mint.zeros((batch_size, intermediate_size, ssm_state_size), dtype=dtype)]
             else:
                 self.conv_states += [
                     ms.Tensor(
@@ -1016,6 +1016,7 @@ class JambaPreTrainedModel(PreTrainedModel):
     _supports_flash_attn_2 = True
     _supports_sdpa = True
     _supports_cache_class = True  # Note: only supports HybridMambaAttentionDynamicCache
+    _supports_dynamic_input = True
     _is_stateful = True
 
     def _init_weights(self, module):
