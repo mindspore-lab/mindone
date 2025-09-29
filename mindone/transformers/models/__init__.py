@@ -183,6 +183,7 @@ from . import (
     regnet,
     resnet,
     roberta,
+    reformer,
     roberta_prelayernorm,
     roc_bert,
     roformer,
