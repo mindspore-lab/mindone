@@ -37,6 +37,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("altclip", "AltCLIPModel"),
         ("aria", "AriaForConditionalGeneration"),
         ("aria_text", "AriaTextModel"),
+        ("audio-spectrogram-transformer", "ASTModel"),
         ("bamba", "BambaModel"),
         ("beit", "BeitModel"),
         ("bert", "BertModel"),
@@ -236,6 +237,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("vitdet", "VitDetModel"),
         ("vivit", "VivitModel"),
         ("wav2vec2", "Wav2Vec2Model"),
+        ("wavlm", "WavLMModel"),
         ("whisper", "WhisperModel"),
         ("xglm", "XGLMModel"),
         ("xclip", "XCLIPModel"),
@@ -1135,7 +1137,9 @@ MODEL_FOR_AUDIO_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("unispeech-sat", "UniSpeechSatForSequenceClassification"),
         ("sew", "SEWForSequenceClassification"),
         ("sew-d", "SEWDForSequenceClassification"),
+        ("audio-spectrogram-transformer", "ASTForAudioClassification"),
         ("wav2vec2", "Wav2Vec2ForSequenceClassification"),
+        ("wavlm", "WavLMForSequenceClassification"),
         ("whisper", "WhisperForAudioClassification"),
     ]
 )
@@ -1147,6 +1151,7 @@ MODEL_FOR_CTC_MAPPING_NAMES = OrderedDict(
         ("sew", "SEWForCTC"),
         ("sew-d", "SEWDForCTC"),
         ("wav2vec2", "Wav2Vec2ForCTC"),
+        ("wavlm", "WavLMForAudioFrameClassification"),
     ]
 )
 
@@ -1161,6 +1166,7 @@ MODEL_FOR_AUDIO_XVECTOR_MAPPING_NAMES = OrderedDict(
     [
         ("unispeech-sat", "UniSpeechSatForXVector"),
         ("wav2vec2", "Wav2Vec2ForXVector"),
+        ("wavlm", "WavLMForXVector"),
     ]
 )
 

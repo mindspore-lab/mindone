@@ -20,6 +20,7 @@ from packaging import version
 from . import (
     albert,
     aria,
+    audio_spectrogram_transformer,
     auto,
     aya_vision,
     bamba,
@@ -242,6 +243,7 @@ from . import (
     vits,
     vivit,
     wav2vec2,
+    wavlm,
     xglm,
     x_clip,
     xlm,

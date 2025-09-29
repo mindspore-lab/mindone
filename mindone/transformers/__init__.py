@@ -50,6 +50,12 @@ from .models.aria import (
     AriaTextModel,
     AriaTextPreTrainedModel,
 )
+from .models.audio_spectrogram_transformer import (
+    ASTFeatureExtractor,
+    ASTForAudioClassification,
+    ASTModel,
+    ASTPreTrainedModel,
+)
 from .models.auto import (
     MODEL_FOR_AUDIO_CLASSIFICATION_MAPPING,
     MODEL_FOR_AUDIO_FRAME_CLASSIFICATION_MAPPING,
@@ -1362,6 +1368,14 @@ from .models.wav2vec2 import (
     Wav2Vec2Model,
     Wav2Vec2PreTrainedModel,
     Wav2Vec2Processor,
+)
+from .models.wavlm import (
+    WavLMForAudioFrameClassification,
+    WavLMForCTC,
+    WavLMForSequenceClassification,
+    WavLMForXVector,
+    WavLMModel,
+    WavLMPreTrainedModel,
 )
 from .models.whisper import (
     WhisperForAudioClassification,
