@@ -108,6 +108,8 @@ from . import (
     instructblipvideo,
     jetmoe,
     kosmos2,
+    layoutlm,
+    layoutlmv3,
     levit,
     lilt,
     llama,
