@@ -58,6 +58,7 @@ from .base import (
 )
 from .depth_estimation import DepthEstimationPipeline
 from .feature_extraction import FeatureExtractionPipeline
+from .fill_mask import FillMaskPipeline
 from .image_classification import ImageClassificationPipeline
 from .image_feature_extraction import ImageFeatureExtractionPipeline
 from .image_segmentation import ImageSegmentationPipeline
@@ -86,6 +87,7 @@ if is_mindspore_available():
         AutoModelForImageSegmentation,
         AutoModelForImageTextToText,
         AutoModelForImageToImage,
+        AutoModelForMaskedLM,
         AutoModelForObjectDetection,
         AutoModelForQuestionAnswering,
         AutoModelForSemanticSegmentation,
@@ -122,6 +124,16 @@ SUPPORTED_TASKS = {
         "ms": (AutoModel,) if is_mindspore_available() else (),
         "default": {"model": {"ms": ("distilbert/distilbert-base-cased", "6ea8117")}},
         "type": "multimodal",
+    },
+    "fill-mask": {
+        "impl": FillMaskPipeline,
+        "ms": (AutoModelForMaskedLM,) if is_mindspore_available() else (),
+        "default": {
+            "model": {
+                "ms": ("distilbert/distilroberta-base", "fb53ab8"),
+            }
+        },
+        "type": "text",
     },
     "visual-question-answering": {
         "impl": VisualQuestionAnsweringPipeline,
