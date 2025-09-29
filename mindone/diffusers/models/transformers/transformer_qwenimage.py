@@ -192,7 +192,7 @@ class QwenEmbedRope(nn.Cell):
         freqs = mint.outer(index, 1.0 / mint.pow(theta, mint.arange(0, dim, 2).to(ms.float32).div(dim)))
         freqs = mint.polar(mint.ones_like(freqs), freqs)
         return freqs
-
+    
     def construct(self, video_fhw, txt_seq_lens):
         """
         Args: video_fhw: [frame, height, width] a list of 3 integers representing the shape of the video Args:
@@ -208,15 +208,6 @@ class QwenEmbedRope(nn.Cell):
         max_vid_index = 0
         for idx, fhw in enumerate(video_fhw):
             frame, height, width = fhw
-            rope_key = f"{idx}_{height}_{width}"
-            # TODO: @jit, 25/8/18. Remain to fix.
-            # if not torch.compiler.is_compiling():
-            #     if rope_key not in self.rope_cache:
-            #         self.rope_cache[rope_key] = self._compute_video_freqs(frame, height, width, idx)
-            #     video_freq = self.rope_cache[rope_key]
-            # else:
-            #     video_freq = self._compute_video_freqs(frame, height, width)
-            # vid_freqs.append(video_freq)
             video_freq = self._compute_video_freqs(frame, height, width)
             vid_freqs.append(video_freq)
 
@@ -342,7 +333,7 @@ class QwenDoubleStreamAttnProcessor2_0:
         return img_attn_output, txt_attn_output
 
 
-# @maybe_allow_in_graph
+# @jit_class
 class QwenImageTransformerBlock(nn.Cell):
     def __init__(
         self, dim: int, num_attention_heads: int, attention_head_dim: int, qk_norm: str = "rms_norm", eps: float = 1e-6

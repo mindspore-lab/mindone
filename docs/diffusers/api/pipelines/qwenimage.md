@@ -30,6 +30,8 @@ Qwen-Image comes in the following variants:
 !!! tip
 
     Make sure to check out the Schedulers [guide](../../using-diffusers/schedulers) to learn how to explore the tradeoff between scheduler speed and quality, and see the [reuse components across pipelines](../../using-diffusers/loading#reuse-a-pipeline) section to learn how to efficiently load the same components into multiple pipelines.
+    In addition, the default version of installed `transformers` in `mindone` is `4.50.0`, but `transformers==4.52.1` is required for Qwen-Image. Please using `pip install transformers==4.52.1` to upgrade, if you want to try related Qwen-Image pipelines.
+
 
 ::: mindone.diffusers.QwenImagePipeline
 
