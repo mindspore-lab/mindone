@@ -1435,18 +1435,23 @@ class JambaModel(JambaPreTrainedModel):
             return None
 
         dtype = input_tensor.dtype
-        min_dtype = float(_DTYPE_2_MIN[dtype])
+        min_dtype = dtype_to_min(dtype)
         sequence_length = input_tensor.shape[1]
-        target_length = int(cache_position[-1]) + 1
+        target_length = cache_position[-1] + 1
+        target_length = target_length.item()
 
-        causal_mask = self._prepare_4d_causal_attention_mask_with_cache_position(
-            attention_mask,
-            sequence_length=sequence_length,
-            target_length=target_length,
-            dtype=dtype,
-            cache_position=cache_position,
-            batch_size=input_tensor.shape[0],
-        )
+        causal_mask = ops.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
+        if sequence_length != 1:
+            causal_mask = mint.triu(causal_mask, diagonal=1)
+        causal_mask *= mint.arange(target_length) > cache_position.reshape(-1, 1)
+        causal_mask = causal_mask[None, None, :, :].broadcast_to((input_tensor.shape[0], 1, -1, -1))
+        if attention_mask is not None:
+            causal_mask = causal_mask.clone()  # copy to contiguous memory for in-place edit
+            if attention_mask.dim() == 2:
+                mask_length = attention_mask.shape[-1]
+                padding_mask = causal_mask[..., :mask_length].eq(0.0) * attention_mask[:, None, None, :].eq(0.0)
+                causal_mask[..., :mask_length] = causal_mask[..., :mask_length].masked_fill(padding_mask, min_dtype)
+
         if self.config._attn_implementation == "sdpa" and attention_mask is not None:
             # Attend to all tokens in fully masked rows in the causal_mask, for example the relevant first rows when
             # using left padding. This is required by F.scaled_dot_product_attention memory-efficient attention path.
@@ -1513,7 +1518,7 @@ class JambaModel(JambaPreTrainedModel):
             2. Attending to all inputs
         """
         mamba_mask = attention_mask
-        if int(cache_position[0]) > 0 or (attention_mask is not None and mindspore.mint.all(attention_mask == 1)):
+        if cache_position[0] > 0 or (attention_mask is not None and mint.all(attention_mask == 1)):
             mamba_mask = None
         return mamba_mask
 
