@@ -30,6 +30,7 @@ from . import (
     bert_generation,
     big_bird,
     bigbird_pegasus,
+    biogpt,
     bit,
     blip,
     blip_2,
