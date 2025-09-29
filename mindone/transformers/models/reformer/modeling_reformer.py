@@ -755,7 +755,9 @@ class LSHSelfAttention(mindspore.nn.Cell, EfficientAttentionMixin):
             value_vectors = self._look_adjacent(value_vectors, self.num_chunks_before, self.num_chunks_after)
 
         # get logits and dots
-        # (BS, NumAttn, NumHash x NumChunk, Chunk_L x Hidden),(BS, NumAttn, NumHash x NumChunk, Chunk_L * (Num_bef + Num_aft + 1) x Hidden) -> (BS, NumAttn, NumHash x NumChunk, Chunk_L, Chunk_L * (1 + Num_bef + Num_aft))
+        # (BS, NumAttn, NumHash x NumChunk, Chunk_L x Hidden),
+        # (BS, NumAttn, NumHash x NumChunk, Chunk_L * (Num_bef + Num_aft + 1) x Hidden)
+        # -> (BS, NumAttn, NumHash x NumChunk, Chunk_L, Chunk_L * (1 + Num_bef + Num_aft))
         query_key_dots = mindspore.mint.matmul(query_vectors, key_vectors.transpose(-1, -2))
 
         # free memory
@@ -825,7 +827,8 @@ class LSHSelfAttention(mindspore.nn.Cell, EfficientAttentionMixin):
         del self_mask
 
         logits = mindspore.mint.logsumexp(query_key_dots, dim=-1, keepdim=True)
-        # dots shape is `[batch_size, num_attn_heads, num_hashes * seq_len // chunk_length, chunk_length, chunk_length * (1 + num_chunks_before + num_chunks_after)]`
+        # dots shape is `[batch_size, num_attn_heads, num_hashes * seq_len
+        # // chunk_length, chunk_length, chunk_length * (1 + num_chunks_before + num_chunks_after)]`
         attention_probs = mindspore.mint.exp(query_key_dots - logits)
 
         # free memory
@@ -1765,7 +1768,8 @@ class ReformerModelOutput(ModelOutput):
 
             `num_predict` corresponds to `target_mapping.shape[1]`. If `target_mapping` is `None`, then `num_predict`
             corresponds to `sequence_length`.
-        past_buckets_states (`List[Tuple(torch.LongTensor, torch.FloatTensor)]`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+        past_buckets_states (`List[Tuple(torch.LongTensor, torch.FloatTensor)]`, *optional*,
+            returned when `use_cache=True` is passed or when `config.use_cache=True`):
             List of `Tuple(torch.LongTensor, torch.FloatTensor` of length `config.n_layers`, with the first element
             being the previous *buckets* of shape `(batch_size, num_heads, num_hashes, sequence_length)`) and the
             second being the previous *hidden_states* of shape `(batch_size, sequence_length, hidden_size)`).
@@ -1804,7 +1808,8 @@ class ReformerModelWithLMHeadOutput(ModelOutput):
 
             `num_predict` corresponds to `target_mapping.shape[1]`. If `target_mapping` is `None`, then `num_predict`
             corresponds to `sequence_length`.
-        past_buckets_states (`List[Tuple(torch.LongTensor, torch.FloatTensor)]`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+        past_buckets_states (`List[Tuple(torch.LongTensor, torch.FloatTensor)]`, *optional*,
+            returned when `use_cache=True` is passed or when `config.use_cache=True`):
             List of `Tuple(torch.LongTensor, torch.FloatTensor` of length `config.n_layers`, with the first element
             being the previous *buckets* of shape `(batch_size, num_heads, num_hashes, sequence_length)`) and the
             second being the previous *hidden_states* of shape `(batch_size, sequence_length, hidden_size)`).
