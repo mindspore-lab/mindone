@@ -234,6 +234,12 @@ from .models.bloom import (
     BloomModel,
     BloomPreTrainedModel,
 )
+from .models.bros import (
+    BrosForTokenClassification,
+    BrosModel,
+    BrosPreTrainedModel,
+    BrosSpadeEEForTokenClassification,
+    BrosSpadeELForTokenClassification,
 from .models.bridgetower import (
     BridgeTowerForContrastiveLearning,
     BridgeTowerForImageAndTextRetrieval,
