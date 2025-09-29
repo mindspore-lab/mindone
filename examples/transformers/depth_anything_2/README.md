@@ -14,7 +14,7 @@ The abstract from the paper is the following:
 ## Get Started
 
 ### Requirements:
-| mindspore   | 	ascend driver | firmware       | cann tookit/kernel|
+| mindspore   | 	ascend driver | firmware       | cann toolkit/kernel|
 |-------------|----------------|----------------| --- |
 | 2.6.0|  24.1.RC3 | 7.5.T11.0 | 8.1.RC1|
 
@@ -27,7 +27,7 @@ pip install -e .
 
 ## Quick Start
 
-There are 2 main ways to use Depth Anything V2: either using the pipeline API, which abstracts away all the complexity for you, or by using the `DepthAnythingForDepthEstimation` class yourself. 
+There are 2 main ways to use Depth Anything V2: either using the pipeline API, which abstracts away all the complexity for you, or by using the `DepthAnythingForDepthEstimation` class yourself.
 
 ### Pipeline API
 

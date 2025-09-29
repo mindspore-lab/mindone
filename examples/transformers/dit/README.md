@@ -5,12 +5,10 @@
 
 <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/dit_architecture.jpg" width="800">
 
-
-
 ## Get Started
 
 ### Requirements:
-| mindspore   | 	ascend driver | firmware       | cann tookit/kernel|
+| mindspore   | 	ascend driver | firmware       | cann toolkit/kernel|
 |-------------|----------------|----------------| --- |
 | 2.7.0|  24.1.RC3 | 7.5.T11.0 | 8.1.RC1|
 
@@ -82,7 +80,7 @@ print(f"The predicted class label is: {predicted_class_label}")
 The pretrained DiT weights can be loaded in a [BEiT](../../../mindone/transformers/models/beit/modeling_beit.py) model with a modeling head to predict visual tokens.
 ```py
 from mindone.transformers import BeitForMaskedImageModeling
-model = BeitForMaskedImageModeling.from_pretraining("microsoft/dit-base")
+model = BeitForMaskedImageModeling.from_pretrained("microsoft/dit-base")
 ```
 
 ## Inference Speed
@@ -92,4 +90,3 @@ Experiments are tested on ascend 910* with mindspore 2.7.0 pynative mode.
 |:---------------------:|:-----------------:|:--------------:|:---:  |:----------:|:----------:|
 | microsoft/dit-base-finetuned-rvlcdip |  TRUE    |  fp32 | 1 |     OFF      |    0.306    |
 | microsoft/dit-base-finetuned-rvlcdip |  FALSE   |  fp32 | 1 |     OFF      |    0.025    |
-
