@@ -498,8 +498,11 @@ class GenerationMixin:
                     attention_mask,
                     sequence_length=sequence_length,
                     target_length=past_key_values.get_max_cache_shape(),
+                    dtype=self.dtype,
                     cache_position=cache_position,
                     batch_size=batch_size,
+                    config=self.config,
+                    past_key_values=past_key_values,
                 )
         if attention_mask is not None:
             model_inputs[attention_mask_key] = attention_mask
@@ -1402,7 +1405,7 @@ class GenerationMixin:
         # 1. In absence of `beam_indices`, we can assume that we come from e.g. greedy search, which is equivalent
         # to a beam search approach were the first (and only) beam is always selected
         if beam_indices is None:
-            beam_indices = mint.arange(scores[0].shape[0]).view(-1, 1).to(sequences.device)
+            beam_indices = mint.arange(scores[0].shape[0]).view(-1, 1)
             beam_indices = beam_indices.expand(-1, len(scores))
 
         # 2. reshape scores as [batch_size*vocab_size, # generation steps] with # generation steps being
