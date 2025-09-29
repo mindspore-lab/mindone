@@ -57,6 +57,7 @@ PROCESSOR_MAPPING_NAMES = OrderedDict(
         ("colpali", "ColPaliProcessor"),
         ("evolla", "EvollaProcessor"),
         ("flava", "FlavaProcessor"),
+        ("granite_speech", "GraniteSpeechProcessor"),
         ("idefics", "IdeficsProcessor"),
         ("instructblip", "InstructBlipProcessor"),
         ("internvl", "InternVLProcessor"),
