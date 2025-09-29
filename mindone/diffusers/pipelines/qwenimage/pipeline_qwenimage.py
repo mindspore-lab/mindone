@@ -284,7 +284,7 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         if prompt is not None and prompt_embeds is not None:
             raise ValueError(
                 f"Cannot forward both `prompt`: {prompt} and `prompt_embeds`: {prompt_embeds}. Please make sure to"
-                    " only forward one of the two."
+                " only forward one of the two."
             )
         elif prompt is None and prompt_embeds is None:
             raise ValueError(

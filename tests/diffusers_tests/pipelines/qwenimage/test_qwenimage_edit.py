@@ -77,7 +77,7 @@ class QwenImageEditPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
                 latents_std=[1.0] * 4,
                 # fmt: on
             ),
-        ],    
+        ],
         [
             "scheduler",
             "diffusers.schedulers.scheduling_flow_match_euler_discrete.FlowMatchEulerDiscreteScheduler",

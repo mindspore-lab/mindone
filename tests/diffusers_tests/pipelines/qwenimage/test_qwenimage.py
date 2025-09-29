@@ -75,7 +75,7 @@ class QwenImagePipelineFastTests(PipelineTesterMixin, unittest.TestCase):
                 latents_mean=[0.0] * 4,
                 latents_std=[1.0] * 4,
                 # fmt: on
-            ),    
+            ),
         ],
         [
             "scheduler",
