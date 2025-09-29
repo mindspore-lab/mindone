@@ -499,6 +499,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         ("regnet", "RegNetModel"),
         ("resnet", "ResNetModel"),
         ("segformer", "SegformerModel"),
+        ("seggpt", "SegGptModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
         ("swiftformer", "SwiftFormerModel"),
         ("swin2sr", "Swin2SRModel"),

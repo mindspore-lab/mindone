@@ -182,6 +182,7 @@ from . import (
     seamless_m4t,
     seamless_m4t_v2,
     segformer,
+    seggpt,
     sew,
     sew_d,
     siglip,
