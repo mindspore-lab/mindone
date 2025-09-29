@@ -558,12 +558,12 @@ class AudioLDM2UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoad
             if hasattr(module, "get_processor"):
                 processors[f"{name}.processor"] = module.get_processor()
 
-            for sub_name, child in module.named_children():
+            for sub_name, child in module.name_cells().items():
                 fn_recursive_add_processors(f"{name}.{sub_name}", child, processors)
 
             return processors
 
-        for name, module in self.named_children():
+        for name, module in self.name_cells().items():
             fn_recursive_add_processors(name, module, processors)
 
         return processors
@@ -597,10 +597,10 @@ class AudioLDM2UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoad
                 else:
                     module.set_processor(processor.pop(f"{name}.processor"))
 
-            for sub_name, child in module.named_children():
+            for sub_name, child in module.name_cells().items():
                 fn_recursive_attn_processor(f"{name}.{sub_name}", child, processor)
 
-        for name, module in self.named_children():
+        for name, module in self.name_cells().items():
             fn_recursive_attn_processor(name, module, processor)
 
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.set_default_attn_processor

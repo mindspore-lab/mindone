@@ -30,7 +30,7 @@ from .feature_extraction_utils import BatchFeature, FeatureExtractionMixin
 from .image_processing_base import ImageProcessingMixin
 from .image_processing_utils import BaseImageProcessor
 from .image_utils import ImageFeatureExtractionMixin
-from .modeling_utils import MSPreTrainedModel
+from .modeling_utils import MSPreTrainedModel, PreTrainedModel
 from .models.albert import (
     AlbertForMaskedLM,
     AlbertForMultipleChoice,
@@ -49,6 +49,12 @@ from .models.aria import (
     AriaTextForCausalLM,
     AriaTextModel,
     AriaTextPreTrainedModel,
+)
+from .models.audio_spectrogram_transformer import (
+    ASTFeatureExtractor,
+    ASTForAudioClassification,
+    ASTModel,
+    ASTPreTrainedModel,
 )
 from .models.auto import (
     MODEL_FOR_AUDIO_CLASSIFICATION_MAPPING,
@@ -139,6 +145,7 @@ from .models.auto import (
     AutoModelWithLMHead,
     AutoProcessor,
 )
+from .models.aya_vision import AyaVisionForConditionalGeneration, AyaVisionPreTrainedModel
 from .models.bamba import BambaForCausalLM, BambaModel, BambaPreTrainedModel
 from .models.bark import BarkCausalModel, BarkCoarseModel, BarkFineModel, BarkModel, BarkSemanticModel
 from .models.bart import (
@@ -193,6 +200,13 @@ from .models.bigbird_pegasus import (
     BigBirdPegasusModel,
     BigBirdPegasusPreTrainedModel,
 )
+from .models.biogpt import (
+    BioGptForCausalLM,
+    BioGptForSequenceClassification,
+    BioGptForTokenClassification,
+    BioGptModel,
+    BioGptPreTrainedModel,
+)
 from .models.bit import BitBackbone
 from .models.blenderbot import (
     BlenderbotForCausalLM,
@@ -232,6 +246,20 @@ from .models.bloom import (
     BloomForTokenClassification,
     BloomModel,
     BloomPreTrainedModel,
+)
+from .models.bridgetower import (
+    BridgeTowerForContrastiveLearning,
+    BridgeTowerForImageAndTextRetrieval,
+    BridgeTowerForMaskedLM,
+    BridgeTowerModel,
+    BridgeTowerPreTrainedModel,
+)
+from .models.bros import (
+    BrosForTokenClassification,
+    BrosModel,
+    BrosPreTrainedModel,
+    BrosSpadeEEForTokenClassification,
+    BrosSpadeELForTokenClassification,
 )
 from .models.camembert import (
     CamembertForCausalLM,
@@ -303,6 +331,7 @@ from .models.clvp import (
     ClvpPreTrainedModel,
 )
 from .models.codegen import CodeGenForCausalLM, CodeGenModel, CodeGenPreTrainedModel
+from .models.cohere import CohereForCausalLM, CohereModel, CoherePreTrainedModel
 from .models.cohere2 import Cohere2ForCausalLM, Cohere2Model, Cohere2PreTrainedModel
 from .models.colpali import ColPaliForRetrieval, ColPaliPreTrainedModel, ColPaliProcessor
 from .models.convbert import (
@@ -672,6 +701,23 @@ from .models.jetmoe import (
     JetMoePreTrainedModel,
 )
 from .models.kosmos2 import Kosmos2ForConditionalGeneration, Kosmos2Model, Kosmos2PreTrainedModel
+from .models.layoutlm import (
+    LayoutLMForMaskedLM,
+    LayoutLMForQuestionAnswering,
+    LayoutLMForSequenceClassification,
+    LayoutLMForTokenClassification,
+    LayoutLMModel,
+    LayoutLMPreTrainedModel,
+)
+from .models.layoutlmv3 import (
+    LayoutLMv3ForQuestionAnswering,
+    LayoutLMv3ForSequenceClassification,
+    LayoutLMv3ForTokenClassification,
+    LayoutLMv3ImageProcessor,
+    LayoutLMv3Model,
+    LayoutLMv3PreTrainedModel,
+    LayoutLMv3Processor,
+)
 from .models.led import (
     LEDForConditionalGeneration,
     LEDForQuestionAnswering,
@@ -814,6 +860,17 @@ from .models.mobilebert import (
     MobileBertModel,
     MobileBertPreTrainedModel,
 )
+from .models.mobilevit import (
+    MobileViTForImageClassification,
+    MobileViTForSemanticSegmentation,
+    MobileViTModel,
+    MobileViTPreTrainedModel,
+)
+from .models.mobilevitv2 import (
+    MobileViTV2ForImageClassification,
+    MobileViTV2ForSemanticSegmentation,
+    MobileViTV2Model,
+    MobileViTV2PreTrainedModel,
 from .models.mobilenet_v1 import (
     MobileNetV1ForImageClassification,
     MobileNetV1ImageProcessor,
@@ -856,6 +913,16 @@ from .models.mpt import (
     MptModel,
     MptPreTrainedModel,
 )
+from .models.mra import (
+    MraForMaskedLM,
+    MraForMultipleChoice,
+    MraForQuestionAnswering,
+    MraForSequenceClassification,
+    MraForTokenClassification,
+    MraLayer,
+    MraModel,
+    MraPreTrainedModel,
+)
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
     MT5EncoderModel,
@@ -869,6 +936,11 @@ from .models.musicgen_melody import (
     MusicgenMelodyForConditionalGeneration,
     MusicgenMelodyModel,
     MusicgenMelodyPreTrainedModel,
+from .models.musicgen import (
+    MusicgenForCausalLM,
+    MusicgenForConditionalGeneration,
+    MusicgenModel,
+    MusicgenPreTrainedModel,
 )
 from .models.mvp import (
     MvpForCausalLM,
@@ -906,6 +978,13 @@ from .models.nystromformer import (
 from .models.olmo import OlmoForCausalLM, OlmoModel, OlmoPreTrainedModel
 from .models.olmo2 import Olmo2ForCausalLM, Olmo2Model, Olmo2PreTrainedModel
 from .models.olmoe import OlmoeForCausalLM, OlmoeModel, OlmoePreTrainedModel
+from .models.oneformer import (
+    OneFormerForUniversalSegmentation,
+    OneFormerImageProcessor,
+    OneFormerModel,
+    OneFormerPreTrainedModel,
+    OneFormerProcessor,
+)
 from .models.opt import (
     OPTForCausalLM,
     OPTForQuestionAnswering,
@@ -934,6 +1013,17 @@ from .models.owlvit import (
 from .models.paligemma import PaliGemmaForConditionalGeneration, PaliGemmaPreTrainedModel
 from .models.pegasus import PegasusForCausalLM, PegasusForConditionalGeneration, PegasusModel, PegasusPreTrainedModel
 from .models.pegasus_x import PegasusXForConditionalGeneration, PegasusXModel, PegasusXPreTrainedModel
+from .models.perceiver import (
+    PerceiverForImageClassificationConvProcessing,
+    PerceiverForImageClassificationFourier,
+    PerceiverForImageClassificationLearned,
+    PerceiverForMaskedLM,
+    PerceiverForMultimodalAutoencoding,
+    PerceiverForOpticalFlow,
+    PerceiverForSequenceClassification,
+    PerceiverModel,
+    PerceiverPreTrainedModel,
+)
 from .models.persimmon import (
     PersimmonForCausalLM,
     PersimmonForSequenceClassification,
@@ -955,6 +1045,7 @@ from .models.phi3 import (
     Phi3Model,
     Phi3PreTrainedModel,
 )
+from .models.phimoe import PhimoeForCausalLM, PhimoeForSequenceClassification, PhimoeModel, PhimoePreTrainedModel
 from .models.pix2struct import (
     Pix2StructForConditionalGeneration,
     Pix2StructPreTrainedModel,
@@ -962,6 +1053,13 @@ from .models.pix2struct import (
     Pix2StructVisionModel,
 )
 from .models.pixtral import PixtralPreTrainedModel, PixtralVisionModel
+from .models.plbart import (
+    PLBartForCausalLM,
+    PLBartForConditionalGeneration,
+    PLBartForSequenceClassification,
+    PLBartModel,
+    PLBartPreTrainedModel,
+)
 from .models.poolformer import PoolFormerForImageClassification, PoolFormerModel, PoolFormerPreTrainedModel
 from .models.pop2piano import Pop2PianoForConditionalGeneration, Pop2PianoPreTrainedModel
 from .models.prompt_depth_anything import PromptDepthAnythingForDepthEstimation, PromptDepthAnythingPreTrainedModel
@@ -997,7 +1095,18 @@ from .models.qwen2_vl import (
     Qwen2VLModel,
     Qwen2VLPreTrainedModel,
 )
+from .models.rag import RagModel, RagPreTrainedModel, RagSequenceForGeneration, RagTokenForGeneration
 from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
+from .models.reformer import (
+    ReformerLayer,
+    ReformerModel,
+    ReformerAttention,
+    ReformerPreTrainedModel,
+    ReformerForMaskedLM,
+    ReformerForSequenceClassification,
+    ReformerForQuestionAnswering,
+    ReformerModelWithLMHead,
+)
 from .models.regnet import RegNetForImageClassification, RegNetModel, RegNetPreTrainedModel
 from .models.rembert import (
     RemBertForCausalLM,
@@ -1055,6 +1164,16 @@ from .models.roformer import (
 )
 from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
 from .models.sam import SamImageProcessor, SamModel, SamPreTrainedModel, SamProcessor
+from .models.seamless_m4t import (
+    SeamlessM4TConfig,
+    SeamlessM4TFeatureExtractor,
+    SeamlessM4TForSpeechToSpeech,
+    SeamlessM4TForSpeechToText,
+    SeamlessM4TForTextToSpeech,
+    SeamlessM4TForTextToText,
+    SeamlessM4TModel,
+    SeamlessM4TProcessor,
+)
 from .models.seamless_m4t_v2 import (
     SeamlessM4Tv2ForSpeechToSpeech,
     SeamlessM4Tv2ForSpeechToText,
@@ -1071,8 +1190,10 @@ from .models.segformer import (
     SegformerModel,
     SegformerPreTrainedModel,
 )
+from .models.seggpt import SegGptForImageSegmentation, SegGptModel, SegGptPreTrainedModel
 from .models.sew import SEWForCTC, SEWForSequenceClassification, SEWModel, SEWPreTrainedModel
 from .models.sew_d import SEWDForCTC, SEWDForSequenceClassification, SEWDModel, SEWDPreTrainedModel
+from .models.shieldgemma2 import ShieldGemma2ForImageClassification
 from .models.siglip import (
     SiglipForImageClassification,
     SiglipImageProcessor,
@@ -1179,9 +1300,11 @@ from .models.tapas import (
     TapasModel,
     TapasPreTrainedModel,
 )
+from .models.textnet import TextNetBackbone, TextNetForImageClassification, TextNetModel, TextNetPreTrainedModel
 from .models.timesformer import TimesformerForVideoClassification, TimesformerModel, TimesformerPreTrainedModel
 from .models.trocr import TrOCRForCausalLM, TrOCRPreTrainedModel
 from .models.tvp import TvpForVideoGrounding, TvpModel, TvpPreTrainedModel
+from .models.udop import UdopEncoderModel, UdopForConditionalGeneration, UdopModel, UdopPreTrainedModel
 from .models.umt5 import (
     UMT5EncoderModel,
     UMT5ForQuestionAnswering,
@@ -1209,6 +1332,13 @@ from .models.unispeech_sat import (
 from .models.univnet import UnivNetModel
 from .models.upernet import UperNetForSemanticSegmentation, UperNetPreTrainedModel
 from .models.video_llava import VideoLlavaForConditionalGeneration, VideoLlavaPreTrainedModel
+from .models.videomae import (
+    VideoMAEForPreTraining,
+    VideoMAEForVideoClassification,
+    VideoMAEImageProcessor,
+    VideoMAEModel,
+    VideoMAEPreTrainedModel,
+)
 from .models.vilt import (
     ViltForImageAndTextRetrieval,
     ViltForImagesAndTextClassification,
@@ -1251,6 +1381,14 @@ from .models.wav2vec2 import (
     Wav2Vec2PreTrainedModel,
     Wav2Vec2Processor,
 )
+from .models.wavlm import (
+    WavLMForAudioFrameClassification,
+    WavLMForCTC,
+    WavLMForSequenceClassification,
+    WavLMForXVector,
+    WavLMModel,
+    WavLMPreTrainedModel,
+)
 from .models.whisper import (
     WhisperForAudioClassification,
     WhisperForCausalLM,
@@ -1259,6 +1397,7 @@ from .models.whisper import (
     WhisperPreTrainedModel,
     WhisperProcessor,
 )
+from .models.xglm import XGLMForCausalLM, XGLMModel, XGLMPreTrainedModel
 from .models.x_clip import XCLIPModel, XCLIPPreTrainedModel, XCLIPTextModel, XCLIPVisionModel
 from .models.xlm import (
     XLMForMultipleChoice,

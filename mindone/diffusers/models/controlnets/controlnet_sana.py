@@ -143,7 +143,7 @@ class SanaControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
 
             return processors
 
-        for name, module in self.named_children():
+        for name, module in self.name_cells().items():
             fn_recursive_add_processors(name, module, processors)
 
         return processors
