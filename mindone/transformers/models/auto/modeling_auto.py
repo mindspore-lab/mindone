@@ -222,6 +222,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("unispeech", "UniSpeechModel"),
         ("unispeech-sat", "UniSpeechSatModel"),
         ("univnet", "UnivNetModel"),
+        ("videomae", "VideoMAEModel"),
         ("vilt", "ViltModel"),
         ("visual_bert", "VisualBertModel"),
         ("vit", "ViTModel"),
@@ -308,6 +309,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("unispeech", "UniSpeechForPreTraining"),
         ("unispeec-sat", "UniSpeechSatForPreTraining"),
         ("video_llava", "VideoLlavaForConditionalGeneration"),
+        ("videomae", "VideoMAEForPreTraining"),
         ("vipllava", "VipLlavaForConditionalGeneration"),
         ("visual_bert", "VisualBertForPreTraining"),
         ("vit_mae", "ViTMAEForPreTraining"),
@@ -502,6 +504,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         ("hubert", "HubertModel"),
         ("ijepa", "IJepaModel"),
         ("imagegpt", "ImageGPTModel"),
+        ("videomae", "VideoMAEModel"),
         ("levit", "LevitModel"),
         ("mobilevit", "MobileViTModel"),
         ("mobilevitv2", "MobileViTV2Model"),
@@ -644,6 +647,7 @@ MODEL_FOR_UNIVERSAL_SEGMENTATION_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_VIDEO_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
     [
         ("timesformer", "TimesformerForVideoClassification"),
+        ("videomae", "VideoMAEForVideoClassification"),
         ("vivit", "VivitForVideoClassification"),
     ]
 )
