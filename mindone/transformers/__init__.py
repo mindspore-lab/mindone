@@ -1298,7 +1298,16 @@ from .models.xlm import (
     XLMPreTrainedModel,
     XLMWithLMHeadModel,
 )
-from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
+from .models.xlm_roberta import (
+    XLMRobertaForCausalLM,
+    XLMRobertaForMaskedLM,
+    XLMRobertaForMultipleChoice,
+    XLMRobertaForQuestionAnswering,
+    XLMRobertaForSequenceClassification,
+    XLMRobertaForTokenClassification,
+    XLMRobertaModel,
+    XLMRobertaPreTrainedModel,
+)
 from .models.xlm_roberta_xl import (
     XLMRobertaXLForCausalLM,
     XLMRobertaXLForMaskedLM,
