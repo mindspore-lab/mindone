@@ -316,7 +316,11 @@ class StaticCache(Cache):
         return (self.key_cache[layer_idx][0, 0].any(axis=-1)).sum()
 
     def get_max_length(self) -> Optional[int]:
+        # FIXME: deprecated function, should use get_max_cache_shape instead. Keep it for compatibility.
         """Returns the maximum sequence length of the cached states."""
+        return self.max_cache_len
+
+    def get_max_cache_shape(self) -> Optional[int]:
         return self.max_cache_len
 
     def reset(self):

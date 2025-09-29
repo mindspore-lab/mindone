@@ -57,6 +57,7 @@ from .base import (
     infer_framework_load_model,
 )
 from .depth_estimation import DepthEstimationPipeline
+from .document_question_answering import DocumentQuestionAnsweringPipeline
 from .feature_extraction import FeatureExtractionPipeline
 from .image_classification import ImageClassificationPipeline
 from .image_feature_extraction import ImageFeatureExtractionPipeline
@@ -70,6 +71,8 @@ from .table_question_answering import TableQuestionAnsweringPipeline
 from .text2text_generation import Text2TextGenerationPipeline
 from .text_classification import TextClassificationPipeline
 from .text_generation import TextGenerationPipeline
+from .token_classification import TokenClassificationPipeline
+from .video_classification import VideoClassificationPipeline
 from .visual_question_answering import VisualQuestionAnsweringPipeline
 from .zero_shot_classification import ZeroShotClassificationArgumentHandler, ZeroShotClassificationPipeline
 from .zero_shot_image_classification import ZeroShotImageClassificationPipeline
@@ -82,6 +85,7 @@ if is_mindspore_available():
         AutoModel,
         AutoModelForCausalLM,
         AutoModelForDepthEstimation,
+        AutoModelForDocumentQuestionAnswering,
         AutoModelForImageClassification,
         AutoModelForImageSegmentation,
         AutoModelForImageTextToText,
@@ -93,6 +97,7 @@ if is_mindspore_available():
         AutoModelForSequenceClassification,
         AutoModelForTableQuestionAnswering,
         AutoModelForTokenClassification,
+        AutoModelForVideoClassification,
         AutoModelForVision2Seq,
         AutoModelForVisualQuestionAnswering,
         AutoModelForZeroShotImageClassification,
@@ -171,6 +176,30 @@ SUPPORTED_TASKS = {
             "config": {"ms": ("facebook/bart-large-mnli", "d7645e1")},
         },
         "type": "text",
+    },
+    "token-classification": {
+        "impl": TokenClassificationPipeline,
+        "ms": (AutoModelForTokenClassification,) if is_mindspore_available() else (),
+        "default": {
+            "model": {
+                "ms": ("dbmdz/bert-large-cased-finetuned-conll03-english", "4c53496"),
+            },
+        },
+        "type": "text",
+    },
+    "video-classification": {
+        "impl": VideoClassificationPipeline,
+        "ms": (AutoModelForVideoClassification,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("MCG-NJU/videomae-base-finetuned-kinetics", "488eb9a")}},
+        "type": "video",
+    },
+    "document-question-answering": {
+        "impl": DocumentQuestionAnsweringPipeline,
+        "ms": (AutoModelForDocumentQuestionAnswering,) if is_mindspore_available() else (),
+        "default": {
+            "model": {"ms": ("impira/layoutlm-document-qa", "beed3c4")},
+        },
+        "type": "multimodal",
     },
     "zero-shot-image-classification": {
         "impl": ZeroShotImageClassificationPipeline,
