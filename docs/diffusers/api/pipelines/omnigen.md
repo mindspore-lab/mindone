@@ -1,4 +1,4 @@
-<!--Copyright 2024 The HuggingFace Team. All rights reserved.
+<!--Copyright 2025 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ First, load the pipeline:
 
 ```python
 import mindspore as ms
-from diffusers import OmniGenPipeline
+from mindone.diffusers import OmniGenPipeline
 
 pipe = OmniGenPipeline.from_pretrained("Shitao/OmniGen-v1-diffusers", mindspore_dtype=ms.bfloat16)
 ```
@@ -71,8 +71,5 @@ image = pipe(
     generator=np.random.Generator(np.random.PCG64(222)),).[0][0]
 image.save("output.png")
 ```
-
-
-[[autodoc]]
 
 ::: mindone.diffusers.OmniGenPipeline

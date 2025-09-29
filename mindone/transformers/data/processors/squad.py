@@ -410,7 +410,7 @@ def squad_convert_examples_to_features(
         all_is_impossible = ms.tensor([f.is_impossible for f in features], dtype=ms.float32)
 
         if not is_training:
-            all_feature_index = mint.arange(all_input_ids.size(0), dtype=ms.int64)
+            all_feature_index = mint.arange(all_input_ids.shape[0], dtype=ms.int64)
             dataset = Dataset(
                 all_input_ids, all_attention_masks, all_token_type_ids, all_feature_index, all_cls_index, all_p_mask
             )

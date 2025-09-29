@@ -14,7 +14,7 @@ from mindspore.communication import GlobalComm
 project_root = Path(__file__).parent.parent.parent.parent.parent.parent
 sys.path.append(str(project_root))
 
-from mindone.diffusers._peft import PeftConfig, PeftModel, load_peft_weights, set_peft_model_state_dict
+from mindone.peft import PeftConfig, PeftModel, load_peft_weights, set_peft_model_state_dict
 from mindone.trainers.zero import prepare_network
 from mindone.transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
 

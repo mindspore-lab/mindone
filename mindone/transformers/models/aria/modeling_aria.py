@@ -35,7 +35,6 @@ from transformers.utils import (
 
 import mindspore as ms
 import mindspore.mint as mint
-import mindspore.mint.nn.functional as F
 from mindspore import nn
 
 from mindone.models.utils import normal_, trunc_normal_, zeros_
@@ -45,6 +44,7 @@ from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache, StaticCache
 from ...generation import GenerationMixin
 from ...mindspore_adapter.nn import MultiheadAttention
+from ...mindspore_adapter.utils import unfold
 from ...modeling_flash_attention_utils import FlashAttentionKwargs
 from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast, ModelOutput
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
@@ -1355,14 +1355,18 @@ class AriaForConditionalGeneration(AriaPreTrainedModel, GenerationMixin):
         #     size=self.vision_tower.config.patch_size,
         #     step=self.vision_tower.config.patch_size,
         # )
-
-        # (B, C=1, H, W) => (B, Cx(KxK), L=H'xW')
-        patch_size = self.vision_tower.config.patch_size
-        patches_subgrid = F.unfold(pixel_mask[:, None, ...] / float(), kernel_size=patch_size, stride=patch_size)
-        h = pixel_mask.shape[1] // patch_size
-        w = pixel_mask.shape[2] // patch_size
-        patches_subgrid = patches_subgrid.swapaxes(1, 2).reshape(pixel_mask.shape[0], h, w, patch_size, patch_size)
-        # ref: https://zhuanlan.zhihu.com/p/673802546
+        patches_subgrid = unfold(
+            pixel_mask,
+            dimension=1,
+            size=self.vision_tower.config.patch_size,
+            step=self.vision_tower.config.patch_size,
+        )
+        patches_subgrid = unfold(
+            patches_subgrid,
+            dimension=2,
+            size=self.vision_tower.config.patch_size,
+            step=self.vision_tower.config.patch_size,
+        )
 
         return (patches_subgrid.sum(dim=(-1, -2)) > 0).bool()
 
