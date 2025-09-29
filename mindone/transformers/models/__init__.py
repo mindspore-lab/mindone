@@ -209,6 +209,7 @@ from . import (
     timesformer,
     trocr,
     tvp,
+    udop,
     umt5,
     unispeech,
     unispeech_sat,
