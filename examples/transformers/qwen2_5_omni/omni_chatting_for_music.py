@@ -3,7 +3,6 @@ Omni Chatting for Music with Qwen2.5-Omni
 This script demonstrates how to use Qwen2.5-Omni to chat about music content in a audio and video stream.
 """
 
-import numpy as np
 import soundfile as sf
 from qwen_omni_utils import process_mm_info
 
@@ -47,10 +46,7 @@ def inference(medium_path):
 
     # convert input to Tensor
     for key, value in inputs.items():  # by default input numpy array or list
-        if isinstance(value, np.ndarray):
-            inputs[key] = ms.Tensor(value)
-        elif isinstance(value, list):
-            inputs[key] = ms.Tensor(value)
+        inputs[key] = ms.Tensor(value)
         if inputs[key].dtype == ms.int64:
             inputs[key] = inputs[key].to(ms.int32)
         else:
@@ -64,12 +60,12 @@ def inference(medium_path):
 # Load the model
 # We recommend enabling flash_attention_2 for better acceleration and memory saving.
 model = Qwen2_5OmniForConditionalGeneration.from_pretrained(
-    "Qwen/Qwen2.5-Omni-7B",
+    "Qwen/Qwen2.5-Omni-3B",
     mindspore_dtype=ms.float16,
     use_safetensors=True,
     attn_implementation="flash_attention_2",
 )
-processor = Qwen2_5OmniProcessor.from_pretrained("Qwen/Qwen2.5-Omni-7B")
+processor = Qwen2_5OmniProcessor.from_pretrained("Qwen/Qwen2.5-Omni-3B")
 print("Finished loading model and processor.")
 
 
@@ -81,6 +77,6 @@ response, audio = inference(video_path)
 print(response[0])
 sf.write(
     "output_omni_chat_music.wav",
-    response[1].reshape(-1).asnumpy(),
+    audio.reshape(-1).asnumpy(),
     samplerate=24000,
 )

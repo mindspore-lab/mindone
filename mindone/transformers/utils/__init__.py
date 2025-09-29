@@ -18,6 +18,7 @@
 # limitations under the License.
 
 from .backbone_utils import *
+from .constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD, IMAGENET_STANDARD_MEAN, IMAGENET_STANDARD_STD
 from .generic import *
 from .import_utils import *
 
