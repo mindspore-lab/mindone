@@ -23,7 +23,7 @@ from ddt import data, ddt, unpack
 import mindspore as ms
 
 from mindone.diffusers import Cosmos2VideoToWorldPipeline
-from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
+from mindone.diffusers.utils.testing_utils import load_image_from_local_file, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -191,7 +191,13 @@ class Cosmos2VideoToWorldPipelineSlowTests(PipelineTesterMixin, unittest.TestCas
         pipe = Cosmos2VideoToWorldPipeline.from_pretrained(model_id, mindspore_dtype=ms_dtype)
 
         torch.manual_seed(1)
-        image = pipe(
+        image = load_image_from_local_file(
+            "mindone-testing-arrays",
+            "yellow-scrubber.png",
+            subfolder="cosmos",
+        )
+        pipe(
+            image=image,
             prompt="A close-up shot captures a vibrant yellow scrubber vigorously working on a grimy plate, its bristles moving in circular motions to lift stubborn grease and food residue. The dish, once covered in remnants of a hearty meal, gradually reveals its original glossy surface. Suds form and bubble around the scrubber, creating a satisfying visual of cleanliness in progress. The sound of scrubbing fills the air, accompanied by the gentle clinking of the dish against the sink. As the scrubber continues its task, the dish transforms, gleaming under the bright kitchen lights, symbolizing the triumph of cleanliness over mess.",  # noqa E501
             negative_prompt="The video captures a series of frames showing ugly scenes, static with no motion, motion blur, over-saturation, shaky footage, low resolution, grainy texture, pixelated images, poorly lit areas, underexposed and overexposed scenes, poor color balance, washed out colors, choppy sequences, jerky movements, low frame rate, artifacting, color banding, unnatural transitions, outdated special effects, fake elements, unconvincing visuals, poorly edited content, jump cuts, visual noise, and flickering. Overall, the video is of poor quality.",  # noqa E501
         )[0][0][0]

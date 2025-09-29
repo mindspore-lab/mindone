@@ -85,7 +85,7 @@ class XLMRobertaEmbeddings(nn.Cell):
         self.position_ids = ms.Parameter(
             mint.arange(config.max_position_embeddings).expand((1, -1)), name="position_ids"
         )
-        self.token_type_ids = ms.Parameter(mint.zeros(self.position_ids.shape, dtype=ms.int64), name="token_type_ids")
+        self.token_type_ids = mint.zeros(self.position_ids.shape, dtype=ms.int64)
 
         # End copy
         self.padding_idx = config.pad_token_id

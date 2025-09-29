@@ -23,7 +23,11 @@ from ddt import data, ddt, unpack
 import mindspore as ms
 
 from mindone.diffusers import CosmosVideoToWorldPipeline
-from mindone.diffusers.utils.testing_utils import load_image, load_numpy_from_local_file, slow  # noqa F401
+from mindone.diffusers.utils.testing_utils import (  # noqa F401
+    load_image_from_local_file,
+    load_numpy_from_local_file,
+    slow,
+)
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -205,8 +209,10 @@ class CosmosVideoToWorldPipelineSlowTests(PipelineTesterMixin, unittest.TestCase
 
         model_id = "nvidia/Cosmos-1.0-Diffusion-7B-Video2World"
         prompt = "The video depicts a long, straight highway stretching into the distance, flanked by metal guardrails. The road is divided into multiple lanes, with a few vehicles visible in the far distance. The surrounding landscape features dry, grassy fields on one side and rolling hills on the other. The sky is mostly clear with a few scattered clouds, suggesting a bright, sunny day."  # noqa E501
-        image = load_image(
-            "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/cosmos/cosmos-video2world-input.jpg"
+        image = load_image_from_local_file(
+            "mindone-testing-arrays",
+            "cosmos-video2world-input.jpg",
+            subfolder="cosmos",
         )
         pipe = CosmosVideoToWorldPipeline.from_pretrained(model_id, mindspore_dtype=ms_dtype)
 
@@ -215,7 +221,7 @@ class CosmosVideoToWorldPipelineSlowTests(PipelineTesterMixin, unittest.TestCase
 
         expected_frame = load_numpy_from_local_file(
             "mindone-testing-arrays",
-            f"cosmos_t2w_{dtype}.npy",
+            f"cosmos_v2w_{dtype}.npy",
             subfolder="cosmos",
         )
         assert np.mean(np.abs(np.array(frame, dtype=np.float32) - expected_frame)) < THRESHOLD_PIXEL
