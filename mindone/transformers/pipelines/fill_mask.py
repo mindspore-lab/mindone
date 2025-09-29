@@ -126,7 +126,7 @@ class FillMaskPipeline(Pipeline):
 
     def _forward(self, model_inputs):
         model_outputs = self.model(**model_inputs)
-        model_outputs += (model_inputs["input_ids"],)
+        model_outputs["input_ids"] = model_inputs["input_ids"]
         return model_outputs
 
     def postprocess(self, model_outputs, top_k=5, target_ids=None):
