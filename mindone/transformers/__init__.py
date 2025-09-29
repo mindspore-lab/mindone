@@ -234,18 +234,19 @@ from .models.bloom import (
     BloomModel,
     BloomPreTrainedModel,
 )
-from .models.bros import (
-    BrosForTokenClassification,
-    BrosModel,
-    BrosPreTrainedModel,
-    BrosSpadeEEForTokenClassification,
-    BrosSpadeELForTokenClassification,
 from .models.bridgetower import (
     BridgeTowerForContrastiveLearning,
     BridgeTowerForImageAndTextRetrieval,
     BridgeTowerForMaskedLM,
     BridgeTowerModel,
     BridgeTowerPreTrainedModel,
+)
+from .models.bros import (
+    BrosForTokenClassification,
+    BrosModel,
+    BrosPreTrainedModel,
+    BrosSpadeEEForTokenClassification,
+    BrosSpadeELForTokenClassification,
 )
 from .models.camembert import (
     CamembertForCausalLM,
@@ -912,6 +913,7 @@ from .models.nystromformer import (
 )
 from .models.olmo import OlmoForCausalLM, OlmoModel, OlmoPreTrainedModel
 from .models.olmo2 import Olmo2ForCausalLM, Olmo2Model, Olmo2PreTrainedModel
+from .models.olmoe import OlmoeForCausalLM, OlmoeModel, OlmoePreTrainedModel
 from .models.oneformer import (
     OneFormerForUniversalSegmentation,
     OneFormerImageProcessor,
@@ -919,7 +921,6 @@ from .models.oneformer import (
     OneFormerPreTrainedModel,
     OneFormerProcessor,
 )
-from .models.olmoe import OlmoeForCausalLM, OlmoeModel, OlmoePreTrainedModel
 from .models.opt import (
     OPTForCausalLM,
     OPTForQuestionAnswering,
@@ -1110,6 +1111,7 @@ from .models.segformer import (
 from .models.seggpt import SegGptForImageSegmentation, SegGptModel, SegGptPreTrainedModel
 from .models.sew import SEWForCTC, SEWForSequenceClassification, SEWModel, SEWPreTrainedModel
 from .models.sew_d import SEWDForCTC, SEWDForSequenceClassification, SEWDModel, SEWDPreTrainedModel
+from .models.shieldgemma2 import ShieldGemma2ForImageClassification
 from .models.siglip import (
     SiglipForImageClassification,
     SiglipImageProcessor,

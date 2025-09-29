@@ -1045,7 +1045,7 @@ class Gemma3MultiModalProjector(nn.Cell):
         super().__init__()
 
         self.mm_input_projection_weight = ms.Parameter(
-            mint.zeros(config.vision_config.hidden_size, config.text_config.hidden_size)
+            mint.zeros((config.vision_config.hidden_size, config.text_config.hidden_size))
         )
 
         self.mm_soft_emb_norm = Gemma3RMSNorm(config.vision_config.hidden_size, eps=config.vision_config.layer_norm_eps)
@@ -1053,7 +1053,7 @@ class Gemma3MultiModalProjector(nn.Cell):
         self.patches_per_image = int(config.vision_config.image_size // config.vision_config.patch_size)
         self.tokens_per_side = int(config.mm_tokens_per_image**0.5)
         self.kernel_size = self.patches_per_image // self.tokens_per_side
-        self.avg_pool = nn.AvgPool2d(kernel_size=self.kernel_size, stride=self.kernel_size)
+        self.avg_pool = mint.nn.AvgPool2d(kernel_size=self.kernel_size, stride=self.kernel_size)
 
     def construct(self, vision_outputs: ms.Tensor):
         batch_size, _, seq_length = vision_outputs.shape
