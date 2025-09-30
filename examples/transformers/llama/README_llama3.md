@@ -17,7 +17,7 @@ Checkout all Llama3 model checkpoints [here](https://huggingface.co/models?searc
 ### Requirements:
 | mindspore   | 	ascend driver | firmware       | cann toolkit/kernel|
 |-------------|----------------|----------------| --- |
-|2.5.0 | 24.1.RC3 | 7.3.0.1.231 | 8.0.RC3.beta1|
+|2.5.0/2.6.0 | 24.1.RC3 | 7.3.0.1.231 | 8.0.RC3.beta1|
 
 ### Installation:
 ```
@@ -68,5 +68,4 @@ Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0.
 
 |      model name	      | mode |  graph compile| precision  | recompute | zero |jit level | cards | batch | flash attn | 	it/s	|
 |:---------------------:|:--:|:--:|:--:|:-----------------:|:--------------:|:---: |:---:|:---:  |:----------:|:----------:|
-| Llama3.2-1B | graph(trainer)| 3 mins| fp16 | ON |0| O0| 1 | 8 |   ON     |   1.77|
-| Llama3.2-1B | graph(native ms)| 3 mins |fp16 |ON |0| O0|  1 | 8|  ON     |   |
+| Llama3.2-1B | graph| 3 mins| fp16 | ON |0| O0| 1 | 8 |   ON     |   1.77|
