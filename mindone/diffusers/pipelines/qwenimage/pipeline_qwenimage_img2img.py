@@ -54,6 +54,7 @@ def retrieve_latents(
     else:
         return encoder_output
 
+
 # Copied from diffusers.pipelines.qwenimage.pipeline_qwenimage.calculate_shift
 def calculate_shift(
     image_seq_len,

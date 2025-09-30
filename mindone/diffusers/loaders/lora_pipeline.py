@@ -6062,6 +6062,7 @@ class LoraLoaderMixin(StableDiffusionLoraLoaderMixin):
         deprecate("LoraLoaderMixin", "1.0.0", deprecation_message)
         super().__init__(*args, **kwargs)
 
+
 class QwenImageLoraLoaderMixin(LoraBaseMixin):
     r"""
     Load LoRA layers into [`QwenImageTransformer2DModel`]. Specific to [`QwenImagePipeline`].
@@ -6172,7 +6173,6 @@ class QwenImageLoraLoaderMixin(LoraBaseMixin):
 
         out = (state_dict, metadata) if return_lora_metadata else state_dict
         return out
-
 
     # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.load_lora_weights
     def load_lora_weights(

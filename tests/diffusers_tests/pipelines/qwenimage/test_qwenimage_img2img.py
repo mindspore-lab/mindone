@@ -32,6 +32,7 @@ test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "bfloat16"},
 ]
 
+
 @ddt
 class QwenImageImg2ImgPipelineFastTests(unittest.TestCase, PipelineTesterMixin):
     pipeline_config = [
@@ -65,7 +66,7 @@ class QwenImageImg2ImgPipelineFastTests(unittest.TestCase, PipelineTesterMixin):
                 latents_mean=[0.0] * 4,
                 latents_std=[1.0] * 4,
                 # fmt: on
-            ),            
+            ),
         ],
         [
             "scheduler",
@@ -153,7 +154,7 @@ class QwenImageImg2ImgPipelineFastTests(unittest.TestCase, PipelineTesterMixin):
     def get_dummy_inputs(self, seed=0):
         pt_image = floats_tensor((1, 3, 32, 32), rng=random.Random(seed))
         ms_image = ms.Tensor(pt_image.numpy())
-        
+
         pt_inputs = {
             "image": pt_image,
             "prompt": "dance monkey",
@@ -232,10 +233,10 @@ class QwenImageImg2ImgPipelineIntegrationTests(PipelineTesterMixin, unittest.Tes
 
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
-        
+
         model_id = "Qwen/Qwen-Image"
         image = floats_tensor((1, 3, 32, 32), rng=random.Random(0))  # load given image
-        
+
         pipe = QwenImageImg2ImgPipeline.from_pretrained(model_id, mindspore_dtype=ms_dtype)
 
         pipe.vae.enable_tiling()

@@ -44,6 +44,7 @@ test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "bfloat16"},
 ]
 
+
 @ddt
 class QwenImageInpaintPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
     pipeline_config = [
@@ -167,14 +168,13 @@ class QwenImageInpaintPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         pt_mask_image = torch.ones((1, 1, 32, 32))
         ms_image = ms.Tensor(pt_image.numpy())
         ms_mask_image = ms.mint.ones((1, 1, 32, 32))
-        
+
         pt_inputs = {
             "image": pt_image,
             "mask_image": pt_mask_image,
             "prompt": "dance monkey",
             "negative_prompt": "bad quality",
             "num_inference_steps": 2,
-
             "guidance_scale": 3.0,
             "true_cfg_scale": 1.0,
             "height": 32,
@@ -198,7 +198,7 @@ class QwenImageInpaintPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         }
 
         return pt_inputs, ms_inputs
-    
+
     @data(*test_cases)
     @unpack
     def test_inference(self, mode, dtype):
@@ -246,11 +246,11 @@ class QwenImageInpaintPipelineIntegrationTests(PipelineTesterMixin, unittest.Tes
 
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
-        
+
         model_id = "Qwen/Qwen-Image"
         image = floats_tensor((1, 3, 32, 32), rng=random.Random(0))  # load given image
         mask_image = ms.mint.ones((1, 1, 32, 32))
-        
+
         pipe = QwenImageInpaintPipeline.from_pretrained(model_id, mindspore_dtype=ms_dtype)
 
         pipe.vae.enable_tiling()

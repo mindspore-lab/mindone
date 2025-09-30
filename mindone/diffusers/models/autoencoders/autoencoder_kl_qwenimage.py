@@ -38,7 +38,6 @@ from ..modeling_outputs import AutoencoderKLOutput
 from ..modeling_utils import ModelMixin
 from .vae import DecoderOutput, DiagonalGaussianDistribution
 
-
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 CACHE_T = 2
@@ -930,7 +929,7 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             blended_part = a_part * (1 - alpha) + b_part * alpha
             b[:, :, :, :blend_extent, :] = blended_part
         return b
-    
+
     def blend_h(self, a: ms.Tensor, b: ms.Tensor, blend_extent: int) -> ms.Tensor:
         blend_extent = min(a.shape[-1], b.shape[-1], blend_extent)
         if blend_extent > 0:

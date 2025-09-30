@@ -43,6 +43,7 @@ test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "bfloat16"},
 ]
 
+
 @ddt
 class QwenImageEditPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
     pipeline_config = [
@@ -171,7 +172,6 @@ class QwenImageEditPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         }
         return get_pipeline_components(components, self.pipeline_config)
 
-
     def get_dummy_inputs(self):
         inputs = {
             "prompt": "dance monkey",
@@ -186,7 +186,6 @@ class QwenImageEditPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         }
 
         return inputs
-
 
     @data(*test_cases)
     @unpack
@@ -238,7 +237,7 @@ class QwenImageEditPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCa
 
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
-        
+
         model_id = "Qwen/Qwen-Image-Edit"
 
         pipe = QwenImageEditPipeline.from_pretrained(model_id, mindspore_dtype=ms_dtype)

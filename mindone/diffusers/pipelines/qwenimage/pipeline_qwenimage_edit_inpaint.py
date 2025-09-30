@@ -148,6 +148,7 @@ def retrieve_latents(
     else:
         return encoder_output
 
+
 # Copied from diffusers.pipelines.qwenimage.pipeline_qwenimage_edit.calculate_dimensions
 def calculate_dimensions(target_area, ratio):
     width = math.sqrt(target_area * ratio)

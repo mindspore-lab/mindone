@@ -189,7 +189,7 @@ class QwenEmbedRope(nn.Cell):
         freqs = mint.outer(index, 1.0 / mint.pow(theta, mint.arange(0, dim, 2).to(ms.float32).div(dim)))
         freqs = mint.polar(mint.ones_like(freqs), freqs)
         return freqs
-    
+
     def construct(self, video_fhw, txt_seq_lens):
         """
         Args: video_fhw: [frame, height, width] a list of 3 integers representing the shape of the video Args:
@@ -359,7 +359,6 @@ class QwenImageTransformerBlock(nn.Cell):
             processor=QwenDoubleStreamAttnProcessor2_0(),
             qk_norm=qk_norm,
             eps=eps,
-
         )
         self.img_norm2 = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=eps)
         self.img_mlp = FeedForward(dim=dim, dim_out=dim, activation_fn="gelu-approximate")
@@ -574,7 +573,7 @@ class QwenImageTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, Fro
         timestep = timestep.to(hidden_states.dtype)
         encoder_hidden_states = self.txt_norm(encoder_hidden_states)
         encoder_hidden_states = self.txt_in(encoder_hidden_states)
-        
+
         if guidance is not None:
             guidance = guidance.to(hidden_states.dtype) * 1000
 
