@@ -78,6 +78,7 @@ from . import (
     falcon_mamba,
     fastspeech2_conformer,
     flaubert,
+    flava,
     fnet,
     focalnet,
     fsmt,
