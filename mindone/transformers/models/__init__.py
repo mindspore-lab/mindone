@@ -190,6 +190,8 @@ from . import (
     regnet,
     resnet,
     roberta,
+    rt_detr,
+    rt_detr_v2,
     roberta_prelayernorm,
     roc_bert,
     roformer,

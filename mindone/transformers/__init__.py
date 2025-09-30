@@ -1131,6 +1131,8 @@ from .models.roberta import (
     RobertaModel,
     RobertaPreTrainedModel,
 )
+from .models.rt_detr import RTDetrForObjectDetection, RTDetrModel, RTDetrPreTrainedModel
+from .models.rt_detr_v2 import RTDetrV2ForObjectDetection, RTDetrV2Model, RTDetrV2PreTrainedModel
 from .models.roberta_prelayernorm import (
     RobertaPreLayerNormForCausalLM,
     RobertaPreLayerNormForMaskedLM,
