@@ -1131,8 +1131,6 @@ from .models.roberta import (
     RobertaModel,
     RobertaPreTrainedModel,
 )
-from .models.rt_detr import RTDetrForObjectDetection, RTDetrModel, RTDetrPreTrainedModel
-from .models.rt_detr_v2 import RTDetrV2ForObjectDetection, RTDetrV2Model, RTDetrV2PreTrainedModel
 from .models.roberta_prelayernorm import (
     RobertaPreLayerNormForCausalLM,
     RobertaPreLayerNormForMaskedLM,
@@ -1165,6 +1163,8 @@ from .models.roformer import (
     RoFormerModel,
     RoFormerPreTrainedModel,
 )
+from .models.rt_detr import RTDetrForObjectDetection, RTDetrModel, RTDetrPreTrainedModel
+from .models.rt_detr_v2 import RTDetrV2ForObjectDetection, RTDetrV2Model, RTDetrV2PreTrainedModel
 from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
 from .models.sam import SamImageProcessor, SamModel, SamPreTrainedModel, SamProcessor
 from .models.seamless_m4t import (
