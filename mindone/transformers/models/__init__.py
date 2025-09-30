@@ -109,6 +109,7 @@ from . import (
     imagegpt,
     instructblip,
     instructblipvideo,
+    jamba,
     jetmoe,
     kosmos2,
     layoutlm,
