@@ -22,13 +22,14 @@ from dataclasses import dataclass
 from typing import Callable, List, Optional, Tuple, Union
 
 from transformers.configuration_utils import PretrainedConfig
-from transformers.generation import GenerationConfig, LogitsProcessorList, StoppingCriteriaList
+from transformers.generation import GenerationConfig
 from transformers.models.rag.configuration_rag import RagConfig
 from transformers.models.rag.retrieval_rag import RagRetriever
 
 import mindspore as ms
 from mindspore import mint, ops
 
+from ...generation import LogitsProcessorList, StoppingCriteriaList
 from ...modeling_outputs import ModelOutput
 from ...modeling_utils import PreTrainedModel
 from ...utils import logging

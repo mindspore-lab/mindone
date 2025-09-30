@@ -1,7 +1,4 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
-#
-# This code is adapted from https://github.com/huggingface/transformers
-# with modifications to run transformers on mindspore.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,4 +11,5 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .modeling_xlm_roberta import *
+
+from .modeling_rt_detr_v2 import RTDetrV2ForObjectDetection, RTDetrV2Model, RTDetrV2PreTrainedModel

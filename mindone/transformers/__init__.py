@@ -860,17 +860,6 @@ from .models.mobilebert import (
     MobileBertModel,
     MobileBertPreTrainedModel,
 )
-from .models.mobilevit import (
-    MobileViTForImageClassification,
-    MobileViTForSemanticSegmentation,
-    MobileViTModel,
-    MobileViTPreTrainedModel,
-)
-from .models.mobilevitv2 import (
-    MobileViTV2ForImageClassification,
-    MobileViTV2ForSemanticSegmentation,
-    MobileViTV2Model,
-    MobileViTV2PreTrainedModel,
 from .models.mobilenet_v1 import (
     MobileNetV1ForImageClassification,
     MobileNetV1ImageProcessor,
@@ -885,6 +874,18 @@ from .models.mobilenet_v2 import (
     MobileNetV2ImageProcessorFast,
     MobileNetV2Model,
     MobileNetV2PreTrainedModel,
+)
+from .models.mobilevit import (
+    MobileViTForImageClassification,
+    MobileViTForSemanticSegmentation,
+    MobileViTModel,
+    MobileViTPreTrainedModel,
+)
+from .models.mobilevitv2 import (
+    MobileViTV2ForImageClassification,
+    MobileViTV2ForSemanticSegmentation,
+    MobileViTV2Model,
+    MobileViTV2PreTrainedModel,
 )
 from .models.modernbert import (
     ModernBertForMaskedLM,
@@ -930,17 +931,17 @@ from .models.mt5 import (
     MT5Model,
     MT5PreTrainedModel,
 )
-from .models.musicgen_melody import (
-    MusicgenMelodyFeatureExtractor,
-    MusicgenMelodyForCausalLM,
-    MusicgenMelodyForConditionalGeneration,
-    MusicgenMelodyModel,
-    MusicgenMelodyPreTrainedModel,
 from .models.musicgen import (
     MusicgenForCausalLM,
     MusicgenForConditionalGeneration,
     MusicgenModel,
     MusicgenPreTrainedModel,
+)
+from .models.musicgen_melody import (
+    MusicgenMelodyForCausalLM,
+    MusicgenMelodyForConditionalGeneration,
+    MusicgenMelodyModel,
+    MusicgenMelodyPreTrainedModel,
 )
 from .models.mvp import (
     MvpForCausalLM,
@@ -1098,14 +1099,14 @@ from .models.qwen2_vl import (
 from .models.rag import RagModel, RagPreTrainedModel, RagSequenceForGeneration, RagTokenForGeneration
 from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
 from .models.reformer import (
+    ReformerAttention,
+    ReformerForMaskedLM,
+    ReformerForQuestionAnswering,
+    ReformerForSequenceClassification,
     ReformerLayer,
     ReformerModel,
-    ReformerAttention,
-    ReformerPreTrainedModel,
-    ReformerForMaskedLM,
-    ReformerForSequenceClassification,
-    ReformerForQuestionAnswering,
     ReformerModelWithLMHead,
+    ReformerPreTrainedModel,
 )
 from .models.regnet import RegNetForImageClassification, RegNetModel, RegNetPreTrainedModel
 from .models.rembert import (
@@ -1130,6 +1131,8 @@ from .models.roberta import (
     RobertaModel,
     RobertaPreTrainedModel,
 )
+from .models.rt_detr import RTDetrForObjectDetection, RTDetrModel, RTDetrPreTrainedModel
+from .models.rt_detr_v2 import RTDetrV2ForObjectDetection, RTDetrV2Model, RTDetrV2PreTrainedModel
 from .models.roberta_prelayernorm import (
     RobertaPreLayerNormForCausalLM,
     RobertaPreLayerNormForMaskedLM,
@@ -1397,6 +1400,7 @@ from .models.wav2vec2_conformer import (
     Wav2Vec2ConformerForXVector,
     Wav2Vec2ConformerModel,
     Wav2Vec2ConformerPreTrainedModel,
+)
 from .models.wavlm import (
     WavLMForAudioFrameClassification,
     WavLMForCTC,
@@ -1413,8 +1417,8 @@ from .models.whisper import (
     WhisperPreTrainedModel,
     WhisperProcessor,
 )
-from .models.xglm import XGLMForCausalLM, XGLMModel, XGLMPreTrainedModel
 from .models.x_clip import XCLIPModel, XCLIPPreTrainedModel, XCLIPTextModel, XCLIPVisionModel
+from .models.xglm import XGLMForCausalLM, XGLMModel, XGLMPreTrainedModel
 from .models.xlm import (
     XLMForMultipleChoice,
     XLMForQuestionAnswering,
@@ -1425,7 +1429,16 @@ from .models.xlm import (
     XLMPreTrainedModel,
     XLMWithLMHeadModel,
 )
-from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
+from .models.xlm_roberta import (
+    XLMRobertaForCausalLM,
+    XLMRobertaForMaskedLM,
+    XLMRobertaForMultipleChoice,
+    XLMRobertaForQuestionAnswering,
+    XLMRobertaForSequenceClassification,
+    XLMRobertaForTokenClassification,
+    XLMRobertaModel,
+    XLMRobertaPreTrainedModel,
+)
 from .models.xlm_roberta_xl import (
     XLMRobertaXLForCausalLM,
     XLMRobertaXLForMaskedLM,

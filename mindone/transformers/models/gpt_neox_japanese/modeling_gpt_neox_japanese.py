@@ -85,7 +85,7 @@ class GPTNeoXJapaneseAttention(nn.Cell):
         self.dense = mint.nn.Linear(config.hidden_size, config.hidden_size, bias=False)
         # Activate bias if the last layer
         self.use_bias = use_bias
-        self.dense_bias = nn.Parameter(mint.zeros(config.hidden_size)) if use_bias else None
+        self.dense_bias = ms.Parameter(mint.zeros(config.hidden_size)) if use_bias else None
 
     def construct(
         self,
