@@ -48,7 +48,7 @@ generate_ids = model.generate(Tensor(inputs.input_ids), max_length=30, do_sample
 print(tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0])
 ```
 
-The example output is show below:
+The example output is shown below:
 ```bash
 Hey, are you conscious? Can you talk to me?
 I am conscious. I can talk.
