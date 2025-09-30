@@ -61,6 +61,6 @@ Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.6.0.
 
 ### Inference
 
-|      model name	      | mode |  precision   | cards | flash attn | 	tokens/s	| steps|
-|:---------------------:|:--:|:-----------------:|:--------------:|:---:  |:----------:|:----------:|
-| Llama-2-7b-hf |  pynative| fp16 | 1 |     FALSE    |    5.18   | 16|
+| model name    | mode     | precision | cards | flash attn | tokens/s | steps |
+|:--------------|:---------|:----------|:------|:-----------|:---------|:------|
+| Llama-2-7b-hf | pynative | fp16      | 1     | FALSE      | 5.18     | 16    |
