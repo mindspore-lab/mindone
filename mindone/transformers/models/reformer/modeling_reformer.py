@@ -1770,9 +1770,9 @@ class ReformerModelOutput(ModelOutput):
             corresponds to `sequence_length`.
         past_buckets_states (`List[Tuple(ms.Tensor, ms.Tensor)]`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
             List of `Tuple(ms.Tensor, ms.Tensor` of length `config.n_layers`, with the first element
+
             being the previous *buckets* of shape `(batch_size, num_heads, num_hashes, sequence_length)`) and the
             second being the previous *hidden_states* of shape `(batch_size, sequence_length, hidden_size)`).
-
             Contains precomputed buckets and hidden-states that can be used (see `past_buckets_states` input) to speed
             up sequential decoding.
         hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
@@ -1809,6 +1809,7 @@ class ReformerModelWithLMHeadOutput(ModelOutput):
             corresponds to `sequence_length`.
         past_buckets_states (`List[Tuple(ms.Tensor, ms.Tensor)]`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
             List of `Tuple(ms.Tensor, ms.Tensor` of length `config.n_layers`, with the first element
+
             being the previous *buckets* of shape `(batch_size, num_heads, num_hashes, sequence_length)`) and the
             second being the previous *hidden_states* of shape `(batch_size, sequence_length, hidden_size)`).
 

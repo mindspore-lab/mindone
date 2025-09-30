@@ -513,6 +513,18 @@ from .models.flaubert import (
     FlaubertPreTrainedModel,
     FlaubertWithLMHeadModel,
 )
+from .models.flava import (
+    FlavaFeatureExtractor,
+    FlavaForPreTraining,
+    FlavaImageCodebook,
+    FlavaImageModel,
+    FlavaImageProcessor,
+    FlavaModel,
+    FlavaMultimodalModel,
+    FlavaPreTrainedModel,
+    FlavaProcessor,
+    FlavaTextModel,
+)
 from .models.fnet import (
     FNetForMaskedLM,
     FNetForMultipleChoice,
@@ -693,6 +705,7 @@ from .models.instructblipvideo import (
     InstructBlipVideoQFormerModel,
     InstructBlipVideoVisionModel,
 )
+from .models.jamba import JambaForCausalLM, JambaForSequenceClassification, JambaModel, JambaPreTrainedModel
 from .models.jetmoe import (
     JetMoeConfig,
     JetMoeForCausalLM,
@@ -1163,6 +1176,8 @@ from .models.roformer import (
     RoFormerModel,
     RoFormerPreTrainedModel,
 )
+from .models.rt_detr import RTDetrForObjectDetection, RTDetrModel, RTDetrPreTrainedModel
+from .models.rt_detr_v2 import RTDetrV2ForObjectDetection, RTDetrV2Model, RTDetrV2PreTrainedModel
 from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
 from .models.sam import SamImageProcessor, SamModel, SamPreTrainedModel, SamProcessor
 from .models.seamless_m4t import (

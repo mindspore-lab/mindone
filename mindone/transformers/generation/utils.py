@@ -1760,6 +1760,7 @@ class GenerationMixin:
                 max_len = cache_position.shape[0]
                 if valid_len < max_len:
                     cache_position = cache_position[:valid_len]
+                    # FIXME: padding with zeros might be problematic, in case cache_position[-1] denotes the valid length
                     cache_position = mint.cat([cache_position, mint.zeros(max_len - valid_len, dtype=ms.int32)])
 
         model_kwargs["cache_position"] = cache_position
