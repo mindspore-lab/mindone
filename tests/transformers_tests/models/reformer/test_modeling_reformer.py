@@ -220,7 +220,7 @@ Reformer_CASES = [
 
 # FIXME the test requires MindSpore to support the ParameterList feature.
 # https://gitee.com/mindspore/mindspore/pulls/88092
-@pytest.mark.skipif(ms.__version__ < "2.7.0", reason="mindspore has not yet supported nn.ParameterList")
+@pytest.mark.skipif(ms.__version__ <= "2.7.0", reason="mindspore has not yet supported nn.ParameterList")
 @pytest.mark.parametrize(
     "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",
     [
