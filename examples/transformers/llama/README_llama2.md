@@ -49,8 +49,8 @@ print(tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_to
 
 The example output is show below:
 ```bash
-
-
+Hey, are you conscious? Can you talk to me?
+I am conscious. I can talk.
 ```
 
 ## Performance
@@ -62,5 +62,4 @@ Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.6.0.
 
 |      model name	      | mode |  precision   | cards | flash attn | 	tokens/s	| steps|
 |:---------------------:|:--:|:-----------------:|:--------------:|:---:  |:----------:|:----------:|
-| Llama-2-7b-hf |  pynative| fp16 | 1 |     ON    |    1.59    |23|
-| Llama-2-7b-hf |  graph| fp16 | 1 |     ON    |    8.51    |23|
+| Llama-2-7b-hf |  pynative| fp16 | 1 |     FALSE    |    5.18   | 16|
