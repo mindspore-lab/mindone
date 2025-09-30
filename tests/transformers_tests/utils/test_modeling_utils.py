@@ -57,11 +57,7 @@ if is_mindspore_available():
     import mindspore as ms
     from mindspore import Parameter, mint, nn
 
-    from mindone.transformers import (
-        AutoModelForCausalLM,
-        BertModel,
-        T5ForConditionalGeneration,
-    )
+    from mindone.transformers import AutoModelForCausalLM, BertModel, T5ForConditionalGeneration
     from mindone.transformers.modeling_attn_mask_utils import (
         AttentionMaskConverter,
         _create_4d_causal_attention_mask,
