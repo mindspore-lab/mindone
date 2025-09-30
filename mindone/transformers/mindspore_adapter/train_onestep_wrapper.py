@@ -1,10 +1,11 @@
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional
 
 import mindspore as ms
 from mindspore import ParallelMode, Tensor, context, nn, ops
 from mindspore.ops import composite as C
 
-from mindone.trainers.zero import ZeroHelper
+if TYPE_CHECKING:
+    from mindone.trainers.zero import ZeroHelper
 
 try:
     from .adamw_zero import AdamWeightDecayZeRO1, AdamWeightDecayZeRO2
@@ -120,7 +121,7 @@ class TrainOneStepWrapper(nn.Cell):
         gradient_accumulation_steps: int = 1,
         clip_grad: str = "none",
         clip_value: float = 1.0,
-        zero_helper: Optional[ZeroHelper] = None,
+        zero_helper: Optional["ZeroHelper"] = None,
     ):
         super().__init__(auto_prefix=False)
 

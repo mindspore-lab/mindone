@@ -693,6 +693,7 @@ from .models.instructblipvideo import (
     InstructBlipVideoQFormerModel,
     InstructBlipVideoVisionModel,
 )
+from .models.jamba import JambaForCausalLM, JambaForSequenceClassification, JambaModel, JambaPreTrainedModel
 from .models.jetmoe import (
     JetMoeConfig,
     JetMoeForCausalLM,
@@ -860,17 +861,6 @@ from .models.mobilebert import (
     MobileBertModel,
     MobileBertPreTrainedModel,
 )
-from .models.mobilevit import (
-    MobileViTForImageClassification,
-    MobileViTForSemanticSegmentation,
-    MobileViTModel,
-    MobileViTPreTrainedModel,
-)
-from .models.mobilevitv2 import (
-    MobileViTV2ForImageClassification,
-    MobileViTV2ForSemanticSegmentation,
-    MobileViTV2Model,
-    MobileViTV2PreTrainedModel,
 from .models.mobilenet_v1 import (
     MobileNetV1ForImageClassification,
     MobileNetV1ImageProcessor,
@@ -885,6 +875,18 @@ from .models.mobilenet_v2 import (
     MobileNetV2ImageProcessorFast,
     MobileNetV2Model,
     MobileNetV2PreTrainedModel,
+)
+from .models.mobilevit import (
+    MobileViTForImageClassification,
+    MobileViTForSemanticSegmentation,
+    MobileViTModel,
+    MobileViTPreTrainedModel,
+)
+from .models.mobilevitv2 import (
+    MobileViTV2ForImageClassification,
+    MobileViTV2ForSemanticSegmentation,
+    MobileViTV2Model,
+    MobileViTV2PreTrainedModel,
 )
 from .models.modernbert import (
     ModernBertForMaskedLM,
@@ -935,6 +937,12 @@ from .models.musicgen import (
     MusicgenForConditionalGeneration,
     MusicgenModel,
     MusicgenPreTrainedModel,
+)
+from .models.musicgen_melody import (
+    MusicgenMelodyForCausalLM,
+    MusicgenMelodyForConditionalGeneration,
+    MusicgenMelodyModel,
+    MusicgenMelodyPreTrainedModel,
 )
 from .models.mvp import (
     MvpForCausalLM,
@@ -1092,14 +1100,14 @@ from .models.qwen2_vl import (
 from .models.rag import RagModel, RagPreTrainedModel, RagSequenceForGeneration, RagTokenForGeneration
 from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
 from .models.reformer import (
+    ReformerAttention,
+    ReformerForMaskedLM,
+    ReformerForQuestionAnswering,
+    ReformerForSequenceClassification,
     ReformerLayer,
     ReformerModel,
-    ReformerAttention,
-    ReformerPreTrainedModel,
-    ReformerForMaskedLM,
-    ReformerForSequenceClassification,
-    ReformerForQuestionAnswering,
     ReformerModelWithLMHead,
+    ReformerPreTrainedModel,
 )
 from .models.regnet import RegNetForImageClassification, RegNetModel, RegNetPreTrainedModel
 from .models.rembert import (
@@ -1156,6 +1164,8 @@ from .models.roformer import (
     RoFormerModel,
     RoFormerPreTrainedModel,
 )
+from .models.rt_detr import RTDetrForObjectDetection, RTDetrModel, RTDetrPreTrainedModel
+from .models.rt_detr_v2 import RTDetrV2ForObjectDetection, RTDetrV2Model, RTDetrV2PreTrainedModel
 from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
 from .models.sam import SamImageProcessor, SamModel, SamPreTrainedModel, SamProcessor
 from .models.seamless_m4t import (
@@ -1375,6 +1385,23 @@ from .models.wav2vec2 import (
     Wav2Vec2PreTrainedModel,
     Wav2Vec2Processor,
 )
+from .models.wav2vec2_bert import (
+    Wav2Vec2BertForAudioFrameClassification,
+    Wav2Vec2BertForCTC,
+    Wav2Vec2BertForSequenceClassification,
+    Wav2Vec2BertForXVector,
+    Wav2Vec2BertModel,
+    Wav2Vec2BertPreTrainedModel,
+)
+from .models.wav2vec2_conformer import (
+    Wav2Vec2ConformerForAudioFrameClassification,
+    Wav2Vec2ConformerForCTC,
+    Wav2Vec2ConformerForPreTraining,
+    Wav2Vec2ConformerForSequenceClassification,
+    Wav2Vec2ConformerForXVector,
+    Wav2Vec2ConformerModel,
+    Wav2Vec2ConformerPreTrainedModel,
+)
 from .models.wavlm import (
     WavLMForAudioFrameClassification,
     WavLMForCTC,
@@ -1391,8 +1418,8 @@ from .models.whisper import (
     WhisperPreTrainedModel,
     WhisperProcessor,
 )
-from .models.xglm import XGLMForCausalLM, XGLMModel, XGLMPreTrainedModel
 from .models.x_clip import XCLIPModel, XCLIPPreTrainedModel, XCLIPTextModel, XCLIPVisionModel
+from .models.xglm import XGLMForCausalLM, XGLMModel, XGLMPreTrainedModel
 from .models.xlm import (
     XLMForMultipleChoice,
     XLMForQuestionAnswering,
@@ -1403,7 +1430,16 @@ from .models.xlm import (
     XLMPreTrainedModel,
     XLMWithLMHeadModel,
 )
-from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
+from .models.xlm_roberta import (
+    XLMRobertaForCausalLM,
+    XLMRobertaForMaskedLM,
+    XLMRobertaForMultipleChoice,
+    XLMRobertaForQuestionAnswering,
+    XLMRobertaForSequenceClassification,
+    XLMRobertaForTokenClassification,
+    XLMRobertaModel,
+    XLMRobertaPreTrainedModel,
+)
 from .models.xlm_roberta_xl import (
     XLMRobertaXLForCausalLM,
     XLMRobertaXLForMaskedLM,

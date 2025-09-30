@@ -130,6 +130,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("imagegpt", "ImageGPTModel"),
         ("layoutlm", "LayoutLMModel"),
         ("layoutlmv3", "LayoutLMv3Model"),
+        ("jamba", "JambaModel"),
         ("jetmoe", "JetMoeModel"),
         ("kosmos-2", "Kosmos2Model"),
         ("led", "LEDModel"),
@@ -165,6 +166,9 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("musicgen", "MusicgenModel"),
         ("mvp", "MvpModel"),
         ("nemotron", "NemotronModel"),
+        ("musicgen_melody", "MusicgenMelodyModel"),
+        ("megatron-bert", "MegatronBertModel"),
+        ("mixtral", "MixtralModel"),
         ("nystromformer", "NystromformerModel"),
         ("olmoe", "OlmoeModel"),
         ("opt", "OPTModel"),
@@ -194,6 +198,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("roberta", "RobertaModel"),
         ("rembert", "RemBertModel"),
         ("resnet", "ResNetModel"),
+        ("rt_detr", "RTDetrModel"),
+        ("rt_detr_v2", "RTDetrV2Model"),
         ("roberta", "RobertaModel"),
         ("roformer", "RoFormerModel"),
         ("roc_bert", "RoCBertModel"),
@@ -203,6 +209,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("seamless_m4t", "SeamlessM4TModel"),
         ("seamless_m4t_v2", "SeamlessM4Tv2Model"),
         ("segformer", "SegformerModel"),
+        ("seggpt", "SegGptModel"),
         ("sew", "SEWModel"),
         ("sew-d", "SEWDModel"),
         ("siglip", "SiglipModel"),
@@ -238,6 +245,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("vitdet", "VitDetModel"),
         ("vivit", "VivitModel"),
         ("wav2vec2", "Wav2Vec2Model"),
+        ("wav2vec2-bert", "Wav2Vec2BertModel"),
+        ("wav2vec2-conformer", "Wav2Vec2ConformerModel"),
         ("wavlm", "WavLMModel"),
         ("whisper", "WhisperModel"),
         ("xglm", "XGLMModel"),
@@ -326,6 +335,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("visual_bert", "VisualBertForPreTraining"),
         ("vit_mae", "ViTMAEForPreTraining"),
         ("wav2vec2", "Wav2Vec2ForPreTraining"),
+        ("wav2vec2-conformer", "Wav2Vec2ConformerForPreTraining"),
         ("xlm", "XLMWithLMHeadModel"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
@@ -450,6 +460,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("granitemoe", "GraniteMoeForCausalLM"),
         ("granitemoeshared", "GraniteMoeSharedForCausalLM"),
         ("layoutlm", "LayoutLMForMaskedLM"),
+        ("jamba", "JambaForCausalLM"),
         ("llama", "LlamaForCausalLM"),
         ("mamba", "MambaForCausalLM"),
         ("mamba2", "Mamba2ForCausalLM"),
@@ -469,6 +480,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("olmo", "OlmoForCausalLM"),
         ("olmo2", "Olmo2ForCausalLM"),
         ("olmoe", "OlmoeForCausalLM"),
+        ("musicgen_melody", "MusicgenMelodyForCausalLM"),
         ("phi", "PhiForCausalLM"),
         ("phi3", "Phi3ForCausalLM"),
         ("prophetnet", "ProphetNetForCausalLM"),
@@ -541,6 +553,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         ("siglip_vision_model", "SiglipVisionModel"),
         ("swiftformer", "SwiftFormerModel"),
         ("swin2sr", "Swin2SRModel"),
+        ("table-transformer", "TableTransformerModel"),
         ("swinv2", "Swinv2Model"),
         ("table-transformer", "TableTransformerModel"),
         ("timesformer", "TimesformerModel"),
@@ -785,6 +798,7 @@ MODEL_FOR_OBJECT_DETECTION_MAPPING_NAMES = OrderedDict(
         ("deta", "DetaForObjectDetection"),
         ("detr", "DetrForObjectDetection"),
         ("rt_detr", "RTDetrForObjectDetection"),
+        ("rt_detr_v2", "RTDetrV2ForObjectDetection"),
         ("table-transformer", "TableTransformerForObjectDetection"),
         ("yolos", "YolosForObjectDetection"),
     ]
@@ -812,6 +826,7 @@ MODEL_FOR_DEPTH_ESTIMATION_MAPPING_NAMES = OrderedDict(
         ("zoedepth", "ZoeDepthForDepthEstimation"),
     ]
 )
+
 MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
     [
         # Model for Seq2Seq Causal LM mapping
@@ -884,6 +899,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("helium", "HeliumForSequenceClassification"),
         ("hubert", "HubertForSequenceClassification"),
         ("ibert", "IBertForSequenceClassification"),
+        ("jamba", "JambaForSequenceClassification"),
         ("led", "LEDForSequenceClassification"),
         ("luke", "LukeForSequenceClassification"),
         ("starcoder2", "Starcoder2ForSequenceClassification"),
@@ -925,6 +941,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("umt5", "UMT5ForSequenceClassification"),
         ("xlm", "XLMForSequenceClassification"),
         ("gpt_neox", "SequenceClassification"),
+        ("xlm-roberta", "XLMRobertaForSequenceClassification"),
         ("xlm-roberta-xl", "XLMRobertaXLForSequenceClassification"),
         ("xlnet", "XLNetForSequenceClassification"),
         ("xmod", "XmodForSequenceClassification"),
@@ -1141,6 +1158,8 @@ MODEL_FOR_AUDIO_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("sew-d", "SEWDForSequenceClassification"),
         ("audio-spectrogram-transformer", "ASTForAudioClassification"),
         ("wav2vec2", "Wav2Vec2ForSequenceClassification"),
+        ("wav2vec2-bert", "Wav2Vec2BertForSequenceClassification"),
+        ("wav2vec2-conformer", "Wav2Vec2ConformerForSequenceClassification"),
         ("wavlm", "WavLMForSequenceClassification"),
         ("whisper", "WhisperForAudioClassification"),
     ]
@@ -1153,6 +1172,8 @@ MODEL_FOR_CTC_MAPPING_NAMES = OrderedDict(
         ("sew", "SEWForCTC"),
         ("sew-d", "SEWDForCTC"),
         ("wav2vec2", "Wav2Vec2ForCTC"),
+        ("wav2vec2-bert", "Wav2Vec2BertForCTC"),
+        ("wav2vec2-conformer", "Wav2Vec2ConformerForCTC"),
         ("wavlm", "WavLMForAudioFrameClassification"),
     ]
 )
@@ -1161,6 +1182,8 @@ MODEL_FOR_AUDIO_FRAME_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
     [
         ("unispeech-sat", "UniSpeechSatForAudioFrameClassification"),
         ("wav2vec2", "Wav2Vec2ForAudioFrameClassification"),
+        ("wav2vec2-bert", "Wav2Vec2BertForAudioFrameClassification"),
+        ("wav2vec2-conformer", "Wav2Vec2ConformerForAudioFrameClassification"),
     ]
 )
 
@@ -1168,6 +1191,8 @@ MODEL_FOR_AUDIO_XVECTOR_MAPPING_NAMES = OrderedDict(
     [
         ("unispeech-sat", "UniSpeechSatForXVector"),
         ("wav2vec2", "Wav2Vec2ForXVector"),
+        ("wav2vec2-bert", "Wav2Vec2BertForXVector"),
+        ("wav2vec2-conformer", "Wav2Vec2ConformerForXVector"),
         ("wavlm", "WavLMForXVector"),
     ]
 )
@@ -1186,6 +1211,7 @@ MODEL_FOR_TEXT_TO_WAVEFORM_MAPPING_NAMES = OrderedDict(
         ("musicgen", "MusicgenForConditionalGeneration"),
         ("seamless_m4t", "SeamlessM4TForTextToSpeech"),
         ("seamless_m4t_v2", "SeamlessM4Tv2ForTextToSpeech"),
+        ("musicgen_melody", "MusicgenMelodyForConditionalGeneration"),
     ]
 )
 
@@ -1216,6 +1242,7 @@ MODEL_FOR_BACKBONE_MAPPING_NAMES = OrderedDict(
         ("pvt_v2", "PvtV2Backbone"),
         ("resnet", "ResNetBackbone"),
         ("swin", "SwinBackbone"),
+        ("rt_detr_resnet", "RTDetrResNetBackbone"),
         ("swinv2", "Swinv2Backbone"),
         ("textnet", "TextNetBackbone"),
         ("vitdet", "VitDetBackbone"),

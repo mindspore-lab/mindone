@@ -22,13 +22,14 @@ from dataclasses import dataclass
 from typing import Callable, List, Optional, Tuple, Union
 
 from transformers.configuration_utils import PretrainedConfig
-from transformers.generation import GenerationConfig, LogitsProcessorList, StoppingCriteriaList
+from transformers.generation import GenerationConfig
 from transformers.models.rag.configuration_rag import RagConfig
 from transformers.models.rag.retrieval_rag import RagRetriever
 
 import mindspore as ms
 from mindspore import mint, ops
 
+from ...generation import LogitsProcessorList, StoppingCriteriaList
 from ...modeling_outputs import ModelOutput
 from ...modeling_utils import PreTrainedModel
 from ...utils import logging
@@ -556,7 +557,8 @@ class RagModel(RagPreTrainedModel):
         >>> # initialize with RagRetriever to do everything in one forward call
         >>> model = RagModel.from_pretrained("facebook/rag-token-base", retriever=retriever, revision="refs/pr/1")
 
-        >>> inputs = tokenizer("How many people live in Paris?", return_tensors="pt")
+        >>> inputs = tokenizer("How many people live in Paris?", return_tensors="np")
+        >>> inputs = {k: ms.tensor(v) for k, v in inputs.items()}
         >>> outputs = model(input_ids=inputs["input_ids"])
         ```"""
         n_docs = n_docs if n_docs is not None else self.config.n_docs
@@ -662,7 +664,7 @@ class RagModel(RagPreTrainedModel):
             decoder_input_ids = decoder_input_ids.repeat_interleave(n_docs, dim=0)
 
         if decoder_attention_mask is not None:
-            decoder_attention_mask = decoder_attention_mask.repeat_interleave(n_docs, dim=0)
+            decoder_attention_mask = decoder_attention_mask.float().repeat_interleave(n_docs, dim=0).bool()
 
         gen_outputs = self.generator(
             input_ids=context_input_ids,
@@ -781,6 +783,7 @@ class RagSequenceForGeneration(RagPreTrainedModel):
         >>> from transformers import AutoTokenizer, RagRetriever
         >>> from mindone.transformers import RagSequenceForGeneration
         >>> import mindspore as ms
+        >>> from mindspore import mint
 
         >>> tokenizer = AutoTokenizer.from_pretrained("facebook/rag-sequence-nq", revision="refs/pr/1")
         >>> retriever = RagRetriever.from_pretrained(
