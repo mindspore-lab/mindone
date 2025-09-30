@@ -94,7 +94,9 @@ class LossWithScaleSense(nn.Cell):
 
     def construct(self, *args, scale_sense: float = 1.0, **kwargs) -> Tensor:
         loss = self.network(*args, **kwargs)
-        loss = loss * scale_sense.to(loss.dtype)
+        if isinstance(scale_sense, ms.Tensor):
+            scale_sense = scale_sense.to(loss.dtype)
+        loss = loss * scale_sense
         return loss
 
 
@@ -271,7 +273,7 @@ class TrainOneStepWrapper(nn.Cell):
         return loss
 
     def construct(self, *inputs):
-        loss, grads = self.value_and_grad(*inputs, scale_sense=self.scaler.scale_value)
+        loss, grads = self.value_and_grad(*inputs, self.scaler.scale_value)
         loss = self.scaler.unscale(loss)
         loss = loss * self.accum_steps
 

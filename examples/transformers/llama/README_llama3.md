@@ -29,7 +29,7 @@ cd examples/transformers/llama
 
 ## Quick Start
 ### Inference
-You can run the script `generate.py` for inference, it supports pynative or graph mode.
+You can run the script `generate.py` for inference:
 ```bash
 DEVICE_ID=0 python generate.py \
 --ms_mode 1 \
@@ -44,16 +44,16 @@ China is located in eastern part of Asia. It is the world's most populous countr
 ```
 
 # Training
-You can run the training script `finetune_in_native_mindspore.py` or `finetune_with_mindspore_trainer.py` for finetuning in graph mode, here is an example:
+You can run the training script `finetune_in_native_mindspore.py` or `finetune_with_mindspore_trainer.py` for finetuning, here is an example:
 ```bash
 DEVICE_ID=0 python finetune_in_native_mindspore.py \
---model_path meta-llama/Llama-3-8B
+--model_path meta-llama/Llama-3.2-1B
 ```
 
 ## Performance
 
 
-Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.6.0.
 
 - inference
 
@@ -68,4 +68,5 @@ Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0.
 
 |      model name	      | mode |  graph compile| precision  | recompute | zero |jit level | cards | batch | flash attn | 	it/s	|
 |:---------------------:|:--:|:--:|:--:|:-----------------:|:--------------:|:---: |:---:|:---:  |:----------:|:----------:|
-| Llama3.2-1B | graph| 3 mins| fp16 | ON |0| O0| 1 | 8 |   ON     |   1.77|
+| Llama3.2-1B | graph(trainer)| 3 mins| fp16 | ON |0| O0| 1 | 8 |   ON     |   1.77|
+| Llama3.2-1B | graph(native ms)| 3 mins |fp16 |ON |0| O0|  1 | 8|  ON     |  4.78 |
