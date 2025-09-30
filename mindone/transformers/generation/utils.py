@@ -2482,14 +2482,14 @@ class GenerationMixin:
             return False
         return True
 
-    def heal_tokens(self, input_ids: ms.tensor, tokenizer: Optional["PreTrainedTokenizerBase"] = None) -> ms.tensor:
+    def heal_tokens(self, input_ids: ms.Tensor, tokenizer: Optional["PreTrainedTokenizerBase"] = None) -> ms.Tensor:
         r"""
         Generates sequences of token ids for models with a language modeling head.
         Parameters:
-            input_ids (`ms.tensor`): The sequence used as a prompt for the generation.
+            input_ids (`ms.Tensor`): The sequence used as a prompt for the generation.
             tokenizer (`PreTrainedTokenizerBase`, *optional*): The tokenizer used to decode the input ids.
         Return:
-            `ms.tensor` where each sequence has its tail token replaced with its appropriate extension.
+            `ms.Tensor` where each sequence has its tail token replaced with its appropriate extension.
         """
         if tokenizer is None:
             raise ValueError(
