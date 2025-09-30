@@ -59,7 +59,7 @@ I am conscious. I can talk.
 
 Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.6.0.
 
-- inference
+### Inference
 
 |      model name	      | mode |  precision   | cards | flash attn | 	tokens/s	| steps|
 |:---------------------:|:--:|:-----------------:|:--------------:|:---:  |:----------:|:----------:|
