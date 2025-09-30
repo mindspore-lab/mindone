@@ -35,6 +35,7 @@ cd examples/transformers/llama
 from transformers import AutoTokenizer
 from mindone.transformers import LlamaForCausalLM
 from mindspore import Tensor
+import mindspore as ms
 
 model = LlamaForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf", mindspore_dtype=ms.float16)
 tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf")
