@@ -32,21 +32,19 @@ cd examples/transformers/llama
 ### Inference
 
 ```python
-import mindspore as ms
-from transformers import AutoModelForCausalLM, AutoTokenizer
-ms.set_context(mode=ms.PYNATIVE_MODE) # or ms.GRAPH_MODE
-tokenizer = AutoTokenizer.from_pretrained(
-    "meta-llama/Llama-2-7b-hf",
-)
-model = AutoModelForCausalLM.from_pretrained(
-    "meta-llama/Llama-2-7b-hf",
-    mindspore_dtype=ms.float16,
-    attn_implementation="flash_attention_2" # or "eager"
-)
-input_ids = tokenizer("Plants create energy through a process known as", return_tensors="np")
-input_ids = dict([(k, ms.Tensor(v)) for k,v in input_ids.items()])
-output = model.generate(**input_ids, cache_implementation="static")
-print(tokenizer.decode(output[0], skip_special_tokens=True))
+from transformers import AutoTokenizer
+from mindone.transformers import LlamaForCausalLM
+from mindspore import Tensor
+
+model = LlamaForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf", mindspore_dtype=ms.float16)
+tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf")
+
+prompt = "Hey, are you conscious? Can you talk to me?"
+inputs = tokenizer(prompt, return_tensors="np")
+
+# Generate
+generate_ids = model.generate(Tensor(inputs.input_ids), max_length=30, do_sample=True)
+print(tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0])
 ```
 
 The example output is show below:
