@@ -246,7 +246,9 @@ class QwenImageImg2ImgPipelineIntegrationTests(PipelineTesterMixin, unittest.Tes
             image=ms.Tensor(image.numpy()),
             prompt="dance monkey",
             negative_prompt="bad quality",
-        )[0][0]
+        )[
+            0
+        ][0]
 
         # The text_coder causes deviations between ms and pt versions. However, the deviation\
         # is within THRESHOLD_PIXEL when using the same intermediate results of text_encoder.
