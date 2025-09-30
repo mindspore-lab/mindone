@@ -827,8 +827,6 @@ class LSHSelfAttention(mindspore.nn.Cell, EfficientAttentionMixin):
         del self_mask
 
         logits = mindspore.mint.logsumexp(query_key_dots, dim=-1, keepdim=True)
-        # dots shape is `[batch_size, num_attn_heads, num_hashes * seq_len
-        # // chunk_length, chunk_length, chunk_length * (1 + num_chunks_before + num_chunks_after)]`
         # dots shape is `[batch_size, num_attn_heads, num_hashes * seq_len // chunk_length,
         # chunk_length, chunk_length * (1 + num_chunks_before + num_chunks_after)]`
         attention_probs = mindspore.mint.exp(query_key_dots - logits)
