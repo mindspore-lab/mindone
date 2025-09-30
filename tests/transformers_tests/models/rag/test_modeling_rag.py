@@ -32,6 +32,7 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
+from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
 from ..bart.test_modeling_bart import BartModelTester
 from ..dpr.test_modeling_dpr import DPRModelTester
@@ -47,14 +48,20 @@ class RagModelTester:
         self.max_combined_length = max_combined_length
 
     def config_and_inputs(self):
-        question_encoder_tester = DPRModelTester(self)
+        question_encoder_tester = DPRModelTester()
         dpr_config_and_inputs = question_encoder_tester.prepare_config_and_inputs()
-        generator_tester = BartModelTester(self)
+        generator_tester = BartModelTester()
         bart_config_and_inputs = generator_tester.prepare_config_and_inputs_for_common()
 
+        context_input_ids = ids_numpy(
+            [self.n_docs * question_encoder_tester.batch_size, self.max_combined_length],
+            question_encoder_tester.vocab_size,
+        )
+        context_attention_mask = np.ones_like(context_input_ids)
+        doc_scores = floats_numpy([question_encoder_tester.batch_size, self.n_docs])
+
         (question_encoder_config, input_ids, _, input_mask, _, _, _) = dpr_config_and_inputs
-        (generator_config, bart_inputs_dict) = bart_config_and_inputs
-        decoder_input_ids, decoder_attention_mask = bart_inputs_dict["input_ids"], bart_inputs_dict["attention_mask"]
+        (generator_config, decoder_input_ids, _, decoder_attention_mask, _) = bart_config_and_inputs
 
         config = RagConfig.from_question_encoder_generator_configs(
             question_encoder_config,
@@ -64,13 +71,16 @@ class RagModelTester:
             max_combined_length=self.max_combined_length,
         )
 
-        return {
-            "config": config,
-            "input_ids": input_ids,
-            "attention_mask": input_mask,
-            "decoder_input_ids": decoder_input_ids,
-            "decoder_attention_mask": decoder_attention_mask,
-        }
+        return (
+            config,
+            input_ids,
+            input_mask,
+            decoder_input_ids,
+            decoder_attention_mask,
+            context_input_ids,
+            context_attention_mask,
+            doc_scores,
+        )
 
 
 model_tester = RagModelTester()
@@ -80,6 +90,9 @@ model_tester = RagModelTester()
     input_mask,
     decoder_input_ids,
     decoder_attention_mask,
+    context_input_ids,
+    context_attention_mask,
+    doc_scores,
 ) = model_tester.config_and_inputs()
 RAG_CASES = [
     [
@@ -93,6 +106,9 @@ RAG_CASES = [
             "attention_mask": input_mask,
             "decoder_input_ids": decoder_input_ids,
             "decoder_attention_mask": decoder_attention_mask,
+            "context_input_ids": context_input_ids,
+            "context_attention_mask": context_attention_mask,
+            "doc_scores": doc_scores,
         },
         {
             "logits": 0,
