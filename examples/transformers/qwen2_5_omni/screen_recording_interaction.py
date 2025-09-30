@@ -2,7 +2,7 @@
 Screen Recording Interaction with Qwen2.5-Omni
 This script demonstrates how to use Qwen2.5-Omni to get the information and content you want to know by asking questions in real time on the recording screen.
 """
-import numpy as np
+
 from qwen_omni_utils import process_mm_info
 
 import mindspore as ms
@@ -40,10 +40,7 @@ def inference(video_path, prompt, sys_prompt):
     )
     # convert input to Tensor
     for key, value in inputs.items():  # by default input numpy array or list
-        if isinstance(value, np.ndarray):
-            inputs[key] = ms.Tensor(value)
-        elif isinstance(value, list):
-            inputs[key] = ms.Tensor(value)
+        inputs[key] = ms.Tensor(value)
         if inputs[key].dtype == ms.int64:
             inputs[key] = inputs[key].to(ms.int32)
         else:
@@ -58,12 +55,12 @@ def inference(video_path, prompt, sys_prompt):
 # Load the model
 # We recommend enabling flash_attention_2 for better acceleration and memory saving.
 model = Qwen2_5OmniForConditionalGeneration.from_pretrained(
-    "Qwen/Qwen2.5-Omni-7B",
+    "Qwen/Qwen2.5-Omni-3B",
     mindspore_dtype=ms.float16,
     use_safetensors=True,
     attn_implementation="flash_attention_2",
 )
-processor = Qwen2_5OmniProcessor.from_pretrained("Qwen/Qwen2.5-Omni-7B")
+processor = Qwen2_5OmniProcessor.from_pretrained("Qwen/Qwen2.5-Omni-3B")
 print("Finished loading model and processor.")
 
 
@@ -95,6 +92,6 @@ print(response[0])
 print("*" * 100)
 print("***** Assistant *****")
 video_path = "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen2.5-Omni/screen.mp4"
-prompt = "Please trranslate the abstract of paper into Chinese."
+prompt = "Please translate the abstract of paper into Chinese."
 response = inference(video_path, prompt=prompt, sys_prompt="You are a helpful assistant.")
 print(response[0])

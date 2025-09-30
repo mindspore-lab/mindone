@@ -23,6 +23,7 @@ from mindspore import mint, nn
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
 from ...utils import get_logger
+from ..cache_utils import CacheMixin
 from ..embeddings import get_1d_rotary_pos_embed
 from ..layers_compat import unflatten
 from ..modeling_outputs import Transformer2DModelOutput
@@ -110,7 +111,9 @@ class HunyuanVideoHistoryPatchEmbed(nn.Cell):
         return latents_clean, latents_clean_2x, latents_clean_4x
 
 
-class HunyuanVideoFramepackTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginalModelMixin):
+class HunyuanVideoFramepackTransformer3DModel(
+    ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginalModelMixin, CacheMixin
+):
     _supports_gradient_checkpointing = True
     _skip_layerwise_casting_patterns = ["x_embedder", "context_embedder", "norm"]
     _no_split_modules = [

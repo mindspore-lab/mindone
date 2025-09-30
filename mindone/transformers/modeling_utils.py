@@ -16,7 +16,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import collections
 import copy
 import gc
 import json
@@ -25,7 +24,7 @@ import re
 import warnings
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, MutableMapping, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, MutableMapping, Optional, Tuple, Union
 
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import custom_object_save
@@ -148,10 +147,17 @@ def _convert_state_dict(m, state_dict_pt, prefix=""):
         for name, param in m.parameters_and_names():
             name_ms = param.name
             length = len(prefix) + 1
+            # State dict name conversion is added for dealing with the condition that model key and state_dict key mismatch
             if name_pt.startswith(prefix):
+                # if state_dict has prefix, check if model has prefix
+                # When the prefix and the end of the name (such as embedding_table and weight) are removed, the consistency is judged
+                # if yes, slice prefix from state_dict key
                 if name_ms.rsplit(".", 1)[0] == name_pt.rsplit(".", 1)[0][length:] or name_ms == name_pt[length:]:
                     name_pt = name_pt[length:]
             elif not name_pt.startswith(prefix):
+                # if state_dict does not have prefix, check if model has prefix
+                # When the prefix and the end of the name (such as embedding_table and weight) are removed, the consistency is judged
+                # if no, add prefix to state_dict key
                 if name_pt.rsplit(".", 1)[0] == name_ms.rsplit(".", 1)[0][length:] or name_pt == name_ms[length:]:
                     name_pt = ".".join([prefix, name_pt])
         name_ms, data_mapping = pt2ms_mappings.get(name_pt, (name_pt, lambda x: x))
@@ -328,65 +334,6 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike]):
             )
 
 
-def _end_ptr(tensor: ms.Tensor) -> int:
-    # extract the end of the pointer if the tensor is a slice of a bigger tensor
-    if tensor.nelement():
-        stop = tensor.view(-1)[-1].data_ptr() + tensor.element_size()
-    else:
-        stop = tensor.data_ptr()
-    return stop
-
-
-def _find_disjoint(tensors: List[Set[str]], state_dict: Dict[str, ms.Tensor]) -> Tuple[List[Set[str]], List[str]]:
-    filtered_tensors = []
-    for shared in tensors:
-        if len(shared) < 2:
-            filtered_tensors.append(shared)
-            continue
-
-        areas = []
-        for name in shared:
-            tensor = state_dict[name]
-            areas.append((tensor.data_ptr(), _end_ptr(tensor), name))
-        areas.sort()
-
-        _, last_stop, last_name = areas[0]
-        filtered_tensors.append({last_name})
-        for start, stop, name in areas[1:]:
-            if start >= last_stop:
-                filtered_tensors.append({name})
-            else:
-                filtered_tensors[-1].add(name)
-            last_stop = stop
-    disjoint_tensors = []
-    shared_tensors = []
-    for tensors in filtered_tensors:
-        if len(tensors) == 1:
-            disjoint_tensors.append(tensors.pop())
-        else:
-            shared_tensors.append(tensors)
-    return shared_tensors, disjoint_tensors
-
-
-def _find_identical(tensors: List[Set[str]], state_dict: Dict[str, ms.Tensor]) -> Tuple[List[Set[str]], Set[str]]:
-    shared_tensors = []
-    identical = []
-    for shared in tensors:
-        if len(shared) < 2:
-            continue
-
-        areas = collections.defaultdict(set)
-        for name in shared:
-            tensor = state_dict[name]
-            area = (tensor.device, tensor.data_ptr(), _end_ptr(tensor))
-            areas[area].add(name)
-        if len(areas) == 1:
-            identical.append(shared)
-        else:
-            shared_tensors.append(shared)
-    return shared_tensors, identical
-
-
 def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_sharded=False):
     # # add prefix to the name of parameters
     # if len(start_prefix) > 0:
@@ -488,6 +435,10 @@ class ModuleUtilsMixin:
         return self.__class__.__name__
 
     def to(self, dtype: Optional[ms.Type] = None):
+        # FIXME: In ms 2.6.0 `tensor.set_dtype()` encountered a bug that it occurs wrong values.
+        # Resume to use self.register_buffer() in network and set dtype for buffer tensors after ms2.7.0 launched.
+        # Now we use `Parameter` and `Parameter.set_dtype()` instead.
+
         for p in self.get_parameters():
             p.set_dtype(dtype)
         return self
@@ -817,8 +768,25 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 "`PretrainedConfig`. To create a model from a pretrained model use "
                 f"`model = {self.__class__.__name__}.from_pretrained(PRETRAINED_MODEL_NAME)`"
             )
+        if not getattr(config, "_attn_implementation_autoset", False):
+            # config usually has a `mindspore_dtype` but we need the next line for the `no_super_init` tests
+            # TODO mindspore does not have get_default_dtype api
+            dtype = config.mindspore_dtype if hasattr(config, "mindspore_dtype") else ms.float32
+            config = self._autoset_attn_implementation(config, mindspore_dtype=dtype)
         # Save config and origin of the pretrained weights if given in model
         self.config = config
+
+        # for initialization of the loss
+        loss_type = self.__class__.__name__
+        if loss_type not in LOSS_MAPPING:
+            loss_groups = f"({'|'.join(LOSS_MAPPING)})"
+            loss_type = re.findall(loss_groups, self.__class__.__name__)
+            if len(loss_type) > 0:
+                loss_type = loss_type[0]
+            else:
+                loss_type = None
+        self.loss_type = loss_type
+
         self.name_or_path = config.name_or_path
         self.warnings_issued = {}
         self.generation_config = GenerationConfig.from_model_config(config) if self.can_generate() else None
@@ -875,6 +843,23 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             # If a config is passed with a preset attn_implementation, we skip the automatic dispatch and use the
             # user-provided config, with hard checks that the requested attention implementation is available.
             requested_attn_implementation = config._attn_implementation_internal
+
+        # Composite models consisting of several PretrainedModels have to specify attention impl as a dict
+        # where keys are sub-config names. But most people will specify one `str` which means that should dispatch it
+        # for all sub-models.
+        # Below we check if a config is composite and manually prepare a dict of attn impl if not already passed as a dict.
+        # Later each sub-module will dispatch with its own attn impl, by calling `XXXModel._from_config(config.text_config)`
+        # If any of sub-modules doesn't support requested attn, an error will be raised. See https://github.com/huggingface/transformers/pull/32238
+        for key in config.sub_configs.keys():
+            sub_config = getattr(config, key)
+            curr_attn_implementation = (
+                requested_attn_implementation
+                if not isinstance(requested_attn_implementation, dict)
+                else requested_attn_implementation.get(key, None)
+            )
+            # For models with backbone sub-config might be not initialized
+            if sub_config is not None:
+                sub_config._attn_implementation_internal = curr_attn_implementation
 
         if use_flash_attention_2:
             logger.warning_once(
@@ -1052,7 +1037,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
         if isinstance(mindspore_dtype, str):
             mindspore_dtype = getattr(ms, mindspore_dtype)
-        elif mindspore_dtype is not None:
+        elif mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
             TORCH_TO_MINDSPORE_DTYPE_MAP = {
                 "torch.float32": ms.float32,
                 "torch.bfloat16": ms.bfloat16,
@@ -2434,6 +2419,13 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                             f'`mindspore_dtype` can be either `ms.Type` or `"auto"`, but received {mindspore_dtype}'
                         )
                 # TODO: We cannot set default mindspore dtype!
+            else:
+                # TODO: We cannot get default mindspore dtype!
+                default_dtype = dtype_to_str(ms.float32)
+                config.mindspore_dtype = default_dtype
+                for key in config.sub_configs.keys():
+                    value = getattr(config, key)
+                    value.mindspore_dtype = default_dtype
 
             # Check if `_keep_in_fp32_modules` is not None
             use_keep_in_fp32_modules = (cls._keep_in_fp32_modules is not None) and (mindspore_dtype == ms.float16)
@@ -2590,14 +2582,19 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             # In this case, we need to add the prefix to the keys, to match them to the expected keys
             if loading_task_model_from_base_state_dict:
                 new_key = ".".join([prefix, new_key])
+                key = ".".join([prefix, key])
             # In this case we need to remove the prefix from the key to match them to the expected keys, and use
             # only the keys starting with the prefix
             elif loading_base_model_from_task_state_dict:
                 if not new_key.startswith(_prefix):
                     continue
                 new_key = new_key[len(_prefix) :]
+                key = key[len(_prefix) :]
 
-            key_renaming_mapping[key] = new_key
+            if not has_changed:
+                key_renaming_mapping[new_key] = new_key
+            else:
+                key_renaming_mapping[key] = new_key
 
             # track gamma/beta rename for logging
             if has_changed:
@@ -2744,6 +2741,20 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         if state_dict is not None:
             # Whole checkpoint
             state_dict = _convert_state_dict(model, state_dict, prefix)
+            # In the original PyTorch implementation, this transformation is done via `_register_load_state_dict_pre_hook(load_hook)`.
+            # Since MindSpore does not support such hooks, we manually apply the same renaming logic here.
+            # This ensures compatibility with checkpoints loaded using the original naming convention.
+            if "Mamba" in model.__class__.__name__:
+                state_dict_tmp = {}
+                for k, v in state_dict.items():
+                    new_k = k.replace("embedding.", "embeddings.") if "embedding." in k else k
+                    state_dict_tmp[new_k] = v
+                state_dict = state_dict_tmp
+
+            matching = [s for s in key_renaming_mapping.keys() if "LayerNorm.gamma" in s]
+            if matching:
+                # Fix the key names when model weight names contain LayerNorm.gamma/LayerNorm.beta
+                state_dict = {key_renaming_mapping[k]: v for k, v in state_dict.items() if k in key_renaming_mapping}
 
             mismatched_keys = _find_mismatched_keys(
                 state_dict,
@@ -2771,6 +2782,22 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             for shard_file in resolved_archive_file:
                 state_dict = load_state_dict(shard_file)
                 state_dict = _convert_state_dict(model, state_dict, prefix)
+                # In the original PyTorch implementation, this transformation is done via `_register_load_state_dict_pre_hook(load_hook)`.
+                # Since MindSpore does not support such hooks, we manually apply the same renaming logic here.
+                # This ensures compatibility with checkpoints loaded using the original naming convention.
+                if "Mamba" in model.__class__.__name__:
+                    state_dict_tmp = {}
+                    for k, v in state_dict.items():
+                        new_k = k.replace("embedding.", "embeddings.") if "embedding." in k else k
+                        state_dict_tmp[new_k] = v
+                    state_dict = state_dict_tmp
+
+                matching = [s for s in key_renaming_mapping.keys() if "LayerNorm.gamma" in s]
+                if matching:
+                    # Fix the key names when model weight names contain LayerNorm.gamma/LayerNorm.beta
+                    state_dict = {
+                        key_renaming_mapping[k]: v for k, v in state_dict.items() if k in key_renaming_mapping
+                    }
 
                 # Mismatched keys contains tuples key/shape1/shape2 of weights in the checkpoint that have a shape not
                 # matching the weights in the model.
@@ -3008,9 +3035,9 @@ class PoolerEndLogits(nn.Cell):
         ), "One of start_states, start_positions should be not None"
         if start_positions is not None:
             slen, hsz = hidden_states.shape[-2:]
-            start_positions = start_positions[:, None, None].expand(-1, -1, hsz)  # shape (bsz, 1, hsz)
+            start_positions = start_positions[:, None, None].expand((-1, -1, hsz))  # shape (bsz, 1, hsz)
             start_states = hidden_states.gather(-2, start_positions)  # shape (bsz, 1, hsz)
-            start_states = start_states.expand(-1, slen, -1)  # shape (bsz, slen, hsz)
+            start_states = start_states.expand((-1, slen, -1))  # shape (bsz, slen, hsz)
 
         x = self.dense_0(mint.cat([hidden_states, start_states], dim=-1))
         x = self.activation(x)
@@ -3075,11 +3102,11 @@ class PoolerAnswerClass(nn.Cell):
             start_states is not None or start_positions is not None
         ), "One of start_states, start_positions should be not None"
         if start_positions is not None:
-            start_positions = start_positions[:, None, None].expand(-1, -1, hsz)  # shape (bsz, 1, hsz)
+            start_positions = start_positions[:, None, None].expand((-1, -1, hsz))  # shape (bsz, 1, hsz)
             start_states = hidden_states.gather(-2, start_positions).squeeze(-2)  # shape (bsz, hsz)
 
         if cls_index is not None:
-            cls_index = cls_index[:, None, None].expand(-1, -1, hsz)  # shape (bsz, 1, hsz)
+            cls_index = cls_index[:, None, None].expand((-1, -1, hsz))  # shape (bsz, 1, hsz)
             cls_token_state = hidden_states.gather(-2, cls_index).squeeze(-2)  # shape (bsz, hsz)
         else:
             cls_token_state = hidden_states[:, -1, :]  # shape (bsz, hsz)
@@ -3211,9 +3238,9 @@ class SQuADHead(nn.Cell):
             start_top_log_probs, start_top_index = mint.topk(
                 start_log_probs, self.start_n_top, dim=-1
             )  # shape (bsz, start_n_top)
-            start_top_index_exp = start_top_index.unsqueeze(-1).expand(-1, -1, hsz)  # shape (bsz, start_n_top, hsz)
+            start_top_index_exp = start_top_index.unsqueeze(-1).expand((-1, -1, hsz))  # shape (bsz, start_n_top, hsz)
             start_states = mint.gather(hidden_states, -2, start_top_index_exp)  # shape (bsz, start_n_top, hsz)
-            start_states = start_states.unsqueeze(1).expand(-1, slen, -1, -1)  # shape (bsz, slen, start_n_top, hsz)
+            start_states = start_states.unsqueeze(1).expand((-1, slen, -1, -1))  # shape (bsz, slen, start_n_top, hsz)
 
             hidden_states_expanded = hidden_states.unsqueeze(2).expand_as(
                 start_states

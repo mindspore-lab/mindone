@@ -9,7 +9,7 @@ from mindspore.dataset import Dataset
 
 # fixme
 # consider general methods for various processor
-class PipelineDataset(Dataset):
+class PipelineDataset:
     def __init__(self, dataset, process, params):
         self.dataset = dataset
         self.process = process
@@ -66,9 +66,6 @@ class PipelineIterator:
         self._loader_batch_data = None
 
         self.collate_fn = collate_fn
-
-    def __len__(self):
-        return len(self.loader)
 
     def __iter__(self):
         self.iterator = iter(self.loader)

@@ -35,7 +35,7 @@ import mindspore as ms
 from mindspore import mint, ops
 
 from .constants import DIFFUSERS_REQUEST_TIMEOUT
-from .import_utils import BACKENDS_MAPPING, is_opencv_available
+from .import_utils import BACKENDS_MAPPING, is_kernels_available, is_opencv_available
 from .logging import get_logger
 
 global_rng = random.Random()
@@ -219,7 +219,7 @@ def require_peft_version_greater(peft_version):
     """
 
     def decorator(test_case):
-        from mindone.diffusers._peft import __version__ as _mindone_diffusers_peft_version
+        from mindone.peft import __version__ as _mindone_diffusers_peft_version
 
         correct_peft_version = version.parse(_mindone_diffusers_peft_version) > version.parse(peft_version)
         return pytest.mark.skipif(
@@ -236,6 +236,18 @@ def require_hf_hub_version_greater(hf_hub_version):
         ) > version.parse(hf_hub_version)
         return unittest.skipUnless(
             correct_hf_hub_version, f"Test requires huggingface_hub with the version greater than {hf_hub_version}."
+        )(test_case)
+
+    return decorator
+
+
+def require_kernels_version_greater_or_equal(kernels_version):
+    def decorator(test_case):
+        correct_kernels_version = is_kernels_available() and version.parse(
+            version.parse(importlib.metadata.version("kernels")).base_version
+        ) >= version.parse(kernels_version)
+        return unittest.skipUnless(
+            correct_kernels_version, f"Test requires kernels with version greater than {kernels_version}."
         )(test_case)
 
     return decorator
@@ -626,10 +638,10 @@ def pytest_terminal_summary_main(tr, id):
     config.option.tbstyle = orig_tbstyle
 
 
-# Copied from https://github.com/huggingface/transformers/blob/000e52aec8850d3fe2f360adc6fd256e5b47fe4c/src/transformers/testing_utils.py#L1905
+# Adapted from https://github.com/huggingface/transformers/blob/000e52aec8850d3fe2f360adc6fd256e5b47fe4c/src/transformers/testing_utils.py#L1905
 def is_flaky(max_attempts: int = 5, wait_before_retry: Optional[float] = None, description: Optional[str] = None):
     """
-    To decorate flaky tests. They will be retried on failures.
+    To decorate flaky tests (methods or entire classes). They will be retried on failures.
 
     Args:
         max_attempts (`int`, *optional*, defaults to 5):
@@ -641,22 +653,33 @@ def is_flaky(max_attempts: int = 5, wait_before_retry: Optional[float] = None, d
             etc.)
     """
 
-    def decorator(test_func_ref):
-        @functools.wraps(test_func_ref)
+    def decorator(obj):
+        # If decorating a class, wrap each test method on it
+        if inspect.isclass(obj):
+            for attr_name, attr_value in list(obj.__dict__.items()):
+                if callable(attr_value) and attr_name.startswith("test"):
+                    # recursively decorate the method
+                    setattr(obj, attr_name, decorator(attr_value))
+            return obj
+
+        # Otherwise we're decorating a single test function / method
+        @functools.wraps(obj)
         def wrapper(*args, **kwargs):
             retry_count = 1
-
             while retry_count < max_attempts:
                 try:
-                    return test_func_ref(*args, **kwargs)
-
+                    return obj(*args, **kwargs)
                 except Exception as err:
-                    print(f"Test failed with {err} at try {retry_count}/{max_attempts}.", file=sys.stderr)
+                    msg = (
+                        f"[FLAKY] {description or obj.__name__!r} "
+                        f"failed on attempt {retry_count}/{max_attempts}: {err}"
+                    )
+                    print(msg, file=sys.stderr)
                     if wait_before_retry is not None:
                         time.sleep(wait_before_retry)
                     retry_count += 1
 
-            return test_func_ref(*args, **kwargs)
+            return obj(*args, **kwargs)
 
         return wrapper
 
@@ -766,3 +789,23 @@ def load_numpy_from_local_file(repo_id, filename, subfolder=None):
 
     ndarray = np.load(file_path)
     return ndarray
+
+
+def load_image_from_local_file(repo_id, filename, subfolder=None):
+    file_path = os.path.join(".", repo_id, subfolder, filename)
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Test result not found: {file_path}")
+
+    img = load_image(file_path)
+    return img
+
+
+def load_video_from_local_file(repo_id, filename, subfolder=None):
+    file_path = os.path.join(".", repo_id, subfolder, filename)
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Test result not found: {file_path}")
+
+    video = load_video(file_path)
+    return video

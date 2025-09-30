@@ -1,0 +1,6 @@
+diffusers
+einops @ git+https://github.com/hadipash/einops@mindspore
+jsonargparse[signatures,omegaconf,urls]
+Pillow
+tqdm
+transformers
