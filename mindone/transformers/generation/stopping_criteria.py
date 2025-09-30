@@ -16,6 +16,8 @@ import mindspore.numpy as mnp
 from mindspore import mint, ops
 from mindspore.mint.nn import functional as F
 
+from mindone.transformers.mindspore_adapter.layers_compat import unflatten
+
 logger = logging.get_logger(__name__)
 # We maintain a module-level cache of the embedding vectors for the stop string criterion
 # because they are slow to compute
@@ -423,15 +425,14 @@ class StopStringCriteria(StoppingCriteria):
         embedded = F.embedding(flipped_ids, self.embedding_vec)
 
         # Now we split the embedding vector. valid_positions is the positions in the stop string the token can fit
-        valid_positions = embedded[:, 1:, : max_valid_positions * self.num_stop_strings]
-        num_embeds, embeds_size, _ = valid_positions.shape
-        valid_positions = valid_positions.reshape((num_embeds, embeds_size, self.num_stop_strings, -1))
-
+        valid_positions = unflatten(
+            embedded[:, 1:, : max_valid_positions * self.num_stop_strings], -1, (self.num_stop_strings, -1)
+        )
         # end_lengths is the number of characters from the string, counting from the end, that the token
         # contains. It can have multiple values if the same token can overlap different end lengths
-        end_lengths = embedded[:, :1, max_valid_positions * self.num_stop_strings : -1]
-        num_embeds, embeds_size, _ = end_lengths.shape
-        end_lengths = end_lengths.reshape((num_embeds, embeds_size, self.num_stop_strings, -1))
+        end_lengths = unflatten(
+            embedded[:, :1, max_valid_positions * self.num_stop_strings : -1], -1, (self.num_stop_strings, -1)
+        )
         # Lengths is the total length of each token. Unlike the others, it always has a single value
         lengths = embedded[:, 1:, None, -1:]  # Insert a dummy dimension for stop_strings even though lengths are const
 

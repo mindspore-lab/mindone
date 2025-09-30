@@ -2,7 +2,7 @@ from typing import Literal, Optional, Union
 
 from mindspore import Tensor
 from mindspore import dtype as mstype
-from mindspore import mint, nn, ops
+from mindspore import mint, nn
 from mindspore.communication import get_group_size, get_rank
 from mindspore.communication.management import GlobalComm
 from mindspore.context import ParallelMode
@@ -40,13 +40,20 @@ class Dense(nn.Cell):
             op_group_size = get_group_size(optimizer_parallel_group) if is_parallel else 1
             op_rank_id = get_rank(optimizer_parallel_group) if is_parallel else 0
             self.param_wrapper_w = ZeroParamWrapper(self.net.weight, zero_stage, optimizer_parallel_group, cell_type)
-            split_op = ops.Split(0, op_group_size)
             if self.param_wrapper_w.need_rewrite:
-                self.net.weight.assign_value(split_op(self.net.weight)[op_rank_id])
+                self.net.weight.assign_value(
+                    Tensor.from_numpy(
+                        self.net.weight.numpy().reshape(op_group_size, -1, *self.net.weight.shape[1:])[op_rank_id]
+                    )
+                )
             if self.net.has_bias:
                 self.param_wrapper_b = ZeroParamWrapper(self.net.bias, zero_stage, optimizer_parallel_group, cell_type)
                 if self.param_wrapper_b.need_rewrite:
-                    self.net.bias.assign_value(split_op(self.net.bias)[op_rank_id])
+                    self.net.bias.assign_value(
+                        Tensor.from_numpy(
+                            self.net.bias.numpy().reshape(op_group_size, -1, *self.net.bias.shape[1:])[op_rank_id]
+                        )
+                    )
 
     def construct(self, x):
         x_shape = x.shape

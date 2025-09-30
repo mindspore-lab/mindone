@@ -26,9 +26,9 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import ids_numpy
+from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-2, "fp16": 5e-2, "bf16": 5e-2}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]  # not support graph mode yet
 
 
@@ -37,6 +37,7 @@ class Qwen2VLModelTester:
         self,
         batch_size=1,
         seq_length=7,
+        num_channels=3,
         # For common tests
         is_training=False,
         use_attention_mask=True,
@@ -52,9 +53,30 @@ class Qwen2VLModelTester:
         max_position_embeddings=512,
         use_sliding_window=False,
         attn_implementation="eager",
+        image_size=14,
+        bos_token_id=0,
+        eos_token_id=1,
+        pad_token_id=2,
+        vision_start_token_id=3,
+        image_token_id=4,
+        video_token_id=5,
+        vision_config={
+            "depth": 2,
+            "in_chans": 3,
+            "hidden_act": "silu",
+            "intermediate_size": 32,
+            "out_hidden_size": 128,
+            "hidden_size": 128,
+            "num_heads": 8,
+            "patch_size": 14,
+            "spatial_patch_size": 14,
+            "spatial_merge_size": 1,
+            "temporal_patch_size": 2,
+        },
     ):
         self.batch_size = batch_size
         self.seq_length = seq_length
+        self.num_channels = num_channels
         # For common tests
         self.seq_length = self.seq_length
         self.is_training = is_training
@@ -74,9 +96,19 @@ class Qwen2VLModelTester:
             "mrope_section": [2, 3, 3],
             "type": "mrope",
         }  # sum*2=16 = head_dim = hidden_size//num_attention_heads = 128//8=16
+        self.image_size = image_size
+        self.bos_token_id = bos_token_id
+        self.eos_token_id = eos_token_id
+        self.pad_token_id = pad_token_id
+        self.vision_start_token_id = vision_start_token_id
+        self.image_token_id = image_token_id
+        self.video_token_id = video_token_id
+        self.vision_config = vision_config
+        self.num_image_tokens = 32
+        self.seq_length = self.seq_length + self.num_image_tokens
 
     def get_large_model_config(self):
-        return Qwen2VLConfig.from_pretrained("Qwen/Qwen2.5-Omni-7B")
+        return Qwen2VLConfig.from_pretrained("Qwen/Qwen2-VL-7B-Instruct")
 
     def prepare_config_and_inputs(self):
         input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
@@ -85,9 +117,27 @@ class Qwen2VLModelTester:
             attention_mask = ids_numpy([self.batch_size, self.seq_length], vocab_size=2)
 
         config = self.get_config()
-        # config._attn_implementation = self.attn_implementation
+        # config = self.get_large_model_config()
+        # config._attn_implementation = self.attn_implementation # default use sdpa
 
-        return (config, input_ids, attention_mask)
+        patch_size = config.vision_config.patch_size
+        temporal_patch_size = config.vision_config.temporal_patch_size
+        pixel_values = floats_numpy(
+            [
+                self.batch_size * (self.image_size**2) // (patch_size**2),
+                self.num_channels * (patch_size**2) * temporal_patch_size,
+            ]
+        )
+        image_grid_thw = np.array([[1, 1, 1]] * self.batch_size)
+
+        input_ids[:, -1] = self.pad_token_id
+        input_ids[input_ids == self.video_token_id] = self.pad_token_id
+        input_ids[input_ids == self.image_token_id] = self.pad_token_id
+        input_ids[input_ids == self.vision_start_token_id] = self.pad_token_id
+        input_ids[:, self.num_image_tokens] = self.image_token_id
+        input_ids[:, self.num_image_tokens - 1] = self.vision_start_token_id
+
+        return config, input_ids, attention_mask, pixel_values, image_grid_thw
 
     def get_config(self):
         config = Qwen2VLConfig(
@@ -102,29 +152,53 @@ class Qwen2VLModelTester:
             use_cache=self.use_cache,
             output_attentions=self.output_attentions,
             attn_implementation=self.attn_implementation,
-            image_token_id=80,
-            video_token_id=90,
-            vision_start_token_id=70,
+            bos_token_id=self.bos_token_id,
+            eos_token_id=self.eos_token_id,
+            pad_token_id=self.pad_token_id,
+            vision_start_token_id=self.vision_start_token_id,
+            image_token_id=self.image_token_id,
+            video_token_id=self.video_token_id,
+            vision_config=self.vision_config,
         )
 
         return config
 
 
 model_tester = Qwen2VLModelTester()
-(config, input_ids, attention_mask) = model_tester.prepare_config_and_inputs()
+(config, input_ids, attention_mask, pixel_values, image_grid_thw) = model_tester.prepare_config_and_inputs()
 
 
 T5_CASES = [
-    [
+    [  # LM
         "Qwen2VLModel",
-        "transformers.Qwen2VLModel",  # NOTE: name is different from latest version
+        "transformers.Qwen2VLModel",
         "mindone.transformers.Qwen2VLModel",
         (config,),
         {},
         (),
-        {"input_ids": input_ids, "attention_mask": attention_mask, "return_dict": True},
         {
-            "last_hidden_state": "last_hidden_state",
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+        },
+        {
+            "last_hidden_state": 0,
+        },
+    ],
+    [  # VQA
+        "Qwen2VLForConditionalGeneration",
+        "transformers.Qwen2VLForConditionalGeneration",
+        "mindone.transformers.Qwen2VLForConditionalGeneration",
+        (config,),
+        {},
+        (),
+        {
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+            "pixel_values": pixel_values,
+            "image_grid_thw": image_grid_thw,
+        },
+        {
+            "logits": 0,
         },
     ],
 ]
@@ -186,7 +260,7 @@ def test_named_modules(
         for pt_key, ms_idx in outputs_map.items():
             # print("===map", pt_key, ms_idx)
             pt_output = getattr(pt_outputs, pt_key)
-            ms_output = getattr(ms_outputs, ms_idx)
+            ms_output = ms_outputs[ms_idx]
             if isinstance(pt_output, (list, tuple)):
                 pt_outputs_n += list(pt_output)
                 ms_outputs_n += list(ms_output)
