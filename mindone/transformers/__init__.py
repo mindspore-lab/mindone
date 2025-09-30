@@ -513,6 +513,18 @@ from .models.flaubert import (
     FlaubertPreTrainedModel,
     FlaubertWithLMHeadModel,
 )
+from .models.flava import (
+    FlavaFeatureExtractor,
+    FlavaForPreTraining,
+    FlavaImageCodebook,
+    FlavaImageModel,
+    FlavaImageProcessor,
+    FlavaModel,
+    FlavaMultimodalModel,
+    FlavaPreTrainedModel,
+    FlavaProcessor,
+    FlavaTextModel,
+)
 from .models.fnet import (
     FNetForMaskedLM,
     FNetForMultipleChoice,
