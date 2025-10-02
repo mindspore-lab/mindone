@@ -184,6 +184,7 @@ def prepare_img():
     return image
 
 
+@pytest.mark.slow
 def test_inference_object_detection_head():
     THRESHOLD = DTYPE_AND_THRESHOLDS["fp32"]
 

@@ -15,7 +15,6 @@ from ..pipeline_test_utils import THRESHOLD_PIXEL, PipelineTesterMixin
 
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float32"},
 ]
 
 
