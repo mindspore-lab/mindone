@@ -285,7 +285,6 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("data2vec-text", "Data2VecTextForMaskedLM"),
         ("distilbert", "DistilBertForMaskedLM"),
         ("electra", "ElectraForPreTraining"),
-        ("flava", "FlavaForPreTraining"),
         ("falcon_mamba", "FalconMambaForCausalLM"),
         ("flava", "FlavaForPreTraining"),
         ("fnet", "FNetForPreTraining"),
