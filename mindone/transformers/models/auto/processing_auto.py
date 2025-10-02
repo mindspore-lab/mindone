@@ -53,6 +53,7 @@ PROCESSOR_MAPPING_NAMES = OrderedDict(
         ("chameleon", "ChameleonProcessor"),
         ("chinese_clip", "ChineseCLIPProcessor"),
         ("colpali", "ColPaliProcessor"),
+        ("donut", "DonutProcessor"),
         ("flava", "FlavaProcessor"),
         ("idefics", "IdeficsProcessor"),
         ("layoutlmv3", "LayoutMv3Processor"),
