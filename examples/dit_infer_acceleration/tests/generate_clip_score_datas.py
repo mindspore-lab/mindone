@@ -10,7 +10,7 @@ import mindspore as ms
 from mindone.diffusers import StableDiffusion3Pipeline
 
 ms.set_context(deterministic="ON")
-ms.set_context(mode=0, jit_config={"jit_level": "O2"})
+ms.set_context(mode=0, jit_config={"jit_level": "O1"})
 
 
 def generate_imgs(pipe, save_path, use_cache_and_gate=True, use_todo=False):
