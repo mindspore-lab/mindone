@@ -204,5 +204,19 @@ python main.py \
   <em> From left to right, these are original image, two mask images, and generated edited image. </em>
 </p>
 
+
+## Performance
+
+
+Experiments are tested on Ascend Atlas 800T A2 machines with pyantive mode.
+
+- mindspore 2.7.0
+
+| model      | cards | resolution | task           | steps | s/Step       | s/Image       |
+|------------|-------|------------|----------------|-------|--------------|---------------|
+| CannyEdit  | 1     | 768x768    | Replace        | 50    | 6.12          | 306           |
+| CannyEdit  | 1     | 768x768    | Add            | 50    | 1.96         | 98            |
+| CannyEdit  | 1     | 768x768    | Replace + Add  | 50    | 5.7          | 285           |
+
 ## Acknowledgement
 The codebase is modified based on [x-flux](https://github.com/XLabs-AI/x-flux).
