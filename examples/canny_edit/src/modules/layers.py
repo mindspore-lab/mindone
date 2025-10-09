@@ -213,8 +213,6 @@ class QKNorm(nn.Cell):
 
 class FLuxSelfAttnProcessor:
     def __call__(self, attn, x, pe, **attention_kwargs):
-        print("2" * 30)
-
         qkv = attn.qkv(x)
         # q, k, v = rearrange(qkv, "B L (K H D) -> K B H L D", K=3, H=self.num_heads)
         B, L, _ = qkv.shape
