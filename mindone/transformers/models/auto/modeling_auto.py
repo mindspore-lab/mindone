@@ -1073,6 +1073,7 @@ MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("mpnet", "MPNetForTokenClassification"),
         ("mt5", "MT5ForTokenClassification"),
         ("persimmon", "PersimmonForTokenClassification"),
+        ("llama", "LlamaForTokenClassification"),
         ("megatron-bert", "MegatronBertForTokenClassification"),
         ("mixtral", "MixtralForTokenClassification"),
         ("nemotron", "NemotronForTokenClassification"),
