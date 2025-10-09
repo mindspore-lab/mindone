@@ -560,7 +560,7 @@ class FluxControlLoRATests(unittest.TestCase, PeftLoraLoaderMixinTests):
         # mismatch error.
         self.assertRaisesRegex(
             RuntimeError,
-            "size mismatch for x_embedder.lora_A.adapter-2.weight",
+            "x_embedder.lora_A.adapter-2.weight in the argument 'net' should have the same shape as x_embedder.lora_A.adapter-2.weight in the argument 'parameter_dict'",  # noqa
             pipe.load_lora_weights,
             lora_state_dict,
             "adapter-2",

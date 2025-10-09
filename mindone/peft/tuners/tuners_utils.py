@@ -21,7 +21,7 @@ import re
 import textwrap
 import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Union
+from typing import Any, Iterable, Optional, Tuple, Union
 
 import mindspore as ms
 from mindspore import mint, nn
@@ -39,7 +39,7 @@ from mindone.transformers import MSPreTrainedModel as PreTrainedModel
 from mindone.transformers.mindspore_utils import Conv1D
 
 from ..config import PeftConfig
-from ..utils import ModulesToSaveWrapper, _get_subcell, _get_submodules
+from ..utils import ModulesToSaveWrapper, _get_subcell, _get_submodules, refresh_parameter_name_of_model
 from ._buffer_dict import BufferDict
 
 
@@ -494,6 +494,9 @@ class BaseTuner(nn.Cell, ABC):
             else:
                 model.modules_to_save.update(set(peft_config.modules_to_save))
 
+        # keep the patch at the very last of inject_adapter
+        refresh_parameter_name_of_model(model)
+
     def merge_adapter(self, adapter_names: Optional[list[str]] = None) -> None:
         """
         This method merges the adapter layers into the base model.
@@ -761,6 +764,11 @@ class BaseTunerLayer(ABC):
                         f"{new_active_adapter}."
                     )
                     self.set_adapter(remaining_adapters[0])
+
+    @abstractmethod
+    def peft_parameters_and_names(self, name_prefix: str = "") -> Iterable[Tuple[str, ms.Parameter]]:
+        # return all parameters and names added by PEFT
+        ...
 
 
 def _find_minimal_target_modules(

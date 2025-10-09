@@ -135,10 +135,11 @@ class DownLoad:
     def download_file(self, url: str, file_path: str, chunk_size: int = 1024):
         """Download a file."""
 
-        # no check certificate
+        # For security reasons, this repository code does not provide a function to disable SSL.
+        # If necessary, please disable SSL verification yourself.
         ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
+        # ctx.check_hostname = False
+        # ctx.verify_mode = ssl.CERT_NONE
 
         # Define request headers.
         headers = {"User-Agent": self.USER_AGENT}

@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import copy
-import importlib
 import sys
 import time
 import unittest
@@ -35,14 +34,7 @@ from mindone.diffusers import (
     StableDiffusionXLPipeline,
     T2IAdapter,
 )
-from mindone.diffusers.utils import logging
-from mindone.diffusers.utils.testing_utils import (
-    CaptureLogger,
-    is_flaky,
-    load_image,
-    numpy_cosine_similarity_distance,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import is_flaky, load_image, numpy_cosine_similarity_distance, slow
 from mindone.peft import __version__ as _mindone_peft_version
 from mindone.transformers import CLIPTextModel, CLIPTextModelWithProjection
 from tests.diffusers_tests.pipelines.pipeline_test_utils import PipelineTesterMixin

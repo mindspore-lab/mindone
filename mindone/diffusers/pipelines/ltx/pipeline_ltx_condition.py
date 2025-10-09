@@ -1082,7 +1082,7 @@ class LTXConditionPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraL
             sigmas, timesteps, num_inference_steps = self.get_timesteps(
                 sigmas, timesteps, num_inference_steps, denoise_strength
             )
-            latent_sigma = sigmas[:1].repeat((batch_size * num_videos_per_prompt,))
+            latent_sigma = sigmas[:1].tile((batch_size * num_videos_per_prompt,))
 
         self._num_timesteps = len(timesteps)
 
@@ -1152,15 +1152,16 @@ class LTXConditionPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraL
                 if is_conditioning_image_or_video:
                     timestep = mint.min(timestep, (1 - conditioning_mask_model_input) * 1000.0)
 
-                noise_pred = self.transformer(
-                    hidden_states=latent_model_input,
-                    encoder_hidden_states=prompt_embeds,
-                    timestep=timestep,
-                    encoder_attention_mask=prompt_attention_mask,
-                    video_coords=video_coords,
-                    attention_kwargs=attention_kwargs,
-                    return_dict=False,
-                )[0]
+                with self.transformer.cache_context("cond_uncond"):
+                    noise_pred = self.transformer(
+                        hidden_states=latent_model_input,
+                        encoder_hidden_states=prompt_embeds,
+                        timestep=timestep,
+                        encoder_attention_mask=prompt_attention_mask,
+                        video_coords=video_coords,
+                        attention_kwargs=attention_kwargs,
+                        return_dict=False,
+                    )[0]
 
                 if self.do_classifier_free_guidance:
                     noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)

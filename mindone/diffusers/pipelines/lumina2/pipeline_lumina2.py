@@ -211,7 +211,7 @@ class Lumina2Pipeline(DiffusionPipeline, Lumina2LoraLoaderMixin):
         prompt_embeds = self.text_encoder(
             text_input_ids, attention_mask=prompt_attention_mask, output_hidden_states=True
         )
-        prompt_embeds = prompt_embeds[1][-2]
+        prompt_embeds = prompt_embeds.hidden_states[-2]
 
         if self.text_encoder is not None:
             dtype = self.text_encoder.dtype

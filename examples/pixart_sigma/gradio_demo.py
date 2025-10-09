@@ -348,7 +348,7 @@ def main():
     )
 
     # Launch the web interface
-    demo.launch(server_name="0.0.0.0", server_port=args.port)
+    demo.launch(server_name="127.0.0.1", server_port=args.port)
 
 
 if __name__ == "__main__":

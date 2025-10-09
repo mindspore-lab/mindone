@@ -61,10 +61,11 @@ def locate_model(model_name="nsfw", backend="ms"):
         file_name = url.split("/")[-1]
         file_path = os.path.join(path, file_name)
 
-        # no check certificate
+        # For security reasons, this repository code does not provide a function to disable SSL.
+        # If necessary, please disable SSL verification yourself.
         ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
+        # ctx.check_hostname = False
+        # ctx.verify_mode = ssl.CERT_NONE
 
         # Define request headers.
         headers = {

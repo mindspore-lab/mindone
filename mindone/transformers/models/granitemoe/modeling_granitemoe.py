@@ -1195,13 +1195,21 @@ class GraniteMoeForCausalLM(GraniteMoePreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, GraniteMoeForCausalLM
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import GraniteMoeForCausalLM
+        >>> import mindspore as ms
+        >>> import numpy as np
 
         >>> model = GraniteMoeForCausalLM.from_pretrained("ibm/PowerMoE-3b")
         >>> tokenizer = AutoTokenizer.from_pretrained("ibm/PowerMoE-3b")
 
         >>> prompt = "Hey, are you conscious? Can you talk to me?"
-        >>> inputs = tokenizer(prompt, return_tensors="pt")
+        >>> inputs = tokenizer(prompt, return_tensors="np")
+        >>> for key, value in inputs.items():
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.tensor(value)
 
         >>> # Generate
         >>> generate_ids = model.generate(inputs.input_ids, max_length=30)

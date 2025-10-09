@@ -736,6 +736,7 @@ class GlmModel(GlmPreTrainedModel):
             causal_mask *= ops.arange(target_length) > cache_position.reshape(-1, 1)
             causal_mask = causal_mask[None, None, :, :].broadcast_to((batch_size, 1, -1, -1))
             if attention_mask is not None:
+                causal_mask = causal_mask.copy()
                 mask_length = attention_mask.shape[-1]
                 padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :]
                 padding_mask = padding_mask == 0

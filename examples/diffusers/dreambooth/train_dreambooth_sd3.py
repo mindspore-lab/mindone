@@ -1509,7 +1509,7 @@ class SD3DBNetworkWithLoss(nn.Cell):
 
     def _encode_prompt_with_t5(self, text_input_ids, num_images_per_prompt=1):
         batch_size = text_input_ids.shape[0]
-        prompt_embeds = self.text_encoder_three(text_input_ids)[0]
+        prompt_embeds = self.text_encoder_three(text_input_ids, return_dict=False)[0]
 
         dtype = self.text_encoder_dtype
         prompt_embeds = prompt_embeds.to(dtype=dtype)
