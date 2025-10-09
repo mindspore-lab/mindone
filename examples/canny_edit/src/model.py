@@ -162,8 +162,8 @@ class Flux(nn.Cell):
 
         ids = mint.cat((txt_ids, img_ids), dim=1)
         pe = self.pe_embedder(ids)
-        if block_controlnet_hidden_states is not None:
-            controlnet_depth = len(block_controlnet_hidden_states)
+        # if block_controlnet_hidden_states is not None:
+        #     controlnet_depth = len(block_controlnet_hidden_states)
 
         for index_block, block in enumerate(self.double_blocks):
             if self.training and self.gradient_checkpointing:
