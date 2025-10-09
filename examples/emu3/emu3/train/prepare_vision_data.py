@@ -1,3 +1,4 @@
+# Adapted from https://github.com/baaivision/Emu3 to work with MindSpore.
 """
 This script is to prepare image generation dataset.
 

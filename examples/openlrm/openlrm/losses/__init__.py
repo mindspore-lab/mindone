@@ -1,5 +1,8 @@
 # Copyright (c) 2023-2024, Zexin He
 #
+# This code is copied from https://github.com/3DTopia/OpenLRM/blob/main/openlrm/losses/__init__.py
+# to run openlrm on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at

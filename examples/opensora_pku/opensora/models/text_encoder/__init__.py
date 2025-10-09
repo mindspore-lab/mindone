@@ -1,3 +1,6 @@
+# Adapted from
+# https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/models/text_encoder/__init__.py
+
 from opensora.utils.utils import get_precision
 
 from mindspore import nn

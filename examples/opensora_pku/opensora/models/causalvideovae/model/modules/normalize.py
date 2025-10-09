@@ -1,3 +1,6 @@
+# Adapted from
+# https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/models/causalvideovae/model/modules/normalize.py
+
 from mindspore import nn
 
 from mindone.diffusers.models.normalization import LayerNorm as LayerNorm_diffusers

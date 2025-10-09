@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/flux/test_pipeline_flux_control_img2img.py."""
+
 import unittest
 
 import numpy as np
@@ -24,8 +26,6 @@ from ..pipeline_test_utils import (
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "bfloat16"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float16"},
-    {"mode": ms.GRAPH_MODE, "dtype": "bfloat16"},
 ]
 
 

@@ -1,4 +1,7 @@
-# Copyright 2024 The Hunyuan Team and The HuggingFace Team. All rights reserved.
+# Copyright 2025 The Hunyuan Team and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -74,7 +77,10 @@ class HunyuanVideoCausalConv3d(nn.Cell):
         self.conv = mint.nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding, dilation, bias=bias)
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
-        hidden_states = F.pad(hidden_states, self.time_causal_padding, mode=self.pad_mode)
+        # TODO: bfloat16 is not supported in mint.nn.functional.pad
+        hidden_states = F.pad(hidden_states.float(), self.time_causal_padding, mode=self.pad_mode).to(
+            hidden_states.dtype
+        )
         return self.conv(hidden_states)
 
 
@@ -795,7 +801,7 @@ class AutoencoderKLHunyuanVideo(ModelMixin, ConfigMixin):
     def _decode(self, z: ms.Tensor, return_dict: bool = False) -> Union[DecoderOutput, ms.Tensor]:
         batch_size, num_channels, num_frames, height, width = z.shape
         tile_latent_min_height = self.tile_sample_min_height // self.spatial_compression_ratio
-        tile_latent_min_width = self.tile_sample_stride_width // self.spatial_compression_ratio
+        tile_latent_min_width = self.tile_sample_min_width // self.spatial_compression_ratio
         tile_latent_min_num_frames = self.tile_sample_min_num_frames // self.temporal_compression_ratio
 
         if self.use_framewise_decoding and num_frames > tile_latent_min_num_frames:

@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/tests//models/albert/test_modeling_albert.py."""
+
 # This module contains test cases that are defined in the `.test_cases.py` file, structured as lists or tuples like
 #     [name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map].
 #
@@ -32,6 +34,8 @@ DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3}
 MODES = [1]
 
 
+# Adapted from
+# https://github.com/huggingface/transformers/blob/main/tests/models/big_bird/test_modeling_big_bird.py
 class AlbertModelTester:
     def __init__(
         self,

@@ -1,3 +1,7 @@
+# This code is adapted from https://github.com/Ji4chenLi/t2v-turbo
+# with modifications to run on MindSpore.
+
+
 """
 wild mixture of
 https://github.com/openai/improved-diffusion/blob/e94489283bb876ac1477d5dd7709bbbd2d9902ce/improved_diffusion/gaussian_diffusion.py

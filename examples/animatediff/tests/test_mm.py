@@ -20,7 +20,7 @@ def load_pt_rt_states(mm_idx, folder):
     with open(args_fp, "r") as fp:
         args = json.load(fp)
 
-    inps = np.load(inps_fp, allow_pickle=True)
+    inps = np.load(inps_fp)
     inps_dict = {}
     for name in inps:
         if inps[name].ndim > 0:
@@ -29,7 +29,7 @@ def load_pt_rt_states(mm_idx, folder):
         else:
             inps_dict[name] = None
 
-    output = np.load(outs_fp, allow_pickle=True)["output"]
+    output = np.load(outs_fp)["output"]
 
     return args, inps_dict, output
 

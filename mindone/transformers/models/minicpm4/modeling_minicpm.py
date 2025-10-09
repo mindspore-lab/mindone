@@ -1,4 +1,8 @@
-""" MindSpore MiniCPM model."""
+"""
+Adapted from https://github.com/huggingface/transformers/tree/main/src/transformers/models/minicpm4/modeling_minicpm.py.
+
+MindSpore MiniCPM model.
+"""
 import math
 import re
 import warnings

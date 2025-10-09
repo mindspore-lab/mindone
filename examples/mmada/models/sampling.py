@@ -1,4 +1,5 @@
-# Adapted from https://github.com/lucidrains/muse-maskgit-pytorch
+# Adapted from https://github.com/Gen-Verse/MMaDA/blob/main/models/sampling.py
+# and https://github.com/lucidrains/muse-maskgit-pytorch
 
 import math
 from functools import partial

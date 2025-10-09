@@ -1,3 +1,5 @@
+# Adapted from
+# https://github.com/CompVis/latent-diffusion/blob/main/ldm/modules/diffusionmodules/model.py
 # reference to https://github.com/Stability-AI/generative-models
 
 from typing import Callable

@@ -1,6 +1,9 @@
 # Copyright 2022 The OpenAI team and The HuggingFace Team. All rights reserved.
 # Most of the code is copy pasted from the original whisper repository
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at

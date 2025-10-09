@@ -1,3 +1,5 @@
+# Adapted from https://github.com/bytedance/MVDream/blob/main/mvdream/model_zoo.py
+
 """ Utiliy functions to load pre-trained models more easily """
 import os
 

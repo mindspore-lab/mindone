@@ -1,3 +1,5 @@
+# Adapted from https://github.com/bytedance/MVDream/blob/main/mvdream/ldm/util.py
+
 import importlib
 import multiprocessing as mp
 from collections import abc

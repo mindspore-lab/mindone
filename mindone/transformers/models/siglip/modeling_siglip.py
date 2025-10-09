@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2024 Google AI and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -816,13 +819,21 @@ class SiglipTextModel(SiglipPreTrainedModel):
         Examples:
 
         ```python
-        >>> from transformers import AutoTokenizer, SiglipTextModel
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import SiglipTextModel
+        >>> import mindspore as ms
+        >>> import numpy as np
 
         >>> model = SiglipTextModel.from_pretrained("google/siglip-base-patch16-224")
         >>> tokenizer = AutoTokenizer.from_pretrained("google/siglip-base-patch16-224")
 
         >>> # important: make sure to set padding="max_length" as that's how the model was trained
-        >>> inputs = tokenizer(["a photo of a cat", "a photo of a dog"], padding="max_length", return_tensors="pt")
+        >>> inputs = tokenizer(["a photo of a cat", "a photo of a dog"], padding="max_length", return_tensors="np")
+        >>> for key, value in inputs.items():
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.tensor(value)
 
         >>> outputs = model(**inputs)
         >>> last_hidden_state = outputs.last_hidden_state
@@ -958,7 +969,10 @@ class SiglipVisionModel(SiglipPreTrainedModel):
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor, SiglipVisionModel
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import SiglipVisionModel
+        >>> import mindspore as ms
+        >>> import numpy as np
 
         >>> model = SiglipVisionModel.from_pretrained("google/siglip-base-patch16-224")
         >>> processor = AutoProcessor.from_pretrained("google/siglip-base-patch16-224")
@@ -966,7 +980,12 @@ class SiglipVisionModel(SiglipPreTrainedModel):
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
-        >>> inputs = processor(images=image, return_tensors="pt")
+        >>> inputs = processor(images=image, return_tensors="np")
+        >>> for key, value in inputs.items():
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.tensor(value)
 
         >>> outputs = model(**inputs)
         >>> last_hidden_state = outputs.last_hidden_state
@@ -1039,14 +1058,21 @@ class SiglipModel(SiglipPreTrainedModel):
         Examples:
 
         ```python
-        >>> from transformers import AutoTokenizer, AutoModel
-        >>> import mindspore
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import AutoModel
+        >>> import mindspore as ms
+        >>> import numpy as np
 
         >>> model = AutoModel.from_pretrained("google/siglip-base-patch16-224")
         >>> tokenizer = AutoTokenizer.from_pretrained("google/siglip-base-patch16-224")
 
         >>> # important: make sure to set padding="max_length" as that's how the model was trained
-        >>> inputs = tokenizer(["a photo of a cat", "a photo of a dog"], padding="max_length", return_tensors="pt")
+        >>> inputs = tokenizer(["a photo of a cat", "a photo of a dog"], padding="max_length", return_tensors="np")
+        >>> for key, value in inputs.items():
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.tensor(value)
         >>> text_features = model.get_text_features(**inputs)
         ```"""
         # Use SigLIP model's config for some fields (if specified) instead of those of vision & text components.
@@ -1088,8 +1114,10 @@ class SiglipModel(SiglipPreTrainedModel):
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor, AutoModel
-        >>> import mindspore
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import AutoModel
+        >>> import mindspore as ms
+        >>> import numpy as np
 
         >>> model = AutoModel.from_pretrained("google/siglip-base-patch16-224")
         >>> processor = AutoProcessor.from_pretrained("google/siglip-base-patch16-224")
@@ -1097,7 +1125,12 @@ class SiglipModel(SiglipPreTrainedModel):
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
-        >>> inputs = processor(images=image, return_tensors="pt")
+        >>> inputs = processor(images=image, return_tensors="np")
+        >>> for key, value in inputs.items():
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.tensor(value)
 
         >>> image_features = model.get_image_features(**inputs)
         ```"""
@@ -1142,8 +1175,10 @@ class SiglipModel(SiglipPreTrainedModel):
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor, AutoModel
-        >>> import mindspore
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import AutoModel
+        >>> import mindspore as ms
+        >>> import numpy as np
 
         >>> model = AutoModel.from_pretrained("google/siglip-base-patch16-224")
         >>> processor = AutoProcessor.from_pretrained("google/siglip-base-patch16-224")
@@ -1153,7 +1188,12 @@ class SiglipModel(SiglipPreTrainedModel):
 
         >>> texts = ["a photo of 2 cats", "a photo of 2 dogs"]
         >>> # important: we pass `padding=max_length` since the model was trained with this
-        >>> inputs = processor(text=texts, images=image, padding="max_length", return_tensors="pt")
+        >>> inputs = processor(text=texts, images=image, padding="max_length", return_tensors="np")
+        >>> for key, value in inputs.items():
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.tensor(value)
 
         >>> outputs = model(**inputs)
 
@@ -1280,8 +1320,10 @@ class SiglipForImageClassification(SiglipPreTrainedModel):
         Examples:
 
         ```python
-        >>> from transformers import AutoImageProcessor, SiglipForImageClassification
-        >>> import mindspore
+        >>> from transformers import AutoImageProcessor
+        >>> from mindone.transformers import SiglipForImageClassification
+        >>> import mindspore as ms
+        >>> import numpy as np
         >>> from PIL import Image
         >>> import requests
 
@@ -1293,7 +1335,12 @@ class SiglipForImageClassification(SiglipPreTrainedModel):
         >>> image_processor = AutoImageProcessor.from_pretrained("google/siglip-base-patch16-224")
         >>> model = SiglipForImageClassification.from_pretrained("google/siglip-base-patch16-224")
 
-        >>> inputs = image_processor(images=image, return_tensors="pt")
+        >>> inputs = image_processor(images=image, return_tensors="np")
+        >>> for key, value in inputs.items():
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.tensor(value)
         >>> outputs = model(**inputs)
         >>> logits = outputs.logits
         >>> # model predicts one of the two classes

@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2025 The HuggingFace Inc. team.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -273,8 +276,7 @@ def _get_model_file(
             raise EnvironmentError(
                 f"{pretrained_model_name_or_path} is not a local folder and is not a valid model identifier "
                 "listed on 'https://huggingface.co/models'\nIf this is a private repository, make sure to pass a "
-                "token having permission to this repo with `token` or log in with `huggingface-cli "
-                "login`."
+                "token having permission to this repo with `token` or log in with `hf auth login`."
             ) from e
         except RevisionNotFoundError as e:
             raise EnvironmentError(
@@ -372,15 +374,17 @@ def _get_checkpoint_shard_files(
         allow_patterns = [os.path.join(subfolder, p) for p in allow_patterns]
 
     ignore_patterns = ["*.json", "*.md"]
-    # `model_info` call must guarded with the above condition.
-    model_files_info = model_info(pretrained_model_name_or_path, revision=revision, token=token)
-    for shard_file in original_shard_filenames:
-        shard_file_present = any(shard_file in k.rfilename for k in model_files_info.siblings)
-        if not shard_file_present:
-            raise EnvironmentError(
-                f"{shards_path} does not appear to have a file named {shard_file} which is "
-                "required according to the checkpoint index."
-            )
+
+    # If the repo doesn't have the required shards, error out early even before downloading anything.
+    if not local_files_only:
+        model_files_info = model_info(pretrained_model_name_or_path, revision=revision, token=token)
+        for shard_file in original_shard_filenames:
+            shard_file_present = any(shard_file in k.rfilename for k in model_files_info.siblings)
+            if not shard_file_present:
+                raise EnvironmentError(
+                    f"{shards_path} does not appear to have a file named {shard_file} which is "
+                    "required according to the checkpoint index."
+                )
 
     try:
         # Load from URL
@@ -407,6 +411,11 @@ def _get_checkpoint_shard_files(
         ) from e
 
     cached_filenames = [os.path.join(cached_folder, f) for f in original_shard_filenames]
+    for cached_file in cached_filenames:
+        if not os.path.isfile(cached_file):
+            raise EnvironmentError(
+                f"{cached_folder} does not have a file named {cached_file} which is required according to the checkpoint index."
+            )
 
     return cached_filenames, sharded_metadata
 
@@ -436,6 +445,7 @@ class PushToHubMixin:
         token: Optional[str] = None,
         commit_message: Optional[str] = None,
         create_pr: bool = False,
+        subfolder: Optional[str] = None,
     ):
         """
         Uploads all files in `working_dir` to `repo_id`.
@@ -450,7 +460,12 @@ class PushToHubMixin:
 
         logger.info(f"Uploading the files of {working_dir} to {repo_id}.")
         return upload_folder(
-            repo_id=repo_id, folder_path=working_dir, token=token, commit_message=commit_message, create_pr=create_pr
+            repo_id=repo_id,
+            folder_path=working_dir,
+            token=token,
+            commit_message=commit_message,
+            create_pr=create_pr,
+            path_in_repo=subfolder,
         )
 
     def push_to_hub(
@@ -462,6 +477,7 @@ class PushToHubMixin:
         create_pr: bool = False,
         safe_serialization: bool = True,
         variant: Optional[str] = None,
+        subfolder: Optional[str] = None,
     ) -> str:
         """
         Upload model, scheduler, or pipeline files to the 🤗 Hugging Face Hub.
@@ -477,8 +493,8 @@ class PushToHubMixin:
                 Whether to make the repo private. If `None` (default), the repo will be public unless the
                 organization's default is private. This value is ignored if the repo already exists.
             token (`str`, *optional*):
-                The token to use as HTTP bearer authorization for remote files. The token generated when running
-                `huggingface-cli login` (stored in `~/.huggingface`).
+                The token to use as HTTP bearer authorization for remote files. The token generated when running `hf
+                auth login` (stored in `~/.huggingface`).
             create_pr (`bool`, *optional*, defaults to `False`):
                 Whether or not to create a PR with the uploaded files or directly commit.
             safe_serialization (`bool`, *optional*, defaults to `True`):
@@ -503,8 +519,9 @@ class PushToHubMixin:
         repo_id = create_repo(repo_id, private=private, token=token, exist_ok=True).repo_id
 
         # Create a new empty model card and eventually tag it
-        model_card = load_or_create_model_card(repo_id, token=token)
-        model_card = populate_model_card(model_card)
+        if not subfolder:
+            model_card = load_or_create_model_card(repo_id, token=token)
+            model_card = populate_model_card(model_card)
 
         # Save all files.
         save_kwargs = {"safe_serialization": safe_serialization}
@@ -515,7 +532,8 @@ class PushToHubMixin:
             self.save_pretrained(tmpdir, **save_kwargs)
 
             # Update model card if needed:
-            model_card.save(os.path.join(tmpdir, "README.md"))
+            if not subfolder:
+                model_card.save(os.path.join(tmpdir, "README.md"))
 
             return self._upload_folder(
                 tmpdir,
@@ -523,4 +541,5 @@ class PushToHubMixin:
                 token=token,
                 commit_message=commit_message,
                 create_pr=create_pr,
+                subfolder=subfolder,
             )

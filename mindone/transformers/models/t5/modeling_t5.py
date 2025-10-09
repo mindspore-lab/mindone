@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2018 Mesh TensorFlow authors, T5 Authors and HuggingFace Inc. team.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -300,8 +303,10 @@ class T5Attention(nn.Cell):
         is_cross_attention = key_value_states is not None
 
         query_states = self.q(hidden_states)
-        query_states = query_states.view(batch_size, -1, self.n_heads, self.key_value_proj_dim).transpose(1, 2)
+        query_states = query_states.view(batch_size, -1, self.n_heads, self.key_value_proj_dim).swapaxes(1, 2)
 
+        is_updated = False
+        curr_past_key_value = None
         if past_key_value is not None:
             is_updated = past_key_value.is_updated.get(self.layer_idx)
             if is_cross_attention:
@@ -318,8 +323,8 @@ class T5Attention(nn.Cell):
         else:
             key_states = self.k(current_states)
             value_states = self.v(current_states)
-            key_states = key_states.view(batch_size, -1, self.n_heads, self.key_value_proj_dim).transpose(1, 2)
-            value_states = value_states.view(batch_size, -1, self.n_heads, self.key_value_proj_dim).transpose(1, 2)
+            key_states = key_states.view(batch_size, -1, self.n_heads, self.key_value_proj_dim).swapaxes(1, 2)
+            value_states = value_states.view(batch_size, -1, self.n_heads, self.key_value_proj_dim).swapaxes(1, 2)
 
             if past_key_value is not None:
                 # save all key/value_states to cache to be re-used for fast auto-regressive generation
@@ -332,7 +337,7 @@ class T5Attention(nn.Cell):
                     past_key_value.is_updated[self.layer_idx] = True
 
         # compute scores, equivalent of mint.einsum("bnqd,bnkd->bnqk", query_states, key_states), compatible with onnx op>9
-        scores = mint.matmul(query_states, key_states.transpose(3, 2))
+        scores = mint.matmul(query_states, key_states.swapaxes(3, 2))
 
         if position_bias is None:
             key_length = key_states.shape[-2]
@@ -369,7 +374,7 @@ class T5Attention(nn.Cell):
 
         attn_output = mint.matmul(attn_weights, value_states)
 
-        attn_output = attn_output.transpose(1, 2).contiguous()
+        attn_output = attn_output.swapaxes(1, 2).contiguous()
         attn_output = attn_output.view(batch_size, -1, self.inner_dim)
         attn_output = self.o(attn_output)
 
@@ -480,7 +485,7 @@ class T5Block(nn.Cell):
         past_key_value=None,
         use_cache=False,
         output_attentions=False,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = None,
         cache_position=None,
     ):
         self_attention_outputs = self.layer[0](
@@ -673,7 +678,7 @@ class T5Stack(T5PreTrainedModel):
         use_cache=None,
         output_attentions=None,
         output_hidden_states=None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = None,
         cache_position=None,
     ):
         use_cache = use_cache if use_cache is not None else self.config.use_cache
@@ -783,6 +788,7 @@ class T5Stack(T5PreTrainedModel):
         all_cross_attentions = () if (output_attentions and self.is_decoder) else None
         position_bias = None
         encoder_decoder_position_bias = None
+        next_decoder_cache = None
 
         hidden_states = self.dropout(inputs_embeds)
 
@@ -1066,7 +1072,7 @@ class T5Model(T5PreTrainedModel):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = None,
         cache_position: Optional[ms.Tensor] = None,
     ) -> Union[Tuple[ms.Tensor], Seq2SeqModelOutput]:
         r"""
@@ -1096,6 +1102,7 @@ class T5Model(T5PreTrainedModel):
         >>> last_hidden_states = outputs[0]
         ```"""
         use_cache = use_cache if use_cache is not None else self.use_cache
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         # Encode if needed (training, first prediction pass)
         if encoder_outputs is None:
@@ -1380,7 +1387,7 @@ class T5EncoderModel(T5PreTrainedModel):
         inputs_embeds: Optional[Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = None,
     ) -> Union[Tuple[ms.Tensor], BaseModelOutput]:
         r"""
         Returns:
@@ -1400,6 +1407,7 @@ class T5EncoderModel(T5PreTrainedModel):
         >>> outputs = model(input_ids=Tensor(input_ids))
         >>> last_hidden_states = outputs[0]
         ```"""
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         encoder_outputs = self.encoder(
             input_ids=input_ids,

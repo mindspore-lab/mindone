@@ -1,5 +1,8 @@
 # Copyright 2022 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,9 +26,11 @@ from collections.abc import MutableMapping
 from contextlib import ExitStack, contextmanager
 from enum import Enum
 from functools import wraps
-from typing import Callable, ContextManager, List, Optional
+from typing import Callable, ContextManager, List, Optional, TypedDict
 
 import numpy as np
+
+from mindspore import Tensor
 
 from .import_utils import is_mindspore_available
 
@@ -559,3 +564,16 @@ class GeneralInterface(MutableMapping):
 
     def valid_keys(self) -> List[str]:
         return list(self.keys())
+
+
+class LossKwargs(TypedDict, total=False):
+    """
+    Keyword arguments to be passed to the loss function
+
+    Attributes:
+        num_items_in_batch (`Optional[Tensor]`, *optional*):
+            Number of items in the batch. It is recommended to pass it when
+            you are doing gradient accumulation.
+    """
+
+    num_items_in_batch: Optional[Tensor]

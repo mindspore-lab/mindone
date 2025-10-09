@@ -1,3 +1,25 @@
+# Copyright 2023-2025 Marigold Team, ETH Zürich. All rights reserved.
+# Copyright 2024-2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# --------------------------------------------------------------------------
+# More information and citation instructions are available on the
+# Marigold project website: https://marigoldcomputervision.github.io
+# --------------------------------------------------------------------------
+
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -406,7 +428,7 @@ class MarigoldImageProcessor(ConfigMixin):
                 if isinstance(img, np.ndarray):
                     img = ms.Tensor.from_numpy(img)
                 if not ops.is_floating_point(img):
-                    raise ValueError(f"{prefix}: unexected dtype={img.dtype}.")
+                    raise ValueError(f"{prefix}: unexpected dtype={img.dtype}.")
             else:
                 raise ValueError(f"{prefix}: unexpected type={type(img)}.")
             if val_min != 0.0 or val_max != 1.0:
@@ -444,7 +466,7 @@ class MarigoldImageProcessor(ConfigMixin):
             if ops.is_tensor(img):
                 img = img.numpy()
             if not np.issubdtype(img.dtype, np.floating):
-                raise ValueError(f"{prefix}: unexected dtype={img.dtype}.")
+                raise ValueError(f"{prefix}: unexpected dtype={img.dtype}.")
             if val_min != 0.0 or val_max != 1.0:
                 img = (img - val_min) / (val_max - val_min)
             img = (img * (2**16 - 1)).astype(np.uint16)

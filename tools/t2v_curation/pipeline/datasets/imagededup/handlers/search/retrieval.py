@@ -1,3 +1,5 @@
+# Copied from https://github.com/idealo/imagededup/blob/master/imagededup/handlers/search/retrieval.py
+
 import sys
 from multiprocessing import cpu_count
 from typing import Callable, Dict, Tuple, Union

@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/src/transformers/pipelines/text2text_generation.py."""
+
 import enum
 import warnings
 
@@ -28,7 +30,7 @@ class Text2TextGenerationPipeline(Pipeline):
     Example:
 
     ```python
-    >>> from transformers import pipeline
+    >>> from mindone.transformers import pipeline
 
     >>> generator = pipeline(model="mrm8488/t5-base-finetuned-question-generation-ap")
     >>> generator(
@@ -162,7 +164,7 @@ class Text2TextGenerationPipeline(Pipeline):
             A list or a list of list of `dict`: Each result comes as a dictionary with the following keys:
 
             - **generated_text** (`str`, present when `return_text=True`) -- The generated text.
-            - **generated_token_ids** (`torch.Tensor` or `tf.Tensor`, present when `return_tensors=True`) -- The token
+            - **generated_token_ids** (`mindspore.tensor`, present when `return_tensors=True`) -- The token
               ids of the generated text.
         """
 
@@ -234,7 +236,7 @@ class SummarizationPipeline(Text2TextGenerationPipeline):
     Usage:
 
     ```python
-    # use bart in pytorch
+    # use bart in mindspore
     summarizer = pipeline("summarization")
     summarizer("An apple a day, keeps the doctor away", min_length=5, max_length=20)
 
@@ -267,7 +269,7 @@ class SummarizationPipeline(Text2TextGenerationPipeline):
             A list or a list of list of `dict`: Each result comes as a dictionary with the following keys:
 
             - **summary_text** (`str`, present when `return_text=True`) -- The summary of the corresponding input.
-            - **summary_token_ids** (`torch.Tensor` or `tf.Tensor`, present when `return_tensors=True`) -- The token
+            - **summary_token_ids** (`mindspore.tensor`, present when `return_tensors=True`) -- The token
               ids of the summary.
         """
         return super().__call__(*args, **kwargs)
@@ -369,7 +371,7 @@ class TranslationPipeline(Text2TextGenerationPipeline):
             A list or a list of list of `dict`: Each result comes as a dictionary with the following keys:
 
             - **translation_text** (`str`, present when `return_text=True`) -- The translation.
-            - **translation_token_ids** (`torch.Tensor` or `tf.Tensor`, present when `return_tensors=True`) -- The
+            - **translation_token_ids** (`mindspore.tensor`, present when `return_tensors=True`) -- The
               token ids of the translation.
         """
         return super().__call__(*args, **kwargs)

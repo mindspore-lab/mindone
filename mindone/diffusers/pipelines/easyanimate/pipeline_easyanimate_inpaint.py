@@ -1,6 +1,9 @@
 # Copyright 2025 The EasyAnimate team and The HuggingFace Team.
 # All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -191,7 +194,7 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
     r"""
     Rescales `noise_cfg` tensor based on `guidance_rescale` to improve image quality and fix overexposure. Based on
     Section 3.4 from [Common Diffusion Noise Schedules and Sample Steps are
-    Flawed](https://arxiv.org/pdf/2305.08891.pdf).
+    Flawed](https://huggingface.co/papers/2305.08891).
 
     Args:
         noise_cfg (`ms.Tensor`):
@@ -542,7 +545,7 @@ class EasyAnimateInpaintPipeline(DiffusionPipeline):
     def prepare_extra_step_kwargs(self, generator, eta):
         # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
         # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
-        # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
+        # eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502
         # and should be between [0, 1]
 
         accepts_eta = "eta" in set(inspect.signature(self.scheduler.step).parameters.keys())
@@ -756,7 +759,7 @@ class EasyAnimateInpaintPipeline(DiffusionPipeline):
         return self._guidance_rescale
 
     # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-    # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
+    # of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`
     # corresponds to doing no classifier free guidance.
     @property
     def do_classifier_free_guidance(self):
@@ -832,7 +835,7 @@ class EasyAnimateInpaintPipeline(DiffusionPipeline):
             num_images_per_prompt (`int`, *optional*, defaults to 1):
                 The number of images to generate per prompt.
             eta (`float`, *optional*, defaults to 0.0):
-                A parameter defined in the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies to the
+                A parameter defined in the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only applies to the
                 [`~schedulers.DDIMScheduler`] and is ignored in other schedulers. It adjusts noise level during the
                 inference process.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
@@ -866,7 +869,8 @@ class EasyAnimateInpaintPipeline(DiffusionPipeline):
                 inputs will be passed, facilitating enhanced logging or monitoring of the generation process.
             guidance_rescale (`float`, *optional*, defaults to 0.0):
                 Rescale parameter for adjusting noise configuration based on guidance rescale. Based on findings from
-                [Common Diffusion Noise Schedules and Sample Steps are Flawed](https://arxiv.org/pdf/2305.08891.pdf).
+                [Common Diffusion Noise Schedules and Sample Steps are
+                Flawed](https://huggingface.co/papers/2305.08891).
             strength (`float`, *optional*, defaults to 1.0):
                 Affects the overall styling or quality of the generated output. Values closer to 1 usually provide
                 direct adherence to prompts.
@@ -1144,7 +1148,7 @@ class EasyAnimateInpaintPipeline(DiffusionPipeline):
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 if self.do_classifier_free_guidance and guidance_rescale > 0.0:
-                    # Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf
+                    # Based on 3.4. in https://huggingface.co/papers/2305.08891
                     noise_pred = rescale_noise_cfg(noise_pred, noise_pred_text, guidance_rescale=guidance_rescale)
 
                 # compute the previous noisy sample x_t -> x_t-1

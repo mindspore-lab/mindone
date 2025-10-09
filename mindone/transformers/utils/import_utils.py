@@ -1,5 +1,8 @@
 # Copyright 2022 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -62,7 +65,9 @@ def _is_package_available(pkg_name: str, return_version: bool = False) -> Union[
         return package_exists
 
 
+_pandas_available = _is_package_available("pandas")
 _scipy_available = _is_package_available("scipy")
+_pytesseract_available = _is_package_available("pytesseract")
 
 
 def is_mindspore_available():
@@ -77,6 +82,10 @@ def get_mindspore_version():
 
 def is_scipy_available():
     return _scipy_available
+
+
+def is_pandas_available():
+    return _pandas_available
 
 
 @lru_cache
@@ -94,12 +103,33 @@ def is_vision_available():
     return _pil_available
 
 
+def is_pytesseract_available():
+    return _pytesseract_available
+
+
 MINDSPORE_IMPORT_ERROR_WITH_TF = """
 {0} requires the MindSpore library but it was not found in your environment.
 However, we were able to find a TensorFlow installation. TensorFlow classes begin
 with "TF", but are otherwise identically named to our MindSpore classes. This
 means that the TF equivalent of the class you tried to import would be "TF{0}".
 If you want to use TensorFlow, please use TF classes instead!
+"""
+
+PANDAS_IMPORT_ERROR = """
+{0} requires the pandas library but it was not found in your environment. You can install it with pip as
+explained here: https://pandas.pydata.org/pandas-docs/stable/getting_started/install.html.
+Please note that you may need to restart your runtime after installation.
+"""
+
+# docstyle-ignore
+PYTESSERACT_IMPORT_ERROR = """
+{0} requires the PyTesseract library but it was not found in your environment. You can install it with pip:
+`pip install pytesseract`. Please note that you may need to restart your runtime after installation.
+"""
+
+SCIPY_IMPORT_ERROR = """
+{0} requires the scipy library but it was not found in your environment. You can install it with pip:
+`pip install scipy`. Please note that you may need to restart your runtime after installation.
 """
 
 # docstyle-ignore
@@ -111,6 +141,9 @@ VISION_IMPORT_ERROR = """
 BACKENDS_MAPPING = OrderedDict(
     [
         ("mindspore", (is_mindspore_available, MINDSPORE_IMPORT_ERROR_WITH_TF)),
+        ("pandas", (is_pandas_available, PANDAS_IMPORT_ERROR)),
+        ("pytesseract", (is_pytesseract_available, PYTESSERACT_IMPORT_ERROR)),
+        ("scipy", (is_scipy_available, SCIPY_IMPORT_ERROR)),
         ("vision", (is_vision_available, VISION_IMPORT_ERROR)),
     ]
 )

@@ -1,4 +1,7 @@
-# Copyright 2024 Open AI and The HuggingFace Team. All rights reserved.
+# Copyright 2025 Open AI and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -83,7 +86,7 @@ def posenc_nerf(x: ms.Tensor, min_deg: int = 0, max_deg: int = 15) -> ms.Tensor:
     """
     Concatenate x and its positional encodings, following NeRF.
 
-    Reference: https://arxiv.org/pdf/2210.04628.pdf
+    Reference: https://huggingface.co/papers/2210.04628
     """
     if min_deg == max_deg:
         return x
@@ -1058,7 +1061,7 @@ class ShapERenderer(ModelMixin, ConfigMixin):
         textures = _convert_srgb_to_linear(textures)
         textures = textures.float()
 
-        # 3.3 augument the mesh with texture data
+        # 3.3 augment the mesh with texture data
         assert len(textures.shape) == 3 and textures.shape[-1] == len(
             texture_channels
         ), f"expected [meta_batch x inner_batch x texture_channels] field results, but got {textures.shape}"

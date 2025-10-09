@@ -1,3 +1,5 @@
+# Aadapted from https://github.com/openai/CLIP/blob/main/clip/simple_tokenizer.py
+
 """ CLIP tokenizer
 
 Reference to https://github.com/openai/CLIP. Originally MIT License, Copyright (c) 2021 OpenAI.

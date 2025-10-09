@@ -44,6 +44,7 @@ from mindone.diffusers import (
     UNet2DConditionModel,
     UniPCMultistepScheduler,
 )
+from mindone.diffusers.models.layers_compat import set_amp_strategy
 from mindone.diffusers.optimization import get_scheduler
 from mindone.diffusers.training_utils import AttrJitWrapper, TrainStep, init_distributed_device, is_master, set_seed
 
@@ -899,9 +900,9 @@ def main():
     # Prepare everything with our `accelerator`.
     # TODO: We will update the training methods during mixed precision training to ensure the performance and strategies during the training process.
     if args.mixed_precision and args.mixed_precision != "no":
-        controlnet.to_float(weight_dtype)
+        set_amp_strategy(controlnet, weight_dtype)
         for _, cell in controlnet.cells_and_names():
-            cell.to_float(weight_dtype)
+            set_amp_strategy(cell, weight_dtype)
 
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
     num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)

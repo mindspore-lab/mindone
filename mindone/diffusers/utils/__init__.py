@@ -1,5 +1,8 @@
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,9 +17,11 @@
 
 from .constants import (
     CONFIG_NAME,
+    DEFAULT_HF_PARALLEL_LOADING_WORKERS,
     DEPRECATED_REVISION_ARGS,
     DIFFUSERS_DYNAMIC_MODULE_NAME,
     FLAX_WEIGHTS_NAME,
+    HF_ENABLE_PARALLEL_LOADING,
     HF_MODULES_CACHE,
     HUGGINGFACE_CO_RESOLVE_ENDPOINT,
     ONNX_EXTERNAL_WEIGHTS_NAME,
@@ -45,6 +50,7 @@ from .import_utils import (
     is_ftfy_available,
     is_hf_hub_version,
     is_invisible_watermark_available,
+    is_kernels_available,
     is_matplotlib_available,
     is_mindspore_version,
     is_opencv_available,

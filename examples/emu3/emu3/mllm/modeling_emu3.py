@@ -1,6 +1,8 @@
 # coding=utf-8
 # Copyright 2024 The Emu team, BAAI and The HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/baaivision/Emu3 to work with MindSpore.
+#
 # This code is based on EleutherAI's GPT-NeoX library and the GPT-NeoX
 # and OPT implementations in this library. It has been modified from its
 # original forms to accommodate minor architectural differences compared

@@ -2,6 +2,9 @@
 # Copyright 2024 IBM and the HuggingFace Inc. team. All rights reserved.
 #
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -1192,13 +1195,21 @@ class GraniteMoeForCausalLM(GraniteMoePreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, GraniteMoeForCausalLM
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import GraniteMoeForCausalLM
+        >>> import mindspore as ms
+        >>> import numpy as np
 
         >>> model = GraniteMoeForCausalLM.from_pretrained("ibm/PowerMoE-3b")
         >>> tokenizer = AutoTokenizer.from_pretrained("ibm/PowerMoE-3b")
 
         >>> prompt = "Hey, are you conscious? Can you talk to me?"
-        >>> inputs = tokenizer(prompt, return_tensors="pt")
+        >>> inputs = tokenizer(prompt, return_tensors="np")
+        >>> for key, value in inputs.items():
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.tensor(value)
 
         >>> # Generate
         >>> generate_ids = model.generate(inputs.input_ids, max_length=30)

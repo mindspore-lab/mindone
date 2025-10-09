@@ -6,6 +6,9 @@
 # original forms to accommodate minor architectural differences compared
 # to GPT-NeoX and OPT used by the Meta AI team that trained the model.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -274,8 +277,6 @@ class LlamaAttention(nn.Cell):
                 )
             else:
                 attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
-                key_states = repeat_kv(key_states, self.num_key_value_groups)
-                value_states = repeat_kv(value_states, self.num_key_value_groups)
 
         attn_output, attn_weights = attention_interface(
             self,
@@ -382,7 +383,7 @@ class LlamaPreTrainedModel(PreTrainedModel):
     _supports_flash_attn_2 = True
     _supports_sdpa = False  # SDPA, not support yet
     _supports_flex_attn = False  # FlexAttention, not support yet
-    _supports_cache_class = False  # set it True if use DynamicCache
+    _supports_cache_class = True  # set it True if use DynamicCache
     _supports_quantized_cache = False
     _supports_static_cache = False  # StaticCache, not used
     _supports_attention_backend = True
@@ -395,14 +396,12 @@ class LlamaPreTrainedModel(PreTrainedModel):
             )
             if cell.bias is not None:
                 cell.bias.set_data(init.initializer(init.Zero(), cell.bias.shape, cell.bias.dtype))
-        elif isinstance(cell, nn.Embedding):
-            cell.embedding_table.set_data(
-                init.initializer(
-                    init.Normal(mean=0.0, sigma=std), cell.embedding_table.shape, cell.embedding_table.dtype
-                )
+        elif isinstance(cell, mint.nn.Embedding):
+            cell.weight.set_data(
+                init.initializer(init.Normal(mean=0.0, sigma=std), cell.weight.shape, cell.weight.dtype)
             )
             if cell.padding_idx is not None:
-                cell.embedding_table.data[cell.padding_idx] = 0.0
+                cell.weight[cell.padding_idx] = 0.0
 
 
 LLAMA_INPUTS_DOCSTRING = r"""
@@ -523,14 +522,12 @@ class LlamaModel(LlamaPreTrainedModel):
     def get_input_embeddings(self):
         return self.embed_tokens
 
-    def set_input_embeddings(self, value: nn.Embedding):
-        if not isinstance(value, nn.Embedding):
+    def set_input_embeddings(self, value: mint.nn.Embedding):
+        if not isinstance(value, mint.nn.Embedding):
             raise NotImplementedError
-        ori_name = value.embedding_table.name
-
+        ori_name = value.weight.name
         self.embed_tokens = value
-
-        self.embed_tokens.embedding_table.name = ori_name
+        self.embed_tokens.weight.name = ori_name
 
     def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
         if gradient_checkpointing_kwargs is None:
@@ -593,7 +590,7 @@ class LlamaModel(LlamaPreTrainedModel):
             inputs_embeds = self.embed_tokens(input_ids)
 
         if cache_position is None:
-            past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0
+            past_seen_tokens = get_seq_length(past_key_values).item() if past_key_values is not None else 0
             cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1], dtype=ms.int32)
 
         if position_ids is None:
@@ -674,12 +671,14 @@ class LlamaModel(LlamaPreTrainedModel):
         output_attentions: bool = False,
     ):
         past_seen_tokens = 0
-        if isinstance(past_key_values, Cache):  # DynamicCache
-            past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-        elif isinstance(past_key_values, tuple):  # static tuple cache
-            past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0
+        if past_key_values is not None:
+            if isinstance(past_key_values, Cache):  # DynamicCache
+                past_seen_tokens = past_key_values.get_seq_length()
+            elif isinstance(past_key_values, tuple):  # static tuple cache
+                past_seen_tokens = get_seq_length(past_key_values)
         using_static_cache = isinstance(past_key_values, tuple)
 
+        dtype = input_tensor.dtype
         sequence_length = input_tensor.shape[1]
 
         if using_static_cache:
@@ -691,7 +690,6 @@ class LlamaModel(LlamaPreTrainedModel):
                 else past_seen_tokens + sequence_length + 1
             )
 
-        dtype = ms.float16
         # In case the provided `attention` mask is 2D, we generate a causal mask here (4D).
         causal_mask = self._prepare_4d_causal_attention_mask_with_cache_position(
             attention_mask,
@@ -831,14 +829,15 @@ class LlamaForCausalLM(LlamaPreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, LlamaForCausalLM
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import LlamaForCausalLM
         >>> from mindspore import Tensor
 
         >>> model = LlamaForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf")
         >>> tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf")
 
         >>> prompt = "Hey, are you conscious? Can you talk to me?"
-        >>> inputs = tokenizer(prompt, return_tensors="pt")
+        >>> inputs = tokenizer(prompt, return_tensors="np")
 
         >>> # Generate
         >>> generate_ids = model.generate(Tensor(inputs.input_ids), max_length=30)
@@ -895,7 +894,13 @@ class LlamaForCausalLM(LlamaPreTrainedModel, GenerationMixin):
 
     @staticmethod
     def _reorder_cache(past_key_values, beam_idx):
-        raise NotImplementedError
+        reordered_past = ()
+        for layer_past in past_key_values:
+            # cached cross_attention states don't have to be reordered -> they are always the same
+            reordered_past += (
+                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past[:2]) + layer_past[2:],
+            )
+        return reordered_past
 
 
 @add_start_docstrings(

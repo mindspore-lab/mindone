@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -536,7 +539,7 @@ class Blip2QFormerModel(Blip2PreTrainedModel):
 
         embedding_output = self.embeddings(
             input_ids=text_input_ids,
-            query_embeds=self.query_tokens,
+            query_embeds=(self.query_tokens).to(self.embeddings.LayerNorm.weight.dtype),
             past_key_values_length=past_key_values_length,
         )
 
@@ -585,10 +588,10 @@ class Blip2QFormerModel(Blip2PreTrainedModel):
 
         encoder_outputs = self.encoder(
             embedding_output,
-            attention_mask=extended_attention_mask,
+            attention_mask=extended_attention_mask.to(embedding_output.dtype),
             head_mask=head_mask,
             encoder_hidden_states=encoder_hidden_states,
-            encoder_attention_mask=encoder_extended_attention_mask,
+            encoder_attention_mask=encoder_extended_attention_mask.to(embedding_output.dtype),
             past_key_values=past_key_values,
             use_cache=use_cache,
             output_attentions=output_attentions,

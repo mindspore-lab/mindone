@@ -1,4 +1,7 @@
-# Copyright 2024 Kakao Brain and The HuggingFace Team. All rights reserved.
+# Copyright 2025 Kakao Brain and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,7 +27,7 @@ class UnCLIPTextProjModel(ModelMixin, ConfigMixin):
     Utility class for CLIP embeddings. Used to combine the image and text embeddings into a format usable by the
     decoder.
 
-    For more details, see the original paper: https://arxiv.org/abs/2204.06125 section 2.1
+    For more details, see the original paper: https://huggingface.co/papers/2204.06125 section 2.1
     """
 
     @register_to_config

@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/tests//models/hiera/test_modeling_hiera.py."""
+
 import logging
 
 import numpy as np

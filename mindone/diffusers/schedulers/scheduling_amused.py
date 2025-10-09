@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/schedulers/scheduling_amused.py."""
+
 import math
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union

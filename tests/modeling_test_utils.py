@@ -2,6 +2,7 @@ import importlib
 import itertools
 import logging
 import random
+from typing import Union
 
 import numpy as np
 import torch
@@ -9,7 +10,7 @@ from diffusers.utils import BaseOutput
 from ml_dtypes import bfloat16
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import nn, ops
 
 logger = logging.getLogger("ModelingsUnitTest")
 
@@ -114,6 +115,25 @@ def get_pt2ms_mappings(m):
             mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ms.Parameter(
                 ops.expand_dims(x, axis=-2), name=f"{name}.weight"
             )
+            if "weight_norm_cell" in name:
+                ori_name = name.replace(".weight_norm_cell", "")
+                mappings[f"{ori_name}.weight_g"] = f"{ori_name}.weight_g", lambda x: ms.Parameter(
+                    ops.expand_dims(x, axis=-2), name=f"{ori_name}.weight_g"
+                )
+                mappings[f"{ori_name}.weight_v"] = f"{ori_name}.weight_v", lambda x: ms.Parameter(
+                    ops.expand_dims(x, axis=-2), name=f"{ori_name}.weight_v"
+                )
+                mappings[f"{ori_name}.bias"] = f"{name}.bias", lambda x: x
+                mappings[
+                    f"{ori_name}.parametrizations.weight.original0"
+                ] = f"{ori_name}.weight_g", lambda x: ms.Parameter(
+                    ops.expand_dims(x, axis=-2), name=f"{ori_name}.weight_g"
+                )
+                mappings[
+                    f"{ori_name}.parametrizations.weight.original1"
+                ] = f"{ori_name}.weight_v", lambda x: ms.Parameter(
+                    ops.expand_dims(x, axis=-2), name=f"{ori_name}.weight_v"
+                )
         elif isinstance(cell, (nn.Embedding,)):
             mappings[f"{name}.weight"] = f"{name}.embedding_table", lambda x: x
         elif isinstance(
@@ -131,10 +151,6 @@ def get_pt2ms_mappings(m):
                 mappings[f"{name}.running_mean"] = f"{name}.moving_mean", lambda x: x
                 mappings[f"{name}.running_var"] = f"{name}.moving_variance", lambda x: x
                 mappings[f"{name}.num_batches_tracked"] = None, lambda x: x
-        elif isinstance(cell, (mint.nn.BatchNorm1d, mint.nn.BatchNorm2d, mint.nn.BatchNorm3d)):
-            # TODO: for mint.nn, the dtype for each param should expected to be same among torch and mindspore
-            # this is a temporary fix, delete this branch in future.
-            mappings[f"{name}.num_batches_tracked"] = f"{name}.num_batches_tracked", lambda x: x.to(ms.float32)
     return mappings
 
 
@@ -142,6 +158,7 @@ def convert_state_dict(m, state_dict_pt):
     dtype_mappings = {
         torch.float16: ms.float16,
         torch.float32: ms.float32,
+        torch.float64: ms.float64,
         torch.bfloat16: ms.bfloat16,
         torch.int64: ms.int64,
     }
@@ -221,7 +238,8 @@ def get_modules(pt_module, ms_module, dtype, *args, **kwargs):
 
 def set_dtype(model, dtype):
     for p in model.get_parameters():
-        p = p.set_dtype(dtype)
+        if ops.is_floating_point(p):
+            p = p.set_dtype(dtype)
     return model
 
 
@@ -247,17 +265,30 @@ def generalized_parse_args(pt_dtype, ms_dtype, *args, **kwargs):
             px_list = []
             mx_list = []
             for x_item in x:
-                if x_item.dtype in (np.float16, np.float32, np.float64, bfloat16):
-                    px_item = x_item.astype(NP_DTYPE_MAPPING[pt_dtype])
-                    mx_item = x_item.astype(NP_DTYPE_MAPPING[ms_dtype])
-                else:
-                    px_item = mx_item = x_item
-                px_list.append(
-                    torch.from_numpy(px_item.astype(np.float32)).to(torch.bfloat16)
-                    if pt_dtype == "bf16"
-                    else torch.from_numpy(px_item)
-                )
-                mx_list.append(ms.Tensor.from_numpy(mx_item))
+                if isinstance(x_item, np.ndarray):
+                    if x_item.dtype in (np.float16, np.float32, np.float64, bfloat16):
+                        px_item = x_item.astype(NP_DTYPE_MAPPING[pt_dtype])
+                        mx_item = x_item.astype(NP_DTYPE_MAPPING[ms_dtype])
+                    else:
+                        px_item = mx_item = x_item
+                    px_list.append(
+                        torch.from_numpy(px_item.astype(np.float32)).to(torch.bfloat16)
+                        if pt_dtype == "bf16"
+                        else torch.from_numpy(px_item)
+                    )
+                    mx_list.append(ms.Tensor.from_numpy(mx_item))
+                elif isinstance(x_item, dict):
+                    px_item = {}
+                    mx_item = {}
+                    for k, v in x_item.items():
+                        if v.dtype in (np.float16, np.float32, np.float64, bfloat16):
+                            px_item[k] = torch.from_numpy(v.astype(NP_DTYPE_MAPPING[pt_dtype]))
+                            mx_item[k] = ms.tensor(v.astype(NP_DTYPE_MAPPING[ms_dtype]))
+                        else:
+                            px_item[k] = torch.from_numpy(v)
+                            mx_item[k] = ms.tensor(v)
+                    px_list.append(px_item)
+                    mx_list.append(mx_item)
 
             pt_inputs_args += (px_list,)
             ms_inputs_args += (mx_list,)
@@ -286,17 +317,30 @@ def generalized_parse_args(pt_dtype, ms_dtype, *args, **kwargs):
             px_list = []
             mx_list = []
             for v_item in v:
-                if v_item.dtype in (np.float16, np.float32, np.float64, bfloat16):
-                    px_item = v_item.astype(NP_DTYPE_MAPPING[pt_dtype])
-                    mx_item = v_item.astype(NP_DTYPE_MAPPING[ms_dtype])
-                else:
-                    px_item = mx_item = v_item
-                px_list.append(
-                    torch.from_numpy(px_item.astype(np.float32)).to(torch.bfloat16)
-                    if pt_dtype == "bf16"
-                    else torch.from_numpy(px_item)
-                )
-                mx_list.append(ms.Tensor.from_numpy(mx_item))
+                if isinstance(v_item, np.ndarray):
+                    if v_item.dtype in (np.float16, np.float32, np.float64, bfloat16):
+                        px_item = v_item.astype(NP_DTYPE_MAPPING[pt_dtype])
+                        mx_item = v_item.astype(NP_DTYPE_MAPPING[ms_dtype])
+                    else:
+                        px_item = mx_item = v_item
+                    px_list.append(
+                        torch.from_numpy(px_item.astype(np.float32)).to(torch.bfloat16)
+                        if pt_dtype == "bf16"
+                        else torch.from_numpy(px_item)
+                    )
+                    mx_list.append(ms.Tensor.from_numpy(mx_item))
+                elif isinstance(v_item, dict):
+                    px_item = {}
+                    mx_item = {}
+                    for k_, v_ in v_item.items():
+                        if v_.dtype in (np.float16, np.float32, np.float64, bfloat16):
+                            px_item[k_] = torch.from_numpy(v_.astype(NP_DTYPE_MAPPING[pt_dtype]))
+                            mx_item[k_] = ms.tensor(v_.astype(NP_DTYPE_MAPPING[ms_dtype]))
+                        else:
+                            px_item[k_] = torch.from_numpy(v_)
+                            mx_item[k_] = ms.tensor(v_)
+                    px_list.append(px_item)
+                    mx_list.append(mx_item)
 
             pt_inputs_kwargs[k] = px_list
             ms_inputs_kwargs[k] = mx_list
@@ -307,7 +351,7 @@ def generalized_parse_args(pt_dtype, ms_dtype, *args, **kwargs):
     return pt_inputs_args, pt_inputs_kwargs, ms_inputs_args, ms_inputs_kwargs
 
 
-def compute_diffs(pt_outputs: torch.Tensor, ms_outputs: ms.Tensor):
+def compute_diffs(pt_outputs: Union[torch.Tensor, np.ndarray], ms_outputs: Union[ms.Tensor, np.ndarray]):
     if isinstance(pt_outputs, BaseOutput):
         pt_outputs = tuple(pt_outputs.values())
     elif not isinstance(pt_outputs, (tuple, list)):
@@ -327,11 +371,16 @@ def compute_diffs(pt_outputs: torch.Tensor, ms_outputs: ms.Tensor):
                 d = np.linalg.norm(p - m) / np.linalg.norm(p)
                 diffs.append(d)
         else:
-            p = p.detach().cpu().numpy()
-            m = m.asnumpy()
+            if isinstance(p, torch.Tensor):
+                p = p.detach().cpu().numpy()
+            if isinstance(m, ms.Tensor):
+                m = m.asnumpy()
             # relative error defined by Frobenius norm
             # dist(x, y) := ||x - y|| / ||y||, where ||·|| means Frobenius norm
-            d = np.linalg.norm(p - m) / np.linalg.norm(p)
+
+            # adaption for tensor with all zeros element
+            eps = 1e-9 if np.all(m.astype(np.float32) == 0) and np.all(p.astype(np.float32) == 0) else 0
+            d = np.linalg.norm(p - m) / (np.linalg.norm(p) + eps)
             diffs.append(d)
 
     return diffs

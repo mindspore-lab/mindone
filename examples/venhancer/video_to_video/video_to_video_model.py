@@ -1,3 +1,7 @@
+# This code is adapted from https://github.com/Vchitect/VEnhancer
+# with modifications to run on MindSpore.
+
+
 import logging
 from typing import Any, Dict
 

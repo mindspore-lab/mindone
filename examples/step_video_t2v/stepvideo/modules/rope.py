@@ -1,3 +1,6 @@
+# This code is adapted from https://github.com/stepfun-ai/Step-Video-T2V
+# with modifications to run on MindSpore.
+
 from stepvideo.parallel import get_sequence_parallel_rank, get_sequence_parallel_world_size
 
 from mindspore import mint, ops

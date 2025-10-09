@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/stable_diffusion_xl/watermark.py."""
+
 import numpy as np
 
 import mindspore as ms

@@ -1,5 +1,8 @@
-# Copyright 2024 The Genmo team and The HuggingFace Team.
+# Copyright 2025 The Lightricks team and The HuggingFace Team.
 # All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,17 +16,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import inspect
 import math
 from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import mint, nn
+from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
-from ...utils import logging
-from ..attention import FeedForward
-from ..attention_processor import Attention
+from ...utils import deprecate, logging
+from ..attention import AttentionMixin, AttentionModuleMixin, FeedForward
+from ..cache_utils import CacheMixin
 from ..embeddings import PixArtAlphaTextProjection
 from ..layers_compat import unflatten
 from ..modeling_outputs import Transformer2DModelOutput
@@ -34,14 +38,22 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
 class LTXVideoAttentionProcessor2_0:
+    def __new__(cls, *args, **kwargs):
+        deprecation_message = "`LTXVideoAttentionProcessor2_0` is deprecated and this will be removed in a future version. Please use `LTXVideoAttnProcessor`"
+        deprecate("LTXVideoAttentionProcessor2_0", "1.0.0", deprecation_message)
+
+        return LTXVideoAttnProcessor(*args, **kwargs)
+
+
+class LTXVideoAttnProcessor:
     r"""
-    Processor for implementing scaled dot-product attention (enabled by default if you're using PyTorch 2.0). This is
-    used in the LTX model. It applies a normalization layer and rotary embedding on the query and key vector.
+    Processor for implementing attention (SDPA is used by default if you're using PyTorch 2.0). This is used in the LTX
+    model. It applies a normalization layer and rotary embedding on the query and key vector.
     """
 
     def __call__(
         self,
-        attn: Attention,
+        attn: "LTXAttention",
         hidden_states: ms.Tensor,
         encoder_hidden_states: Optional[ms.Tensor] = None,
         attention_mask: Optional[ms.Tensor] = None,
@@ -69,19 +81,138 @@ class LTXVideoAttentionProcessor2_0:
             query = apply_rotary_emb(query, image_rotary_emb)
             key = apply_rotary_emb(key, image_rotary_emb)
 
-        query = unflatten(query, 2, (attn.heads, -1)).swapaxes(1, 2)
-        key = unflatten(key, 2, (attn.heads, -1)).swapaxes(1, 2)
-        value = unflatten(value, 2, (attn.heads, -1)).swapaxes(1, 2)
+        query = unflatten(query, 2, (attn.heads, -1))
+        key = unflatten(key, 2, (attn.heads, -1))
+        value = unflatten(value, 2, (attn.heads, -1))
 
         hidden_states = attn.scaled_dot_product_attention(
             query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
         )
-        hidden_states = hidden_states.swapaxes(1, 2).flatten(2, 3)
+        hidden_states = hidden_states.flatten(2, 3)
         hidden_states = hidden_states.to(query.dtype)
 
         hidden_states = attn.to_out[0](hidden_states)
         hidden_states = attn.to_out[1](hidden_states)
         return hidden_states
+
+
+class LTXAttention(nn.Cell, AttentionModuleMixin):
+    _default_processor_cls = LTXVideoAttnProcessor
+    _available_processors = [LTXVideoAttnProcessor]
+
+    def __init__(
+        self,
+        query_dim: int,
+        heads: int = 8,
+        kv_heads: int = 8,
+        dim_head: int = 64,
+        dropout: float = 0.0,
+        bias: bool = True,
+        cross_attention_dim: Optional[int] = None,
+        out_bias: bool = True,
+        qk_norm: str = "rms_norm_across_heads",
+        processor=None,
+    ):
+        super().__init__()
+        if qk_norm != "rms_norm_across_heads":
+            raise NotImplementedError("Only 'rms_norm_across_heads' is supported as a valid value for `qk_norm`.")
+
+        self.head_dim = dim_head
+        self.inner_dim = dim_head * heads
+        self.inner_kv_dim = self.inner_dim if kv_heads is None else dim_head * kv_heads
+        self.query_dim = query_dim
+        self.cross_attention_dim = cross_attention_dim if cross_attention_dim is not None else query_dim
+        self.use_bias = bias
+        self.dropout = dropout
+        self.out_dim = query_dim
+        self.scale = dim_head**-0.5
+        self.heads = heads
+
+        norm_eps = 1e-5
+        norm_elementwise_affine = True
+        self.norm_q = RMSNorm(dim_head * heads, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
+        self.norm_k = RMSNorm(dim_head * kv_heads, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
+        self.to_q = mint.nn.Linear(query_dim, self.inner_dim, bias=bias)
+        self.to_k = mint.nn.Linear(self.cross_attention_dim, self.inner_kv_dim, bias=bias)
+        self.to_v = mint.nn.Linear(self.cross_attention_dim, self.inner_kv_dim, bias=bias)
+        self.to_out = nn.CellList([])
+        self.to_out.append(mint.nn.Linear(self.inner_dim, self.out_dim, bias=out_bias))
+        self.to_out.append(mint.nn.Dropout(dropout))
+
+        if processor is None:
+            processor = self._default_processor_cls()
+        self.set_processor(processor)
+
+    def scaled_dot_product_attention(
+        self,
+        query: ms.Tensor,
+        key: ms.Tensor,
+        value: ms.Tensor,
+        attn_mask: Optional[ms.Tensor] = None,
+        dropout_p: float = 0.0,
+        is_causal: bool = False,
+        scale: Optional[float] = None,
+    ):
+        query, key, value = (x.permute(0, 2, 1, 3) for x in (query, key, value))
+        if query.dtype in (ms.float16, ms.bfloat16):
+            out = self.flash_attention_op(query, key, value, attn_mask, keep_prob=1 - dropout_p, scale=scale)
+        else:
+            out = self.flash_attention_op(
+                query.to(ms.float16),
+                key.to(ms.float16),
+                value.to(ms.float16),
+                attn_mask,
+                keep_prob=1 - dropout_p,
+                scale=scale,
+            ).to(query.dtype)
+        return out.permute(0, 2, 1, 3)
+
+    def flash_attention_op(
+        self,
+        query: ms.Tensor,
+        key: ms.Tensor,
+        value: ms.Tensor,
+        attn_mask: Optional[ms.Tensor] = None,
+        keep_prob: float = 1.0,
+        scale: Optional[float] = None,
+    ):
+        # For most scenarios, qkv has been processed into a BNSD layout before sdp
+        input_layout = "BNSD"
+        head_num = query.shape[1]
+
+        # In case qkv is 3-dim after `head_to_batch_dim`
+        if query.ndim == 3:
+            input_layout = "BSH"
+            head_num = 1
+
+        # process `attn_mask` as logic is different between PyTorch and Mindspore
+        # In MindSpore, False indicates retention and True indicates discard, in PyTorch it is the opposite
+        if attn_mask is not None:
+            attn_mask = mint.logical_not(attn_mask) if attn_mask.dtype == ms.bool_ else attn_mask.bool()
+            attn_mask = mint.broadcast_to(
+                attn_mask, (attn_mask.shape[0], attn_mask.shape[1], query.shape[-2], key.shape[-2])
+            )[:, :1, :, :]
+
+        return ops.operations.nn_ops.FlashAttentionScore(
+            head_num=head_num, keep_prob=keep_prob, scale_value=scale or self.scale, input_layout=input_layout
+        )(query, key, value, None, None, None, attn_mask)[3]
+
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        image_rotary_emb: Optional[ms.Tensor] = None,
+        **kwargs,
+    ) -> ms.Tensor:
+        attn_parameters = set(inspect.signature(self.processor.__call__).parameters.keys())
+        unused_kwargs = [k for k, _ in kwargs.items() if k not in attn_parameters]
+        if len(unused_kwargs) > 0:
+            logger.warning(
+                f"attention_kwargs {unused_kwargs} are not expected by {self.processor.__class__.__name__} and will be ignored."
+            )
+        kwargs = {k: w for k, w in kwargs.items() if k in attn_parameters}
+        return self.processor(self, hidden_states, encoder_hidden_states, attention_mask, image_rotary_emb, **kwargs)
 
 
 class LTXVideoRotaryPosEmbed(nn.Cell):
@@ -218,7 +349,7 @@ class LTXVideoTransformerBlock(nn.Cell):
         super().__init__()
 
         self.norm1 = RMSNorm(dim, eps=eps, elementwise_affine=elementwise_affine)
-        self.attn1 = Attention(
+        self.attn1 = LTXAttention(
             query_dim=dim,
             heads=num_attention_heads,
             kv_heads=num_attention_heads,
@@ -227,11 +358,10 @@ class LTXVideoTransformerBlock(nn.Cell):
             cross_attention_dim=None,
             out_bias=attention_out_bias,
             qk_norm=qk_norm,
-            processor=LTXVideoAttentionProcessor2_0(),
         )
 
         self.norm2 = RMSNorm(dim, eps=eps, elementwise_affine=elementwise_affine)
-        self.attn2 = Attention(
+        self.attn2 = LTXAttention(
             query_dim=dim,
             cross_attention_dim=cross_attention_dim,
             heads=num_attention_heads,
@@ -240,7 +370,6 @@ class LTXVideoTransformerBlock(nn.Cell):
             bias=attention_bias,
             out_bias=attention_out_bias,
             qk_norm=qk_norm,
-            processor=LTXVideoAttentionProcessor2_0(),
         )
 
         self.ff = FeedForward(dim, activation_fn=activation_fn)
@@ -286,7 +415,9 @@ class LTXVideoTransformerBlock(nn.Cell):
         return hidden_states
 
 
-class LTXVideoTransformer3DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin, PeftAdapterMixin):
+class LTXVideoTransformer3DModel(
+    ModelMixin, ConfigMixin, AttentionMixin, FromOriginalModelMixin, PeftAdapterMixin, CacheMixin
+):
     r"""
     A Transformer model for video-like data used in [LTX](https://huggingface.co/Lightricks/LTX-Video).
 
@@ -315,6 +446,7 @@ class LTXVideoTransformer3DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin
 
     _supports_gradient_checkpointing = True
     _skip_layerwise_casting_patterns = ["norm"]
+    _repeated_blocks = ["LTXVideoTransformerBlock"]
 
     @register_to_config
     def __init__(
@@ -442,7 +574,7 @@ class LTXVideoTransformer3DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin
 
 def apply_rotary_emb(x, freqs):
     cos, sin = freqs
-    x_real, x_imag = unflatten(x, 2, (-1, 2)).unbind(-1)  # [B, S, H, D // 2]
+    x_real, x_imag = unflatten(x, 2, (-1, 2)).unbind(-1)  # [B, S, C // 2]
     x_rotated = mint.stack([-x_imag, x_real], dim=-1).flatten(2)
     out = (x.float() * cos + x_rotated.float() * sin).to(x.dtype)
     return out

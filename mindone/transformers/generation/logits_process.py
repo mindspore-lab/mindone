@@ -1,3 +1,21 @@
+# coding=utf-8
+# Copyright 2024 The HuggingFace Inc. team and Google DeepMind.
+#
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import inspect
 import math
 from typing import Callable, Iterable, List, Optional, Union
@@ -1985,7 +2003,7 @@ class ClassifierFreeGuidanceLogitsProcessor(LogitsProcessor):
     Examples:
 
     ```python
-    >>> from transformers import AutoProcessor, MusicgenForConditionalGeneration
+    >>> from mindone.transformers import AutoProcessor, MusicgenForConditionalGeneration
 
     >>> processor = AutoProcessor.from_pretrained("facebook/musicgen-small")
     >>> model = MusicgenForConditionalGeneration.from_pretrained("facebook/musicgen-small")
@@ -1993,8 +2011,9 @@ class ClassifierFreeGuidanceLogitsProcessor(LogitsProcessor):
     >>> inputs = processor(
     ...     text=["80s pop track with bassy drums and synth", "90s rock song with loud guitars and heavy drums"],
     ...     padding=True,
-    ...     return_tensors="pt",
+    ...     return_tensors="np",
     ... )
+    >>> inputs = {k: mindspore.tensor(v) for k, v in inputs.items()}
     >>> audio_values = model.generate(**inputs, do_sample=True, guidance_scale=3, max_new_tokens=256)
     ```
     """
@@ -2008,8 +2027,11 @@ class ClassifierFreeGuidanceLogitsProcessor(LogitsProcessor):
                 f"{guidance_scale}."
             )
 
-    @add_start_docstrings(LOGITS_PROCESSOR_INPUTS_DOCSTRING)
-    def __call__(self, input_ids: ms.Tensor, scores: ms.Tensor) -> ms.Tensor:
+    def __call__(
+        self,
+        input_ids: ms.tensor,
+        scores: ms.tensor,
+    ) -> ms.tensor:
         # simple check to make sure we have compatible batch sizes between our
         # logits scores (cond + uncond) and input ids (cond only)
         if scores.shape[0] != 2 * input_ids.shape[0]:

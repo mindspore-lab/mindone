@@ -1,3 +1,4 @@
+# Adapted from https://github.com/magic-research/PLLaVA/blob/main/models/pllava/processing_pllava.py
 """
 Processor class for Llava.
 """

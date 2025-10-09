@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,7 +36,7 @@ def get_timestep_embedding(
     downscale_freq_shift: float = 1,
     scale: float = 1,
     max_period: int = 10000,
-):
+) -> ms.Tensor:
     """
     This matches the implementation in Denoising Diffusion Probabilistic Models: Create sinusoidal timestep embeddings.
 
@@ -99,7 +102,7 @@ def get_3d_sincos_pos_embed(
             The spatial dimension of positional embeddings. If an integer is provided, the same size is applied to both
             spatial dimensions (height and width).
         temporal_size (`int`):
-            The temporal dimension of postional embeddings (number of frames).
+            The temporal dimension of positional embeddings (number of frames).
         spatial_interpolation_scale (`float`, defaults to 1.0):
             Scale factor for spatial grid interpolation.
         temporal_interpolation_scale (`float`, defaults to 1.0):
@@ -183,7 +186,7 @@ def _get_3d_sincos_pos_embed_np(
             The spatial dimension of positional embeddings. If an integer is provided, the same size is applied to both
             spatial dimensions (height and width).
         temporal_size (`int`):
-            The temporal dimension of postional embeddings (number of frames).
+            The temporal dimension of positional embeddings (number of frames).
         spatial_interpolation_scale (`float`, defaults to 1.0):
             Scale factor for spatial grid interpolation.
         temporal_interpolation_scale (`float`, defaults to 1.0):
@@ -324,7 +327,7 @@ def get_2d_sincos_pos_embed_from_grid(embed_dim, grid, output_type="np"):
     return emb
 
 
-def get_1d_sincos_pos_embed_from_grid(embed_dim, pos, output_type="np"):
+def get_1d_sincos_pos_embed_from_grid(embed_dim, pos, output_type="np", flip_sin_to_cos=False):
     """
     This function generates 1D positional embeddings from a grid.
 
@@ -357,6 +360,11 @@ def get_1d_sincos_pos_embed_from_grid(embed_dim, pos, output_type="np"):
     emb_cos = mint.cos(out)  # (M, D/2)
 
     emb = mint.concat([emb_sin, emb_cos], dim=1)  # (M, D)
+
+    # flip sine and cosine embeddings
+    if flip_sin_to_cos:
+        emb = mint.cat([emb[:, embed_dim // 2 :], emb[:, : embed_dim // 2]], dim=1)
+
     return emb
 
 
@@ -1138,7 +1146,7 @@ def get_1d_rotary_pos_embed(
         pos = ms.Tensor.from_numpy(pos)  # type: ignore  # [S]
 
     theta = theta * ntk_factor
-    freqs = 1.0 / (theta ** (mint.arange(0, dim, 2, dtype=freqs_dtype)[: (dim // 2)] / dim)) / linear_factor  # [D/2]
+    freqs = 1.0 / (theta ** (mint.arange(0, dim, 2, dtype=freqs_dtype) / dim)) / linear_factor  # [D/2]
     freqs = mint.outer(pos, freqs)  # type: ignore   # [S, D/2]
     freqs = freqs.float()
     if use_real and repeat_interleave_real:
@@ -1162,6 +1170,7 @@ def apply_rotary_emb(
     freqs_cis: Union[ms.Tensor, Tuple[ms.Tensor]],
     use_real: bool = True,
     use_real_unbind_dim: int = -1,
+    sequence_dim: int = 2,
 ) -> Tuple[ms.Tensor, ms.Tensor]:
     """
     Apply rotary embeddings to input tensors using the given frequency tensor. This function applies rotary embeddings
@@ -1182,24 +1191,43 @@ def apply_rotary_emb(
         # todo: unavailable mint interface
         if ops.is_tensor(freqs_cis):
             cos, sin = freqs_cis.chunk(2)  # [1, S, D]
-            # cos = cos[None]
-            # sin = sin[None]
-            cos = cos.expand_dims(axis=0)
-            sin = sin.expand_dims(axis=0)
+            if sequence_dim == 2:
+                # cos = cos[None, :, :]
+                # sin = sin[None, :, :]
+                cos = cos.expand_dims(axis=0)
+                sin = sin.expand_dims(axis=0)
+            elif sequence_dim == 1:
+                # cos = cos[:, :, None]
+                # sin = sin[:, :, None]
+                cos = cos.expand_dims(axis=2)
+                sin = sin.expand_dims(axis=2)
+            else:
+                raise ValueError(f"`sequence_dim={sequence_dim}` but should be 1 or 2.")
         else:
             cos, sin = freqs_cis  # [S, D]
-            # cos = cos[None, None]
-            # sin = sin[None, None]
-            cos = cos.expand_dims(axis=0).expand_dims(axis=0)
-            sin = sin.expand_dims(axis=0).expand_dims(axis=0)
+            if sequence_dim == 2:
+                # cos = cos[None, None, :, :]
+                # sin = sin[None, None, :, :]
+                cos = cos.expand_dims(axis=0).expand_dims(axis=0)
+                sin = sin.expand_dims(axis=0).expand_dims(axis=0)
+            elif sequence_dim == 1:
+                # cos = cos[None, :, None, :]
+                # sin = sin[None, :, None, :]
+                cos = cos.expand_dims(axis=0).expand_dims(axis=2)
+                sin = sin.expand_dims(axis=0).expand_dims(axis=2)
+            else:
+                raise ValueError(f"`sequence_dim={sequence_dim}` but should be 1 or 2.")
 
         if use_real_unbind_dim == -1:
             # Used for flux, cogvideox, hunyuan-dit
-            x_real, x_imag = x.reshape(*x.shape[:-1], -1, 2).unbind(-1)  # [B, S, H, D//2]
+            # x_real, x_imag = x.reshape(*x.shape[:-1], -1, 2).unbind(-1)  # [B, H, S, D//2]
+            # FIXME: Modified to use mint.unbind for Flux training under JIT.
+            #        Works but may trigger many backend warnings.
+            x_real, x_imag = mint.unbind(x.reshape(*x.shape[:-1], -1, 2), -1)  # [B, H, S, D//2]
             x_rotated = mint.stack([-x_imag, x_real], dim=-1).flatten(start_dim=3)
         elif use_real_unbind_dim == -2:
-            # Used for Stable Audio, OmniGen and CogView4
-            x_real, x_imag = x.reshape(*x.shape[:-1], 2, -1).unbind(-2)  # [B, S, H, D//2]
+            # Used for Stable Audio, OmniGen, CogView4 and Cosmos
+            x_real, x_imag = x.reshape(*x.shape[:-1], 2, -1).unbind(-2)  # [B, H, S, D//2]
             x_rotated = mint.cat([-x_imag, x_real], dim=-1)
         else:
             raise ValueError(f"`use_real_unbind_dim={use_real_unbind_dim}` but should be -1 or -2.")
@@ -1236,35 +1264,6 @@ def apply_rotary_emb_allegro(x: ms.Tensor, freqs_cis, positions):
     w = apply_1d_rope(w, positions[2], w_cos, w_sin)
     x = mint.cat([t, h, w], dim=-1)
     return x
-
-
-class FluxPosEmbed(nn.Cell):
-    # modified from https://github.com/black-forest-labs/flux/blob/c00d7c60b085fce8058b9df845e036090873f2ce/src/flux/modules/layers.py#L11
-    def __init__(self, theta: int, axes_dim: List[int]):
-        super().__init__()
-        self.theta = theta
-        self.axes_dim = axes_dim
-
-    def construct(self, ids: ms.Tensor) -> ms.Tensor:
-        n_axes = ids.shape[-1]
-        cos_out = []
-        sin_out = []
-        pos = ids.float()
-        freqs_dtype = ms.float32
-        for i in range(n_axes):
-            cos, sin = get_1d_rotary_pos_embed(
-                self.axes_dim[i],
-                mint.split(pos, 1, dim=1)[i].squeeze(axis=1),
-                theta=self.theta,
-                repeat_interleave_real=True,
-                use_real=True,
-                freqs_dtype=freqs_dtype,
-            )
-            cos_out.append(cos)
-            sin_out.append(sin)
-        freqs_cos = mint.cat(cos_out, dim=-1)
-        freqs_sin = mint.cat(sin_out, dim=-1)
-        return freqs_cos, freqs_sin
 
 
 class TimestepEmbedding(nn.Cell):
@@ -1323,7 +1322,7 @@ class Timesteps(nn.Cell):
         self.downscale_freq_shift = downscale_freq_shift
         self.scale = scale
 
-    def construct(self, timesteps):
+    def construct(self, timesteps: ms.Tensor) -> ms.Tensor:
         t_emb = get_timestep_embedding(
             timesteps,
             self.num_channels,
@@ -1380,15 +1379,18 @@ class SinusoidalPositionalEmbedding(nn.Cell):
 
     def __init__(self, embed_dim: int, max_seq_length: int = 32):
         super().__init__()
-        position = np.expand_dims(np.arange(max_seq_length), axis=1)
-        div_term = np.exp(np.arange(0, embed_dim, 2) * (-np.log(10000.0) / embed_dim))
-        pe = np.zeros(shape=(1, max_seq_length, embed_dim))
-        pe[0, :, 0::2] = np.sin(position * div_term)
-        pe[0, :, 1::2] = np.cos(position * div_term)
-        self.pe = ms.Tensor.from_numpy(pe).float()
+        position = mint.arange(max_seq_length).unsqueeze(1)
+        div_term = mint.exp(mint.arange(0, embed_dim, 2) * (-math.log(10000.0) / embed_dim))
+        pe = mint.zeros((1, max_seq_length, embed_dim))
+        pe[0, :, 0::2] = mint.sin(position * div_term)
+        pe[0, :, 1::2] = mint.cos(position * div_term)
+        self.register_buffer("pe", pe)
 
     def construct(self, x):
         _, seq_length, _ = x.shape
+        # In PyTorch, register_buffer allows automatic dtype alignment when using `.to()`.
+        # However, in MindSpore, the `.to()` method only applies to parameters.
+        # Therefore, we need to manually align the dtype of buffers here.
         x = x + self.pe[:, :seq_length].to(x.dtype)
         return x
 
@@ -1398,7 +1400,7 @@ class ImagePositionalEmbeddings(nn.Cell):
     Converts latent image classes into vector embeddings. Sums the vector embeddings with positional embeddings for the
     height and width of the latent space.
 
-    For more details, see figure 10 of the dall-e paper: https://arxiv.org/abs/2102.12092
+    For more details, see figure 10 of the dall-e paper: https://huggingface.co/papers/2102.12092
 
     For VQ-diffusion:
 
@@ -2638,6 +2640,16 @@ class MultiIPAdapterImageProjection(nn.Cell):
             projected_image_embeds.append(image_embed)
 
         return projected_image_embeds
+
+
+class FluxPosEmbed(nn.Cell):
+    def __new__(cls, *args, **kwargs):
+        deprecation_message = "Importing and using `FluxPosEmbed` from `diffusers.models.embeddings` is deprecated. Please import it from `diffusers.models.transformers.transformer_flux`."  # noqa
+        deprecate("FluxPosEmbed", "1.0.0", deprecation_message)
+
+        from .transformers.transformer_flux import FluxPosEmbed
+
+        return FluxPosEmbed(*args, **kwargs)
 
 
 class _GELU(nn.Cell):

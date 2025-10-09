@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +16,7 @@
 # limitations under the License.
 
 from ..models.embeddings import ImageProjection, MultiIPAdapterImageProjection
-from ..models.modeling_utils import _load_state_dict_into_model
+from ..models.model_loading_utils import _load_state_dict_into_model
 from ..utils import logging
 
 logger = logging.get_logger(__name__)
@@ -51,7 +54,7 @@ class FluxTransformer2DLoadersMixin:
         return image_projection
 
     def _convert_ip_adapter_attn_to_diffusers(self, state_dicts, low_cpu_mem_usage=False):
-        from ..models.attention_processor import FluxIPAdapterJointAttnProcessor2_0
+        from ..models.transformers.transformer_flux import FluxIPAdapterAttnProcessor
 
         # set ip-adapter cross-attention processors & load state_dict
         attn_procs = {}
@@ -63,7 +66,7 @@ class FluxTransformer2DLoadersMixin:
             else:
                 cross_attention_dim = self.config.joint_attention_dim
                 hidden_size = self.inner_dim
-                attn_processor_class = FluxIPAdapterJointAttnProcessor2_0
+                attn_processor_class = FluxIPAdapterAttnProcessor
                 num_image_text_embeds = []
                 for state_dict in state_dicts:
                     if "proj.weight" in state_dict["image_proj"]:

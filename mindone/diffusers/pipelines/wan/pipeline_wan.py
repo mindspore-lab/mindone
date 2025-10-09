@@ -1,5 +1,8 @@
 # Copyright 2025 The Wan Team and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -108,18 +111,31 @@ class WanPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             A scheduler to be used in combination with `transformer` to denoise the encoded image latents.
         vae ([`AutoencoderKLWan`]):
             Variational Auto-Encoder (VAE) Model to encode and decode videos to and from latent representations.
+        transformer_2 ([`WanTransformer3DModel`], *optional*):
+            Conditional Transformer to denoise the input latents during the low-noise stage. If provided, enables
+            two-stage denoising where `transformer` handles high-noise stages and `transformer_2` handles low-noise
+            stages. If not provided, only `transformer` is used.
+        boundary_ratio (`float`, *optional*, defaults to `None`):
+            Ratio of total timesteps to use as the boundary for switching between transformers in two-stage denoising.
+            The actual boundary timestep is calculated as `boundary_ratio * num_train_timesteps`. When provided,
+            `transformer` handles timesteps >= boundary_timestep and `transformer_2` handles timesteps <
+            boundary_timestep. If `None`, only `transformer` is used for the entire denoising process.
     """
 
-    model_cpu_offload_seq = "text_encoder->transformer->vae"
+    model_cpu_offload_seq = "text_encoder->transformer->transformer_2->vae"
     _callback_tensor_inputs = ["latents", "prompt_embeds", "negative_prompt_embeds"]
+    _optional_components = ["transformer", "transformer_2"]
 
     def __init__(
         self,
         tokenizer: AutoTokenizer,
         text_encoder: UMT5EncoderModel,
-        transformer: WanTransformer3DModel,
         vae: AutoencoderKLWan,
         scheduler: FlowMatchEulerDiscreteScheduler,
+        transformer: Optional[WanTransformer3DModel] = None,
+        transformer_2: Optional[WanTransformer3DModel] = None,
+        boundary_ratio: Optional[float] = None,
+        expand_timesteps: bool = False,  # Wan2.2 ti2v
     ):
         super().__init__()
 
@@ -129,10 +145,12 @@ class WanPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             tokenizer=tokenizer,
             transformer=transformer,
             scheduler=scheduler,
+            transformer_2=transformer_2,
         )
-
-        self.vae_scale_factor_temporal = 2 ** sum(self.vae.temperal_downsample) if getattr(self, "vae", None) else 4
-        self.vae_scale_factor_spatial = 2 ** len(self.vae.temperal_downsample) if getattr(self, "vae", None) else 8
+        self.register_to_config(boundary_ratio=boundary_ratio)
+        self.register_to_config(expand_timesteps=expand_timesteps)
+        self.vae_scale_factor_temporal = self.vae.config.scale_factor_temporal if getattr(self, "vae", None) else 4
+        self.vae_scale_factor_spatial = self.vae.config.scale_factor_spatial if getattr(self, "vae", None) else 8
         self.video_processor = VideoProcessor(vae_scale_factor=self.vae_scale_factor_spatial)
 
     def _get_t5_prompt_embeds(
@@ -257,6 +275,7 @@ class WanPipeline(DiffusionPipeline, WanLoraLoaderMixin):
         prompt_embeds=None,
         negative_prompt_embeds=None,
         callback_on_step_end_tensor_inputs=None,
+        guidance_scale_2=None,
     ):
         if height % 16 != 0 or width % 16 != 0:
             raise ValueError(f"`height` and `width` have to be divisible by 16 but are {height} and {width}.")
@@ -288,6 +307,9 @@ class WanPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             not isinstance(negative_prompt, str) and not isinstance(negative_prompt, list)
         ):
             raise ValueError(f"`negative_prompt` has to be of type `str` or `list` but is {type(negative_prompt)}")
+
+        if self.config.boundary_ratio is None and guidance_scale_2 is not None:
+            raise ValueError("`guidance_scale_2` is only supported when the pipeline's `boundary_ratio` is not None.")
 
     def prepare_latents(
         self,
@@ -353,6 +375,7 @@ class WanPipeline(DiffusionPipeline, WanLoraLoaderMixin):
         num_frames: int = 81,
         num_inference_steps: int = 50,
         guidance_scale: float = 5.0,
+        guidance_scale_2: Optional[float] = None,
         num_videos_per_prompt: Optional[int] = 1,
         generator: Optional[Union[np.random.Generator, List[np.random.Generator]]] = None,
         latents: Optional[ms.Tensor] = None,
@@ -372,8 +395,10 @@ class WanPipeline(DiffusionPipeline, WanLoraLoaderMixin):
 
         Args:
             prompt (`str` or `List[str]`, *optional*):
-                The prompt or prompts to guide the image generation. If not defined, one has to pass `prompt_embeds`.
-                instead.
+                The prompt or prompts to guide the image generation. If not defined, pass `prompt_embeds` instead.
+            negative_prompt (`str` or `List[str]`, *optional*):
+                The prompt or prompts to avoid during image generation. If not defined, pass `negative_prompt_embeds`
+                instead. Ignored when not using guidance (`guidance_scale` < `1`).
             height (`int`, defaults to `480`):
                 The height in pixels of the generated image.
             width (`int`, defaults to `832`):
@@ -384,11 +409,15 @@ class WanPipeline(DiffusionPipeline, WanLoraLoaderMixin):
                 The number of denoising steps. More denoising steps usually lead to a higher quality image at the
                 expense of slower inference.
             guidance_scale (`float`, defaults to `5.0`):
-                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).
-                `guidance_scale` is defined as `w` of equation 2. of [Imagen
-                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale >
-                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,
-                usually at the expense of lower image quality.
+                Guidance scale as defined in [Classifier-Free Diffusion
+                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.
+                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting
+                `guidance_scale > 1`. Higher guidance scale encourages to generate images that are closely linked to
+                the text `prompt`, usually at the expense of lower image quality.
+            guidance_scale_2 (`float`, *optional*, defaults to `None`):
+                Guidance scale for the low-noise stage transformer (`transformer_2`). If `None` and the pipeline's
+                `boundary_ratio` is not None, uses the same value as `guidance_scale`. Only used when `transformer_2`
+                and the pipeline's `boundary_ratio` are not None.
             num_videos_per_prompt (`int`, *optional*, defaults to 1):
                 The number of images to generate per prompt.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
@@ -401,7 +430,7 @@ class WanPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated text embeddings. Can be used to easily tweak text inputs (prompt weighting). If not
                 provided, text embeddings are generated from the `prompt` input argument.
-            output_type (`str`, *optional*, defaults to `"pil"`):
+            output_type (`str`, *optional*, defaults to `"np"`):
                 The output format of the generated image. Choose between `PIL.Image` or `np.array`.
             return_dict (`bool`, *optional*, defaults to `False`):
                 Whether or not to return a [`WanPipelineOutput`] instead of a plain tuple.
@@ -418,8 +447,9 @@ class WanPipeline(DiffusionPipeline, WanLoraLoaderMixin):
                 The list of tensor inputs for the `callback_on_step_end` function. The tensors specified in the list
                 will be passed as `callback_kwargs` argument. You will only be able to include variables listed in the
                 `._callback_tensor_inputs` attribute of your pipeline class.
-            autocast_dtype (`ms.Type`, *optional*, defaults to `ms.bfloat16`):
-                The dtype to use for the ms.amp.autocast.
+            max_sequence_length (`int`, defaults to `512`):
+                The maximum sequence length of the text encoder. If the prompt is longer than this, it will be
+                truncated. If the prompt is shorter, it will be padded to this length.
 
         Examples:
 
@@ -442,6 +472,7 @@ class WanPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             prompt_embeds,
             negative_prompt_embeds,
             callback_on_step_end_tensor_inputs,
+            guidance_scale_2,
         )
 
         if num_frames % self.vae_scale_factor_temporal != 1:
@@ -451,7 +482,11 @@ class WanPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             num_frames = num_frames // self.vae_scale_factor_temporal * self.vae_scale_factor_temporal + 1
         num_frames = max(num_frames, 1)
 
+        if self.config.boundary_ratio is not None and guidance_scale_2 is None:
+            guidance_scale_2 = guidance_scale
+
         self._guidance_scale = guidance_scale
+        self._guidance_scale_2 = guidance_scale_2
         self._attention_kwargs = attention_kwargs
         self._current_timestep = None
         self._interrupt = False
@@ -475,7 +510,7 @@ class WanPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             max_sequence_length=max_sequence_length,
         )
 
-        transformer_dtype = self.transformer.dtype
+        transformer_dtype = self.transformer.dtype if self.transformer is not None else self.transformer_2.dtype
         prompt_embeds = prompt_embeds.to(transformer_dtype)
         if negative_prompt_embeds is not None:
             negative_prompt_embeds = negative_prompt_embeds.to(transformer_dtype)
@@ -485,7 +520,11 @@ class WanPipeline(DiffusionPipeline, WanLoraLoaderMixin):
         timesteps = self.scheduler.timesteps
 
         # 5. Prepare latent variables
-        num_channels_latents = self.transformer.config.in_channels
+        num_channels_latents = (
+            self.transformer.config.in_channels
+            if self.transformer is not None
+            else self.transformer_2.config.in_channels
+        )
         latents = self.prepare_latents(
             batch_size * num_videos_per_prompt,
             num_channels_latents,
@@ -494,11 +533,19 @@ class WanPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             num_frames,
             ms.float32,
             generator,
+            latents,
         )
+
+        mask = mint.ones(latents.shape, dtype=ms.float32)
 
         # 6. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
         self._num_timesteps = len(timesteps)
+
+        if self.config.boundary_ratio is not None:
+            boundary_timestep = self.config.boundary_ratio * self.scheduler.config.num_train_timesteps
+        else:
+            boundary_timestep = None
 
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
@@ -506,26 +553,44 @@ class WanPipeline(DiffusionPipeline, WanLoraLoaderMixin):
                     continue
 
                 self._current_timestep = t
+
+                if boundary_timestep is None or t >= boundary_timestep:
+                    # wan2.1 or high-noise stage in wan2.2
+                    current_model = self.transformer
+                    current_guidance_scale = guidance_scale
+                else:
+                    # low-noise stage in wan2.2
+                    current_model = self.transformer_2
+                    current_guidance_scale = guidance_scale_2
+
                 latent_model_input = latents.to(transformer_dtype)
-                timestep = t.broadcast_to((latents.shape[0],))
+                if self.config.expand_timesteps:
+                    # seq_len: num_latent_frames * latent_height//2 * latent_width//2
+                    temp_ts = (mask[0][0][:, ::2, ::2] * t).flatten()
+                    # batch_size, seq_len
+                    timestep = temp_ts.unsqueeze(0).broadcast_to((latents.shape[0], -1))
+                else:
+                    timestep = t.broadcast_to((latents.shape[0],))
 
-                noise_pred = self.transformer(
-                    hidden_states=latent_model_input,
-                    timestep=timestep,
-                    encoder_hidden_states=prompt_embeds,
-                    attention_kwargs=attention_kwargs,
-                    return_dict=False,
-                )[0]
-
-                if self.do_classifier_free_guidance:
-                    noise_uncond = self.transformer(
+                with current_model.cache_context("cond"):
+                    noise_pred = current_model(
                         hidden_states=latent_model_input,
                         timestep=timestep,
-                        encoder_hidden_states=negative_prompt_embeds,
+                        encoder_hidden_states=prompt_embeds,
                         attention_kwargs=attention_kwargs,
                         return_dict=False,
                     )[0]
-                    noise_pred = noise_uncond + guidance_scale * (noise_pred - noise_uncond)
+
+                if self.do_classifier_free_guidance:
+                    with current_model.cache_context("uncond"):
+                        noise_uncond = current_model(
+                            hidden_states=latent_model_input,
+                            timestep=timestep,
+                            encoder_hidden_states=negative_prompt_embeds,
+                            attention_kwargs=attention_kwargs,
+                            return_dict=False,
+                        )[0]
+                    noise_pred = noise_uncond + current_guidance_scale * (noise_pred - noise_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1
                 latents = self.scheduler.step(noise_pred, t, latents, return_dict=False)[0]

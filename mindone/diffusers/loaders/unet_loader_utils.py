@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +16,8 @@
 # limitations under the License.
 import copy
 from typing import TYPE_CHECKING, Dict, List, Union
+
+from mindspore import nn
 
 from ..utils import logging
 
@@ -49,7 +54,7 @@ def _maybe_expand_lora_scales(unet: "UNet2DConditionModel", weight_scales: List[
             weight_for_adapter,
             blocks_with_transformer,
             transformer_per_block,
-            unet.parameters_dict(),
+            model=unet,
             default_scale=default_scale,
         )
         for weight_for_adapter in weight_scales
@@ -62,7 +67,7 @@ def _maybe_expand_lora_scales_for_one_adapter(
     scales: Union[float, Dict],
     blocks_with_transformer: Dict[str, int],
     transformer_per_block: Dict[str, int],
-    state_dict: None,
+    model: nn.Cell,
     default_scale: float = 1.0,
 ):
     """
@@ -151,6 +156,7 @@ def _maybe_expand_lora_scales_for_one_adapter(
 
         del scales[updown]
 
+    state_dict = model.state_dict()
     for layer in scales.keys():
         if not any(_translate_into_actual_layer_name(layer) in module for module in state_dict.keys()):
             raise ValueError(

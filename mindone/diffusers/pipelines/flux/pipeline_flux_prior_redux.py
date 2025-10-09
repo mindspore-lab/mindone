@@ -1,4 +1,7 @@
-# Copyright 2024 Black Forest Labs and The HuggingFace Team. All rights reserved.
+# Copyright 2025 Black Forest Labs and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -284,7 +287,7 @@ class FluxPriorReduxPipeline(DiffusionPipeline):
     def encode_prompt(
         self,
         prompt: Union[str, List[str]],
-        prompt_2: Union[str, List[str]],
+        prompt_2: Optional[Union[str, List[str]]] = None,
         num_images_per_prompt: int = 1,
         prompt_embeds: Optional[ms.Tensor] = None,
         pooled_prompt_embeds: Optional[ms.Tensor] = None,

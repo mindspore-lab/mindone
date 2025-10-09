@@ -1,9 +1,13 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/training_utils.py."""
+
 import contextlib
 import copy
 import logging
 import os
 import random
+import re
 import time
+import warnings
 from abc import ABCMeta, abstractmethod
 from multiprocessing import Process, Queue
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
@@ -21,8 +25,8 @@ from mindspore.communication.management import GlobalComm
 from mindspore.context import ParallelMode
 from mindspore.parallel._utils import _get_parallel_mode
 
-from mindone.diffusers._peft import set_peft_model_state_dict
 from mindone.diffusers.models.model_loading_utils import silence_mindspore_logger
+from mindone.peft import set_peft_model_state_dict
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.trainers.zero import ZeroHelper, prepare_network
 
@@ -81,9 +85,9 @@ def compute_dream_and_update_latents(
     dream_detail_preservation: float = 1.0,
 ) -> Tuple[Optional[ms.Tensor], Optional[ms.Tensor]]:
     """
-    Implements "DREAM (Diffusion Rectification and Estimation-Adaptive Models)" from http://arxiv.org/abs/2312.00210.
-    DREAM helps align training with sampling to help training be more efficient and accurate at the cost of an extra
-    forward step without gradients.
+    Implements "DREAM (Diffusion Rectification and Estimation-Adaptive Models)" from
+    https://huggingface.co/papers/2312.00210. DREAM helps align training with sampling to help training be more
+    efficient and accurate at the cost of an extra forward step without gradients.
 
     Args:
         `unet`: The state unet to use to make a prediction.
@@ -155,6 +159,14 @@ def _set_state_dict_into_text_encoder(lora_state_dict: Dict[str, ms.Tensor], pre
     set_peft_model_state_dict(text_encoder, text_encoder_state_dict, adapter_name="default")
 
 
+def _collate_lora_metadata(modules_to_save: Dict[str, nn.Cell]) -> Dict[str, Any]:
+    metadatas = {}
+    for module_name, module in modules_to_save.items():
+        if module is not None:
+            metadatas[f"{module_name}_lora_adapter_metadata"] = module.peft_config["default"].to_dict()
+    return metadatas
+
+
 def compute_density_for_timestep_sampling(
     weighting_scheme: str, batch_size: int, logit_mean: float = None, logit_std: float = None, mode_scale: float = None
 ):
@@ -163,7 +175,7 @@ def compute_density_for_timestep_sampling(
 
     Courtesy: This was contributed by Rafie Walker in https://github.com/huggingface/diffusers/pull/8528.
 
-    SD3 paper reference: https://arxiv.org/abs/2403.03206v1.
+    SD3 paper reference: https://huggingface.co/papers/2403.03206v1.
     """
     if weighting_scheme == "logit_normal":
         # See 3.1 in the SD3 paper ($rf/lognorm(0.00,1.00)$).
@@ -183,7 +195,7 @@ def compute_loss_weighting_for_sd3(weighting_scheme: str, sigmas=None):
 
     Courtesy: This was contributed by Rafie Walker in https://github.com/huggingface/diffusers/pull/8528.
 
-    SD3 paper reference: https://arxiv.org/abs/2403.03206v1.
+    SD3 paper reference: https://huggingface.co/papers/2403.03206v1.
     """
     if weighting_scheme == "sigma_sqrt":
         weighting = (sigmas**-2.0).float()
@@ -193,6 +205,46 @@ def compute_loss_weighting_for_sd3(weighting_scheme: str, sigmas=None):
     else:
         weighting = mint.ones_like(sigmas)
     return weighting
+
+
+def parse_buckets_string(buckets_str):
+    """Parses a string defining buckets into a list of (height, width) tuples."""
+    if not buckets_str:
+        raise ValueError("Bucket string cannot be empty.")
+
+    bucket_pairs = buckets_str.strip().split(";")
+    parsed_buckets = []
+    for pair_str in bucket_pairs:
+        match = re.match(r"^\s*(\d+)\s*,\s*(\d+)\s*$", pair_str)
+        if not match:
+            raise ValueError(f"Invalid bucket format: '{pair_str}'. Expected 'height,width'.")
+        try:
+            height = int(match.group(1))
+            width = int(match.group(2))
+            if height <= 0 or width <= 0:
+                raise ValueError("Bucket dimensions must be positive integers.")
+            if height % 8 != 0 or width % 8 != 0:
+                warnings.warn(f"Bucket dimension ({height},{width}) not divisible by 8. This might cause issues.")
+            parsed_buckets.append((height, width))
+        except ValueError as e:
+            raise ValueError(f"Invalid integer in bucket pair '{pair_str}': {e}") from e
+
+    if not parsed_buckets:
+        raise ValueError("No valid buckets found in the provided string.")
+
+    return parsed_buckets
+
+
+def find_nearest_bucket(h, w, bucket_options):
+    """Finds the closes bucket to the given height and width."""
+    min_metric = float("inf")
+    best_bucket_idx = None
+    for bucket_idx, (bucket_h, bucket_w) in enumerate(bucket_options):
+        metric = abs(h * bucket_w - w * bucket_h)
+        if metric <= min_metric:
+            min_metric = metric
+            best_bucket_idx = bucket_idx
+    return best_bucket_idx
 
 
 # Adapted from torch-ema https://github.com/fadel/pytorch_ema/blob/master/torch_ema/ema.py#L14

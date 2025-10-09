@@ -1,3 +1,4 @@
+# This code is adapted from https://github.com/Tencent-Hunyuan/Hunyuan3D-1 to work with MindSpore.
 from typing import Optional
 
 import mindspore as ms

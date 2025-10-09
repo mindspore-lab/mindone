@@ -1,5 +1,7 @@
-# coding=utf-8
 # Copyright 2022 The HuggingFace Inc. team.
+#
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -72,6 +74,37 @@ logger = logging.get_logger(__name__)
 # Dynamically import the Transformers module to grab the attribute classes of the processor form their names.
 # transformers_module = direct_transformers_import(Path(__file__).parent)
 transformers_module = transformers
+
+
+def _resolve_class_from_mindone_or_hf(class_name: str):
+    """
+    try to import a class with name `class_name` from `mindone.transformers`.
+    if not found, fall back to huggingface `transformers`
+    """
+    if class_name is None:
+        return None
+    try:
+        sub_path = os.path.abspath(os.path.dirname(__file__))
+        sub_path = str(Path(sub_path).parent)
+        if sub_path not in sys.path:
+            sys.path.insert(0, sub_path)
+        module_name = importlib.import_module("mindone.transformers")
+        return getattr(module_name, class_name)
+    except AttributeError:
+        logger.warning(
+            f"Falling back to 🤗 Transformers `{class_name}`. Note that "
+            f"fast vision/image processors and feature extractors often assume PyTorch backends and "
+            f"this may lead to a mismatch. If issues arise, use or implement a MindOne-native processor instead."
+        )
+
+        return getattr(transformers_module, class_name)
+
+
+def _resolve_classes_tuple(class_name_tuple):
+    """
+    resolve a tuple of class names with fallback
+    """
+    return tuple(_resolve_class_from_mindone_or_hf(n) if n is not None else None for n in class_name_tuple)
 
 
 AUTO_TO_BASE_CLASS_MAPPING = {
@@ -469,15 +502,9 @@ class ProcessorMixin(PushToHubMixin):
             # Nothing is ever going to be an instance of "AutoXxx", in that case we check the base class.
             class_name = AUTO_TO_BASE_CLASS_MAPPING.get(class_name, class_name)
             if isinstance(class_name, tuple):
-                proper_class = tuple(getattr(transformers_module, n) for n in class_name if n is not None)
-            elif "ImageProcess" in class_name:
-                sub_path = os.path.abspath(os.path.dirname(__file__))
-                sub_path = str(Path(sub_path).parent)
-                sys.path.insert(0, sub_path)
-                module_name = importlib.import_module("mindone.transformers")
-                proper_class = getattr(module_name, class_name)
+                proper_class = tuple(c for c in _resolve_classes_tuple(class_name) if c is not None)
             else:
-                proper_class = getattr(transformers_module, class_name)
+                proper_class = _resolve_class_from_mindone_or_hf(class_name)
 
             if not isinstance(arg, proper_class):
                 raise TypeError(
@@ -1074,20 +1101,14 @@ class ProcessorMixin(PushToHubMixin):
         for attribute_name in cls.attributes:
             class_name = getattr(cls, f"{attribute_name}_class")
             if isinstance(class_name, tuple):
-                classes = tuple(getattr(transformers_module, n) if n is not None else None for n in class_name)
+                classes_names = class_name
                 use_fast = kwargs.get("use_fast", True)
-                if use_fast and classes[1] is not None:
-                    attribute_class = classes[1]
-                else:
-                    attribute_class = classes[0]
-            elif "ImageProcess" in class_name:
-                sub_path = os.path.abspath(os.path.dirname(__file__))
-                sub_path = str(Path(sub_path).parent)
-                sys.path.insert(0, sub_path)
-                module_name = importlib.import_module("mindone.transformers")
-                attribute_class = getattr(module_name, class_name)
+                classes = _resolve_classes_tuple(classes_names)
+                attribute_class = (
+                    classes[1] if (use_fast and len(classes) > 1 and classes[1] is not None) else classes[0]
+                )
             else:
-                attribute_class = getattr(transformers_module, class_name)
+                attribute_class = _resolve_class_from_mindone_or_hf(class_name)
 
             args.append(attribute_class.from_pretrained(pretrained_model_name_or_path, **kwargs))
         return args

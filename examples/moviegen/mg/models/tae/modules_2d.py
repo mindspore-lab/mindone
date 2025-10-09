@@ -1,3 +1,6 @@
+# Adapted from
+# https://github.com/CompVis/taming-transformers/blob/master/taming/modules/diffusionmodules/model.py
+
 import logging
 
 import numpy as np

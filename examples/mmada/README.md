@@ -27,8 +27,8 @@ Here is the development plan of the project:
     - [x] Text-to-image generation
     - [ ] Gradio Demo
 - MMaDA (8B) Training:
-    - [ ] Pre-training
-    - [ ] Fine-tuning
+    - [x] Pre-training
+    - [x] Fine-tuning
 
 
 
@@ -67,7 +67,7 @@ You can download `MMaDA-8B-Base` at [Huggingface](https://huggingface.co/Gen-Ver
 huggingface-cli download --resume-download Gen-Verse/MMaDA-8B-Base
 ```
 
-And download `MMaDA-8B-MixCoT` from [Huggingface](https://huggingface.co/Gen-Verse/MMaDA-8B-MixCoT) like this:
+If you want to run inference with the CoT checkpoint, please download `MMaDA-8B-MixCoT` from [Huggingface](https://huggingface.co/Gen-Verse/MMaDA-8B-MixCoT) like this:
 
 ```bash
 huggingface-cli download --resume-download Gen-Verse/MMaDA-8B-MixCoT
@@ -75,12 +75,18 @@ huggingface-cli download --resume-download Gen-Verse/MMaDA-8B-MixCoT
 
 `MMaDA-8B-Max` is comining soon. See latest updates from [HERE](https://github.com/Gen-Verse/MMaDA/blob/main/README.md#-mmada-series-overview).
 
+In addition, MMaDA uses MAGVIT-v2 as the discrete VAE encoder. You can download its checkpoint via:
+```bash
+huggingface-cli download --resume-download showlab/magvitv2
+```
+
+
 ### Inference Files Preparation
 
 Please download the image files and text files for multimodal generation from this [URL](https://huggingface.co/datasets/ddengwtomin/mmada-repository/tree/main). You can also download them using the following command:
 ```bash
 cd examples/mmada
-huggingface-cli download --resume-download ddengwtomin/mmada-repository --local-dir ./ --exclude "README.md" ".gitattributes" --repo-type dataset
+huggingface-cli download --resume-download ddengwtomin/mmada-repository --local-dir ./ --exclude "README.md" ".gitattributes" "train_datasets/*" --repo-type dataset
 ```
 
 ### 1. Text Generation
@@ -109,7 +115,54 @@ The outputs are stored locally.
 
 ## 🔧 Training
 
-Coming soon...
+
+### Training Datasets
+
+Please refer to the Official PyTorch Repository [MmaDA](https://github.com/Gen-Verse/MMaDA) for the full information about the training datasets. You can download the relevant training datasets following the instructions from this [document](./docs/datasets.md).
+
+For demonstration purpose, we provide a toy example of training datasets in [hugginfgace](https://huggingface.co/datasets/ddengwtomin/mmada-repository/tree/main/train_datasets). You can download this toy dataset using:
+```bash
+cd examples/mmada
+huggingface-cli download --resume-download ddengwtomin/mmada-repository --local-dir ./ --include "train_datasets/*" --repo-type dataset
+```
+
+Afterwards, three datasets (t2i, text, and multimodal) will be downloaded in `./train_datasets`.
+
+
+### Pretraining Experiment
+
+After the training datasets are downloaded, please edit `configs/mmada_pretraining_stage1_llada_instruct.yaml` and revise the following dataset paths accordingly:
+```yaml
+train_t2i_shards_path_or_url: "path/to/your/dataset"
+train_mmu_shards_path_or_url: "path/to/your/dataset"
+train_lm_shards_path_or_url: "path/to/your/dataset"
+```
+
+Then you can start the standalone training experiment with the following command:
+```bash
+python training/train_mmada.py config=configs/mmada_pretraining_stage1_llada_instruct.yaml
+```
+
+The experiment logs and checkpoints will be saved under `./mmada-training-stage1-llada-instruct`, as defined by the `experiment.output_dir` in the configuration file.
+
+We recommend you to start a ZERO2 parallel training task with `scripts/pretrain_stage1_parallel.sh`:
+```bash
+export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir=./parallel_logs \
+python training/train_mmada.py config=configs/mmada_pretraining_stage1_llada_instruct.yaml
+```
+
+### Finetuning Experiment
+
+Finetuning experiment will load the pretrained `MMaDA-8B-Base` checkpoint before training. Please make sure you have downloaded [`MMaDA-8B-Base`](https://huggingface.co/Gen-Verse/MMaDA-8B-Base) and [MAGVIT-v2](https://huggingface.co/showlab/magvitv2) checkpoints.
+
+
+We provide a configuration file `configs/mmada_finetune_artwork.yaml` for finetuning experiment. Please start the finetuning experiment with `scripts/finetune_artwork.sh`:
+```bash
+export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir=./parallel_logs \
+python training/train_mmada_stage2.py config=configs/mmada_finetune_artwork.yaml
+```
 
 
 ## 🤝 Acknowledgments

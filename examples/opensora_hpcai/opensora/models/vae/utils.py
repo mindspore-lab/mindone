@@ -1,3 +1,5 @@
+# Adapted from https://github.com/hpcaitech/Open-Sora/blob/main/opensora/models/vae/utils.py
+
 import math
 from typing import Tuple
 

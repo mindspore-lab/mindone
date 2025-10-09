@@ -1,3 +1,6 @@
+# Adapted from
+# https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/models/causalvideovae/model/modeling_videobase.py
+
 import mindspore as ms
 
 from mindone.diffusers import ModelMixin

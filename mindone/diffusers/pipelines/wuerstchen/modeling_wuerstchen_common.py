@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/wuerstchen/modeling_wuerstchen_common.py."""
+
 import mindspore as ms
 from mindspore import mint, nn
 

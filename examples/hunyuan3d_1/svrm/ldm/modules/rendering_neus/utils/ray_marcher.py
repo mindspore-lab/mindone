@@ -11,6 +11,7 @@
 # Modified by Zexin He
 # The modifications are subject to the same license as the original.
 
+# This code is adapted from https://github.com/Tencent-Hunyuan/Hunyuan3D-1 to work with MindSpore.
 
 """
 The ray marcher takes the raw output of the implicit representation and uses the volume rendering equation to produce composited colors and depths.

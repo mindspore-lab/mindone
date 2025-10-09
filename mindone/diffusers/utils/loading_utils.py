@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/utils/loading_utils.py."""
+
 import os
 import tempfile
 from typing import Any, Callable, List, Optional, Tuple, Union

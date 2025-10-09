@@ -1,3 +1,5 @@
+# Adapted from https://github.com/bytedance/MVDream/blob/main/mvdream/ldm/interface.py
+
 from functools import partial
 from typing import List
 

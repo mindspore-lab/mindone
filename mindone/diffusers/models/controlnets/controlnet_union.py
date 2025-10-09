@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -687,7 +690,7 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             condition = self.controlnet_cond_embedding(cond)
             feat_seq = mint.mean(condition, dim=(2, 3))
             feat_seq = feat_seq + self.task_embedding[control_idx]
-            if from_multi:
+            if from_multi or len(control_type_idx) == 1:
                 inputs.append(feat_seq.unsqueeze(1))
                 condition_list.append(condition)
             else:
@@ -707,7 +710,7 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         for (idx, condition), scale in zip(enumerate(condition_list[:-1]), conditioning_scale):
             alpha = self.spatial_ch_projs(x[:, idx])
             alpha = alpha.unsqueeze(-1).unsqueeze(-1)
-            if from_multi:
+            if from_multi or len(control_type_idx) == 1:
                 controlnet_cond_fuser += condition + alpha
             else:
                 controlnet_cond_fuser += condition + alpha * scale
@@ -755,11 +758,11 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         if guess_mode and not self.config.global_pool_conditions:
             # todo: unavailable mint interface
             scales = ops.logspace(-1, 0, len(down_block_res_samples) + 1)  # 0.1 to 1.0
-            if from_multi:
+            if from_multi or len(control_type_idx) == 1:
                 scales = scales * conditioning_scale[0]
             down_block_res_samples = [sample * scale for sample, scale in zip(down_block_res_samples, scales)]
             mid_block_res_sample = mid_block_res_sample * scales[-1]  # last one
-        elif from_multi:
+        elif from_multi or len(control_type_idx) == 1:
             down_block_res_samples = [sample * conditioning_scale[0] for sample in down_block_res_samples]
             mid_block_res_sample = mid_block_res_sample * conditioning_scale[0]
 

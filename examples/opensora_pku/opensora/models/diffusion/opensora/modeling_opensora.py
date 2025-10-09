@@ -1,3 +1,6 @@
+# Adapted from
+# https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/models/diffusion/opensora_v1_3/modeling_opensora.py
+
 import glob
 import logging
 import os

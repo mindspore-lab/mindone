@@ -1,4 +1,8 @@
-# Copyright 2024 MultiDiffusion Authors and The HuggingFace Team. All rights reserved."
+# Copyright 2025 MultiDiffusion Authors and The HuggingFace Team. All rights reserved."
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -27,7 +31,7 @@ from ...models import AutoencoderKL, ImageProjection, UNet2DConditionModel
 from ...schedulers import DDIMScheduler
 from ...utils import deprecate, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
-from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
+from ..pipeline_utils import DeprecatedPipelineMixin, DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion import StableDiffusionPipelineOutput
 from ..stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 
@@ -59,7 +63,7 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
     r"""
     Rescales `noise_cfg` tensor based on `guidance_rescale` to improve image quality and fix overexposure. Based on
     Section 3.4 from [Common Diffusion Noise Schedules and Sample Steps are
-    Flawed](https://arxiv.org/pdf/2305.08891.pdf).
+    Flawed](https://huggingface.co/papers/2305.08891).
     Args:
         noise_cfg (`ms.Tensor`):
             The predicted noise tensor for the guided diffusion process.
@@ -137,12 +141,15 @@ def retrieve_timesteps(
 
 
 class StableDiffusionPanoramaPipeline(
+    DeprecatedPipelineMixin,
     DiffusionPipeline,
     StableDiffusionMixin,
     TextualInversionLoaderMixin,
     StableDiffusionLoraLoaderMixin,
     IPAdapterMixin,
 ):
+    _last_supported_version = "0.33.1"
+
     r"""
     Pipeline for text-to-image generation using MultiDiffusion.
 
@@ -563,7 +570,7 @@ class StableDiffusionPanoramaPipeline(
     def prepare_extra_step_kwargs(self, generator, eta):
         # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
         # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
-        # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
+        # eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502
         # and should be between [0, 1]
 
         accepts_eta = "eta" in set(inspect.signature(self.scheduler.step).parameters.keys())
@@ -713,8 +720,8 @@ class StableDiffusionPanoramaPipeline(
     ) -> List[Tuple[int, int, int, int]]:
         """
         Generates a list of views based on the given parameters. Here, we define the mappings F_i (see Eq. 7 in the
-        MultiDiffusion paper https://arxiv.org/abs/2302.08113). If panorama's height/width < window_size, num_blocks of
-        height/width should return 1.
+        MultiDiffusion paper https://huggingface.co/papers/2302.08113). If panorama's height/width < window_size,
+        num_blocks of height/width should return 1.
 
         Args:
             panorama_height (int): The height of the panorama.
@@ -830,8 +837,8 @@ class StableDiffusionPanoramaPipeline(
             num_images_per_prompt (`int`, *optional*, defaults to 1):
                 The number of images to generate per prompt.
             eta (`float`, *optional*, defaults to 0.0):
-                Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies
-                to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.
+                Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only
+                applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
                 A [`np.random.Generator`](https://numpy.org/doc/stable/reference/random/generator.html) to make
                 generation deterministic.
@@ -937,7 +944,7 @@ class StableDiffusionPanoramaPipeline(
             batch_size = prompt_embeds.shape[0]
 
         # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-        # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
+        # of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`
         # corresponds to doing no classifier free guidance.
         do_classifier_free_guidance = guidance_scale > 1.0
 
@@ -1026,7 +1033,7 @@ class StableDiffusionPanoramaPipeline(
                 # Here, we iterate through different spatial crops of the latents and denoise them. These
                 # denoised (latent) crops are then averaged to produce the final latent
                 # for the current timestep via MultiDiffusion. Please see Sec. 4.1 in the
-                # MultiDiffusion paper for more details: https://arxiv.org/abs/2302.08113
+                # MultiDiffusion paper for more details: https://huggingface.co/papers/2302.08113
                 # Batch views denoise
                 for j, batch_view in enumerate(views_batch):
                     vb_size = len(batch_view)
@@ -1085,7 +1092,7 @@ class StableDiffusionPanoramaPipeline(
                         noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                     if self.do_classifier_free_guidance and self.guidance_rescale > 0.0:
-                        # Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf
+                        # Based on 3.4. in https://huggingface.co/papers/2305.08891
                         noise_pred = rescale_noise_cfg(
                             noise_pred, noise_pred_text, guidance_rescale=self.guidance_rescale
                         )
@@ -1116,7 +1123,7 @@ class StableDiffusionPanoramaPipeline(
                             value[:, :, h_start:h_end, w_start:w_end] += latents_view_denoised
                             count[:, :, h_start:h_end, w_start:w_end] += 1
 
-                # take the MultiDiffusion step. Eq. 5 in MultiDiffusion paper: https://arxiv.org/abs/2302.08113
+                # take the MultiDiffusion step. Eq. 5 in MultiDiffusion paper: https://huggingface.co/papers/2302.08113
                 latents = ops.where(count > 0, value / count, value)
 
                 if callback_on_step_end is not None:

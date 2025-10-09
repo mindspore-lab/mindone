@@ -1,3 +1,5 @@
+# Adapted from https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/sample/caption_refiner.py
+
 from mindnlp.transformers import AutoModelForCausalLM, AutoTokenizer
 
 import mindspore as ms

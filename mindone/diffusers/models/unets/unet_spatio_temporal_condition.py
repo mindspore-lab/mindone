@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/models/unets/unet_spatio_temporal_condition.py."""
+
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple, Union
 

@@ -1,9 +1,11 @@
+# Adapted from https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/dataset/t2v_datasets.py
+
+
 import glob
 import json
 import logging
 import math
 import os
-import pickle
 import random
 import time
 from collections import Counter
@@ -247,8 +249,7 @@ class T2V_dataset:
                 with open(anno, "r") as f:
                     sub_list = json.load(f)
             elif anno.endswith(".pkl"):
-                with open(anno, "rb") as f:
-                    sub_list = pickle.load(f)
+                raise TypeError("Loading pickle file is unsafe, please use another file type.")
             for index, i in enumerate(tqdm(sub_list)):
                 cnt += 1
                 path = os.path.join(sub_root, i["path"])

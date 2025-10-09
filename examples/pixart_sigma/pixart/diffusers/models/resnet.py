@@ -7,6 +7,7 @@ import mindspore.nn as nn
 from mindone.diffusers.models.resnet import ResnetBlock2D as ResnetBlock2D_
 
 
+# Adapted from https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/resnet.py
 class ResnetBlock2D(ResnetBlock2D_):
     def __init__(
         self,

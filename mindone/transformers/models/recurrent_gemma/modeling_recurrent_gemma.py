@@ -2,6 +2,9 @@
 # Copyright 2024 Google Inc. HuggingFace Inc. team. All rights reserved.
 #
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -639,7 +642,7 @@ class RecurrentGemmaModel(RecurrentGemmaPreTrainedModel):
         )
 
     def _update_causal_mask(self, attention_mask, input_tensor, cache_position):
-        dtype, _ = input_tensor.dtype, input_tensor.device
+        dtype = input_tensor.dtype
         min_dtype = dtype_to_min(dtype)
         sequence_length = input_tensor.shape[1]
         target_length = max(self.config.attention_window_size, sequence_length)
@@ -722,13 +725,21 @@ class RecurrentGemmaForCausalLM(RecurrentGemmaPreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, RecurrentGemmaForCausalLM
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import RecurrentGemmaForCausalLM
+        >>> import mindspore as ms
+        >>> import numpy as np
 
         >>> model = RecurrentGemmaForCausalLM.from_pretrained("google/recurrentgemma-2b")
         >>> tokenizer = AutoTokenizer.from_pretrained("google/recurrentgemma-2b")
 
         >>> prompt = "What is your favorite condiment?"
-        >>> inputs = tokenizer(prompt, return_tensors="pt")
+        >>> inputs = tokenizer(prompt, return_tensors="np")
+        >>> for key, value in inputs.items():
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.tensor(value)
 
         >>> # Generate
         >>> generate_ids = model.generate(inputs.input_ids, max_length=30)

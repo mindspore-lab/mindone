@@ -1,3 +1,5 @@
+# Adapted from https://github.com/hpcaitech/Open-Sora/blob/main/opensora/acceleration/communications.py
+
 import logging
 
 from opensora.acceleration.parallel_states import hccl_info

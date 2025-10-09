@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/deepfloyd_if/watermark.py."""
+
 from typing import List
 
 import PIL.Image

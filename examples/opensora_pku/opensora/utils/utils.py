@@ -1,3 +1,5 @@
+# Adapted from https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/utils/utils.py
+
 import argparse
 import collections
 import html

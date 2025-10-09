@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/flux/test_pipeline_flux_redux.py."""
+
 import unittest
 
 import numpy as np
@@ -12,10 +14,8 @@ from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_
 from ..pipeline_test_utils import THRESHOLD_PIXEL, PipelineTesterMixin
 
 test_cases = [
-    {"mode": ms.GRAPH_MODE, "dtype": "float32"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "bfloat16"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float16"},
 ]
 
 

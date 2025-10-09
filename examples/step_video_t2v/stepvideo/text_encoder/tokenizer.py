@@ -1,5 +1,8 @@
 # Copyright 2025 StepFun Inc. All Rights Reserved.
 #
+# This code is adapted from https://github.com/stepfun-ai/Step-Video-T2V
+# with modifications to run on MindSpore.
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights

@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/schedulers/scheduling_consistency_decoder.py."""
+
 import math
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union

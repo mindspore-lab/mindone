@@ -1,4 +1,7 @@
-# Copyright 2024 Stability AI and The HuggingFace Team. All rights reserved.
+# Copyright 2025 Stability AI and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,11 +24,11 @@ import mindspore as ms
 from mindspore import Parameter, mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
-from ...models.attention import FeedForward
-from ...models.attention_processor import Attention, AttentionProcessor, StableAudioAttnProcessor2_0
-from ...models.modeling_utils import ModelMixin
-from ...models.transformers.transformer_2d import Transformer2DModelOutput
 from ...utils import logging
+from ..attention import FeedForward
+from ..attention_processor import Attention, AttentionProcessor, StableAudioAttnProcessor2_0
+from ..modeling_utils import ModelMixin
+from ..transformers.transformer_2d import Transformer2DModelOutput
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -289,12 +292,12 @@ class StableAudioDiTModel(ModelMixin, ConfigMixin):
             if hasattr(module, "get_processor"):
                 processors[f"{name}.processor"] = module.get_processor()
 
-            for sub_name, child in module.named_children():
+            for sub_name, child in module.name_cells().items():
                 fn_recursive_add_processors(f"{name}.{sub_name}", child, processors)
 
             return processors
 
-        for name, module in self.named_children():
+        for name, module in self.name_cells().items():
             fn_recursive_add_processors(name, module, processors)
 
         return processors
@@ -328,10 +331,10 @@ class StableAudioDiTModel(ModelMixin, ConfigMixin):
                 else:
                     module.set_processor(processor.pop(f"{name}.processor"))
 
-            for sub_name, child in module.named_children():
+            for sub_name, child in module.name_cells().items():
                 fn_recursive_attn_processor(f"{name}.{sub_name}", child, processor)
 
-        for name, module in self.named_children():
+        for name, module in self.name_cells().items():
             fn_recursive_attn_processor(name, module, processor)
 
     # Copied from diffusers.models.transformers.hunyuan_transformer_2d.HunyuanDiT2DModel.set_default_attn_processor with Hunyuan->StableAudio

@@ -6,6 +6,9 @@
 # original forms to accommodate minor architectural differences compared
 # to GPT-NeoX and OPT used by the Meta AI team that trained the model.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -819,13 +822,21 @@ class PersimmonForCausalLM(PersimmonPreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, PersimmonForCausalLM
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import PersimmonForCausalLM
+        >>> import mindspore as ms
+        >>> import numpy as np
 
         >>> model = PersimmonForCausalLM.from_pretrained("adept/persimmon-8b-base")
         >>> tokenizer = AutoTokenizer.from_pretrained("adept/persimmon-8b-base")
 
         >>> prompt = "human: Hey, what should I eat for dinner?"
-        >>> inputs = tokenizer(prompt, return_tensors="pt")
+        >>> inputs = tokenizer(prompt, return_tensors="np")
+        >>> for key, value in inputs.items():
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.tensor(value)
 
         >>> # Generate
         >>> generate_ids = model.generate(inputs.input_ids, max_length=30)

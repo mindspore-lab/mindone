@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -138,3 +141,8 @@ class pynative_context(contextlib.ContextDecorator):
     def __exit__(self, exc_type, exc_val, exc_tb):
         ms.context.set_context(mode=self._prev_mode)
         return False
+
+
+def unwrap_module(module):
+    """FIXME: Unwraps a module if it was compiled with ms.jit() ???"""
+    return module

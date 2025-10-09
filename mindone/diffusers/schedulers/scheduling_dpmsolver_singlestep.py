@@ -1,4 +1,7 @@
-# Copyright 2024 TSAIL Team and The HuggingFace Team. All rights reserved.
+# Copyright 2025 TSAIL Team and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -113,11 +116,11 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
             The threshold value for dynamic thresholding. Valid only when `thresholding=True` and
             `algorithm_type="dpmsolver++"`.
         algorithm_type (`str`, defaults to `dpmsolver++`):
-            Algorithm type for the solver; can be `dpmsolver` or `dpmsolver++`. The `dpmsolver` type implements the
-            algorithms in the [DPMSolver](https://huggingface.co/papers/2206.00927) paper, and the `dpmsolver++` type
-            implements the algorithms in the [DPMSolver++](https://huggingface.co/papers/2211.01095) paper. It is
-            recommended to use `dpmsolver++` or `sde-dpmsolver++` with `solver_order=2` for guided sampling like in
-            Stable Diffusion.
+            Algorithm type for the solver; can be `dpmsolver` or `dpmsolver++` or `sde-dpmsolver++`. The `dpmsolver`
+            type implements the algorithms in the [DPMSolver](https://huggingface.co/papers/2206.00927) paper, and the
+            `dpmsolver++` type implements the algorithms in the [DPMSolver++](https://huggingface.co/papers/2211.01095)
+            paper. It is recommended to use `dpmsolver++` or `sde-dpmsolver++` with `solver_order=2` for guided
+            sampling like in Stable Diffusion.
         solver_type (`str`, defaults to `midpoint`):
             Solver type for the second-order solver; can be `midpoint` or `heun`. The solver type slightly affects the
             sample quality, especially for a small number of steps. It is recommended to use `midpoint` solvers.
@@ -170,6 +173,8 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
         final_sigmas_type: Optional[str] = "zero",  # "zero", "sigma_min"
         lambda_min_clipped: float = -float("inf"),
         variance_type: Optional[str] = None,
+        use_dynamic_shifting: bool = False,
+        time_shift_type: str = "exponential",
     ):
         if self.config.use_beta_sigmas and not is_scipy_available():
             raise ImportError("Make sure to install scipy if you want to use beta sigmas.")
@@ -224,7 +229,7 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
 
         if algorithm_type not in ["dpmsolver++", "sde-dpmsolver++"] and final_sigmas_type == "zero":
             raise ValueError(
-                f"`final_sigmas_type` {final_sigmas_type} is not supported for `algorithm_type` {algorithm_type}. Please chooose `sigma_min` instead."
+                f"`final_sigmas_type` {final_sigmas_type} is not supported for `algorithm_type` {algorithm_type}. Please choose `sigma_min` instead."
             )
 
         # setable values
@@ -302,7 +307,12 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
         """
         self._begin_index = begin_index
 
-    def set_timesteps(self, num_inference_steps: int = None, timesteps: Optional[List[int]] = None):
+    def set_timesteps(
+        self,
+        num_inference_steps: int = None,
+        mu: Optional[float] = None,
+        timesteps: Optional[List[int]] = None,
+    ):
         """
         Sets the discrete timesteps used for the diffusion chain (to be run before inference).
 
@@ -314,6 +324,9 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
                 timestep spacing strategy of equal spacing between timesteps schedule is used. If `timesteps` is
                 passed, `num_inference_steps` must be `None`.
         """
+        if mu is not None:
+            assert self.config.use_dynamic_shifting and self.config.time_shift_type == "exponential"
+            self.config.flow_shift = np.exp(mu)
         if num_inference_steps is None and timesteps is None:
             raise ValueError("Must pass exactly one of  `num_inference_steps` or `timesteps`.")
         if num_inference_steps is not None and timesteps is not None:
@@ -409,7 +422,7 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
         pixels from saturation at each step. We find that dynamic thresholding results in significantly better
         photorealism as well as better image-text alignment, especially when using very large guidance weights."
 
-        https://arxiv.org/abs/2205.11487
+        https://huggingface.co/papers/2205.11487
         """
         dtype = sample.dtype
         batch_size, channels, *remaining_dims = sample.shape
@@ -584,7 +597,7 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 1:
                 sample = args[1]
             else:
-                raise ValueError("missing `sample` as a required keyward argument")
+                raise ValueError("missing `sample` as a required keyword argument")
         if timestep is not None:
             deprecate(
                 "timesteps",
@@ -682,7 +695,7 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 2:
                 sample = args[2]
             else:
-                raise ValueError(" missing `sample` as a required keyward argument")
+                raise ValueError("missing `sample` as a required keyword argument")
         if timestep is not None:
             deprecate(
                 "timesteps",
@@ -748,7 +761,7 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 2:
                 sample = args[2]
             else:
-                raise ValueError(" missing `sample` as a required keyward argument")
+                raise ValueError("missing `sample` as a required keyword argument")
         if timestep_list is not None:
             deprecate(
                 "timestep_list",
@@ -782,7 +795,7 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
         r0 = h_0 / h
         D0, D1 = m1, (1.0 / r0) * (m0 - m1)
         if self.config.algorithm_type == "dpmsolver++":
-            # See https://arxiv.org/abs/2211.01095 for detailed derivations
+            # See https://huggingface.co/papers/2211.01095 for detailed derivations
             if self.config.solver_type == "midpoint":
                 x_t = (
                     (sigma_t / sigma_s1) * sample
@@ -796,7 +809,7 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
                     + (alpha_t * ((mint.exp(-h) - 1.0) / h + 1.0)) * D1
                 )
         elif self.config.algorithm_type == "dpmsolver":
-            # See https://arxiv.org/abs/2206.00927 for detailed derivations
+            # See https://huggingface.co/papers/2206.00927 for detailed derivations
             if self.config.solver_type == "midpoint":
                 x_t = (
                     (alpha_t / alpha_s1) * sample
@@ -861,7 +874,7 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 2:
                 sample = args[2]
             else:
-                raise ValueError(" missing`sample` as a required keyward argument")
+                raise ValueError("missing `sample` as a required keyword argument")
         if timestep_list is not None:
             deprecate(
                 "timestep_list",
@@ -902,7 +915,7 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
         D1 = (r0 * D1_0 - r1 * D1_1) / (r0 - r1)
         D2 = 2.0 * (D1_1 - D1_0) / (r0 - r1)
         if self.config.algorithm_type == "dpmsolver++":
-            # See https://arxiv.org/abs/2206.00927 for detailed derivations
+            # See https://huggingface.co/papers/2206.00927 for detailed derivations
             if self.config.solver_type == "midpoint":
                 x_t = (
                     (sigma_t / sigma_s2) * sample
@@ -917,7 +930,7 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
                     - (alpha_t * ((mint.exp(-h) - 1.0 + h) / h**2 - 0.5)) * D2
                 )
         elif self.config.algorithm_type == "dpmsolver":
-            # See https://arxiv.org/abs/2206.00927 for detailed derivations
+            # See https://huggingface.co/papers/2206.00927 for detailed derivations
             if self.config.solver_type == "midpoint":
                 x_t = (
                     (alpha_t / alpha_s2) * sample
@@ -984,12 +997,12 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 2:
                 sample = args[2]
             else:
-                raise ValueError(" missing`sample` as a required keyward argument")
+                raise ValueError("missing `sample` as a required keyword argument")
         if order is None:
             if len(args) > 3:
                 order = args[3]
             else:
-                raise ValueError(" missing `order` as a required keyward argument")
+                raise ValueError("missing `order` as a required keyword argument")
         if timestep_list is not None:
             deprecate(
                 "timestep_list",

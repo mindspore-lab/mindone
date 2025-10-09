@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2022 The HuggingFace Inc. team.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -47,8 +50,32 @@ else:
             ("beit", ("BeitImageProcessor",)),
             ("blip", ("BlipImageProcessor",)),
             ("blip-2", ("BlipImageProcessor",)),
+            ("chameleon", ("ChameleonImageProcessor",)),
+            ("chinese_clip", ("ChineseCLIPImageProcessor",)),
             ("clip", ("CLIPImageProcessor",)),
+            ("convnext", ("ConvNextImageProcessor",)),
+            ("convnextv2", ("ConvNextImageProcessor",)),
+            ("cvt", ("ConvNextImageProcessor",)),
+            ("depth_anything", ("DPTImageProcessor",)),
+            ("depth_pro", ("DepthProImageProcessor",)),
+            ("dinov2", ("BitImageProcessor",)),
             ("dpt", ("DPTImageProcessor",)),
+            ("efficientnet", ("EfficientNetImageProcessor",)),
+            ("flava", ("FlavaImageProcessor",)),
+            ("oneformer", ("OneFormerImageProcessor",)),
+            ("llava_next", ("LlavaNextImageProcessor",)),
+            ("llava_next_video", ("LlavaNextVideoImageProcessor",)),
+            ("llava_onevision", ("LlavaOnevisionImageProcessor",)),
+            ("maskformer", ("MaskFormerImageProcessor",)),
+            ("mllama", ("MllamaImageProcessor",)),
+            ("qwen2_5_vl", ("Qwen2VLImageProcessor",)),
+            ("owlv2", ("Owlv2ImageProcessor",)),
+            ("owlvit", ("OwlViTImageProcessor",)),
+            ("videomae", ("VideoMAEImageProcessor",)),
+            ("sam", ("SamImageProcessor",)),
+            ("segformer", ("SegformerImageProcessor",)),
+            ("siglip", ("SiglipImageProcessor", "SiglipImageProcessorFast")),
+            ("yolos", ("YolosImageProcessor",)),
         ]
     )
 

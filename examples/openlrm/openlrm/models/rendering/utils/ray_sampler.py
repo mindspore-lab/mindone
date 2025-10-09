@@ -8,6 +8,7 @@
 # without an express license agreement from NVIDIA CORPORATION or
 # its affiliates is strictly prohibited.
 #
+# Adapted from https://github.com/3DTopia/OpenLRM/blob/main/openlrm/models/rendering/utils/ray_sampler.py
 # Modified by Zexin He in 2023-2024.
 # The modifications are subject to the same license as the original.
 
