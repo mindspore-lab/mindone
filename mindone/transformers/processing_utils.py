@@ -1323,48 +1323,59 @@ class ProcessorMixin(PushToHubMixin):
 
     @classmethod
     def _get_arguments_from_pretrained(cls, pretrained_model_name_or_path, **kwargs):
+        """
+        Identify and instantiate the subcomponents of Processor classes, like image processors and
+        tokenizers. This method uses the Processor attributes like `tokenizer_class` to figure out what class those
+        subcomponents should be. Note that any subcomponents must either be library classes that are accessible in
+        the `transformers` root, or they must be custom code that has been registered with the relevant autoclass,
+        via methods like `AutoTokenizer.register()`. If neither of these conditions are fulfilled, this method
+        will be unable to find the relevant subcomponent class and will raise an error.
+        """
         args = []
         for attribute_name in cls.attributes:
             class_name = getattr(cls, f"{attribute_name}_class")
             if isinstance(class_name, tuple):
-                if "ImageProcess" in class_name[0]:
-                    sub_path = os.path.abspath(os.path.dirname(__file__))
-                    sub_path = str(Path(sub_path).parent)
-                    sys.path.insert(0, sub_path)
-                    module_name = importlib.import_module("mindone.transformers")
-                    classes = tuple(getattr(module_name, n) if n is not None else None for n in class_name)
+                classes = tuple(cls.get_possibly_dynamic_module(n) if n is not None else None for n in class_name)
+                if attribute_name == "image_processor":
+                    # TODO: @yoni, change logic in v4.52 (when use_fast set to True by default)
+                    use_fast = kwargs.get("use_fast", None)
+                    if use_fast is None:
+                        logger.warning_once(
+                            "Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. "
+                            "`use_fast=True` will be the default behavior in v4.52, even if the model was saved with a slow processor. "
+                            "This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`."
+                        )
                 else:
-                    classes = tuple(getattr(transformers_module, n) if n is not None else None for n in class_name)
-                use_fast = kwargs.get("use_fast", True)
+                    use_fast = kwargs.get("use_fast", True)
                 if use_fast and classes[1] is not None:
                     attribute_class = classes[1]
                 else:
                     attribute_class = classes[0]
-            elif "ImageProcess" in class_name:
-                sub_path = os.path.abspath(os.path.dirname(__file__))
-                sub_path = str(Path(sub_path).parent)
-                sys.path.insert(0, sub_path)
-                module_name = importlib.import_module("mindone.transformers")
-                attribute_class = getattr(module_name, class_name)
             else:
-                attribute_class = getattr(transformers_module, class_name)
+                attribute_class = cls.get_possibly_dynamic_module(class_name)
 
             args.append(attribute_class.from_pretrained(pretrained_model_name_or_path, **kwargs))
+
         return args
 
     @staticmethod
     def get_possibly_dynamic_module(module_name):
-        if "ImageProcess" in module_name:
+        if module_name is None:
+            return None
+        try:
             sub_path = os.path.abspath(os.path.dirname(__file__))
             sub_path = str(Path(sub_path).parent)
-            sys.path.insert(0, sub_path)
-            mindone_transformers_module = importlib.import_module("mindone.transformers")
-            if not hasattr(mindone_transformers_module, module_name):
-                raise ValueError(
-                    f"Expect to have `{module_name}` registered in `mindone.transformers`, but failed to load it!"
-                )
-            return getattr(mindone_transformers_module, module_name)
-        else:
+            if sub_path not in sys.path:
+                sys.path.insert(0, sub_path)
+            mindone_tsf_path = importlib.import_module("mindone.transformers")
+            return getattr(mindone_tsf_path, module_name)
+        except AttributeError:
+            logger.warning(
+                f"Falling back to 🤗 Transformers `{module_name}`. Note that "
+                f"fast vision/image processors and feature extractors often assume PyTorch backends and "
+                f"this may lead to a mismatch. If issues arise, use or implement a MindOne-native processor instead."
+            )
+
             if hasattr(transformers_module, module_name):
                 return getattr(transformers_module, module_name)
             else:
