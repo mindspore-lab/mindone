@@ -42,15 +42,11 @@ class AttnBlock(ms.nn.Cell):
         v = self.v(h_)
 
         b, c, h, w = q.shape
-        # Original torch code: q = rearrange(q, "b c h w -> b 1 (h w) c").contiguous()
         q = q.permute(0, 2, 3, 1).reshape(b, 1, h * w, c).contiguous()
-        # Original torch code: k = rearrange(k, "b c h w -> b 1 (h w) c").contiguous()
         k = k.permute(0, 2, 3, 1).reshape(b, 1, h * w, c).contiguous()
-        # Original torch code: v = rearrange(v, "b c h w -> b 1 (h w) c").contiguous()
         v = v.permute(0, 2, 3, 1).reshape(b, 1, h * w, c).contiguous()
         h_ = scaled_dot_product_attention(q, k, v)
 
-        # Original torch code: return rearrange(h_, "b 1 (h w) c -> b c h w", h=h, w=w, c=c, b=b)
         return h_.reshape(b, h, w, c).permute(0, 3, 1, 2)
 
     def construct(self, x: Tensor) -> Tensor:
@@ -90,7 +86,7 @@ class ResnetBlock(ms.nn.Cell):
 class Downsample(ms.nn.Cell):
     def __init__(self, in_channels: int):
         super().__init__()
-        # no asymmetric padding in torch conv, must do it ourselves
+        # no asymmetric padding in mindspore conv, must do it ourselves
         self.conv = mint.nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=0)
 
     def construct(self, x: Tensor):

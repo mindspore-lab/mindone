@@ -260,10 +260,10 @@ def process_mask(input_mask, height, width, latent_image, kernel_size=1):
     Process the input mask and return processed_mask, dilated_mask, and flattened_mask.
 
     Args:
-        input_mask (torch.Tensor or None): Input mask tensor or None.
+        input_mask (ms.Tensor or None): Input mask tensor or None.
         height (int): Height to be used for processing.
         width (int): Width to be used for processing.
-        latent_image (torch.Tensor): Source image latent tensor (used for dtype).
+        latent_image (ms.Tensor): Source image latent tensor (used for dtype).
         kernel_size (int): Size of the dilation kernel (default is 1).
 
     Returns:
@@ -284,7 +284,7 @@ def process_mask(input_mask, height, width, latent_image, kernel_size=1):
     # Perform dilation (currently commented out in the original code)
     dilated_mask_np = processed_mask_np  # Example: cv2.dilate(processed_mask_np, kernel, iterations=iterations)
     dilated_mask_np_larger = processed_mask_np  # Example: cv2.dilate(processed_mask_np, (4 * int(height / 512), 4 * int(height / 512)), iterations=iterations)
-    # Convert dilated masks back to torch tensors
+    # Convert dilated masks back to mindspore tensors
     dilated_mask = ms.tensor(dilated_mask_np, dtype=ms.float32).flatten().unsqueeze(1)
     dilated_mask_larger = ms.tensor(dilated_mask_np_larger, dtype=ms.float32).flatten().unsqueeze(1)
     # Update processed_mask and dilated_mask_larger
@@ -651,7 +651,6 @@ def denoise_cannyedit(
                 img = ms.mint.where(union_mask == 1, 0.5 * info[tempp] + 0.5 * img, img)
             elif i <= 40 and i % 10 == 0:
                 img = ms.mint.where(union_mask == 1, 0.2 * info[tempp] + 0.8 * img, img)
-                # img = torch.where(union_mask == 1, 0.5 * info[tempp] + 0.5 * img, img)
 
             info_generate[i] = img
 

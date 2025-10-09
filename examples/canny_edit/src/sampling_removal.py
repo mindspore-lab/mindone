@@ -149,10 +149,10 @@ def process_mask(input_mask, height, width, latent_image, kernel_size=1):
     Process the input mask and return processed_mask, dilated_mask, and flattened_mask.
 
     Args:
-        input_mask (torch.Tensor or None): Input mask tensor or None.
+        input_mask (ms.Tensor or None): Input mask tensor or None.
         height (int): Height to be used for processing.
         width (int): Width to be used for processing.
-        latent_image (torch.Tensor): Source image latent tensor (used for dtype).
+        latent_image (ms.Tensor): Source image latent tensor (used for dtype).
         kernel_size (int): Size of the dilation kernel (default is 1).
 
     Returns:
@@ -175,7 +175,7 @@ def process_mask(input_mask, height, width, latent_image, kernel_size=1):
     # Perform dilation (currently commented out in the original code)
     dilated_mask_np = processed_mask_np  # Example: cv2.dilate(processed_mask_np, kernel, iterations=iterations)
     dilated_mask_np_larger = processed_mask_np  # Example: cv2.dilate(processed_mask_np, (4 * int(height / 512), 4 * int(height / 512)), iterations=iterations)
-    # Convert dilated masks back to torch tensors
+    # Convert dilated masks back to mindspore tensors
     dilated_mask = ms.tensor(dilated_mask_np, dtype=ms.float32).flatten().unsqueeze(1)
     dilated_mask_larger = ms.tensor(dilated_mask_np_larger, dtype=ms.float32).flatten().unsqueeze(1)
     # Update processed_mask and dilated_mask_larger
@@ -191,11 +191,11 @@ def generate_combined_noise(local_mask1_flat, x2, epsilon, idx, info, timesteps)
     Generate combined noise based on a local mask and input noise tensors.
 
     Args:
-        local_mask1_flat (torch.Tensor): A 1D binary tensor indicating the mask (0s and 1s).
-        x2 (torch.Tensor): Noise tensor to be scaled and combined.
+        local_mask1_flat (ms.Tensor): A 1D binary tensor indicating the mask (0s and 1s).
+        x2 (ms.Tensor): Noise tensor to be scaled and combined.
         epsilon (float): Scaling factor for the second noise tensor.
     Returns:
-        torch.Tensor: Combined noise tensor.
+        ms.Tensor: Combined noise tensor.
     """
     # Count the number of 1s in the mask
     num_ones = int(mint.sum(local_mask1_flat).item())

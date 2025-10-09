@@ -312,7 +312,7 @@ def process_mask(
                                                operation. Defaults to (5, 5).
 
     Returns:
-        torch.Tensor: The processed simple mask tensor, ready for use.
+        ms.Tensor: The processed simple mask tensor, ready for use.
     """
     # Read the mask image
     mask = cv2.imread(mask_path)
@@ -350,7 +350,7 @@ def process_mask(
     # Invert the mask (object area becomes 0, background becomes 1)
     local_mask = 1 - binary_downsampled_mask
 
-    # Convert the final mask to a PyTorch tensor
+    # Convert the final mask to a MindSpore tensor
     local_mask_tensor = ms.tensor(local_mask, dtype=ms.float32)
 
     return local_mask_tensor
