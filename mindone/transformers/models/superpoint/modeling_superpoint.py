@@ -17,18 +17,15 @@
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
-import mindspore
+from transformers import SuperPointConfig
+from transformers.modeling_outputs import BaseModelOutputWithNoAttention
+from transformers.utils import ModelOutput, logging
 
-from mindspore import mint, nn
+import mindspore
+from mindspore import mint
 from mindspore.common.initializer import Constant, Normal, initializer
 
 from ...modeling_utils import PreTrainedModel
-from transformers.modeling_outputs import (
-    BaseModelOutputWithNoAttention,
-)
-from transformers import SuperPointConfig
-from transformers.utils import ModelOutput, logging
-
 
 logger = logging.get_logger(__name__)
 
@@ -47,7 +44,9 @@ def remove_keypoints_from_borders(
     return keypoints[mask], scores[mask]
 
 
-def top_k_keypoints(keypoints: mindspore.Tensor, scores: mindspore.Tensor, k: int) -> Tuple[mindspore.Tensor, mindspore.Tensor]:
+def top_k_keypoints(
+    keypoints: mindspore.Tensor, scores: mindspore.Tensor, k: int
+) -> Tuple[mindspore.Tensor, mindspore.Tensor]:
     """Keeps the k keypoints with highest score"""
     if k >= len(keypoints):
         return keypoints, scores
@@ -67,22 +66,12 @@ def simple_nms(scores: mindspore.Tensor, nms_radius: int) -> mindspore.Tensor:
         dtype = x.dtype
         x = x.to(mindspore.float32)
 
-        if x.ndim == 3: # mint.nn.functional.max_pool2d only support CNHW
+        if x.ndim == 3:  # mint.nn.functional.max_pool2d only support CNHW
             x_nchw = mint.unsqueeze(x, 0)
-            pooled_nchw = mint.functional.max_pool2d(
-                x_nchw,
-                kernel_size=kernel_size,
-                stride=stride,
-                padding=padding
-            )
+            pooled_nchw = mint.functional.max_pool2d(x_nchw, kernel_size=kernel_size, stride=stride, padding=padding)
             output = mint.squeeze(pooled_nchw, 0)
         else:
-            output = mint.functional.max_pool2d(
-                x,
-                kernel_size=kernel_size,
-                stride=stride,
-                padding=padding
-            )
+            output = mint.functional.max_pool2d(x, kernel_size=kernel_size, stride=stride, padding=padding)
         return output.to(dtype)
 
     zeros = mint.zeros_like(scores)
@@ -259,7 +248,8 @@ class SuperPointInterestPointDecoder(mindspore.nn.Cell):
 
     def _extract_keypoints(self, scores: mindspore.Tensor) -> Tuple[mindspore.Tensor, mindspore.Tensor]:
         """
-        Based on their scores, extract the pixels that represent the keypoints that will be used for descriptors computation.
+        Based on their scores, extract the pixels that represent the keypoints that will be used for descriptors
+        computation.
         The keypoints are in the form of relative (x, y) coordinates.
         """
         _, height, width = scores.shape
@@ -339,7 +329,8 @@ class SuperPointDescriptorDecoder(mindspore.nn.Cell):
         descriptors = mint.nn.functional.grid_sample(
             descriptors.to(mindspore.float32), keypoints.to(mindspore.float32), mode="bilinear", **kwargs
         ).to(keypoints.dtype)
-        # [batch_size, descriptor_decoder_dim, num_channels, num_keypoints] -> [batch_size, descriptor_decoder_dim, num_keypoints]
+        # [batch_size, descriptor_decoder_dim, num_channels, num_keypoints] ->
+        # [batch_size, descriptor_decoder_dim, num_keypoints]
         descriptors = descriptors.reshape(batch_size, num_channels, -1)
         descriptors = mint.nn.functional.normalize(descriptors, p=2, dim=1)
         return descriptors
@@ -364,9 +355,7 @@ class SuperPointPreTrainedModel(PreTrainedModel):
                 initializer(Normal(self.config.initializer_range, 0.0), module.weight.shape, module.weight.dtype)
             )
             if module.bias is not None:
-                module.bias.set_data(
-                    initializer(Constant(0.0), module.bias.shape, module.bias.dtype)
-                )
+                module.bias.set_data(initializer(Constant(0.0), module.bias.shape, module.bias.dtype))
         elif isinstance(module, mint.nn.LayerNorm):
             module.bias.set_data(initializer(Constant(0.0), module.bias.shape, module.bias.dtype))
             module.weight.set_data(initializer(Constant(1.0), module.weight.shape, module.weight.dtype))
@@ -469,11 +458,15 @@ class SuperPointForKeypointDetection(SuperPointPreTrainedModel):
 
         maximum_num_keypoints = max(keypoints.shape[0] for keypoints in list_keypoints)
 
-        keypoints = mint.zeros((batch_size, maximum_num_keypoints, 2), )
-        scores = mint.zeros((batch_size, maximum_num_keypoints), )
+        keypoints = mint.zeros(
+            (batch_size, maximum_num_keypoints, 2),
+        )
+        scores = mint.zeros(
+            (batch_size, maximum_num_keypoints),
+        )
         descriptors = mint.zeros(
             (batch_size, maximum_num_keypoints, self.config.descriptor_decoder_dim),
-            )
+        )
         mask = mint.zeros((batch_size, maximum_num_keypoints), dtype=mindspore.int32)
 
         for i, (_keypoints, _scores, _descriptors) in enumerate(zip(list_keypoints, list_scores, list_descriptors)):
@@ -483,7 +476,9 @@ class SuperPointForKeypointDetection(SuperPointPreTrainedModel):
             mask[i, : _scores.shape[0]] = 1
 
         # Convert to relative coordinates
-        keypoints = keypoints / mindspore.tensor([width, height], )
+        keypoints = keypoints / mindspore.tensor(
+            [width, height],
+        )
 
         hidden_states = encoder_outputs[1] if output_hidden_states else None
         if not return_dict:

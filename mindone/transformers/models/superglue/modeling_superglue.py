@@ -17,18 +17,16 @@ import math
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
+from transformers.models.superglue.configuration_superglue import SuperGlueConfig
+from transformers.utils import ModelOutput, logging
+
 import mindspore
 from mindspore import mint, nn
 from mindspore.common.initializer import Constant, Normal, initializer
 
-
-from ...modeling_utils import PreTrainedModel
-from transformers.models.superglue.configuration_superglue import SuperGlueConfig
-
 from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
-from transformers.utils import ModelOutput, logging
+from ...modeling_utils import PreTrainedModel
 from ...models.auto import AutoModelForKeypointDetection
-
 
 logger = logging.get_logger(__name__)
 
@@ -36,7 +34,9 @@ _CONFIG_FOR_DOC_ = "SuperGlueConfig"
 _CHECKPOINT_FOR_DOC_ = "magic-leap-community/superglue_indoor"
 
 
-def concat_pairs(tensor_tuple0: Tuple[mindspore.Tensor], tensor_tuple1: Tuple[mindspore.Tensor]) -> Tuple[mindspore.Tensor]:
+def concat_pairs(
+    tensor_tuple0: Tuple[mindspore.Tensor], tensor_tuple1: Tuple[mindspore.Tensor]
+) -> Tuple[mindspore.Tensor]:
     """
     Concatenate two tuples of tensors pairwise
 
@@ -115,12 +115,14 @@ def log_optimal_transport(scores: mindspore.Tensor, reg_param: mindspore.Tensor,
             Number of Sinkhorn iterations.
 
     Returns:
-        log_optimal_transport_matrix: (`mindspore.Tensor` of shape `(batch_size, num_rows, num_columns)`): Logarithm of the
-        optimal transport matrix.
+        log_optimal_transport_matrix: (`mindspore.Tensor` of shape `(batch_size, num_rows, num_columns)`):
+        Logarithm of the optimal transport matrix.
     """
     batch_size, num_rows, num_columns = scores.shape
-    one_tensor = mindspore.tensor(1, dtype = scores.dtype)
-    num_rows_tensor, num_columns_tensor = (num_rows * one_tensor).to(scores.dtype), (num_columns * one_tensor).to(scores.dtype)
+    one_tensor = mindspore.tensor(1, dtype=scores.dtype)
+    num_rows_tensor, num_columns_tensor = (num_rows * one_tensor).to(scores.dtype), (num_columns * one_tensor).to(
+        scores.dtype
+    )
 
     source_reg_param = reg_param.broadcast_to((batch_size, num_rows, 1))
     target_reg_param = reg_param.broadcast_to((batch_size, 1, num_columns))
@@ -255,12 +257,12 @@ class SuperGlueSelfAttention(mindspore.nn.Cell):
         self.value = mint.nn.Linear(config.hidden_size, self.all_head_size)
 
         self.dropout = mint.nn.Dropout(config.attention_probs_dropout_prob)
-        self.position_embedding_type = position_embedding_type or getattr(
-            config, "position_embedding_type", "absolute"
-        )
+        self.position_embedding_type = position_embedding_type or getattr(config, "position_embedding_type", "absolute")
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             self.max_position_embeddings = config.max_position_embeddings
-            self.distance_embedding = mint.nn.Embedding(2 * config.max_position_embeddings - 1, self.attention_head_size)
+            self.distance_embedding = mint.nn.Embedding(
+                2 * config.max_position_embeddings - 1, self.attention_head_size
+            )
 
         self.is_decoder = config.is_decoder
 
@@ -323,12 +325,19 @@ class SuperGlueSelfAttention(mindspore.nn.Cell):
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             query_length, key_length = query_layer.shape[2], key_layer.shape[2]
             if use_cache:
-                position_ids_l = mindspore.Tensor(key_length - 1, dtype=mindspore.int64, ).view(
-                    -1, 1
-                )
+                position_ids_l = mindspore.Tensor(
+                    key_length - 1,
+                    dtype=mindspore.int64,
+                ).view(-1, 1)
             else:
-                position_ids_l = mint.arange(query_length, dtype=mindspore.int64, ).view(-1, 1)
-            position_ids_r = mint.arange(key_length, dtype=mindspore.int64, ).view(1, -1)
+                position_ids_l = mint.arange(
+                    query_length,
+                    dtype=mindspore.int64,
+                ).view(-1, 1)
+            position_ids_r = mint.arange(
+                key_length,
+                dtype=mindspore.int64,
+            ).view(1, -1)
             distance = position_ids_l - position_ids_r
 
             positional_embedding = self.distance_embedding(distance + self.max_position_embeddings - 1)
@@ -486,7 +495,9 @@ class SuperGlueAttentionalGNN(mindspore.nn.Cell):
         super().__init__()
         self.hidden_size = config.hidden_size
         self.layers_types = config.gnn_layers_types
-        self.layers = mindspore.nn.CellList([SuperGlueAttentionalPropagation(config) for _ in range(len(self.layers_types))])
+        self.layers = mindspore.nn.CellList(
+            [SuperGlueAttentionalPropagation(config) for _ in range(len(self.layers_types))]
+        )
 
     def construct(
         self,
@@ -680,7 +691,9 @@ class SuperGlueForKeypointMatching(SuperGluePreTrainedModel):
             input_shape = descriptors.shape
             extended_attention_mask = self.get_extended_attention_mask(mask, input_shape)
         else:
-            extended_attention_mask = mint.ones((batch_size, num_keypoints), )
+            extended_attention_mask = mint.ones(
+                (batch_size, num_keypoints),
+            )
 
         # Multi-layer Transformer network.
         gnn_outputs = self.gnn(
@@ -724,8 +737,8 @@ class SuperGlueForKeypointMatching(SuperGluePreTrainedModel):
         matching_scores1 = mint.where(mutual1, matching_scores0.gather(1, indices1), zero)
         valid0 = mutual0 & (matching_scores0 > zero)
         valid1 = mutual1 & valid0.gather(1, indices1)
-        matches0 = mint.where(valid0, indices0, mindspore.tensor(-1, dtype = indices0.dtype))
-        matches1 = mint.where(valid1, indices1, mindspore.tensor(-1, dtype = indices1.dtype))
+        matches0 = mint.where(valid0, indices0, mindspore.tensor(-1, dtype=indices0.dtype))
+        matches1 = mint.where(valid1, indices1, mindspore.tensor(-1, dtype=indices1.dtype))
 
         matches = mint.cat([matches0, matches1]).reshape(batch_size, 2, -1)
         matching_scores = mint.cat([matching_scores0, matching_scores1]).reshape(batch_size, 2, -1)
@@ -765,9 +778,11 @@ class SuperGlueForKeypointMatching(SuperGluePreTrainedModel):
         >>> from PIL import Image
         >>> import requests
 
-        >>> url = "https://github.com/magicleap/SuperGluePretrainedNetwork/blob/master/assets/phototourism_sample_images/london_bridge_78916675_4568141288.jpg?raw=true"
+        >>> url = "https://github.com/magicleap/SuperGluePretrainedNetwork/blob/master/assets/" +
+            "phototourism_sample_images/london_bridge_78916675_4568141288.jpg?raw=true"
         >>> image1 = Image.open(requests.get(url, stream=True).raw)
-        >>> url = "https://github.com/magicleap/SuperGluePretrainedNetwork/blob/master/assets/phototourism_sample_images/london_bridge_19481797_2295892421.jpg?raw=true"
+        >>> url = "https://github.com/magicleap/SuperGluePretrainedNetwork/blob/master/assets/" +
+            "phototourism_sample_images/london_bridge_19481797_2295892421.jpg?raw=true"
         >>> image2 = Image.open(requests.get(url, stream=True).raw)
         >>> images = [image1, image2]
 
@@ -817,9 +832,7 @@ class SuperGlueForKeypointMatching(SuperGluePreTrainedModel):
 
         if not return_dict:
             return tuple(
-                v
-                for v in [loss, matches, matching_scores, keypoints, mask, hidden_states, attentions]
-                if v is not None
+                v for v in [loss, matches, matching_scores, keypoints, mask, hidden_states, attentions] if v is not None
             )
 
         return KeypointMatchingOutput(

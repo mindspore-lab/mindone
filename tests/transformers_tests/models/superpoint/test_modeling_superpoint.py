@@ -18,6 +18,7 @@ import numpy as np
 import pytest
 import torch
 from transformers.models.superpoint.configuration_superpoint import SuperPointConfig
+
 import mindspore as ms
 
 from tests.modeling_test_utils import (
@@ -27,7 +28,7 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import ids_numpy, floats_numpy
+from tests.transformers_tests.models.modeling_common import floats_numpy
 
 # nn.functional.grid_sample not support fp16
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "bf16": 5e-2}
@@ -118,16 +119,16 @@ LLAMA_CASES = [
     ],
 )
 def test_named_modules(
-        name,
-        pt_module,
-        ms_module,
-        init_args,
-        init_kwargs,
-        inputs_args,
-        inputs_kwargs,
-        outputs_map,
-        dtype,
-        mode,
+    name,
+    pt_module,
+    ms_module,
+    init_args,
+    init_kwargs,
+    inputs_args,
+    inputs_kwargs,
+    outputs_map,
+    dtype,
+    mode,
 ):
     ms.set_context(mode=mode)
 

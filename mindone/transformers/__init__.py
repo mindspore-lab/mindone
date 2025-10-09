@@ -1273,15 +1273,9 @@ from .models.starcoder2 import (
     Starcoder2Model,
     Starcoder2PreTrainedModel,
 )
+from .models.superglue import SuperGlueForKeypointMatching, SuperGluePreTrainedModel
+from .models.superpoint import SuperPointForKeypointDetection, SuperPointPreTrainedModel
 from .models.swiftformer import SwiftFormerForImageClassification, SwiftFormerModel, SwiftFormerPreTrainedModel
-from .models.superglue import (
-    SuperGlueForKeypointMatching,
-    SuperGluePreTrainedModel,
-)
-from .models.superpoint import (
-    SuperPointForKeypointDetection,
-    SuperPointPreTrainedModel,
-)
 from .models.swin import (
     SwinBackbone,
     SwinForImageClassification,
