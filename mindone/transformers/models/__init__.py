@@ -65,6 +65,7 @@ from . import (
     dinov2,
     dinov2_with_registers,
     distilbert,
+    doge,
     dpr,
     dpt,
     efficientnet,
