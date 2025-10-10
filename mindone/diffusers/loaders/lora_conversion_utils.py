@@ -2351,8 +2351,8 @@ def _convert_non_diffusers_qwen_lora_to_diffusers(state_dict):
             down_weight = state_dict.pop(k)
             up_weight = state_dict.pop(k.replace(down_key, up_key))
             scale_down, scale_up = get_alpha_scales(down_weight, alpha_key)
-            converted_state_dict[diffusers_down_key] = down_weight * scale_down
-            converted_state_dict[diffusers_up_key] = up_weight * scale_up
+            converted_state_dict[diffusers_down_key] = Parameter(down_weight * scale_down)
+            converted_state_dict[diffusers_up_key] = Parameter(up_weight * scale_up)
 
     if len(state_dict) > 0:
         raise ValueError(f"`state_dict` should be empty at this point but has {state_dict.keys()=}")
