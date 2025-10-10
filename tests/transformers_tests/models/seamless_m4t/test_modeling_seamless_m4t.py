@@ -230,7 +230,7 @@ SEAMLESS_M4T_CASES = [
             inputs_dict_speech["labels"],
         ),
         {},
-        [1, 2],
+        [1, 2, 3],
         {
             "logits": 0,
             "encoder_last_hidden_state": 2,
@@ -249,7 +249,7 @@ SEAMLESS_M4T_CASES = [
             inputs_dict_speech["labels"],
         ),
         {},
-        [1, 2],
+        [1, 2, 3],
         {
             "logits": 0,
             "encoder_last_hidden_state": 2,
@@ -307,7 +307,7 @@ SEAMLESS_M4T_CASES = [
             inputs_dict_text["labels"],
         ),
         {},
-        [2, 3],
+        [0, 2, 3, 4],
         {
             "logits": 0,
             "encoder_last_hidden_state": 2,
@@ -364,7 +364,7 @@ def test_named_modules(
     ms_inputs_kwargs["return_dict"] = False
 
     pt_inputs_args = tuple(
-        tensor.to(PT_DTYPE_MAPPING[pt_dtype]).long() if i in inputs_type_idx else tensor.to(PT_DTYPE_MAPPING[pt_dtype])
+        tensor.long() if i in inputs_type_idx else tensor.to(PT_DTYPE_MAPPING[pt_dtype])
         for i, tensor in enumerate(pt_inputs_args)
     )
 
