@@ -20,4 +20,3 @@
 | [movie gen](https://github.com/mindspore-lab/mindone/blob/master/examples/moviegen)     | implemented by MindONE team, based on the MovieGen paper by Meta | https://arxiv.org/pdf/2310.05737  |
 | [hunyuanvideo](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuanvideo) | HunyuanVideo official | https://github.com/Tencent/HunyuanVideo |
 | [hunyuanvideo-i2v](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuanvideo-i2v) | Tencent official  | https://github.com/Tencent/HunyuanVideo-I2V  |
-
