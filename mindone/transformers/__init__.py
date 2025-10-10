@@ -511,6 +511,14 @@ from .models.esm import (
     EsmPreTrainedModel,
 )
 from .models.evolla import EvollaForProteinText2Text, EvollaModel, EvollaPreTrainedModel, EvollaProcessor
+from .models.exaone4 import (
+    Exaone4ForCausalLM,
+    Exaone4ForQuestionAnswering,
+    Exaone4ForSequenceClassification,
+    Exaone4ForTokenClassification,
+    Exaone4Model,
+    Exaone4PreTrainedModel,
+)
 from .models.falcon import (
     FalconForCausalLM,
     FalconForQuestionAnswering,

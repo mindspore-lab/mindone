@@ -81,6 +81,7 @@ from . import (
     ernie4_5_moe,
     esm,
     evolla,
+    exaone4,
     falcon,
     falcon_mamba,
     fastspeech2_conformer,
