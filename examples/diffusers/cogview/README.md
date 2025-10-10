@@ -17,7 +17,7 @@
 
 | mindspore  | ascend driver  |  firmware   | cann toolkit/kernel |
 |:----------:|:--------------:|:-----------:|:------------------:|
-|   2.5.0    |     24.1RC2    | 7.3.0.1.231 |   8.0.0.beta1    |
+|   2.6.0 or 2.7.0    |     24.1RC2    | 7.3.0.1.231 |   8.1.RC1    |
 
 To install other dependent packages:
 
