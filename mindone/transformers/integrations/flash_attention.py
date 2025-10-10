@@ -69,6 +69,9 @@ def flash_attention_forward(
     if kwargs.get("is_causal", None) is not None:
         kwargs.pop("is_causal")
 
+    if not hasattr(module, "is_causal"):
+        module.is_causal = False
+
     attn_output = _flash_attention_forward(
         query,
         key,
