@@ -214,8 +214,9 @@ Experiments are tested on Ascend Atlas 800T A2 machines with pyantive mode.
 
 | model      | cards | resolution | task           | steps | s/Step       | s/Image       |
 |------------|-------|------------|----------------|-------|--------------|---------------|
-| CannyEdit  | 1     | 768x768    | Replace        | 50    | 6.12          | 306           |
+| CannyEdit  | 1     | 768x768    | Replace        | 50    | 6.12         | 306           |
 | CannyEdit  | 1     | 768x768    | Add            | 50    | 1.96         | 98            |
+| CannyEdit  | 1     | 768x768    | Removal        | 50    | 6.6          | 330           |
 | CannyEdit  | 1     | 768x768    | Replace + Add  | 50    | 5.7          | 285           |
 
 ## Acknowledgement
