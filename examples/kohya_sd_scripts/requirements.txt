@@ -1,7 +1,0 @@
-transformers
-huggingface-hub
-imagesize
-opencv-python
-einops
-voluptuous
-toml
