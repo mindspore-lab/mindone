@@ -59,6 +59,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("camembert", "CamembertModel"),
         ("bros", "BrosModel"),
         ("starcoder2", "Starcoder2Model"),
+        ("superglue", "SuperGlueForKeypointMatching"),
         ("canine", "CanineModel"),
         ("chameleon", "ChameleonModel"),
         ("chinese_clip", "ChineseCLIPModel"),
@@ -1260,7 +1261,11 @@ MODEL_FOR_MASK_GENERATION_MAPPING_NAMES = OrderedDict(
 )
 
 
-MODEL_FOR_KEYPOINT_DETECTION_MAPPING_NAMES = OrderedDict()
+MODEL_FOR_KEYPOINT_DETECTION_MAPPING_NAMES = OrderedDict(
+    [
+        ("superpoint", "SuperPointForKeypointDetection"),
+    ]
+)
 
 
 MODEL_FOR_TEXT_ENCODING_MAPPING_NAMES = OrderedDict(
