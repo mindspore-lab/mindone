@@ -19,15 +19,22 @@ ArkInfer - Cross-platform Deployment System: Supports one-click deployment in mu
 # Get Started
 
 ## Requirements:
-|mindspore | 	ascend driver | firmware       | cann tookit/kernel|
-|--- |----------------|----------------| --- |
-|2.5.0 | 24.1.RC3.b080  | 7.5.T11.0.B088 | 8.0.RC3.beta1|
+| mindspore   | 	ascend driver | firmware       | cann tookit/kernel |
+|-------------|----------------|----------------|--------------------|
+| 2.6.0/2.7.0 | 24.1.RC3.b080  | 7.5.T11.0.B088 | 8.1.RC1            |
 
 ### Installation:
 ```
 git clone https://github.com/mindspore-lab/mindone.git
 cd mindone
-cd examples/minicpm
+pip install -e .
+cd examples/transformers/minicpm
+```
+
+```shell
+# If using paged attention on mindspore 2.7.0, one environment variable need to be set for stopping tracing parameter memory
+
+export MS_ENABLE_TRACE_MEMORY=OFF
 ```
 
 ## Quick Start
@@ -46,7 +53,9 @@ python chat.py
 ```
 
 ## Inference Speed
-|      model name	      | precision* | cards | page attn | 	tokens/s	 |
-|:---------------------:| :---:  |:---:  | :---:  |:----------:|
-| openbmb/MiniCPM4-0.5B |  bf16 | 1 | ✅  |   11.57    |
-|  openbmb/MiniCPM4-8B  |  bf16 | 1 | ✅  |    8.93    |
+|      model name	      | mindspore version | precision* | cards | page attn | 	tokens/s	 |
+|:---------------------:|:-----------------:|:----------:|:---:  | :---:  |:----------:|
+| openbmb/MiniCPM4-0.5B |       2.6.0       |    bf16    | 1 | ✅  |    11.9    |
+|  openbmb/MiniCPM4-8B  |       2.6.0       |    bf16    |     1      | ✅  |    9.6     |
+| openbmb/MiniCPM4-0.5B |       2.7.0       |    bf16    | 1 | ✅  |    15.3    |
+|  openbmb/MiniCPM4-8B  |       2.7.0       |    bf16    |     1      | ✅  |   13.38    |
