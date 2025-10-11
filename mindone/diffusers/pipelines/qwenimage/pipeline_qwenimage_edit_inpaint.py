@@ -215,11 +215,12 @@ class QwenImageEditInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         )
         self.vl_processor = processor
         self.tokenizer_max_length = 1024
-
-        self.prompt_template_encode = "<|im_start|>system\nDescribe the key features of the input image (color, shape, size, texture, objects, background), \
-                                        then explain how the user's text instruction should alter or modify the image. Generate a new image that meets the \
-                                        user's requirements while maintaining consistency with the original input where appropriate.<|im_end|>\n<|im_start|>\
-                                        user\n<|vision_start|><|image_pad|><|vision_end|>{}<|im_end|>\n<|im_start|>assistant\n"
+        self.prompt_template_encode = (
+            "<|im_start|>system\nDescribe the key features of the input image (color, shape, size, texture, objects, "
+            "background), then explain how the user's text instruction should alter or modify the image. Generate a new "
+            "image that meets the user's requirements while maintaining consistency with the original input where appropriate"
+            ".<|im_end|>\n<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|>{}<|im_end|>\n<|im_start|>assistant\n"
+        )
         self.prompt_template_encode_start_idx = 64
         self.default_sample_size = 128
 
@@ -339,16 +340,16 @@ class QwenImageEditInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
 
         if height % (self.vae_scale_factor * 2) != 0 or width % (self.vae_scale_factor * 2) != 0:
             logger.warning(
-                f"`height` and `width` have to be divisible by {self.vae_scale_factor * 2} but are {height} and {width}. \
-                    Dimensions will be resized accordingly"
+                f"`height` and `width` have to be divisible by {self.vae_scale_factor * 2} but are {height} and {width}."
+                " Dimensions will be resized accordingly"
             )
 
         if callback_on_step_end_tensor_inputs is not None and not all(
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found \
-                    {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found"
+                f" {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
             )
 
         if prompt is not None and prompt_embeds is not None:
@@ -371,14 +372,16 @@ class QwenImageEditInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
 
         if prompt_embeds is not None and prompt_embeds_mask is None:
             raise ValueError(
-                "If `prompt_embeds` are provided, `prompt_embeds_mask` also have to be passed. Make sure to generate `prompt_embeds_mask` \
-                    from the same text encoder that was used to generate `prompt_embeds`."
+                "If `prompt_embeds` are provided, `prompt_embeds_mask` also have to be passed. Make sure to generate `prompt_embeds_mask`"
+                " from the same text encoder that was used to generate `prompt_embeds`."
             )
+
         if negative_prompt_embeds is not None and negative_prompt_embeds_mask is None:
             raise ValueError(
-                "If `negative_prompt_embeds` are provided, `negative_prompt_embeds_mask` also have to be passed. Make sure to generate \
-                    `negative_prompt_embeds_mask` from the same text encoder that was used to generate `negative_prompt_embeds`."
+                "If `negative_prompt_embeds` are provided, `negative_prompt_embeds_mask` also have to be passed. Make sure to generate"
+                " `negative_prompt_embeds_mask` from the same text encoder that was used to generate `negative_prompt_embeds`."
             )
+
         if padding_mask_crop is not None:
             if not isinstance(image, PIL.Image.Image):
                 raise ValueError(

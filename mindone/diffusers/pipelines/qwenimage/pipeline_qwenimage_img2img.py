@@ -173,9 +173,11 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             vae_scale_factor=self.vae_scale_factor * 2, vae_latent_channels=self.latent_channels
         )
         self.tokenizer_max_length = 1024
-        self.prompt_template_encode = "<|im_start|>system\nDescribe the image by detailing the color, shape, size, \
-                                        texture, quantity, text, spatial relationships of the objects and background:\
-                                        <|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n"
+        self.prompt_template_encode = (
+            "<|im_start|>system\nDescribe the image by detailing the color, shape, size, "
+            "texture, quantity, text, spatial relationships of the objects and background:"
+            "<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n"
+        )
         self.prompt_template_encode_start_idx = 34
         self.default_sample_size = 128
 
@@ -313,16 +315,16 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
 
         if height % (self.vae_scale_factor * 2) != 0 or width % (self.vae_scale_factor * 2) != 0:
             logger.warning(
-                f"`height` and `width` have to be divisible by {self.vae_scale_factor * 2} but are {height} and {width}. \
-                    Dimensions will be resized accordingly"
+                f"`height` and `width` have to be divisible by {self.vae_scale_factor * 2} but are {height} and {width}."
+                " Dimensions will be resized accordingly"
             )
 
         if callback_on_step_end_tensor_inputs is not None and not all(
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found \
-                    {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found"
+                f" {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
             )
 
         if prompt is not None and prompt_embeds is not None:
@@ -345,13 +347,14 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
 
         if prompt_embeds is not None and prompt_embeds_mask is None:
             raise ValueError(
-                "If `prompt_embeds` are provided, `prompt_embeds_mask` also have to be passed. Make sure to generate `prompt_embeds_mask` \
-                    from the same text encoder that was used to generate `prompt_embeds`."
+                "If `prompt_embeds` are provided, `prompt_embeds_mask` also have to be passed. Make sure to generate `prompt_embeds_mask`"
+                " from the same text encoder that was used to generate `prompt_embeds`."
             )
+
         if negative_prompt_embeds is not None and negative_prompt_embeds_mask is None:
             raise ValueError(
-                "If `negative_prompt_embeds` are provided, `negative_prompt_embeds_mask` also have to be passed. Make sure to generate \
-                    `negative_prompt_embeds_mask` from the same text encoder that was used to generate `negative_prompt_embeds`."
+                "If `negative_prompt_embeds` are provided, `negative_prompt_embeds_mask` also have to be passed. Make sure to generate"
+                " `negative_prompt_embeds_mask` from the same text encoder that was used to generate `negative_prompt_embeds`."
             )
 
         if max_sequence_length is not None and max_sequence_length > 1024:
