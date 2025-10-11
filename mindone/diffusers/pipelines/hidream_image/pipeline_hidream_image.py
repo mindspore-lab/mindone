@@ -27,7 +27,7 @@ EXAMPLE_DOC_STRING = """
         >>> import mindspore
         >>> import numpy as np
         >>> from transformers import AutoTokenizer
-        >>> form mindone.transformers import LlamaForCausalLM
+        >>> from mindone.transformers import LlamaForCausalLM
         >>> from mindone.diffusers import HiDreamImagePipeline
 
 
@@ -928,7 +928,7 @@ class HiDreamImagePipeline(DiffusionPipeline, HiDreamImageLoraLoaderMixin):
                 # expand the latents if we are doing classifier free guidance
                 latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-                timestep = t.broadcast_to((latent_model_input.shape[0],))  # .to(latents.dtype) ?
+                timestep = t.broadcast_to((latent_model_input.shape[0],))  # .to(latents.dtype)
 
                 noise_pred = self.transformer(
                     hidden_states=latent_model_input,

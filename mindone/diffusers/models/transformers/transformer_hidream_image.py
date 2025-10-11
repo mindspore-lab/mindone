@@ -451,7 +451,7 @@ class MOEFeedForwardSwiGLU(nn.Cell):
 
             # for fp16 and other dtype
             expert_cache = expert_cache.to(expert_out.dtype)
-            # FIXME: mindspore lacks tensor.scatter_reduce_
+            # FIXME: mindspore lacks tensor.scatter_reduce_, use an scatter_add_ instead, which is safe here.
             # expert_cache.scatter_reduce_(0, exp_token_idx.view(-1, 1).repeat(1, x.shape[-1]), expert_out, reduce="sum")
             expert_cache.scatter_add_(0, exp_token_idx.view(-1, 1).repeat(1, x.shape[-1]), expert_out)
         return expert_cache
@@ -729,7 +729,7 @@ class HiDreamImageTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
 
         self.gradient_checkpointing = False
 
-        self.patch_size = self.patch_size
+        self.patch_size = self.config.patch_size
         self.force_inference_output = self.config.force_inference_output
         self.llama_layers = self.config.llama_layers
 
