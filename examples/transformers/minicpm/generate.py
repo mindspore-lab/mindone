@@ -1,11 +1,5 @@
 import argparse
 import ast
-import os
-import sys
-
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
-sys.path.insert(0, mindone_lib_path)
 
 from transformers import AutoTokenizer
 
@@ -59,10 +53,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--attn_implementation",
         type=str,
-        default="flash_attention_2",
+        default="paged_attention",
         choices=["paged_attention", "flash_attention_2", "eager"],
     )
-    parser.add_argument("--use_cache", type=ast.literal_eval, default=True)
+    parser.add_argument("--use_cache", type=ast.literal_eval, default=False)
     parser.add_argument("--do_sample", type=ast.literal_eval, default=False)
 
     # Parse the arguments
