@@ -10,9 +10,9 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = "Apache-2.0"
 authors = [
-  { name = "MindSpore Lab", email = "mindspore-lab@example.com" },
+  { name = "MindSpore Lab", email = "mindspore-lab@examples.com" },
 ]
-keywords = ["artificial intelligence", "deep learning", "generative model", "diffusion", "mindspore"]
+keywords = ["artificial intelligence", "deep learning",'llm','image generation',"generative model", "diffusion", "mindspore"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -82,8 +82,8 @@ python = "3.9"
 
 [tool.hatch.version]
 source = "bgd"
-base-version = "0.3.0.dev0"
-build-type = "dev"  # ['dev', 'release']
+base-version = '0.4.0rc1'
+build-type = "release"  # ['dev', 'release']
 
 [tool.hatch.build.targets.sdist]
 exclude = [

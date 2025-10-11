@@ -1,0 +1,336 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
+and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
+
+## [0.4.0-rc1] - 2025-10-11
+
+### Added
+
+- Add MyT5 usage examples, (#1333) ([982a88e](https://github.com/vigo999/mindone/commit/982a88eb20c4d796bb1c197250fa2aab895139e9) by liuchuting).
+- add mms example (#1329) ([0612729](https://github.com/vigo999/mindone/commit/0612729f7ecc5ad3d44852ffb7247f4cea78a6c9) by alien-0119).
+- add phimoe (#1289) ([01a4f1e](https://github.com/vigo999/mindone/commit/01a4f1e93ccfe214f52f53cf06b254e264680f0d) by litingyu).
+- add reformer model (#1325) ([af90b41](https://github.com/vigo999/mindone/commit/af90b417c5c1fad44ef852b78adbecb3ea1a4fbb) by YMC).
+- add xglm model (#1269) ([f21db9f](https://github.com/vigo999/mindone/commit/f21db9ff28c33ec279d6da30bef8c5dc94b1f135) by YMC).
+- add plbart model (#1131) ([2670746](https://github.com/vigo999/mindone/commit/2670746bf688ee91e7b834e6bc47825ab39932d5) by YMC).
+- add mra model (#1270) ([08740e0](https://github.com/vigo999/mindone/commit/08740e06e4c34889d65c56ee099bc6efd6f10a5a) by YMC).
+- add layoutlm model & layoutlmv3 model (#1150) ([c1db01a](https://github.com/vigo999/mindone/commit/c1db01a7a99e4206747fe593e42e5bc9086ff624) by YMC).
+- add token_classification/document_question_answerin/video_classification pipeline & videomae model (#1204) ([5c2214e](https://github.com/vigo999/mindone/commit/5c2214e34b888252d599191900681a9a49d7113a) by YMC).
+- add biogpt model (#1267) ([a81d505](https://github.com/vigo999/mindone/commit/a81d5052c73f48bb7562d991adc2842bbcb8cf03) by YMC).
+- add mobilevit & mobilevitv2 model (#1286) ([11bcdda](https://github.com/vigo999/mindone/commit/11bcddaac043e93db546edab194d1a6a47f1bbcc) by YMC).
+- add esm model (#1260) ([10f6781](https://github.com/vigo999/mindone/commit/10f67818a0457353ad57db85c6a3e8d71fd5c042) by YMC).
+- add yoso model (#1265) ([c264fea](https://github.com/vigo999/mindone/commit/c264fea91451b0b1a3b0ccdae573a9c86ffca2d8) by YMC).
+- add xlnet model (#1287) ([1d024f5](https://github.com/vigo999/mindone/commit/1d024f550280af8736768a60795177b2a8c71ee9) by YMC).
+- add xlm model & xlm_prophetnet model (#1132) ([edcc0dc](https://github.com/vigo999/mindone/commit/edcc0dc5ee919a72a1c44da8af1430078da33235) by YMC).
+- add roformer model (#1266) ([24033fb](https://github.com/vigo999/mindone/commit/24033fbf5b60fd0b73123a47558405a10a2fefd3) by YMC).
+- add rocbert model (#1117) ([8e91e89](https://github.com/vigo999/mindone/commit/8e91e891e510ab312db9c5bf426d6670fcb1b2ac) by YMC).
+- add qwen2_moe & qwen3_moe & roberta-prelayernorm model (#1181) ([70d7427](https://github.com/vigo999/mindone/commit/70d7427a45602fb683753be99b43e0096d34130d) by YMC).
+- add nemotron model (#1098) ([36b2fb0](https://github.com/vigo999/mindone/commit/36b2fb0f140f23d4e3817ffb96a8cc0947ed57ad) by YMC).
+- add markuplm model (#1151) ([a1a71d4](https://github.com/vigo999/mindone/commit/a1a71d4727328649c09c52e531686b129d15b70f) by YMC).
+- add fnet model (#1264) ([0b3f6e2](https://github.com/vigo999/mindone/commit/0b3f6e2dd6459450a7bda805c947d09f0c63f19c) by YMC).
+- add marian model (#1118) ([47c8247](https://github.com/vigo999/mindone/commit/47c82472a4ad3daf111bcf592d3856f968744440) by YMC).
+- Add fsmt model (#1088) ([cee02b5](https://github.com/vigo999/mindone/commit/cee02b54daaa6b9972e59a7d9f02cfb85861530f) by liuchuting).
+- Add mpnet model (#1135) ([b4bcf6a](https://github.com/vigo999/mindone/commit/b4bcf6a418bc3d6b05ad013048123811dc8562ef) by liuchuting).
+- Add prophetnet model (#1134) ([36ba09f](https://github.com/vigo999/mindone/commit/36ba09f3ff37064a8209a68dc6a87cc8d9c4cf25) by liuchuting).
+- Add luke model (#1133) ([2cee42a](https://github.com/vigo999/mindone/commit/2cee42a1a04ae871d37353d4972173a662558695) by liuchuting).
+- Add git/owlv2/gptneo/splinter/ernie/falcon/dbrx model (#1249) ([2581709](https://github.com/vigo999/mindone/commit/2581709b56ffdf25cdefb2715c4fe18f09e37e28) by liuchuting).
+- add VisualBERT (#1294) ([6b61af9](https://github.com/vigo999/mindone/commit/6b61af9f527f86b1716e33cac740fe91ddd0b729) by Rustam Khadipash).
+- add X-CLIP (#1290) ([128a4ed](https://github.com/vigo999/mindone/commit/128a4ed5798189af0805e164b8d30a2305635c89) by Rustam Khadipash).
+- add unispeech&unispeech-sat (#1277) ([641b3e8](https://github.com/vigo999/mindone/commit/641b3e8484a19fdda4aeb07d068a3ee688bd3c04) by alien-0119).
+- add moonshine (#1255) ([90478f6](https://github.com/vigo999/mindone/commit/90478f677e1d11566af63f3c44c484ee7b88b12a) by alien-0119).
+- add dac (#1252) ([0ae7f1f](https://github.com/vigo999/mindone/commit/0ae7f1f252270c5758eb2cf8f1762f3dcaefb549) by alien-0119).
+- add Bloom model (#1097) ([92b40b3](https://github.com/vigo999/mindone/commit/92b40b33843a6108e695d8f77b11411c033bd58d) by YMC).
+- add moshi&mimi (#1261) ([f8d6845](https://github.com/vigo999/mindone/commit/f8d684524432896aa99a9ef37644dce1b9ea2b39) by alien-0119).
+- add sew (#1275) ([ba83c39](https://github.com/vigo999/mindone/commit/ba83c390e9eb80eccefae7463a2308ea331e0c8f) by alien-0119).
+- add univnet (#1280) ([1860ecb](https://github.com/vigo999/mindone/commit/1860ecb65af0519274b83c674b7ccee33ce92f46) by alien-0119).
+- add speech2text (#1284) ([d30fb95](https://github.com/vigo999/mindone/commit/d30fb95ae6643a8506e72378ef49876875439581) by alien-0119).
+- add encodec (#1291) ([2cf1818](https://github.com/vigo999/mindone/commit/2cf1818b629c529489e82c8b59b0f80585aa5887) by alien-0119).
+- add ctrl model (#1119) ([69dac5d](https://github.com/vigo999/mindone/commit/69dac5dd2c16be308e659a182f467258ee2e8749) by YMC).
+- add dpr model (#1120) ([7cb0b4a](https://github.com/vigo999/mindone/commit/7cb0b4ac24f93719b5900fcec75e8ba9fec8d713) by YMC).
+- add Blenderbot model & Blenderbot_small model (#1169) ([c20e187](https://github.com/vigo999/mindone/commit/c20e187782a501f8343e94bf26c45854b4b60c56) by YMC).
+- add zamba2 (#1268) ([2dd4e65](https://github.com/vigo999/mindone/commit/2dd4e65deee699596d54f6cb314a8cf107fcb645) by WongGawa).
+- add OmniGen2 inference (#1227) ([165b4df](https://github.com/vigo999/mindone/commit/165b4dfa7bf9890e2f2d515c4ab0ac9c6787a2d3) by Rustam Khadipash).
+- add ConvNext & ConvNextv2 (#1201) ([0904366](https://github.com/vigo999/mindone/commit/0904366bfedee1a44243d0bddc05bb8eca6eded5) by Cheung Ka Wai).
+- Add canine model (#1035) ([eff29d5](https://github.com/vigo999/mindone/commit/eff29d563340f83b5dbfb52e999765f5181682ba) by liuchuting).
+- Add opt model (#1069) ([9a88568](https://github.com/vigo999/mindone/commit/9a88568dc2ba26e19e38beb46085bd75c74d155d) by liuchuting).
+- Add convbert model (#1036) ([f95a148](https://github.com/vigo999/mindone/commit/f95a1488732cc393f03da89e6a1e764ec3713310) by liuchuting).
+- Add Mvp model (#1085) ([c6d7c8c](https://github.com/vigo999/mindone/commit/c6d7c8c04c952d4dc025567ec8a7288b40e42e1c) by liuchuting).
+- Add m2m_100 model (#1068) ([b230f46](https://github.com/vigo999/mindone/commit/b230f46eec0f1f00c58ba2b11b77ba8affbf913c) by liuchuting).
+- Add starcoder2 model (#1066) ([aab4685](https://github.com/vigo999/mindone/commit/aab46859a4b75e8b1f88e4877341faea6bba5b84) by liuchuting).
+- Add camembert model (#1034) ([0e4a168](https://github.com/vigo999/mindone/commit/0e4a168c8ce90b48adc94cc25bf34abd9d0ebfe5) by liuchuting).
+- Add ssl verification and ban 0.0.0.0 sever ip (#1180) ([cefcadf](https://github.com/vigo999/mindone/commit/cefcadfa62be9ab209fef9d96d81896945d4deed) by QYuFong).
+- add ref info for stable_diffusion/sparktts/svd... (#1152) ([d10e019](https://github.com/vigo999/mindone/commit/d10e019fa3e734ed333dec3f638a791135e94a70) by alien-0119).
+- Add copyright and open-source attribution headers for diffusers and transformers (#1149) ([ff8b9c8](https://github.com/vigo999/mindone/commit/ff8b9c831167693a2c8be8f79674c6f49fad3b02) by Cui-yshoho).
+- add copyright for cogview, janus, ... (#1153) ([868a3ac](https://github.com/vigo999/mindone/commit/868a3ac70e020be0cee38838514db52865225f09) by zhanghuiyao).
+- add license (#1139) ([086eeae](https://github.com/vigo999/mindone/commit/086eeaeb8645c04565fcb68171f3312523564a9c) by Fzilan).
+- add granite model (#1057) ([5ec3e32](https://github.com/vigo999/mindone/commit/5ec3e32dfdd27371a043b1cc775739f9f5422440) by YMC).
+- add roberta model (#1052) ([a5bb700](https://github.com/vigo999/mindone/commit/a5bb7005cb14d77f87e4645a42ca55bdbf676793) by YMC).
+- add persimmon model and fuyu model (#1055) ([1c01da2](https://github.com/vigo999/mindone/commit/1c01da218727864a84d7d11921b1c03d98771551) by YMC).
+- add granitemoe model and granitemoeshared model (#1080) ([c1ed1b8](https://github.com/vigo999/mindone/commit/c1ed1b810cd979a41819bae6cac14b02bf91d3b4) by YMC).
+- add megatron_bert model (#1056) ([fc93680](https://github.com/vigo999/mindone/commit/fc936804ccad61e0afd7f23f3ef6964d6b1aa7d9) by YMC).
+- add Qwen2.5-VL UT (#1011) ([e7c0220](https://github.com/vigo999/mindone/commit/e7c0220cc2136684c59e7bdd788d37eb30860d7b) by Cheung Ka Wai).
+- add gemma3 model (#1058) ([1bf513d](https://github.com/vigo999/mindone/commit/1bf513dcfa879dd8ebb95b23b9bbaadd39e8d7e5) by YMC).
+- add gemma model (#1059) ([0e80b7d](https://github.com/vigo999/mindone/commit/0e80b7de143ba4a17ccb262814cae98daf10bada) by YMC).
+- add mixtral model (#1060) ([b957863](https://github.com/vigo999/mindone/commit/b95786329c32100a2b517cc1bb97426d05acab5e) by YMC).
+- add bart model (#1061) ([6a763b6](https://github.com/vigo999/mindone/commit/6a763b6fe8384515d4269d04cafb49f3b0dd91ff) by YMC).
+- add qwen2/gpt2 ut (#1040) ([a6beaab](https://github.com/vigo999/mindone/commit/a6beaab0b02ec59dcdae7d0f502e5d631b8b0d31) by Chaoran Wei).
+- Add bigbird&bigbird_pegasus (#1003) ([ad1d90b](https://github.com/vigo999/mindone/commit/ad1d90b23e095c146d6b27f822b37e5c6f9a5aca) by liuchuting).
+- add Kimi-VL pynative inference (#1001) ([ddd0ea8](https://github.com/vigo999/mindone/commit/ddd0ea83903f0dd1eddab7e581f2adea706ba067) by Cheung Ka Wai).
+- Add model switch transformers&myt5 Tokenizer (#1002) ([1fe5f8a](https://github.com/vigo999/mindone/commit/1fe5f8ab0590ec79e27fe46049f10eb4b55f2aab) by liuchuting).
+- add Qwen2_audio model  (#1000) ([bfaf01f](https://github.com/vigo999/mindone/commit/bfaf01f5d829606d673357bfce2527a029c12190) by YMC).
+- add var traning with graph mode (#950) ([2ccae20](https://github.com/vigo999/mindone/commit/2ccae20444c8c64420d5739dbe1b0f3816f29c0d) by Songyuanwei).
+- add Spark-TTS (#952) ([ab94624](https://github.com/vigo999/mindone/commit/ab9462410c59038da52ec9693f371b9294f31ed8) by litingyu).
+- add performence ([0b91404](https://github.com/vigo999/mindone/commit/0b91404e6872f6145da3a7823237048c4ce12c1e) by zhaoting).
+- add i2v transformer config support ([ac4b614](https://github.com/vigo999/mindone/commit/ac4b61444feeb0865a2720ed70a69e30cff19762) by zhaoting).
+- add Step-Video-T2V (#848) ([bb45ebe](https://github.com/vigo999/mindone/commit/bb45ebe910cdd589fff0645931a424444e9f0828) by zhanghuiyao).
+- Add Janus Pro (#842) ([d8461ad](https://github.com/vigo999/mindone/commit/d8461ad3ad398a0559c86ec586b5d55282bbef37) by Frederick Hong).
+- add Phi3 in transformers module and cache utils (#825) ([f73a600](https://github.com/vigo999/mindone/commit/f73a6001689504618fb3b35a6ded6630e14a06f4) by Nguyen Truong Hai).
+- Add Movie Gen (#783) ([c8da0da](https://github.com/vigo999/mindone/commit/c8da0daf00a8c4580ca800adb502765e033205b1) by Rustam Khadipash).
+- Add MovieGen - TAE (#778) ([e129159](https://github.com/vigo999/mindone/commit/e129159a1f8c2d4390459c87abb72912f3698608) by Samit).
+- add Venhancer inference (#799) ([b4a901f](https://github.com/vigo999/mindone/commit/b4a901f80454a6e462a35b0a942ce8ed7f151159) by Songyuanwei).
+- Add T2V-Turbo model Inference and Training codes (#758) ([9e4d4a3](https://github.com/vigo999/mindone/commit/9e4d4a39d5d3f6823b6e2ff7562a0f60e8d9f047) by hqkate).
+- Add autoencoders (VAE)-vq training and evaluation  (#682) ([45ffb39](https://github.com/vigo999/mindone/commit/45ffb391c47aef26620ef4a7171e009be6e7a5d2) by Songyuanwei).
+- Add Magvit-v2 (vqvae) (#656) ([9e0af25](https://github.com/vigo999/mindone/commit/9e0af25044c24a824047de5cc87a69853bcec3a0) by hqkate).
+- Add mindone transformers model tests (#752) ([78a9eb5](https://github.com/vigo999/mindone/commit/78a9eb577fceae3d0f7d5744d605b7a56eba6fd5) by zhaoting).
+- add zero optimizer parallel (#593) ([5831703](https://github.com/vigo999/mindone/commit/58317035d3c4cd1ff332c863cf7c8356bd9e61fe) by zhaoting).
+- add OpenSora v1.2 inference (#561) ([22ea2d7](https://github.com/vigo999/mindone/commit/22ea2d76297df5718ed745d6f372d4b83e11258b) by Rustam Khadipash).
+- Add hpcai OpenSora v1.2 - 3D VAE inference (#560) ([9c5e789](https://github.com/vigo999/mindone/commit/9c5e789fcdde50974cac2154c007922e2ef99b81) by Samit).
+- add num_recompute_blocks to opensora-hpcai (#553) ([deaf06d](https://github.com/vigo999/mindone/commit/deaf06df283b750f1759e662fa413c1f4da8bac4) by Songyuanwei).
+- add readme of sd 1.5 Deliberate_v2 inference (#480) ([395f06c](https://github.com/vigo999/mindone/commit/395f06cc578c32cace17ebb75d07e1f7f207171a) by fzilan).
+- add FAQ readme for sdv2 (#529) ([e4e94d7](https://github.com/vigo999/mindone/commit/e4e94d7c93511db6738e5683d41986e7e60e4fdf) by Songyuanwei).
+- add diffusers schedulers (#490) ([1a10ba6](https://github.com/vigo999/mindone/commit/1a10ba61338ca938b797f256edf25c82ebc678af) by Cui-yshoho).
+- Add CAI-OpenSora (#444) ([33296a8](https://github.com/vigo999/mindone/commit/33296a813a2094c5f21ce5924c735c9c4848b905) by Samit).
+- Add min-snr weighting to improve AD training && Support any-shape infer (#398) ([0b1bb8a](https://github.com/vigo999/mindone/commit/0b1bb8ab43ea47ef217e88873c7d3c40ba395d71) by Samit).
+- add SVD training support (#386) ([8a712b3](https://github.com/vigo999/mindone/commit/8a712b371ad8dcb95dc7c3de8271213cddae43cf) by Rustam Khadipash).
+- Add abs path prefix for modelarts running (#384) ([91f9d4d](https://github.com/vigo999/mindone/commit/91f9d4ddeba7570c5d901caef6415219bef99503) by Samit).
+- Add scripts for launching distributed training on modelarts (#380) ([9c76a2d](https://github.com/vigo999/mindone/commit/9c76a2dfa69d028140208eb6fa6bc84191b7a193) by HaoyangLI).
+- Add warmup lr (#357) ([230a964](https://github.com/vigo999/mindone/commit/230a964e8a547fd4e9879cd817302ac252213110) by zhanghuiyao).
+- Add support of dataset embedding cache for Animatediff training (#343) ([4c6e181](https://github.com/vigo999/mindone/commit/4c6e1816bd80fa09179779d38f9ca09824c9d566) by Gaohan123).
+- Add origin webdataset support (#350) ([963aba1](https://github.com/vigo999/mindone/commit/963aba1221d13bc4ffac19a7b58cbba629055e82) by Samit).
+- add module test (#290) ([4bba34c](https://github.com/vigo999/mindone/commit/4bba34c346beb98a6c8c5b00f171c65d20e3a93d) by chenyang23333).
+- Adds Pull Request Template  (#336) ([d3d74c9](https://github.com/vigo999/mindone/commit/d3d74c940ccc34d7beae71fae5860d0e35c33384) by Samit).
+- Add SNR gamma weighting (#334) ([573d213](https://github.com/vigo999/mindone/commit/573d213bd9b5c9de73a23c3a226c36c950e2f39e) by zhanghuiyao).
+- Add support for long texts training (#331) ([8754a7a](https://github.com/vigo999/mindone/commit/8754a7a1215d17f48a766cfd3dd7446f6cea6cd6) by Cui-yshoho).
+- Add IPAdapter benchmark and fix several bugs (#325) ([131a4c4](https://github.com/vigo999/mindone/commit/131a4c42a97039070a7f718700cda20fdfc8b84a) by Cheung Ka Wai).
+- add __init__ for tools (#314) ([7c5be8f](https://github.com/vigo999/mindone/commit/7c5be8fedb704e29fcca7f855ca15087d14e6253) by Songyuanwei).
+- add 8p benchmarking for sdv2 (#309) ([58ceacc](https://github.com/vigo999/mindone/commit/58ceacc0482f9a2a13dad1fd8496ac2ab3bfd7aa) by Songyuanwei).
+- add animatediff training pipeline (#311) ([f46339e](https://github.com/vigo999/mindone/commit/f46339eae21e9f63798c8c6a3e4566e7aa540302) by Samit).
+- Add optimizer status save (#305) ([d1d5b20](https://github.com/vigo999/mindone/commit/d1d5b20332b8deb2bc2da97ad59e2415593c4df6) by zhanghuiyao).
+- add FA support for SVD (#300) ([919c1df](https://github.com/vigo999/mindone/commit/919c1df17e995b6af36a7489cde07db47a864e0d) by Rustam Khadipash).
+- add convert_diffusers_to_mindone_sdxl.py (#303) ([7b2cdd2](https://github.com/vigo999/mindone/commit/7b2cdd21b071a1957956c213923dc1f2278e14f5) by chenyang23333).
+- add sd1.5 test_overfit vanilla 8p (#294) ([8b133ee](https://github.com/vigo999/mindone/commit/8b133ee49b83243a6da95808ea78f9648c21d74b) by Songyuanwei).
+- Add checkpoint deletion feature to SDXL (#286) ([e8caddf](https://github.com/vigo999/mindone/commit/e8caddf9b69e4cf2a1b4f2fa35d6c5482d3925be) by HaoyangLI).
+- Add inference results to videocomposer doc (#274) ([7cccae1](https://github.com/vigo999/mindone/commit/7cccae18f2cd0bef481f32b2c5d154795481d391) by HaoyangLI).
+- add invisible Watermark (#211) ([e100c04](https://github.com/vigo999/mindone/commit/e100c042fd377347ec9e8bab09953613ba74d786) by Songyuanwei).
+- Add AnimateDiff T2V & Extract common utilities & update FA for SD2.0 (#271) ([78e81df](https://github.com/vigo999/mindone/commit/78e81dfc332f07c5be4f4cbdba247f6edd1ab90d) by Samit).
+- Add controlnet + sdxl_base inference support (#250) ([fbf861d](https://github.com/vigo999/mindone/commit/fbf861d059ef1f1926e02b12a22e037e07eaa13a) by HaoyangLI).
+- add Stable Video Diffusion support (#248) ([c443350](https://github.com/vigo999/mindone/commit/c443350f087519909c5078ef665ee17e90056e9b) by Rustam Khadipash).
+- Add SD loss convergence test (#243) ([d358262](https://github.com/vigo999/mindone/commit/d35826248c71912f3e0ab538c16563b20e15de0e) by Samit).
+- Add hints on enabling infnan mode for training on 910* (#261) ([96ce7cb](https://github.com/vigo999/mindone/commit/96ce7cbacc5f8ddcaa5bf293099e5f8732d82916) by Samit).
+- Add webdataset training support  (#256) ([d0f0441](https://github.com/vigo999/mindone/commit/d0f04416268f6015fe47af36ce43b3116104f8e7) by Samit).
+- Add model conversion from MS to PT (#259) ([0986030](https://github.com/vigo999/mindone/commit/0986030e3a80b249fd66e1d722c5b521285ef2e5) by Fzilan).
+- Add LoRA conversion from MS to PT (#241) ([83503c8](https://github.com/vigo999/mindone/commit/83503c8fd736289dae3d4ab4a1a0f5450f1fbc63) by Samit).
+- add dreambooth sd 1.5 yaml (#216) ([8427668](https://github.com/vigo999/mindone/commit/842766860be6f9ce75f043c7b8e5a491e04fa8d3) by Songyuanwei).
+- add gradient accumulation in graph mode (#227) ([a180fb1](https://github.com/vigo999/mindone/commit/a180fb1eb15266d8a9af6509dcf428986aa2d4b4) by Songyuanwei).
+- Add Text2Video-Zero for video inpainting with ControlNet edge control (#194) ([d2588db](https://github.com/vigo999/mindone/commit/d2588dbf52f59b787bbd34ba75cafd86cf775262) by Gaohan123).
+- add four samplers (#176) ([79ff988](https://github.com/vigo999/mindone/commit/79ff988d10f0e1324a43d03f01232ec86d55a45e) by chenyang23333).
+- add T2I-Adapter training support (#138) ([86d9acb](https://github.com/vigo999/mindone/commit/86d9acb7880d8cd4a691f4878cbf87e3b4ae5e1e) by Rustam Khadipash).
+- Add frame 1 of test samples  (#173) ([ab14606](https://github.com/vigo999/mindone/commit/ab1460637ace9cc61169ab4ba5a51487164272bc) by Samit).
+- add arg (#170) ([1c58faa](https://github.com/vigo999/mindone/commit/1c58faa6ad058351ae40c276b4e8dcf4348c5f0e) by Samit).
+- Add adamw fp32 with offloading, adjust hyper-params [Under Testing] (#168) ([7b9885f](https://github.com/vigo999/mindone/commit/7b9885f440b2bb61fdf61f09ab5bdb93a1efa814) by Samit).
+- Add graph mode support for controlnet with inference framework (#149) ([22d1c01](https://github.com/vigo999/mindone/commit/22d1c01f9536428eea7f047f706dcad33b7313cc) by Gaohan123).
+- Add Recompute to Reduce Mem Usage (#140) ([0e58528](https://github.com/vigo999/mindone/commit/0e58528764b2f3a436d54c4d2456c42f0b60eb06) by Samit).
+- Add SDXL Refiner model (#136) ([40aa0d9](https://github.com/vigo999/mindone/commit/40aa0d9aa95adb4b4a0e7f69f98b263b698b58ae) by zhanghuiyao).
+- Add training for VideoComposer (#133) ([80fcb05](https://github.com/vigo999/mindone/commit/80fcb05e34b132a42061c7de510886e714028025) by Samit).
+- add deeplabv3P segmentation control for controlnet (#116) ([4b63cec](https://github.com/vigo999/mindone/commit/4b63cec4d32862dfb231003e239cbb91646caa36) by Gaohan123).
+- Add SDXL model (#108) ([6a97dc2](https://github.com/vigo999/mindone/commit/6a97dc2899eca1321d382d9f8bdff09caf8c7ab4) by zhanghuiyao).
+- Add text-guided depth-to-image pipeline based on sd-v2-depth model (#103) ([b44dc5c](https://github.com/vigo999/mindone/commit/b44dc5c71929619ded69740ffd549f295ecbd7ba) by Samit).
+- add T2I-Adapters support (#110) ([efd2301](https://github.com/vigo999/mindone/commit/efd23013f53cd06f9c7ca765a589c959c6fbcee9) by Rustam Khadipash).
+- Add LoRA finetuning for TextEncoder; Fix bugs (#109) ([62d27cd](https://github.com/vigo999/mindone/commit/62d27cd3fa9cc4ae889aad8525280633068e2f52) by Samit).
+- Add modelarts's training codes (#92) ([3c9c2da](https://github.com/vigo999/mindone/commit/3c9c2da97c3b08a82b6987c73e611f538164af84) by VictorHe-1).
+- Add Image Inpainting; Reform readme doc. (#90) ([65faed1](https://github.com/vigo999/mindone/commit/65faed119b588466e661d2745f71e959cdee3dc0) by Samit).
+- Add flash attention (#85) ([c9db22a](https://github.com/vigo999/mindone/commit/c9db22a494c2b3041e526a5e54b0e9f136c90419) by zhanghuiyao).
+- add conversion: ms to diffusers (#77) ([4ccefcd](https://github.com/vigo999/mindone/commit/4ccefcde4a8bede41cc60daee3cf1b222a1b14c5) by ttftft32).
+- add save ckpt by step and result log file (#80) ([2dec3c9](https://github.com/vigo999/mindone/commit/2dec3c9d90268bf3691c0347ed878ac9fd5b9cee) by Songyuanwei).
+- Add data utils and instructions for preparing LAION training data (#74) ([b7512fd](https://github.com/vigo999/mindone/commit/b7512fdfd67d43a6893fdf1c40e32494c55f6949) by Samit).
+- Add ST for train and infer (#72) ([7de0f26](https://github.com/vigo999/mindone/commit/7de0f269d42110ef904aac97a77a32202cfa4474) by Songyuanwei).
+- add resume training (#58) ([09a67ef](https://github.com/vigo999/mindone/commit/09a67ef5efd02fb19db711eae743bbf19f19b00a) by Songyuanwei).
+- Add torch weight conversion (#68) ([912fd9f](https://github.com/vigo999/mindone/commit/912fd9f91a3318cef72fc92d36be36655932b238) by dongyao).
+- add missing file for clip score (#59) ([d9b130a](https://github.com/vigo999/mindone/commit/d9b130a6523afc6b3bc4d7a3c4ac7ce045cb437f) by Tao Xijia).
+- add tools; add script for converting hgf sd2 weights to ms weights (#50) ([7ff7ccf](https://github.com/vigo999/mindone/commit/7ff7ccf7fc69292d2ea153f5492b1b61e3a974ad) by dyz).
+- add CLIP score [WIP] (#29) ([d1ea48c](https://github.com/vigo999/mindone/commit/d1ea48c295e704351e7f3d550afc7fad84479ae2) by Tao Xijia).
+- Add ci config (#39) ([d30ee8f](https://github.com/vigo999/mindone/commit/d30ee8f1b7b4a9c6d4491a6bc2fda4805e3b3a38) by jianyunchao).
+- Add DDIM, DPM-Solver(including++), UniPC samplers (#33) ([9905b25](https://github.com/vigo999/mindone/commit/9905b25109feeaf2b9efd63c1adc913ba64c992f) by Yuzhi ZHAO).
+- Add missing requirement package. ([659e0d2](https://github.com/vigo999/mindone/commit/659e0d254702eb39b1de036baa5f6d76195ad430) by congw).
+- Add non-hack version LoRA: lora module and inject function, lora finetuning and inference, and unit test (#22) ([eb70049](https://github.com/vigo999/mindone/commit/eb700490e3595b29f00a9dc3aab29423fc600000) by Samit).
+- Add FID evaluation (#20) ([98edb20](https://github.com/vigo999/mindone/commit/98edb20fba36ed80934026e48fce549912db7a94) by Samit).
+- add dataset conversion ([1e608a7](https://github.com/vigo999/mindone/commit/1e608a72abf4c558a5b644742bbed786b162ad9f) by Samit).
+- add velocity parameterization for DDPM, fix typo ([4ffbc00](https://github.com/vigo999/mindone/commit/4ffbc001d8d0cabc11218cacd4d0dbf90988c15d) by Samit).
+- Add stable diffusion 2.0 and 1.x. Add awesome LVM and FM list. Renew readme files ([858808f](https://github.com/vigo999/mindone/commit/858808f1b36d0425d450dad382c3a69477fe7c2b) by Samit).
+
+### Fixed
+
+- fix(transformers): Sort the auto mapping alphabetically (#1353) ([b17f5c5](https://github.com/vigo999/mindone/commit/b17f5c5c6e2e978a7c8a429c97ef7364a261b02c) by Chaoran Wei).
+- fix(transformers): move minicpm example into examples/transformers (#1356) ([2623910](https://github.com/vigo999/mindone/commit/262391090930295de1be61cc9186fe487761493a) by Chaoran Wei).
+- fix(transformers):`ReformerModel` ut bigfix  (#1343) ([831bcaf](https://github.com/vigo999/mindone/commit/831bcaf14bfb9639692f08ddf209100457854602) by Fzilan).
+- fix(transformers/ut): fix ut bug of rag model (#1340) ([07b1255](https://github.com/vigo999/mindone/commit/07b125568b8c22f7d461d18b6d42e61a0f6238d0) by The-truthh).
+- fix mindone.transfomers v4.50 fast ut (#1338) ([26abbfe](https://github.com/vigo999/mindone/commit/26abbfeaeba226891443e57e40e5ca0086fab036) by Fzilan).
+- fix zerohelper import issue (#1301) ([359a561](https://github.com/vigo999/mindone/commit/359a561571c4be910977253e0db6a6148398ac33) by zhanghuiyao).
+- fix(transformers): Fix Helium UT errors (#1220) ([e07557b](https://github.com/vigo999/mindone/commit/e07557bac2ea2cee1b151aaa1f4e923864aa5a69) by Didan Deng).
+- fix linting (#1331) ([6a50c0c](https://github.com/vigo999/mindone/commit/6a50c0c1eefcc0abc528221ce355c663f6e3e434) by Samit).
+- fix bug (#1192) ([a116d96](https://github.com/vigo999/mindone/commit/a116d96541a1d2c0a3ea3e17586a50c887a9df7b) by YMC).
+- fix(transformers): fix lilt empty docstring (#1316) ([b0f50be](https://github.com/vigo999/mindone/commit/b0f50be252b9a8b0657b95a9fcd955861c7354c1) by Andy Zhou).
+- fix(transformers): fix wav2vec model init (#1314) ([a623bff](https://github.com/vigo999/mindone/commit/a623bfffee04dfa5de6e8bb9f1fde06bb66b1f9b) by alien-0119).
+- fix qwen3 model mapping (#1230) ([04a6487](https://github.com/vigo999/mindone/commit/04a6487650b94357f66577b38e0c1bbff89fecb4) by alien-0119).
+- fix(transformers): fix sub_config mismatch attn type mismatch/ default dtype/ ut bug (#1237) ([4d6d5de](https://github.com/vigo999/mindone/commit/4d6d5de9e809fef7ba89684b0c9798fbe0ca5086) by Chaoran Wei).
+- fix: correct import path (#1279) ([cbda904](https://github.com/vigo999/mindone/commit/cbda904638266d4767fc546f9075fdcfffd641b8) by tanweixi).
+- fix: update LoRAs reference (#1024) ([900be68](https://github.com/vigo999/mindone/commit/900be6854028e27e8fae9967d26522a76dbabe10) by Emmanuel Ferdman).
+- fix(transformers) Support input attention mask and causal mask in `flash_attention_forward()` (#1240) ([a58ff88](https://github.com/vigo999/mindone/commit/a58ff8880a3d8ef39f892d8b83c64a0e652be525) by Yingshu CHEN).
+- fix(transformers): supplement key_renaming_mapping func (#1216) ([0c2f638](https://github.com/vigo999/mindone/commit/0c2f638cdb8e7164932eb9985ada2e624ff0c6c4) by Chaoran Wei).
+- fix bugs 0822 (#1229) ([cb0c0ed](https://github.com/vigo999/mindone/commit/cb0c0edd4a941ac3790b7ad6203b3b752efb59fd) by Cui-yshoho).
+- fix(transformers): fix glm4v ut bug (#1222) ([7982b88](https://github.com/vigo999/mindone/commit/7982b88e29ca618403087e81f723037a3814ee59) by Chaoran Wei).
+- fix(transformers/blip2): update blip to v4.50.3 (#1130) ([025dcdc](https://github.com/vigo999/mindone/commit/025dcdce3e75289dc8dd3f486e388edcbe893ac9) by Cui-yshoho).
+- fix(transformers): add causal mask support for FA (#1184) ([6c94139](https://github.com/vigo999/mindone/commit/6c941397b265eb34769f046bf42ed6f0442349cc) by Rustam Khadipash).
+- fix ut error in idefics3 and qwen2.5-omni (#1182) ([4e9de5c](https://github.com/vigo999/mindone/commit/4e9de5c4eda1c494b0a635c7a00700c904d13cd2) by Yingshu CHEN).
+- fix(transformers): align SDPA with Transformers' logic (#1167) ([0574ba5](https://github.com/vigo999/mindone/commit/0574ba5157844957372fdc20c4b87f4ceb6d9aec) by Rustam Khadipash).
+- fix qwen2 init (#1164) ([17f9d2e](https://github.com/vigo999/mindone/commit/17f9d2ea985cc2a78865fa1198299d93d2477048) by Cheung Ka Wai).
+- fix(transformers): fix issues in transformers to support vLLM (#1163) ([27b9ce5](https://github.com/vigo999/mindone/commit/27b9ce5c5dd1bbb714a3210a8ad257a19553fa2a) by zhanghuiyao).
+- fix(transformers): fix load_weight/from_config/fa bugs (#1143) ([6e92da8](https://github.com/vigo999/mindone/commit/6e92da85c93491f761f196bc45f96c4f00d0111c) by Chaoran Wei).
+- Fix code safety check (#1105) ([c5dccc5](https://github.com/vigo999/mindone/commit/c5dccc5e3d20469bbf2b724965f4ff50b68aa4dc) by Samit).
+- fix ci bug (#1160) ([10aa40a](https://github.com/vigo999/mindone/commit/10aa40ac2b5d00f8b4bf765dc6771975fec8bdaf) by Chaoran Wei).
+- fix(transformers): add transformers version check (#1136) ([e8eb411](https://github.com/vigo999/mindone/commit/e8eb411e7064a77b6f538d9d80fe2a13ff85bbc2) by Fzilan).
+- fix dtype error in final inference when training with text encoder. (#1087) ([209d9b3](https://github.com/vigo999/mindone/commit/209d9b3933f7a5b8d765e2c7f0db80817f222839) by Fzilan).
+- fix(diffusers/examples): fix the bug of cogvideox and controlnet (#1126) ([bb507f6](https://github.com/vigo999/mindone/commit/bb507f6c5ce2ad7a9496639693461342cb983003) by The-truthh).
+- fix cohere2 test path (#1122) ([5d2aee0](https://github.com/vigo999/mindone/commit/5d2aee036b2d2e810d0d602805777fdefd5f5a19) by Didan Deng).
+- fix tie_weight bugs for aria (#1107) ([5bbc21c](https://github.com/vigo999/mindone/commit/5bbc21c1f6301b1267ca88e4f92b8c25e7fb4889) by Chaoran Wei).
+- fix dtype bug & Linear bug (#1078) ([bfa034e](https://github.com/vigo999/mindone/commit/bfa034e86a0d7baef024fd347b457051da3382d7) by YMC).
+- fix ms2.6 error: repeat to repeat_interleave (#1039) ([28f59f5](https://github.com/vigo999/mindone/commit/28f59f5d597a02d12219da4d1b16d8d595ba848c) by Didan Deng).
+- fix qwen2_audio ci error (#1051) ([4fffe35](https://github.com/vigo999/mindone/commit/4fffe35535e58213250e0508c14c63e44686ff87) by YMC).
+- fix(diffusers): fix bugs about checkpoints loading in `utils/hub_utils.py` (#993) ([4273221](https://github.com/vigo999/mindone/commit/42732215572342dd73621d982672d2517201721d) by tanweixi).
+- fix(transformers): add whisper (#960) ([b2008bd](https://github.com/vigo999/mindone/commit/b2008bd4f608803e26cd8b382225515d122c2a19) by litingyu).
+- fix(diffusers/docs): fix some bugs in diffusers_0.32.2 document (#975) ([6425119](https://github.com/vigo999/mindone/commit/64251199633913b476f44812fb7ecc420f37cf37) by Cui-yshoho).
+- fix: examples/diffusers readme (#980) ([0f2f1ae](https://github.com/vigo999/mindone/commit/0f2f1ae44b3be2acbbacc7cc3031a636aa883424) by fzilan).
+- Fix typo (#968) ([4505764](https://github.com/vigo999/mindone/commit/450576419d75e5ff99b1580f09cca5de8b46701e) by Samit).
+- fix requirements (#961) ([32a56e1](https://github.com/vigo999/mindone/commit/32a56e1d48e114f1ffcb0ade892810767a228b56) by Samit).
+- fix mint distributed broadcast src rank ([5149603](https://github.com/vigo999/mindone/commit/51496039ede64c8327fd204106c0e77ee83a9db8) by zhaoting).
+- fix(diffusers/flux):update flux training script from v0.31 to v0.32 (#939) ([eee9581](https://github.com/vigo999/mindone/commit/eee9581e30ca652b46dd9e05424c10be58c3a611) by fzilan).
+- fix import error (#941) ([7703d8d](https://github.com/vigo999/mindone/commit/7703d8da0a01d75fef5736b04222d072534f97b0) by Cheung Ka Wai).
+- fix var memory bug (#936) ([4f0547f](https://github.com/vigo999/mindone/commit/4f0547f16ab1b83441617db0f9f798286cbafb59) by Songyuanwei).
+- fix(diffusers/cogview4): resolve the issue of slow speed with graph (#878) ([18cc657](https://github.com/vigo999/mindone/commit/18cc657244fee4632bda75a4a3d2d3a647bb092f) by Cui-yshoho).
+- fix(transformers): fix bugs for transformers upgrade (#906) ([164c36f](https://github.com/vigo999/mindone/commit/164c36f090f35c226da073324af9407518c11798) by Chaoran Wei).
+- fix(transformers): support automodel call for ModelClass in Modeling_ file (#877) ([414e7eb](https://github.com/vigo999/mindone/commit/414e7ebc8d981fe4606080a7f06e77f3963ad984) by Chaoran Wei).
+- fix(diffusers): fix bug that relies on torch (#870) ([7ead913](https://github.com/vigo999/mindone/commit/7ead913acc0c115c274d178115fcf440b6fe99f5) by The-truthh).
+- fix callback & zero bugs (#861) ([31d3f87](https://github.com/vigo999/mindone/commit/31d3f870fd4aace68e1f010665c040bf6d463e0c) by zhaoting).
+- fix(transformers): generation config bugfix/time module deletion (#839) ([72339ca](https://github.com/vigo999/mindone/commit/72339ca87c68c137c782cdf5ef867dfdb515d397) by Chaoran Wei).
+- fix(diffusers): fix bugs of euler discrete scheduler and attention processor (#840) ([6c85150](https://github.com/vigo999/mindone/commit/6c85150fe5d5722e6e139c3e836f50b07f293f62) by The-truthh).
+- fix a bug (#844) ([5bff290](https://github.com/vigo999/mindone/commit/5bff290d5423ee195c71ba4cb703fb8698d63c44) by zhaoting).
+- fix(T2V-Turbo): fix the bug of lora save&load in T2V-Turbo (#830) ([8be96ce](https://github.com/vigo999/mindone/commit/8be96ce4dcabe288b5ca08ae686539858fa6f27d) by hqkate).
+- fix(diffusers): change repeat to tile uniformly (#810) ([e9ea339](https://github.com/vigo999/mindone/commit/e9ea3398187ba0bb7aa3579db8a3f6b92e7e7992) by Cui-yshoho).
+- fix(diffusers): fix some bugs (prevent infinite recursion if class is not initialized) (#809) ([7108fa1](https://github.com/vigo999/mindone/commit/7108fa130b83160f5179b6619e72e1f7012c5e0d) by Zixiang XU).
+- fix bugs about to_float when fp32 (#792) ([7727f26](https://github.com/vigo999/mindone/commit/7727f269055dd41632b07663a414337bd03de448) by Cui-yshoho).
+- fix(diffusers): fix some bugs (#797) ([ff3c32f](https://github.com/vigo999/mindone/commit/ff3c32f8841928f84ea56ce6df453855f64545c1) by Zixiang XU).
+- fix(diffusers): some bugs about 'lora' (#700) ([39db87c](https://github.com/vigo999/mindone/commit/39db87ce17ac22076b3f96d87eb276ea68e4187d) by Cui-yshoho).
+- fix(diffusers&transformers/test): fix some bugs (#789) ([48b2589](https://github.com/vigo999/mindone/commit/48b258910e2e553ae2949954c35398fcbee1d7a2) by The-truthh).
+- fix dit infer sd3 testcase bug (#786) ([df60d69](https://github.com/vigo999/mindone/commit/df60d69d95903f6a69bae50dc2da8a5bd0bc0aea) by HaleYang).
+- Fix bug in ZeRO parallelism and miscellaneous bugs in opensora_hpcai (#763) ([872f8b4](https://github.com/vigo999/mindone/commit/872f8b4592c1f9adc0a8e3b397600be1723d66d1) by HaoyangLI).
+- fix(diffusers/docs): fix some bugs in docs of diffusers (#767) ([27de756](https://github.com/vigo999/mindone/commit/27de7566538086558dc777ef1a42da096e30e558) by The-truthh).
+- fix(transformers): fix some bugs in Gemma (#756) ([422d9d0](https://github.com/vigo999/mindone/commit/422d9d0a71dd2100118305c4e6a5fc0ae8218948) by Cui-yshoho).
+- Fixed some errors in diffusers training. (#733) ([b478c60](https://github.com/vigo999/mindone/commit/b478c60b1df6bc81dad46e5934bf4c71f0b73033) by liuchuting).
+- fix(diffusers): fix bug of ip_adapter in graph mode (#722) ([1f741ba](https://github.com/vigo999/mindone/commit/1f741bafd38da0699fe647e08958606795807252) by The-truthh).
+- fix bug (#723) ([ff3639e](https://github.com/vigo999/mindone/commit/ff3639e830ae1875ce1c09ae6e14aacf3da4b558) by Songyuanwei).
+- fix(diffusers): resolve lpw error and re-compiled issues (#718) ([21345c5](https://github.com/vigo999/mindone/commit/21345c5f47e24a3e7265fe4bc8e9da040d8c9b3e) by Cui-yshoho).
+- fix(transformers/bert): prevent the existence of 'none' in the return (#683) ([3cb435b](https://github.com/vigo999/mindone/commit/3cb435b6cb12206fb13be9cc2cc50f183efa29ab) by Cui-yshoho).
+- fix: update stable diffusion references (#712) ([dae6e6d](https://github.com/vigo999/mindone/commit/dae6e6d0e7c92994cbbff6f7306a1bb1ef567a6d) by Emmanuel Ferdman).
+- fix readme format issue (#711) ([f2c7d80](https://github.com/vigo999/mindone/commit/f2c7d80cf89db31b87097031672d83bcfe940021) by chenyang23333).
+- fix(diffusers/pipelines): fix ip_adapter loading bug in sdxl (#686) ([6c4b1f3](https://github.com/vigo999/mindone/commit/6c4b1f372b8745aa2034d632d18e09e303f13587) by The-truthh).
+- Fix OpenSora 1.2 training (#643) ([7057ddb](https://github.com/vigo999/mindone/commit/7057ddba12ae4837e73c888a126b62ecf5f9505a) by Samit).
+- fix(transformers/models):fix some bugs (#653) ([aa1c32d](https://github.com/vigo999/mindone/commit/aa1c32d49efbbe1b52b7ddcd050bf68765dd2a71) by Cui-yshoho).
+- fix(transformers): fix some bugs about prefix in load_param (#646) ([fa7f4c4](https://github.com/vigo999/mindone/commit/fa7f4c475ada28d460ab01decbdb831e62a14d62) by Cui-yshoho).
+- fix sd model convert bug (#644) ([89256b1](https://github.com/vigo999/mindone/commit/89256b103da3cb9893737fb5d7436f7c1213b0cc) by Songyuanwei).
+- fix(diffusers/pipelines): fix some bugs to make mindone.diffusers.pipelines compatible with MindSpore 2.3.0 (#640) ([bc82f54](https://github.com/vigo999/mindone/commit/bc82f5469de2136531d140fefaee31cd342cbd6e) by The-truthh).
+- fix(diffusers/unet_1d_blocks): fix some bugs in unet_1d_blocks (#582) ([a94a021](https://github.com/vigo999/mindone/commit/a94a0217a12df932ac0a0b0192c8753c2f004c2b) by Cui-yshoho).
+- Fix latest CANN bugs (repeat ops) on OpenSora1.1 (#595) ([960cfef](https://github.com/vigo999/mindone/commit/960cfef181efe8a10f9bbd497ea6ccb935944fb3) by Samit).
+- fix(ci): fix ci bugs (#552) ([b10daee](https://github.com/vigo999/mindone/commit/b10daee43fb83ccb022cdcfa55cbe857ab210522) by Cui-yshoho).
+- fix(diffusers/schedulers):fix some bugs in schedulers (#528) ([c94744c](https://github.com/vigo999/mindone/commit/c94744ceea4a812b722c0a03800853cfb1aca449) by Cui-yshoho).
+- fix(diffusers/layers): remove `*args` in construct (#530) ([a5a81b6](https://github.com/vigo999/mindone/commit/a5a81b60eb226934a53e17ad36738c800400ac18) by townwish4git).
+- fix(diffusers/pipelines): fix vae encoding (#531) ([b101bbe](https://github.com/vigo999/mindone/commit/b101bbe494118fc7b4e2ef15d6b9ef1517d0e5f4) by townwish4git).
+- fix(diffusers): typo in `freeze_params`, `requires_grad` instead of `require_grad` (#487) ([4591fbc](https://github.com/vigo999/mindone/commit/4591fbcd316a3c4d4e2e9f352555432c1b40036d) by mysterious hhhh).
+- Fix(diffusers/sdxl): mindone.diffusers SDXL training fixes (#460) ([1d6225b](https://github.com/vigo999/mindone/commit/1d6225b313c348b7576b4392ab22b296a063f75d) by townwish4git).
+- fix dit mask error (#471) ([f572e1f](https://github.com/vigo999/mindone/commit/f572e1fcd5ddb2ec0f2d80b9021a80321c0d17e8) by Didan Deng).
+- fix webdataset ranksize gather than tar files (#369) ([9866f36](https://github.com/vigo999/mindone/commit/9866f364d6f94dbc9adf0f7b50ecc5eb76ec1d78) by zhanghuiyao).
+- fix controlnet dataset tokenize bug (#431) ([7bf1866](https://github.com/vigo999/mindone/commit/7bf1866e998b1b0435c71565ab7a55ed6f408096) by yuedongli).
+- fix SVD model conversion (#430) ([a607f68](https://github.com/vigo999/mindone/commit/a607f684f3e38ab2c3fce372792d200a916fd31d) by Rustam Khadipash).
+- fix sdv2 text_overfit bug (#410) ([928a6ae](https://github.com/vigo999/mindone/commit/928a6ae2a4b81620788ec2191a45f99e9f59d19e) by Songyuanwei).
+- Fix bug when ms.set_context(max_device_memory="xxGB") (#394) ([4c49de3](https://github.com/vigo999/mindone/commit/4c49de3e3e219f277838e5aea33186ccb1c4505b) by HaoyangLI).
+- Fix path args (#391) ([23ece10](https://github.com/vigo999/mindone/commit/23ece1083edb478f7d2829128fbbd2110d3ba750) by Samit).
+- fix import (#382) ([e7d5538](https://github.com/vigo999/mindone/commit/e7d55385979f21aa9c75efb9055236ce0dfd68cd) by Samit).
+- fix num_parallel_worker setting bug (#348) ([02cd7e9](https://github.com/vigo999/mindone/commit/02cd7e93f28cb5a0c1c09cdf33300c526fa94d7d) by zhanghuiyao).
+- fix convert_weight.py‘s bug (#351) ([346cb78](https://github.com/vigo999/mindone/commit/346cb7841af4f21b16f63c06b1167c1bc2986b12) by chenyang23333).
+- Fixes: SD XL interface compatibility (#345) ([e7d7a7b](https://github.com/vigo999/mindone/commit/e7d7a7b6d5b0180bf1cc9079b22370f41b51439e) by townwish4git).
+- fix timestep bias weighting strategy (#341) ([21bc7e8](https://github.com/vigo999/mindone/commit/21bc7e859cc54f47a90d3af9b0b43ea7acf81428) by zhanghuiyao).
+- fix bugs (#340) ([0973d52](https://github.com/vigo999/mindone/commit/0973d52fbe5a9582b2b3fbcd1fc8cf5a2d39ecf8) by Cui-yshoho).
+- fix unclip inference and add ddim v-pred support (#332) ([52f11f6](https://github.com/vigo999/mindone/commit/52f11f6a422247027f1672fd530e41e9415aa116) by Cheung Ka Wai).
+- fixes to T2I Adapter (#330) ([e2e8188](https://github.com/vigo999/mindone/commit/e2e8188057e5c9a792dac5004d6392303bd43d43) by Rustam Khadipash).
+- fixed test bug for import path (#329) ([c238872](https://github.com/vigo999/mindone/commit/c2388728e95cdb12c1a5dbd10fc19f48fa186719) by Songyuanwei).
+- Fix sdv1.5 + FlashAttention bug on 910B (#310) ([15b241a](https://github.com/vigo999/mindone/commit/15b241aee6279bbbb4bfcd91189709c4723ac282) by Didan Deng).
+- Fix docs (#277) ([e9e45b1](https://github.com/vigo999/mindone/commit/e9e45b1df28b4998ed3dc81d37ad565daf0b2a10) by Samit).
+- Fix WebDataset loading bug. (#287) ([8d02a87](https://github.com/vigo999/mindone/commit/8d02a87f0b2f2ed211bf2e10dc028fa46d12e153) by zhanghuiyao).
+- fix: change data type to make flash attention in sd_xl available (#264) ([a3c0782](https://github.com/vigo999/mindone/commit/a3c0782b371c21944a4a5e6bbd3dc4cc647e0a18) by XixinYang).
+- fix vanilla ft mix-precision (#257) ([0828aee](https://github.com/vigo999/mindone/commit/0828aeeb7d819de6fe2a543d4e72340745818061) by zhanghuiyao).
+- Fixed an error in graph mode for single-operator broadcast and added the modelarts multi-machine running script. (#240) ([0eb6546](https://github.com/vigo999/mindone/commit/0eb654654f40f8eb2d9cac1dfecaefe24cebc60e) by liuchuting).
+- fix link (#244) ([2e4f4ac](https://github.com/vigo999/mindone/commit/2e4f4ac3de9709f40296834252290243ce5ee631) by Samit).
+- Fix bug when group_stratety is None (#229) ([e09b32f](https://github.com/vigo999/mindone/commit/e09b32f82eabd928fb33a0f916cc9dc68c1f5064) by Alicia).
+- fix eval fid bug in torch backend (#221) ([efd1d03](https://github.com/vigo999/mindone/commit/efd1d034fc554086428d72a7e2153253de1b59e9) by Songyuanwei).
+- fix: correct differences with source code in clip and open_clip (#225) ([150bd8b](https://github.com/vigo999/mindone/commit/150bd8b9a494c4e9ce3dd0ed105566e71a951759) by XixinYang).
+- fix clip tokenizer download error (#224) ([253edaf](https://github.com/vigo999/mindone/commit/253edafb7dda4bd17c1e1b23c3ca39c67c84ae52) by Samit).
+- fix graph inference in fp16 mode (#166) ([466f935](https://github.com/vigo999/mindone/commit/466f935b2eeaea7702fad2de51b267408d2f9f11) by Cheung Ka Wai).
+- Fix bug  (#163) ([13a6ebb](https://github.com/vigo999/mindone/commit/13a6ebb1eb2aa81174d7b190f1fb6015611db135) by Samit).
+- Fix 910B ckpt saving bugs, allow train from scratch, add small training samples (#162) ([b11bbca](https://github.com/vigo999/mindone/commit/b11bbca6c9106770a27a3c59eca9e19a734e4c38) by Samit).
+- Fix VC relative path issues on modelarts (#158) ([a937188](https://github.com/vigo999/mindone/commit/a937188f2af80c54822154e4190cb0eba3da24db) by Samit).
+- Fix 910b bugs (on MS master 0919); Allow grad accumulation setting; Fix checkpoint saving name (#153) ([84b407e](https://github.com/vigo999/mindone/commit/84b407e6793cc7e7890132ffd2a0f057295c5ada) by Samit).
+- Fix readme (#146) ([0dda675](https://github.com/vigo999/mindone/commit/0dda675d121f10618f03a40ca436703a053ff630) by Samit).
+- Fix doc1 (#145) ([4d1e98a](https://github.com/vigo999/mindone/commit/4d1e98a8edc900b99e5158afd525a4c63eda8f0e) by Samit).
+- fix dreambooth+lora trainable param bug (#144) ([65f36be](https://github.com/vigo999/mindone/commit/65f36be8183591118e88f1ccbc7e8816112147e7) by Didan Deng).
+- Fix videocomposer bugs (#128) ([70c53d9](https://github.com/vigo999/mindone/commit/70c53d951465e2045edc0062a8b89bb21706edea) by Samit).
+- fix depth url (#124) ([369c560](https://github.com/vigo999/mindone/commit/369c5605cf0d84dfe3af8ac1c84c86b6a4f0867a) by Samit).
+- fix: fix the bug of lr scheduler (#107) ([31c65ef](https://github.com/vigo999/mindone/commit/31c65efd11813ed711ac2acb537ccd3fd9168e14) by The-truthh).
+- Fix flash attention for ms2.1 (#104) ([ed0928a](https://github.com/vigo999/mindone/commit/ed0928af38f3b6f803f9e30620c3ddb3627b70da) by VictorHe-1).
+- fix eval path (#97) ([d8d19e5](https://github.com/vigo999/mindone/commit/d8d19e57b641b8953cc4c256a78c2a5169a8068c) by Xiangyi).
+- fix a bug (#70) ([f27bb2a](https://github.com/vigo999/mindone/commit/f27bb2a81d01f7d9fef0276dfaeabfa8b229dfa9) by zhaoting).
+- Fix bugs in vanilla finetune (#66) ([4a7ff3e](https://github.com/vigo999/mindone/commit/4a7ff3e119b4a502585705ddde5debc9bddc0b3f) by Samit).
+- fix callback self.use_lora bug (#65) ([6ded238](https://github.com/vigo999/mindone/commit/6ded2385b6913d0bbdd7f66b715eeae9333d3e3c) by Didan Deng).
+- Fix allocate memory failed bug during ema training and bug when decay_steps is less than or equal to 0 (#64) ([ba2d1a6](https://github.com/vigo999/mindone/commit/ba2d1a6814200d488d6297e5ae314f5801a047a8) by Songyuanwei).
+- Fix bugs and add distributed training script (#57) ([a034ba3](https://github.com/vigo999/mindone/commit/a034ba325c77265fda7980f1911a3c4666fcfb79) by Samit).
+- fix graph mode (#55) ([056face](https://github.com/vigo999/mindone/commit/056face2cc923c3c159379ecb9fc05cb0a32e01b) by dyz).
+- fix v2.1 t2i sampling v-prediction (#47) ([06766f4](https://github.com/vigo999/mindone/commit/06766f4d42fa77e7facec1ae0cd1b2822ecb50bf) by dyz).
+- Fix codes: error message. (#43) ([cd4d461](https://github.com/vigo999/mindone/commit/cd4d461ea0d95484193171de5bd17eb8ccd164a6) by Alicia).
+- Fix flask8. (#45) ([ef7bb96](https://github.com/vigo999/mindone/commit/ef7bb96e1d8ea83e1d702d31073ef5bfa5ed5a26) by jianyunchao).
+- fix bug: negative prompt read from file (#38) ([7f2d274](https://github.com/vigo999/mindone/commit/7f2d27484ef3b89fe8f152de33360f78104c06a2) by dyz).
+- Fix typo (#37) ([9daa587](https://github.com/vigo999/mindone/commit/9daa587f62886aa256df96dfa6de935688cbdbe5) by Samit).
+- Fix bugs (MS2.0/Ascend/Inference) 1. Validator not exsit in ms2.0 2. Tensor data type inconsist ([a33fb38](https://github.com/vigo999/mindone/commit/a33fb381c10d4c5068f3973b4666490cbac027a7) by congw).
+- fix docs (#28) ([e09684d](https://github.com/vigo999/mindone/commit/e09684dbd6e2d38bc601e5d66990b95aa76e03bd) by Samit).
+- Fix docs (#27) ([9880d80](https://github.com/vigo999/mindone/commit/9880d80316c3fde6773f70bd1abcd85fa7daecef) by Samit).
+- Fix bugs. Support SD2.0 parallel training ([bf08d85](https://github.com/vigo999/mindone/commit/bf08d853bbb4d1cd072c132e86d5bc702f4c34ae) by samithuang).
+- fix typo ([2cc73a5](https://github.com/vigo999/mindone/commit/2cc73a5db2bcf42a0f9a326238888dc371cde773) by Samit).
+- fix tokenizer and speedup with fp16 ([59e1d04](https://github.com/vigo999/mindone/commit/59e1d0417c7317aea19c85659aeb1aa0b0da2eda) by dyz).
+
+### Changed
+
+- change some paras from necessary to optional (#304) ([86bea01](https://github.com/vigo999/mindone/commit/86bea01f062c129715612ac823b033c022998538) by chenyang23333).
+- Change some operators to fp32 calculation implicitly  (#167) ([4c8e35d](https://github.com/vigo999/mindone/commit/4c8e35d8e9388c8931f985a75a80e57a2501c8c1) by Cheung Ka Wai).
+- Change resume ckpt name for train (#139) ([9cce6c6](https://github.com/vigo999/mindone/commit/9cce6c6a407f9c4cb015cb0d0334beb1500f4b05) by Samit).
+- Change parameter "version" in model_config.yaml into more readable parameters (#114) ([d8a0c6a](https://github.com/vigo999/mindone/commit/d8a0c6a1be39466b3216673b7aadf53f2b3ef43f) by The-truthh).
+- Change environment variable "SD_VERSION" to args.version (#113) ([799b0ee](https://github.com/vigo999/mindone/commit/799b0ee2c2258708b5929637929684afe71cc8a2) by The-truthh).
+- change to paper name bert-mpu (#14) ([cfb8e41](https://github.com/vigo999/mindone/commit/cfb8e41bdd87d3b1487f3ba435855e07e202fd78) by dyz).
+
+### Removed
+
+- remove old models (#1350) ([1381a47](https://github.com/vigo999/mindone/commit/1381a47394d630325e1ddb9342acc5c1852f4f4b) by vigo999).
+- Remove adamw implementation variants: adamw_mf and adamw_zero1  (#1302) ([a860124](https://github.com/vigo999/mindone/commit/a860124253f7f694ae7e6b79b9e1cf784625e48c) by Samit).
+- Remove the use of pickle to prevent security issues (#1108) ([5a76add](https://github.com/vigo999/mindone/commit/5a76add25b5bb370fe96727260f774871e374bdb) by QYuFong).
+- remove legacy files (#859) ([78067cc](https://github.com/vigo999/mindone/commit/78067cc46d57a0c9fdbca28a6fe962189295bbda) by Didan Deng).
+- Remove less common mindone components, fix CI (#612) ([1cea5a9](https://github.com/vigo999/mindone/commit/1cea5a9225fa776117c51d11751e819a2b77078d) by Samit).
+- remove assets images (#119) ([7316a68](https://github.com/vigo999/mindone/commit/7316a6873fdbb637df77f3bf543777ba71cd8563) by Didan Deng).
+- Remove clip zh, impr convention, fix typo (#10) ([2538249](https://github.com/vigo999/mindone/commit/2538249ef1e3fdf22982d503c3d11e1f768ed48c) by Samit).
