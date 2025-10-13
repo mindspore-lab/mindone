@@ -31,9 +31,10 @@ We are excited to introduce **Wan2.2**, a major upgrade to our foundational vide
 ## Run Wan2.2
 
 #### Requirements
-|mindspore |	ascend driver | firmware | cann toolkit/kernel|
-|--- | --- | --- | --- |
-|2.7.0 | 24.1RC3 | 7.3.0.1.231 | 8.2.RC1 |
+| mindspore |	ascend driver | firmware    | cann toolkit/kernel|
+| :-------: | :-----------: | :---------: | :----------------: |
+| 2.6.0     |  25.0.RC1.1   | 7.7.0.1.231 | 8.1.RC1            |
+| 2.7.0     |  25.2.0       | 7.7.0.6.236 | 8.2.RC1            |
 
 
 #### Installation
