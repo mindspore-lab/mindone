@@ -74,6 +74,14 @@ output_text = processor.batch_decode(
 print(output_text)
 ```
 
+## **Notice**  
+When setting fp32 on 910B4(32GB) machine, inference process may raise OOM error. Becausem the theoretical memory consumption(model weights+activations+memory fragments) may reach to maximum memory on 910B4 machine.  
+In this case, some methods could be tried to reduce NPU memory:  
+- Method 1. set mindspore_dtype to ms.bfloat16 or ms.float16(model = Qwen2VLForConditionalGeneration.from_pretrained("Qwen2/Qwen2-VL-7B-Instruct", mindspore_dtype=mindspore.bfloat16)). The theoretical memory consumption would be reduced to 14GB.  
+- Method 2. Reduce image size  
+- Method 3. change the machine to 910B1/910B2/910B3.
+
+
 # Performance
 ## Inference
 
