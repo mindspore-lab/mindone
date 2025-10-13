@@ -29,7 +29,7 @@ cd mindone
 pip install -e .
 # NOTE: transformers requires >=4.46.0
 
-cd examples/cogview
+cd examples/diffusers/cogview
 ```
 
 

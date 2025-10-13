@@ -112,11 +112,12 @@ class FluxAttnProcessor:
         hidden_states = hidden_states.to(query.dtype)
 
         if encoder_hidden_states is not None:
+            # mindspore not support split_with_sizes and mindspore 2.6 jit not support the format of split_size as list
             # encoder_hidden_states, hidden_states = hidden_states.split_with_sizes(
             #     [encoder_hidden_states.shape[1], hidden_states.shape[1] - encoder_hidden_states.shape[1]], dim=1
             # )
             encoder_hidden_states, hidden_states = hidden_states.split(
-                [encoder_hidden_states.shape[1], hidden_states.shape[1] - encoder_hidden_states.shape[1]], dim=1
+                (encoder_hidden_states.shape[1], hidden_states.shape[1] - encoder_hidden_states.shape[1]), dim=1
             )
             hidden_states = attn.to_out[0](hidden_states)
             hidden_states = attn.to_out[1](hidden_states)
@@ -204,11 +205,12 @@ class FluxIPAdapterAttnProcessor(nn.Cell):
         hidden_states = hidden_states.to(query.dtype)
 
         if encoder_hidden_states is not None:
+            # mindspore not support split_with_sizes and mindspore 2.6 jit not support the format of split_size as list
             # encoder_hidden_states, hidden_states = hidden_states.split_with_sizes(
             #     [encoder_hidden_states.shape[1], hidden_states.shape[1] - encoder_hidden_states.shape[1]], dim=1
             # )
             encoder_hidden_states, hidden_states = hidden_states.split(
-                [encoder_hidden_states.shape[1], hidden_states.shape[1] - encoder_hidden_states.shape[1]], dim=1
+                (encoder_hidden_states.shape[1], hidden_states.shape[1] - encoder_hidden_states.shape[1]), dim=1
             )
             hidden_states = attn.to_out[0](hidden_states)
             hidden_states = attn.to_out[1](hidden_states)

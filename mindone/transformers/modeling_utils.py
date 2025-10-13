@@ -1664,6 +1664,10 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         # we currently don't use this setting automatically, but may start to use with v5
         dtype = get_parameter_dtype(model_to_save)
         model_to_save.config.torch_dtype = repr(dtype).split(".")[1]
+        model_to_save.config.mindspore_dtype = repr(dtype).split(".")[1]
+        for sub in ("text_config", "vision_config"):
+            if hasattr(model_to_save.config, sub):
+                getattr(model_to_save.config, sub).mindspore_dtype = repr(dtype).split(".")[1]
 
         # Attach architecture to the config
         model_to_save.config.architectures = [model_to_save.__class__.__name__]
