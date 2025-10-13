@@ -41,10 +41,6 @@ Segment Anything Model 2 (SAM 2) is a foundation model for image/video visual se
     - ✅ Prediction of segmentation masks given a static image.
 
 
-### TODO
-* [ ] inference script for video input **[WIP]**.
-* [ ] training script **[WIP]**.
-* [ ] benchmark **[WIP]**.
 
 Your contributions are welcome.
 
