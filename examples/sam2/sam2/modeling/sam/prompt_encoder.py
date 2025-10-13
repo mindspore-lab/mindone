@@ -174,7 +174,7 @@ class PromptEncoder(nn.Cell):
             Bx(embed_dim)x(embed_H)x(embed_W)
         """
         bs = self._get_batch_size(points, boxes, masks)
-        sparse_embeddings = mint.empty((bs, 0, self.embed_dim), ms.float32)
+        sparse_embeddings = mint.empty((bs, 0, self.embed_dim), dtype=ms.float32)
         if points is not None:
             coords, labels = points
             point_embeddings = self._embed_points(coords, labels, pad=(boxes is None))
