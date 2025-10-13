@@ -49,7 +49,14 @@ class SelfAttention(nn.Cell):
         p = self.dropout.p if self.training else 0.0
         # TODO: check mask
         x = ops.flash_attention_score(
-            q, k, v, self.num_heads, attn_mask=mask, scalar_value=1 / math.sqrt(q.shape[-1]), keep_prob=1 - p
+            q,
+            k,
+            v,
+            self.num_heads,
+            attn_mask=mask,
+            scalar_value=1 / math.sqrt(q.shape[-1]),
+            keep_prob=1 - p,
+            input_layout="BNSD",
         )
         x = x.permute(0, 2, 1, 3).reshape(b, s, c)
 
