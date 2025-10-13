@@ -89,6 +89,7 @@ from . import (
     gemma3,
     git,
     glm,
+    glm4_moe,
     glpn,
     got_ocr2,
     gpt2,
