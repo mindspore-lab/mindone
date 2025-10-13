@@ -500,6 +500,8 @@ from .models.ernie import (
     ErnieModel,
     ErniePreTrainedModel,
 )
+from .models.ernie4_5 import Ernie4_5ForCausalLM, Ernie4_5Model, Ernie4_5PreTrainedModel
+from .models.ernie4_5_moe import Ernie4_5_MoeForCausalLM, Ernie4_5_MoeModel, Ernie4_5_MoePreTrainedModel
 from .models.esm import (
     EsmForMaskedLM,
     EsmForSequenceClassification,
