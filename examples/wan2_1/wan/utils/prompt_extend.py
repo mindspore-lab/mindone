@@ -192,13 +192,10 @@ class QwenPromptExpander(PromptExpander):
         else:
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
             with no_init_parameters():
-                # TODO: change to flash attention & use cache & do sampling
                 self.model = Qwen2ForCausalLM.from_pretrained(
                     self.model_name,
                     mindspore_dtype=ms.bfloat16,
-                    attn_implementation="eager",
-                    use_cache=False,
-                    do_sample=False,
+                    attn_implementation="flash_attention_2",
                 )
             if qwen_zero3:
                 self.model = prepare_network(
@@ -215,13 +212,13 @@ class QwenPromptExpander(PromptExpander):
         messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}]
         text = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         model_inputs = self.tokenizer([text], return_tensors="np")
-        model_inputs = {k: self._to_int32(Tensor(v)) for k, v in model_inputs.items()}
+        for k, v in model_inputs.items():
+            model_inputs[k] = ms.tensor(v)
 
         generated_ids = self.model.generate(**model_inputs, max_new_tokens=512).asnumpy()
-        # TODO: somehow the output is aready trimmed
-        # generated_ids = [
-        #     output_ids[len(input_ids) :] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
-        # ]
+        generated_ids = [
+            output_ids[len(input_ids) :] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
+        ]
 
         expanded_prompt = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
         return PromptOutput(
@@ -258,14 +255,14 @@ class QwenPromptExpander(PromptExpander):
             return_tensors="pt",
         )
 
-        inputs = {k: self._to_int32(Tensor(v.numpy())) for k, v in inputs.items()}
+        for k, v in inputs.items():
+            inputs[k] = ms.tensor(v)
 
         # Inference: Generation of the output
         generated_ids = self.model.generate(**inputs, max_new_tokens=512).asnumpy()
-        # TODO: somehow the output is aready trimmed
-        # generated_ids_trimmed = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs["input_ids"], generated_ids)]
+        generated_ids_trimmed = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs["input_ids"], generated_ids)]
         expanded_prompt = self.processor.batch_decode(
-            generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
+            generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
         )[0]
         return PromptOutput(
             status=True,
