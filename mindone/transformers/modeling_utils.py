@@ -67,7 +67,7 @@ from .integrations import PeftAdapterMixin
 from .integrations.flash_attention import flash_attention_forward
 from .integrations.sdpa_attention import sdpa_attention_forward
 from .loss.loss_utils import LOSS_MAPPING
-from .mindspore_adapter import dtype_to_str
+from .mindspore_adapter import TORCH_TO_MINDSPORE_DTYPE_MAP, dtype_to_str
 from .mindspore_utils import (  # noqa: F401
     Conv1D,
     apply_chunking_to_forward,
@@ -771,7 +771,9 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         if not getattr(config, "_attn_implementation_autoset", False):
             # config usually has a `mindspore_dtype` but we need the next line for the `no_super_init` tests
             # TODO mindspore does not have get_default_dtype api
-            dtype = config.mindspore_dtype if hasattr(config, "mindspore_dtype") else ms.float32
+            dtype = (
+                TORCH_TO_MINDSPORE_DTYPE_MAP[str(config.torch_dtype)] if hasattr(config, "torch_dtype") else ms.float32
+            )
             config = self._autoset_attn_implementation(config, mindspore_dtype=dtype)
         # Save config and origin of the pretrained weights if given in model
         self.config = config
@@ -1038,11 +1040,6 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         if isinstance(mindspore_dtype, str):
             mindspore_dtype = getattr(ms, mindspore_dtype)
         elif mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
-            TORCH_TO_MINDSPORE_DTYPE_MAP = {
-                "torch.float32": ms.float32,
-                "torch.bfloat16": ms.bfloat16,
-                "torch.float16": ms.float16,
-            }
             mindspore_dtype = str(mindspore_dtype)
             mindspore_dtype = TORCH_TO_MINDSPORE_DTYPE_MAP[mindspore_dtype]
 
