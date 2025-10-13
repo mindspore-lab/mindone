@@ -8,8 +8,9 @@ from typing import Dict, List, Literal, Optional, Tuple, Union
 import cv2
 import imageio
 import numpy as np
+from decord import VideoReader
 
-from mindone.data import BaseDataset, VideoReader
+from mindone.data import BaseDataset
 
 from .buckets import get_target_size
 from .transforms import HorizontalFlip, ResizeCrop
@@ -17,8 +18,6 @@ from .transforms import HorizontalFlip, ResizeCrop
 __all__ = ["VideoDataset", "BatchTransform"]
 
 logger = logging.getLogger()
-
-IMAGE_EXT = (".jpg", ".jpeg", ".png", ".gif", ".webp")
 
 
 def get_video_path_list(folder: str, video_column: str) -> List[Dict[str, str]]:
@@ -109,25 +108,24 @@ class VideoDataset(BaseDataset):
         video_dict = self.dataset[idx].copy()
         video_path = video_dict[self.video_column]
 
-        if video_path.lower().endswith(IMAGE_EXT):
-            video_dict[self.video_column] = cv2.cvtColor(cv2.imread(video_path), cv2.COLOR_BGR2RGB)
+        video_reader = VideoReader(video_path)
+        video_length = len(video_reader)
+
+        if not self.return_image:
+            clip_length = video_length
+            if self.sample_n_frames > 0:
+                clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
+            start_idx = 0 if self._deterministic else random.randint(0, video_length - clip_length)
+            batch_index = list(range(start_idx, start_idx + clip_length, self.sample_stride))
         else:
-            with VideoReader(video_path) as video_reader:
-                video_length = len(video_reader)
+            batch_index = [0] if self._deterministic else [random.randint(0, video_length - 1)]
 
-                if not self.return_image:
-                    clip_length = video_length
-                    if self.sample_n_frames > 0:
-                        clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
-                    start_idx = 0 if self._deterministic else random.randint(0, video_length - clip_length)
-                    batch_index = list(range(start_idx, start_idx + clip_length, self.sample_stride))
-                else:
-                    batch_index = [0] if self._deterministic else [random.randint(0, video_length - 1)]
+        if video_path.endswith(".gif"):
+            video_dict[self.video_column] = video_reader[batch_index]  # shape: (f, h, w, c)
+        else:
+            video_dict[self.video_column] = video_reader.get_batch(batch_index).asnumpy()  # shape: (f, h, w, c)
 
-                if video_path.endswith(".gif"):
-                    video_dict[self.video_column] = video_reader[batch_index]  # shape: (f, h, w, c)
-                else:
-                    video_dict[self.video_column] = video_reader.fetch_frames(clip_length)  # shape: (f, h, w, c)
+        del video_reader
 
         video_dict = self._apply_transforms(video_dict, self._transforms)
 
@@ -164,7 +162,7 @@ class VideoDataset(BaseDataset):
         random_crop: bool = False,
         random_flip: bool = False,
         video_column: str = "video",
-        interpolation: int = cv2.INTER_AREA,
+        interpolation: int = cv2.INTER_CUBIC,
     ) -> List[dict]:
         if random_crop:
             raise NotImplementedError("Random cropping is not supported yet.")
@@ -172,7 +170,6 @@ class VideoDataset(BaseDataset):
         operations = [ResizeCrop(size, interpolation=interpolation)]
         if random_flip:
             operations.append(HorizontalFlip(p=0.5))
-        operations.append(lambda x: x[None, ...] if x.ndim == 3 else x),  # if image
         operations.append(lambda x: np.transpose(x, (3, 0, 1, 2)))  # T H W C -> C T H W
         operations.append(lambda x: x.astype(np.float32) / 127.5 - 1)
 
