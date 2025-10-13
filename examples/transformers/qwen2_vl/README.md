@@ -28,13 +28,12 @@ Pretrained weights from huggingface hub: [Qwen2-VL-7B-Instruct](https://huggingf
 `vqa_test.py` and `video_understanding.py` provides examples of image and video VQA. Here is an usage example of image understanding:
 
 ```python
+import mindspore
 from transformers import AutoProcessor
 from mindone.transformers import Qwen2VLForConditionalGeneration
 from mindone.transformers.models.qwen2_vl.qwen_vl_utils import process_vision_info
-from mindspore import Tensor
-import numpy as np
 
-model = Qwen2VLForConditionalGeneration.from_pretrained("Qwen2/Qwen2-VL-7B-Instruct", mindspore_dtype=ms.float32)
+model = Qwen2VLForConditionalGeneration.from_pretrained("Qwen2/Qwen2-VL-7B-Instruct", mindspore_dtype=mindspore.float32)
 processor = AutoProcessor.from_pretrained("Qwen2/Qwen2-VL-7B-Instruct")
 
 messages = [
@@ -63,9 +62,9 @@ inputs = processor(
 )
 # convert input to Tensor
 for key, value in inputs.items():
-    inputs[key] = ms.Tensor(value)
-    if inputs[key].dtype == ms.int64:
-        inputs[key] = inputs[key].to(ms.int32)
+    inputs[key] = mindspore.Tensor(value)
+    if inputs[key].dtype == mindspore.int64:
+        inputs[key] = inputs[key].to(mindspore.int32)
 generated_ids = model.generate(**inputs, max_new_tokens=128)
 output_text = processor.batch_decode(
     generated_ids,
