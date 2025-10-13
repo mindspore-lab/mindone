@@ -18,7 +18,7 @@ Segment Anything Model 2（SAM 2）是一个用于图像/视频视觉分割任�
 
 </div>
 
-1. 安装 [CANN 8.0.RC3.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC3.beta1) 和 MindSpore，具体请参考[官方安装说明](https://www.mindspore.cn/install)。
+1. 安装 [CANN 8.1.RC1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.1.RC1) 和 MindSpore，具体请参考[官方安装说明](https://www.mindspore.cn/install)。
 2. 安装依赖
     ```shell
     pip install -r requirements.txt
