@@ -73,6 +73,8 @@ from . import (
     encodec,
     encoder_decoder,
     ernie,
+    ernie4_5,
+    ernie4_5_moe,
     esm,
     falcon,
     falcon_mamba,
