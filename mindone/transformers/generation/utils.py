@@ -99,7 +99,9 @@ from mindone.transformers.generation.stopping_criteria import (
     MaxTimeCriteria,
     StoppingCriteria,
     StoppingCriteriaList,
+    StopStringCriteria,
 )
+from mindone.transformers.masking_utils import create_masks_for_generate
 from mindone.transformers.mindspore_adapter.paged_attention_block_tables import BlockTables
 from mindone.transformers.mindspore_adapter.select_operator import get_multinomial_op
 
@@ -323,6 +325,28 @@ class GenerateBeamEncoderDecoderOutput(ModelOutput):
     decoder_hidden_states: Optional[tuple[tuple[ms.Tensor]]] = None
     past_key_values: Optional[tuple[tuple[tuple[ms.Tensor]]]] = None
 
+
+# TODO (joao): remove the equivalent classes and typing shortcuts below in v5
+# Equivalent classes (kept for retrocompatibility purposes)
+GreedySearchDecoderOnlyOutput = GenerateDecoderOnlyOutput
+ContrastiveSearchDecoderOnlyOutput = GenerateDecoderOnlyOutput
+SampleDecoderOnlyOutput = GenerateDecoderOnlyOutput
+
+ContrastiveSearchEncoderDecoderOutput = GenerateEncoderDecoderOutput
+GreedySearchEncoderDecoderOutput = GenerateEncoderDecoderOutput
+SampleEncoderDecoderOutput = GenerateEncoderDecoderOutput
+
+BeamSearchDecoderOnlyOutput = GenerateBeamDecoderOnlyOutput
+BeamSampleDecoderOnlyOutput = GenerateBeamDecoderOnlyOutput
+
+BeamSearchEncoderDecoderOutput = GenerateBeamEncoderDecoderOutput
+BeamSampleEncoderDecoderOutput = GenerateBeamEncoderDecoderOutput
+
+GreedySearchOutput = Union[GreedySearchEncoderDecoderOutput, GreedySearchDecoderOnlyOutput]
+SampleOutput = Union[SampleEncoderDecoderOutput, SampleDecoderOnlyOutput]
+BeamSearchOutput = Union[BeamSearchEncoderDecoderOutput, BeamSearchDecoderOnlyOutput]
+BeamSampleOutput = Union[BeamSampleEncoderDecoderOutput, BeamSampleDecoderOnlyOutput]
+ContrastiveSearchOutput = Union[ContrastiveSearchEncoderDecoderOutput, ContrastiveSearchDecoderOnlyOutput]
 
 # Typing shortcuts
 GenerateNonBeamOutput = Union[GenerateDecoderOnlyOutput, GenerateEncoderDecoderOutput]
@@ -653,19 +677,30 @@ class GenerationMixin:
                     base_model, "_prepare_4d_causal_attention_mask_with_cache_position", None
                 )
             if causal_mask_creation_function is None:
-                logger.warning_once(
-                    f"{self.__class__.__name__} has no `_prepare_4d_causal_attention_mask_with_cache_position` method "
-                    "defined in its base modeling class. Compiled forward passes will be sub-optimal. If you're "
-                    "writing code, see Llama for an example implementation. If you're a user, please report this "
-                    "issue on GitHub."
+                token_type_ids = model_inputs.get("token_type_ids", None)
+                position_ids = model_inputs.get(position_ids_key, None)
+                # Some models may overwrite the general one
+                causal_mask_creation_function = getattr(self, "create_masks_for_generate", create_masks_for_generate)
+                attention_mask = causal_mask_creation_function(
+                    config=self.config,
+                    # we only need batch size, seq_length and dtype here - we don't care about the values of the embeddings
+                    input_embeds=mint.empty((batch_size, sequence_length), dtype=self.dtype),
+                    attention_mask=attention_mask,
+                    cache_position=cache_position,
+                    past_key_values=past_key_values,
+                    position_ids=position_ids,
+                    token_type_ids=token_type_ids,
                 )
             else:
                 attention_mask = causal_mask_creation_function(
                     attention_mask,
                     sequence_length=sequence_length,
                     target_length=past_key_values.get_max_cache_shape(),
+                    dtype=self.dtype,
                     cache_position=cache_position,
                     batch_size=batch_size,
+                    config=self.config,
+                    past_key_values=past_key_values,
                 )
         if attention_mask is not None:
             model_inputs[attention_mask_key] = attention_mask
@@ -801,7 +836,9 @@ class GenerationMixin:
         # - encoder-decoder models should complain if the user attempts to pass `inputs_embeds` and `input_ids`, and
         # pull the former to inputs. It will be used in place of `input_ids` to get the encoder hidden states.
         if input_name == "input_ids" and "inputs_embeds" in model_kwargs:
-            if not self.config.is_encoder_decoder:
+            if model_kwargs["inputs_embeds"] is None:
+                model_kwargs.pop("inputs_embeds")
+            elif not self.config.is_encoder_decoder:
                 has_inputs_embeds_forwarding = "inputs_embeds" in set(
                     inspect.signature(self.prepare_inputs_for_generation).parameters.keys()
                 )
@@ -816,10 +853,11 @@ class GenerationMixin:
                 model_kwargs["input_ids"] = self._maybe_initialize_input_ids_for_generation(
                     inputs, bos_token_id, model_kwargs=model_kwargs
                 )
+                inputs, input_name = model_kwargs["inputs_embeds"], "inputs_embeds"
             else:
                 if inputs is not None:
                     raise ValueError("You passed `inputs_embeds` and `input_ids` to `.generate()`. Please pick one.")
-            inputs, input_name = model_kwargs["inputs_embeds"], "inputs_embeds"
+                inputs, input_name = model_kwargs["inputs_embeds"], "inputs_embeds"
 
         # 4. if `inputs` is still None, try to create `input_ids` from BOS token
         inputs = self._maybe_initialize_input_ids_for_generation(inputs, bos_token_id, model_kwargs)
@@ -1148,7 +1186,11 @@ class GenerationMixin:
         elif different_tokenizers:
             if generation_config.do_sample is True:
                 atm_translator = AssistantVocabTranslatorCache.get_translator(
-                    target_tokenizer, assistant_tokenizer, self.config.vocab_size
+                    target_tokenizer,
+                    assistant_tokenizer,
+                    self.config.get_text_config().vocab_size,
+                    assistant_model=assistant_model,
+                    assistant_prune_lm_head=True,  # prune LM head of assistant model
                 )
                 candidate_generator = UniversalSpeculativeDecodingGenerator(
                     input_ids=input_ids,
@@ -1275,7 +1317,7 @@ class GenerationMixin:
             )
         if (
             generation_config.min_length is not None
-            and getattr(generation_config._eos_token_tensor, "_eos_token_tensor", None) is not None
+            and getattr(generation_config, "_eos_token_tensor", None) is not None
             and generation_config.min_length > 0
         ):
             processors.append(
@@ -1286,7 +1328,7 @@ class GenerationMixin:
             )
         if (
             generation_config.min_new_tokens is not None
-            and getattr(generation_config._eos_token_tensor, "_eos_token_tensor", None) is not None
+            and getattr(generation_config, "_eos_token_tensor", None) is not None
             and generation_config.min_new_tokens > 0
         ):
             processors.append(
@@ -1428,8 +1470,7 @@ class GenerationMixin:
                     "model's generation config, but we could not locate a tokenizer. When generating with "
                     "stop strings, you must pass the model's tokenizer to the `tokenizer` argument of `generate`."
                 )
-            # criteria.append(StopStringCriteria(stop_strings=generation_config.stop_strings, tokenizer=tokenizer))
-            raise NotImplementedError
+            criteria.append(StopStringCriteria(stop_strings=generation_config.stop_strings, tokenizer=tokenizer))
         if generation_config._eos_token_tensor is not None:
             criteria.append(EosTokenCriteria(eos_token_id=generation_config._eos_token_tensor))
         if (
@@ -2715,7 +2756,7 @@ class GenerationMixin:
         # assumption: leading/trailing whitespace is not meaningful, so the prompts are
         # stripped before re-tokenizing to desensitize generation to whitespace artefacts
         prompts = [p.strip() for p in tokenizer.batch_decode(input_ids, skip_special_tokens=True)]
-        input_ids = ms.Tensor(
+        input_ids = ms.tensor(
             tokenizer(
                 prompts,
                 return_tensors="np",
@@ -2725,6 +2766,13 @@ class GenerationMixin:
 
         # replace bos with pad to not condition healing on it
         input_ids = mint.where(input_ids == bos_token_id, pad_token_id, input_ids)
+
+        """
+        the latter code assumes the input_ids is not empty,
+        input_id has to be checked if contains elements
+        """
+        if input_ids.numel() == 0:
+            return input_ids
 
         tail_ids = input_ids[:, -1].tolist()
 
@@ -2739,7 +2787,14 @@ class GenerationMixin:
                 continue  # skip empty sequences (all pad ids)
 
             # apply bias for alternatives (extensions) to the tail token
-            seq_bias = {(alt_tok,): 10.0 for alt_tok in vocab_trie.values(prefix=tail_tok)}
+            """
+            seq_bias key has to be tuple with int so have to use
+            tokenizer function to convert str to int
+            """
+            seq_bias = {
+                (tokenizer.convert_tokens_to_ids(alt_tok),): 10.0 for alt_tok in vocab_trie.extensions(prefix=tail_tok)
+            }
+
             if len(seq_bias) == 1:
                 continue  # skip if there are no token alternatives to heal with
 
@@ -3092,6 +3147,53 @@ class GenerationMixin:
             beam_indices = beam_indices.unsqueeze(-1)
         gathered_tensor = ms.Tensor(ms.numpy.take_along_axis(arr=tensor, indices=beam_indices, axis=1))
         return gathered_tensor
+
+    @staticmethod
+    def _check_early_stop_heuristic(
+        is_early_stop_heuristic_unsatisfied: ms.Tensor,
+        running_beam_scores: ms.Tensor,
+        beam_scores: ms.Tensor,
+        is_sent_finished: ms.Tensor,
+        cur_len: int,
+        max_length: int,
+        decoder_prompt_len: int,
+        early_stopping: Union[bool, str],
+        length_penalty: float,
+    ):
+        """
+        Determine whether early stopping is possible by checking if the best possible score of running beams
+        could still improve upon the finished ones.
+
+        Mechanism:
+        - Without a length penalty, beam scores typically decrease as more tokens are generated.
+        So, if the *best possible* score from any running beam is already worse than the *worst* finished beam,
+        we can safely stop early.
+        - With a length penalty, scores may increase with longer sequences. In this case, we use heuristics
+        to estimate the best possible score — though this estimate may not always be correct — and stop
+        if no further improvement seems likely.
+
+        We apply different heuristics depending on the value of `early_stopping`:
+        1. `early_stopping == False`:
+        -> Use a heuristic that assumes the best score comes from the current length minus the decoder prompt length.
+        -> See detailed discussion: https://github.com/huggingface/transformers/pull/20901#issuecomment-1369845565
+
+        2. `early_stopping == "never"`:
+        -> Estimate the best score using either `max_length` or `cur_len`, depending on the sign of `length_penalty`.
+        -> A positive length penalty favors longer sequences, so we use `max_length` in that case.
+
+        NOTE: the canonical beam search implementation can be replicated with `early_stopping="never"` and
+        `length_penalty=0.0`, which are NOT the default flags. The default behavior was empirically found to produce
+        better sequences (prior to 2022), and changing it is BC breaking.
+        """
+        if early_stopping == "never" and length_penalty > 0.0:
+            best_hypothetical_length = max_length - decoder_prompt_len
+        else:
+            best_hypothetical_length = cur_len - decoder_prompt_len
+        best_possible_running_score = running_beam_scores[:, :1] / (best_hypothetical_length**length_penalty)
+        worst_finished_score = mint.where(is_sent_finished, mint.min(beam_scores, dim=1, keepdim=True)[0], -1.0e9)
+        return is_early_stop_heuristic_unsatisfied & mint.any(
+            best_possible_running_score > worst_finished_score, dim=-1, keepdim=True
+        )
 
     @staticmethod
     def _beam_search_has_unfinished_sequences(
@@ -3519,34 +3621,47 @@ class GenerationMixin:
             # beam search as a whole (as opposed to individual beams, i.e. `stopping_criteria`)
 
             # pluck the cache from the beam indices that will be used in the next iteration
+            # NOTE: we need to check if `self._reorder_cache` exists for special models like RAG, RecurrentGemma etc.
             if model_kwargs.get("past_key_values", None) is not None:
-                model_kwargs["past_key_values"] = self._temporary_reorder_cache(
-                    past_key_values=model_kwargs["past_key_values"],
-                    beam_idx=self._flatten_beam_dim(running_beam_indices[..., cur_len - decoder_prompt_len]),
-                )
+                beam_idx = self._flatten_beam_dim(running_beam_indices[..., cur_len - decoder_prompt_len])
+                if hasattr(self, "_reorder_cache"):
+                    model_kwargs["past_key_values"] = self._reorder_cache(model_kwargs["past_key_values"], beam_idx)
+                else:
+                    model_kwargs["past_key_values"].reorder_cache(beam_idx)
 
             cur_len = cur_len + 1
+            is_early_stop_heuristic_unsatisfied = self._check_early_stop_heuristic(
+                is_early_stop_heuristic_unsatisfied=is_early_stop_heuristic_unsatisfied,
+                running_beam_scores=running_beam_scores,
+                beam_scores=beam_scores,
+                is_sent_finished=is_sent_finished,
+                cur_len=cur_len,
+                max_length=max_length,
+                decoder_prompt_len=decoder_prompt_len,
+                early_stopping=early_stopping,
+                length_penalty=length_penalty,
+            )
             this_peer_finished = not self._beam_search_has_unfinished_sequences(
-                running_beam_scores,
-                beam_scores,
+                is_early_stop_heuristic_unsatisfied,
                 is_sent_finished,
                 next_token_hits_stopping_criteria,
-                cur_len,
-                max_length,
-                decoder_prompt_len,
                 early_stopping,
-                length_penalty,
             )
 
-        # 5. prepare outputs
-        # Take best beams for each batch (the score is sorted in descending order)
+            # 5. prepare outputs
+            # Take best beams for each batch (the score is sorted in descending order)
         sequences = self._flatten_beam_dim(sequences[:, :num_return_sequences, :])
         beam_scores = self._flatten_beam_dim(beam_scores[:, :num_return_sequences])
         beam_indices = self._flatten_beam_dim(beam_indices[:, :num_return_sequences, :])
 
-        # Crop the static-shaped tensors to the actual size
-        sequences = sequences[:, :cur_len]
-        beam_indices = beam_indices[:, : cur_len - decoder_prompt_len]
+        # Crop the static-shaped tensors to the actual size.
+        # `beam_indices` is initialized with -1s, and is updated with the beam index of the generated token at each
+        # step. We can use it to detect the generated length, which may be != `cur_len`  (e.g. selected beam is from a
+        # previous decoding iteration)
+        max_generated_length = ((beam_indices + 1).bool()).sum(dim=1).max()
+        output_length = decoder_prompt_len + max_generated_length
+        sequences = sequences[:, :output_length]
+        beam_indices = beam_indices[:, :max_generated_length]
 
         if return_dict_in_generate:
             if not output_scores:
