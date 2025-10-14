@@ -1,38 +1,19 @@
-# Copyright 2025 Black Forest Labs, The HuggingFace Team and The InstantX Team. All rights reserved.
-#
-# This code is adapted from https://github.com/huggingface/diffusers
-# with modifications to run diffusers on mindspore.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import math
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import numpy as np
+
 import mindspore as ms
-from mindspore import mint, nn, ops
+import mindspore.nn as nn
+from mindspore import mint, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
-from ...loaders import FluxTransformer2DLoadersMixin, FromOriginalModelMixin, PeftAdapterMixin
+from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
 from ...utils import logging
-from ..attention import AttentionMixin, AttentionModuleMixin, FeedForward
+from ..attention import AttentionModuleMixin, FeedForward
 from ..cache_utils import CacheMixin
-from ..embeddings import (
-    CombinedTimestepGuidanceTextProjEmbeddings,
-    CombinedTimestepTextProjEmbeddings,
-    apply_rotary_emb,
-    get_1d_rotary_pos_embed,
-)
-from ..layers_compat import GELU, unflatten
+from ..embeddings import TimestepEmbedding, apply_rotary_emb, get_timestep_embedding
+from ..layers_compat import unflatten
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import AdaLayerNormContinuous, AdaLayerNormZero, AdaLayerNormZeroSingle, RMSNorm
@@ -40,7 +21,7 @@ from ..normalization import AdaLayerNormContinuous, AdaLayerNormZero, AdaLayerNo
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
-def _get_projections(attn: "FluxAttention", hidden_states, encoder_hidden_states=None):
+def _get_projections(attn: "BriaAttention", hidden_states, encoder_hidden_states=None):
     query = attn.to_q(hidden_states)
     key = attn.to_k(hidden_states)
     value = attn.to_v(hidden_states)
@@ -54,7 +35,7 @@ def _get_projections(attn: "FluxAttention", hidden_states, encoder_hidden_states
     return query, key, value, encoder_query, encoder_key, encoder_value
 
 
-def _get_fused_projections(attn: "FluxAttention", hidden_states, encoder_hidden_states=None):
+def _get_fused_projections(attn: "BriaAttention", hidden_states, encoder_hidden_states=None):
     query, key, value = attn.to_qkv(hidden_states).chunk(3, dim=-1)
 
     encoder_query = encoder_key = encoder_value = (None,)
@@ -64,17 +45,81 @@ def _get_fused_projections(attn: "FluxAttention", hidden_states, encoder_hidden_
     return query, key, value, encoder_query, encoder_key, encoder_value
 
 
-def _get_qkv_projections(attn: "FluxAttention", hidden_states, encoder_hidden_states=None):
+def _get_qkv_projections(attn: "BriaAttention", hidden_states, encoder_hidden_states=None):
     if attn.fused_projections:
         return _get_fused_projections(attn, hidden_states, encoder_hidden_states)
     return _get_projections(attn, hidden_states, encoder_hidden_states)
 
 
-@ms.jit_class
-class FluxAttnProcessor:
+def get_1d_rotary_pos_embed(
+    dim: int,
+    pos: Union[np.ndarray, int],
+    theta: float = 10000.0,
+    use_real=False,
+    linear_factor=1.0,
+    ntk_factor=1.0,
+    repeat_interleave_real=True,
+    freqs_dtype=ms.float32,  # ms.float32, ms.float64 (flux)
+):
+    """
+    Precompute the frequency tensor for complex exponentials (cis) with given dimensions.
+
+    This function calculates a frequency tensor with complex exponentials using the given dimension 'dim' and the end
+    index 'end'. The 'theta' parameter scales the frequencies. The returned tensor contains complex values in complex64
+    data type.
+
+    Args:
+        dim (`int`): Dimension of the frequency tensor.
+        pos (`np.ndarray` or `int`): Position indices for the frequency tensor. [S] or scalar
+        theta (`float`, *optional*, defaults to 10000.0):
+            Scaling factor for frequency computation. Defaults to 10000.0.
+        use_real (`bool`, *optional*):
+            If True, return real part and imaginary part separately. Otherwise, return complex numbers.
+        linear_factor (`float`, *optional*, defaults to 1.0):
+            Scaling factor for the context extrapolation. Defaults to 1.0.
+        ntk_factor (`float`, *optional*, defaults to 1.0):
+            Scaling factor for the NTK-Aware RoPE. Defaults to 1.0.
+        repeat_interleave_real (`bool`, *optional*, defaults to `True`):
+            If `True` and `use_real`, real part and imaginary part are each interleaved with themselves to reach `dim`.
+            Otherwise, they are concateanted with themselves.
+        freqs_dtype (`ms.float32` or `ms.float64`, *optional*, defaults to `ms.float32`):
+            the dtype of the frequency tensor.
+    Returns:
+        `ms.Tensor`: Precomputed frequency tensor with complex exponentials. [S, D/2]
+    """
+    assert dim % 2 == 0
+
+    if isinstance(pos, int):
+        pos = mint.arange(pos)
+    if isinstance(pos, np.ndarray):
+        pos = ms.from_numpy(pos)  # type: ignore  # [S]
+
+    theta = theta * ntk_factor
+    freqs = 1.0 / (theta ** (mint.arange(0, dim, 2, dtype=freqs_dtype)[: (dim // 2)] / dim)) / linear_factor  # [D/2]
+    freqs = mint.outer(pos, freqs)  # type: ignore   # [S, D/2]
+    if use_real and repeat_interleave_real:
+        # bria
+        freqs_cos = freqs.cos().repeat_interleave(2, dim=1).float()  # [S, D]
+        freqs_sin = freqs.sin().repeat_interleave(2, dim=1).float()  # [S, D]
+        return freqs_cos, freqs_sin
+    elif use_real:
+        # stable audio, allegro
+        freqs_cos = mint.cat([freqs.cos(), freqs.cos()], dim=-1).float()  # [S, D]
+        freqs_sin = mint.cat([freqs.sin(), freqs.sin()], dim=-1).float()  # [S, D]
+        return freqs_cos, freqs_sin
+    else:
+        # lumina
+        freqs_cis = mint.polar(mint.ones_like(freqs), freqs)  # complex64     # [S, D/2]
+        return freqs_cis
+
+
+class BriaAttnProcessor:
+    _attention_backend = None
+    _parallel_config = None
+
     def __call__(
         self,
-        attn: "FluxAttention",
+        attn: "BriaAttention",
         hidden_states: ms.Tensor,
         encoder_hidden_states: ms.Tensor = None,
         attention_mask: Optional[ms.Tensor] = None,
@@ -127,127 +172,10 @@ class FluxAttnProcessor:
             return hidden_states
 
 
-class FluxIPAdapterAttnProcessor(nn.Cell):
-    """Flux Attention processor for IP-Adapter."""
-
-    def __init__(self, hidden_size: int, cross_attention_dim: int, num_tokens=(4,), scale=1.0, dtype=None):
-        super().__init__()
-
-        self.hidden_size = hidden_size
-        self.cross_attention_dim = cross_attention_dim
-
-        if not isinstance(num_tokens, (tuple, list)):
-            num_tokens = [num_tokens]
-
-        if not isinstance(scale, list):
-            scale = [scale] * len(num_tokens)
-        if len(scale) != len(num_tokens):
-            raise ValueError("`scale` should be a list of integers with the same length as `num_tokens`.")
-        self.scale = scale
-
-        self.to_k_ip = nn.CellList(
-            [mint.nn.Linear(cross_attention_dim, hidden_size, bias=True, dtype=dtype) for _ in range(len(num_tokens))]
-        )
-        self.to_v_ip = nn.CellList(
-            [mint.nn.Linear(cross_attention_dim, hidden_size, bias=True, dtype=dtype) for _ in range(len(num_tokens))]
-        )
-
-    def __call__(
-        self,
-        attn: "FluxAttention",
-        hidden_states: ms.Tensor,
-        encoder_hidden_states: ms.Tensor = None,
-        attention_mask: Optional[ms.Tensor] = None,
-        image_rotary_emb: Optional[ms.Tensor] = None,
-        ip_hidden_states: Optional[List[ms.Tensor]] = None,
-        ip_adapter_masks: Optional[ms.Tensor] = None,
-    ) -> ms.Tensor:
-        batch_size = hidden_states.shape[0]
-
-        query, key, value, encoder_query, encoder_key, encoder_value = _get_qkv_projections(
-            attn, hidden_states, encoder_hidden_states
-        )
-
-        query = unflatten(query, -1, (attn.heads, -1))
-        key = unflatten(key, -1, (attn.heads, -1))
-        value = unflatten(value, -1, (attn.heads, -1))
-
-        query = attn.norm_q(query)
-        key = attn.norm_k(key)
-        ip_query = query
-
-        if encoder_hidden_states is not None:
-            encoder_query = unflatten(encoder_query, -1, (attn.heads, -1))
-            encoder_key = unflatten(encoder_key, -1, (attn.heads, -1))
-            encoder_value = unflatten(encoder_value, -1, (attn.heads, -1))
-
-            encoder_query = attn.norm_added_q(encoder_query)
-            encoder_key = attn.norm_added_k(encoder_key)
-
-            query = mint.cat([encoder_query, query], dim=1)
-            key = mint.cat([encoder_key, key], dim=1)
-            value = mint.cat([encoder_value, value], dim=1)
-
-        if image_rotary_emb is not None:
-            query = apply_rotary_emb(query, image_rotary_emb, sequence_dim=1)
-            key = apply_rotary_emb(key, image_rotary_emb, sequence_dim=1)
-
-        hidden_states = attn.scaled_dot_product_attention(
-            query,
-            key,
-            value,
-            attn_mask=attention_mask,
-            dropout_p=0.0,
-            is_causal=False,
-        )
-        hidden_states = hidden_states.flatten(2, 3)
-        hidden_states = hidden_states.to(query.dtype)
-
-        if encoder_hidden_states is not None:
-            # encoder_hidden_states, hidden_states = hidden_states.split_with_sizes(
-            #     [encoder_hidden_states.shape[1], hidden_states.shape[1] - encoder_hidden_states.shape[1]], dim=1
-            # )
-            encoder_hidden_states, hidden_states = hidden_states.split(
-                [encoder_hidden_states.shape[1], hidden_states.shape[1] - encoder_hidden_states.shape[1]], dim=1
-            )
-            hidden_states = attn.to_out[0](hidden_states)
-            hidden_states = attn.to_out[1](hidden_states)
-            encoder_hidden_states = attn.to_add_out(encoder_hidden_states)
-
-            # IP-adapter
-            ip_attn_output = mint.zeros_like(hidden_states)
-
-            for current_ip_hidden_states, scale, to_k_ip, to_v_ip in zip(
-                ip_hidden_states, self.scale, self.to_k_ip, self.to_v_ip
-            ):
-                ip_key = to_k_ip(current_ip_hidden_states)
-                ip_value = to_v_ip(current_ip_hidden_states)
-
-                ip_key = ip_key.view(batch_size, -1, attn.heads, attn.head_dim)
-                ip_value = ip_value.view(batch_size, -1, attn.heads, attn.head_dim)
-
-                current_ip_hidden_states = attn.scaled_dot_product_attention(
-                    ip_query,
-                    ip_key,
-                    ip_value,
-                    attn_mask=None,
-                    dropout_p=0.0,
-                    is_causal=False,
-                )
-                current_ip_hidden_states = current_ip_hidden_states.reshape(batch_size, -1, attn.heads * attn.head_dim)
-                current_ip_hidden_states = current_ip_hidden_states.to(ip_query.dtype)
-                ip_attn_output += scale * current_ip_hidden_states
-
-            return hidden_states, encoder_hidden_states, ip_attn_output
-        else:
-            return hidden_states
-
-
-class FluxAttention(nn.Cell, AttentionModuleMixin):
-    _default_processor_cls = FluxAttnProcessor
+class BriaAttention(nn.Cell, AttentionModuleMixin):
+    _default_processor_cls = BriaAttnProcessor
     _available_processors = [
-        FluxAttnProcessor,
-        FluxIPAdapterAttnProcessor,
+        BriaAttnProcessor,
     ]
 
     def __init__(
@@ -275,7 +203,6 @@ class FluxAttention(nn.Cell, AttentionModuleMixin):
         self.use_bias = bias
         self.dropout = dropout
         self.out_dim = out_dim if out_dim is not None else query_dim
-        self.scale = dim_head**-0.5
         self.context_pre_only = context_pre_only
         self.pre_only = pre_only
         self.heads = out_dim // dim_head if out_dim is not None else heads
@@ -287,6 +214,8 @@ class FluxAttention(nn.Cell, AttentionModuleMixin):
         self.to_q = mint.nn.Linear(query_dim, self.inner_dim, bias=bias)
         self.to_k = mint.nn.Linear(query_dim, self.inner_dim, bias=bias)
         self.to_v = mint.nn.Linear(query_dim, self.inner_dim, bias=bias)
+
+        self.scale = dim_head**-0.5
 
         if not self.pre_only:
             self.to_out = nn.CellList([])
@@ -398,179 +327,25 @@ class FluxAttention(nn.Cell, AttentionModuleMixin):
     ) -> ms.Tensor:
         # attn_parameters = set(inspect.signature(self.processor.__call__).parameters.keys())
         # ms.jit can't support set type
-        if isinstance(self.processor, FluxIPAdapterAttnProcessor):
-            attn_parameters = (
-                "hidden_states",
-                "encoder_hidden_states",
-                "attention_mask",
-                "image_rotary_emb",
-                "ip_hidden_states",
-                "ip_adapter_masks",
-            )
-        else:
-            attn_parameters = (
-                "image_rotary_emb",
-                "attn",
-                "attention_mask",
-                "encoder_hidden_states",
-                "hidden_states",
-            )
+        attn_parameters = (
+            "image_rotary_emb",
+            "attn",
+            "attention_mask",
+            "encoder_hidden_states",
+            "hidden_states",
+        )
+        # quiet_attn_parameters = {"ip_adapter_masks", "ip_hidden_states"}
         quiet_attn_parameters = ("ip_adapter_masks", "ip_hidden_states")
         unused_kwargs = [k for k, _ in kwargs.items() if k not in attn_parameters and k not in quiet_attn_parameters]
         if len(unused_kwargs) > 0:
             logger.warning(
-                f"joint_attention_kwargs {unused_kwargs} are not expected by {self.processor.__class__.__name__} and will be ignored."
+                f"attention_kwargs {unused_kwargs} are not expected by {self.processor.__class__.__name__} and will be ignored."
             )
         kwargs = {k: w for k, w in kwargs.items() if k in attn_parameters}
         return self.processor(self, hidden_states, encoder_hidden_states, attention_mask, image_rotary_emb, **kwargs)
 
 
-class FluxSingleTransformerBlock(nn.Cell):
-    def __init__(self, dim: int, num_attention_heads: int, attention_head_dim: int, mlp_ratio: float = 4.0):
-        super().__init__()
-        self.mlp_hidden_dim = int(dim * mlp_ratio)
-
-        self.norm = AdaLayerNormZeroSingle(dim)
-        self.proj_mlp = mint.nn.Linear(dim, self.mlp_hidden_dim)
-        self.act_mlp = GELU(approximate="tanh")
-        self.proj_out = mint.nn.Linear(dim + self.mlp_hidden_dim, dim)
-
-        processor = FluxAttnProcessor()
-
-        self.attn = FluxAttention(
-            query_dim=dim,
-            dim_head=attention_head_dim,
-            heads=num_attention_heads,
-            out_dim=dim,
-            bias=True,
-            processor=processor,
-            eps=1e-6,
-            pre_only=True,
-        )
-
-    def construct(
-        self,
-        hidden_states: ms.Tensor,
-        encoder_hidden_states: ms.Tensor,
-        temb: ms.Tensor,
-        image_rotary_emb: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
-        joint_attention_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[ms.Tensor, ms.Tensor]:
-        text_seq_len = encoder_hidden_states.shape[1]
-        hidden_states = mint.cat([encoder_hidden_states, hidden_states], dim=1)
-
-        residual = hidden_states
-        norm_hidden_states, gate = self.norm(hidden_states, emb=temb)
-        mlp_hidden_states = self.act_mlp(self.proj_mlp(norm_hidden_states))
-        joint_attention_kwargs = joint_attention_kwargs or {}
-        attn_output = self.attn(
-            hidden_states=norm_hidden_states,
-            image_rotary_emb=image_rotary_emb,
-            **joint_attention_kwargs,
-        )
-
-        hidden_states = mint.cat([attn_output, mlp_hidden_states], dim=2)
-        gate = gate.unsqueeze(1)
-        hidden_states = gate * self.proj_out(hidden_states)
-        hidden_states = residual + hidden_states
-        if hidden_states.dtype == ms.float16:
-            hidden_states = hidden_states.clip(-65504, 65504)
-
-        encoder_hidden_states, hidden_states = hidden_states[:, :text_seq_len], hidden_states[:, text_seq_len:]
-        return encoder_hidden_states, hidden_states
-
-
-class FluxTransformerBlock(nn.Cell):
-    def __init__(
-        self, dim: int, num_attention_heads: int, attention_head_dim: int, qk_norm: str = "rms_norm", eps: float = 1e-6
-    ):
-        super().__init__()
-
-        self.norm1 = AdaLayerNormZero(dim)
-        self.norm1_context = AdaLayerNormZero(dim)
-
-        self.attn = FluxAttention(
-            query_dim=dim,
-            added_kv_proj_dim=dim,
-            dim_head=attention_head_dim,
-            heads=num_attention_heads,
-            out_dim=dim,
-            context_pre_only=False,
-            bias=True,
-            processor=FluxAttnProcessor(),
-            eps=eps,
-        )
-
-        self.norm2 = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=1e-6)
-        self.ff = FeedForward(dim=dim, dim_out=dim, activation_fn="gelu-approximate")
-
-        self.norm2_context = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=1e-6)
-        self.ff_context = FeedForward(dim=dim, dim_out=dim, activation_fn="gelu-approximate")
-
-    def construct(
-        self,
-        hidden_states: ms.Tensor,
-        encoder_hidden_states: ms.Tensor,
-        temb: ms.Tensor,
-        image_rotary_emb: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
-        joint_attention_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[ms.Tensor, ms.Tensor]:
-        norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.norm1(hidden_states, emb=temb)
-
-        norm_encoder_hidden_states, c_gate_msa, c_shift_mlp, c_scale_mlp, c_gate_mlp = self.norm1_context(
-            encoder_hidden_states, emb=temb
-        )
-        joint_attention_kwargs = joint_attention_kwargs or {}
-
-        # Attention.
-        attention_outputs = self.attn(
-            hidden_states=norm_hidden_states,
-            encoder_hidden_states=norm_encoder_hidden_states,
-            image_rotary_emb=image_rotary_emb,
-            **joint_attention_kwargs,
-        )
-
-        if len(attention_outputs) == 2:
-            attn_output, context_attn_output = attention_outputs
-            ip_attn_output = None
-        elif len(attention_outputs) == 3:
-            attn_output, context_attn_output, ip_attn_output = attention_outputs
-        else:
-            attn_output, context_attn_output, ip_attn_output = None, None, None
-
-        # Process attention outputs for the `hidden_states`.
-        attn_output = gate_msa.unsqueeze(1) * attn_output
-        hidden_states = hidden_states + attn_output
-
-        norm_hidden_states = self.norm2(hidden_states)
-        # norm_hidden_states = norm_hidden_states * (1 + scale_mlp[:, None]) + shift_mlp[:, None]
-        norm_hidden_states = norm_hidden_states * (1 + scale_mlp.expand_dims(axis=1)) + shift_mlp.expand_dims(axis=1)
-
-        ff_output = self.ff(norm_hidden_states)
-        ff_output = gate_mlp.unsqueeze(1) * ff_output
-
-        hidden_states = hidden_states + ff_output
-        if len(attention_outputs) == 3:
-            hidden_states = hidden_states + ip_attn_output
-
-        # Process attention outputs for the `encoder_hidden_states`.
-        context_attn_output = c_gate_msa.unsqueeze(1) * context_attn_output
-        encoder_hidden_states = encoder_hidden_states + context_attn_output
-
-        norm_encoder_hidden_states = self.norm2_context(encoder_hidden_states)
-        # norm_encoder_hidden_states = norm_encoder_hidden_states * (1 + c_scale_mlp[:, None]) + c_shift_mlp[:, None]
-        norm_encoder_hidden_states *= 1 + c_scale_mlp.expand_dims(axis=1)
-        norm_encoder_hidden_states += c_shift_mlp.expand_dims(axis=1)
-
-        context_ff_output = self.ff_context(norm_encoder_hidden_states)
-        encoder_hidden_states = encoder_hidden_states + c_gate_mlp.unsqueeze(1) * context_ff_output
-        if encoder_hidden_states.dtype == ms.float16:
-            encoder_hidden_states = encoder_hidden_states.clip(-65504, 65504)
-
-        return encoder_hidden_states, hidden_states
-
-
-class FluxPosEmbed(nn.Cell):
+class BriaEmbedND(nn.Cell):
     # modified from https://github.com/black-forest-labs/flux/blob/c00d7c60b085fce8058b9df845e036090873f2ce/src/flux/modules/layers.py#L11
     def __init__(self, theta: int, axes_dim: List[int]):
         super().__init__()
@@ -582,7 +357,7 @@ class FluxPosEmbed(nn.Cell):
         cos_out = []
         sin_out = []
         pos = ids.float()
-        freqs_dtype = ms.float32
+        freqs_dtype = ms.float64
         for i in range(n_axes):
             cos, sin = get_1d_rotary_pos_embed(
                 self.axes_dim[i],
@@ -599,101 +374,289 @@ class FluxPosEmbed(nn.Cell):
         return freqs_cos, freqs_sin
 
 
-class FluxTransformer2DModel(
-    ModelMixin,
-    ConfigMixin,
-    PeftAdapterMixin,
-    FromOriginalModelMixin,
-    FluxTransformer2DLoadersMixin,
-    CacheMixin,
-    AttentionMixin,
-):
-    """
-    The Transformer model introduced in Flux.
+class BriaTimesteps(nn.Cell):
+    def __init__(
+        self, num_channels: int, flip_sin_to_cos: bool, downscale_freq_shift: float, scale: int = 1, time_theta=10000
+    ):
+        super().__init__()
+        self.num_channels = num_channels
+        self.flip_sin_to_cos = flip_sin_to_cos
+        self.downscale_freq_shift = downscale_freq_shift
+        self.scale = scale
+        self.time_theta = time_theta
 
+    def construct(self, timesteps):
+        t_emb = get_timestep_embedding(
+            timesteps,
+            self.num_channels,
+            flip_sin_to_cos=self.flip_sin_to_cos,
+            downscale_freq_shift=self.downscale_freq_shift,
+            scale=self.scale,
+            max_period=self.time_theta,
+        )
+        return t_emb
+
+
+class BriaTimestepProjEmbeddings(nn.Cell):
+    def __init__(self, embedding_dim, time_theta):
+        super().__init__()
+
+        self.time_proj = BriaTimesteps(
+            num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=0, time_theta=time_theta
+        )
+        self.timestep_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=embedding_dim)
+
+    def construct(self, timestep, dtype):
+        timesteps_proj = self.time_proj(timestep)
+        timesteps_emb = self.timestep_embedder(timesteps_proj.to(dtype=dtype))  # (N, D)
+        return timesteps_emb
+
+
+class BriaPosEmbed(nn.Cell):
+    # modified from https://github.com/black-forest-labs/flux/blob/c00d7c60b085fce8058b9df845e036090873f2ce/src/flux/modules/layers.py#L11
+    def __init__(self, theta: int, axes_dim: List[int]):
+        super().__init__()
+        self.theta = theta
+        self.axes_dim = axes_dim
+
+    def construct(self, ids: ms.Tensor) -> ms.Tensor:
+        n_axes = ids.shape[-1]
+        cos_out = []
+        sin_out = []
+        pos = ids.float()
+        freqs_dtype = ms.float64
+        for i in range(n_axes):
+            cos, sin = get_1d_rotary_pos_embed(
+                self.axes_dim[i],
+                pos[:, i],
+                theta=self.theta,
+                repeat_interleave_real=True,
+                use_real=True,
+                freqs_dtype=freqs_dtype,
+            )
+            cos_out.append(cos)
+            sin_out.append(sin)
+        freqs_cos = mint.cat(cos_out, dim=-1)
+        freqs_sin = mint.cat(sin_out, dim=-1)
+        return freqs_cos, freqs_sin
+
+
+class BriaTransformerBlock(nn.Cell):
+    def __init__(
+        self, dim: int, num_attention_heads: int, attention_head_dim: int, qk_norm: str = "rms_norm", eps: float = 1e-6
+    ):
+        super().__init__()
+
+        self.norm1 = AdaLayerNormZero(dim)
+        self.norm1_context = AdaLayerNormZero(dim)
+
+        self.attn = BriaAttention(
+            query_dim=dim,
+            added_kv_proj_dim=dim,
+            dim_head=attention_head_dim,
+            heads=num_attention_heads,
+            out_dim=dim,
+            context_pre_only=False,
+            bias=True,
+            processor=BriaAttnProcessor(),
+            eps=eps,
+        )
+
+        self.norm2 = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=1e-6)
+        self.ff = FeedForward(dim=dim, dim_out=dim, activation_fn="gelu-approximate")
+
+        self.norm2_context = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=1e-6)
+        self.ff_context = FeedForward(dim=dim, dim_out=dim, activation_fn="gelu-approximate")
+
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: ms.Tensor,
+        temb: ms.Tensor,
+        image_rotary_emb: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
+        attention_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> Tuple[ms.Tensor, ms.Tensor]:
+        norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.norm1(hidden_states, emb=temb)
+
+        norm_encoder_hidden_states, c_gate_msa, c_shift_mlp, c_scale_mlp, c_gate_mlp = self.norm1_context(
+            encoder_hidden_states, emb=temb
+        )
+        attention_kwargs = attention_kwargs or {}
+
+        # Attention.
+        attention_outputs = self.attn(
+            hidden_states=norm_hidden_states,
+            encoder_hidden_states=norm_encoder_hidden_states,
+            image_rotary_emb=image_rotary_emb,
+            **attention_kwargs,
+        )
+
+        if len(attention_outputs) == 2:
+            attn_output, context_attn_output = attention_outputs
+            ip_attn_output = None
+        elif len(attention_outputs) == 3:
+            attn_output, context_attn_output, ip_attn_output = attention_outputs
+        else:
+            attn_output, context_attn_output, ip_attn_output = None, None, None
+
+        # Process attention outputs for the `hidden_states`.
+        attn_output = gate_msa.unsqueeze(1) * attn_output
+        hidden_states = hidden_states + attn_output
+
+        norm_hidden_states = self.norm2(hidden_states)
+        norm_hidden_states = norm_hidden_states * (1 + scale_mlp[:, None]) + shift_mlp[:, None]
+
+        ff_output = self.ff(norm_hidden_states)
+        ff_output = gate_mlp.unsqueeze(1) * ff_output
+
+        hidden_states = hidden_states + ff_output
+        if len(attention_outputs) == 3:
+            hidden_states = hidden_states + ip_attn_output
+
+        # Process attention outputs for the `encoder_hidden_states`.
+        context_attn_output = c_gate_msa.unsqueeze(1) * context_attn_output
+        encoder_hidden_states = encoder_hidden_states + context_attn_output
+
+        norm_encoder_hidden_states = self.norm2_context(encoder_hidden_states)
+        norm_encoder_hidden_states = norm_encoder_hidden_states * (1 + c_scale_mlp[:, None]) + c_shift_mlp[:, None]
+
+        context_ff_output = self.ff_context(norm_encoder_hidden_states)
+        encoder_hidden_states = encoder_hidden_states + c_gate_mlp.unsqueeze(1) * context_ff_output
+        if encoder_hidden_states.dtype == ms.float16:
+            encoder_hidden_states = encoder_hidden_states.clip(-65504, 65504)
+
+        return encoder_hidden_states, hidden_states
+
+
+class BriaSingleTransformerBlock(nn.Cell):
+    def __init__(self, dim: int, num_attention_heads: int, attention_head_dim: int, mlp_ratio: float = 4.0):
+        super().__init__()
+        self.mlp_hidden_dim = int(dim * mlp_ratio)
+
+        self.norm = AdaLayerNormZeroSingle(dim)
+        self.proj_mlp = mint.nn.Linear(dim, self.mlp_hidden_dim)
+        self.act_mlp = mint.nn.GELU(approximate="tanh")
+        self.proj_out = mint.nn.Linear(dim + self.mlp_hidden_dim, dim)
+
+        processor = BriaAttnProcessor()
+
+        self.attn = BriaAttention(
+            query_dim=dim,
+            dim_head=attention_head_dim,
+            heads=num_attention_heads,
+            out_dim=dim,
+            bias=True,
+            processor=processor,
+            eps=1e-6,
+            pre_only=True,
+        )
+
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: ms.Tensor,
+        temb: ms.Tensor,
+        image_rotary_emb: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
+        attention_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> Tuple[ms.Tensor, ms.Tensor]:
+        text_seq_len = encoder_hidden_states.shape[1]
+        hidden_states = mint.cat([encoder_hidden_states, hidden_states], dim=1)
+
+        residual = hidden_states
+        norm_hidden_states, gate = self.norm(hidden_states, emb=temb)
+        mlp_hidden_states = self.act_mlp(self.proj_mlp(norm_hidden_states))
+        attention_kwargs = attention_kwargs or {}
+        attn_output = self.attn(
+            hidden_states=norm_hidden_states,
+            image_rotary_emb=image_rotary_emb,
+            **attention_kwargs,
+        )
+
+        hidden_states = mint.cat([attn_output, mlp_hidden_states], dim=2)
+        gate = gate.unsqueeze(1)
+        hidden_states = gate * self.proj_out(hidden_states)
+        hidden_states = residual + hidden_states
+        if hidden_states.dtype == ms.float16:
+            hidden_states = hidden_states.clip(-65504, 65504)
+
+        # Use `split` instead of dynamic slicing to avoid graph compilation warnings in MindSpore.
+        # encoder_hidden_states, hidden_states = hidden_states[:, :text_seq_len], hidden_states[:, text_seq_len:]
+        encoder_hidden_states, hidden_states = hidden_states.split(
+            [text_seq_len, hidden_states.shape[1] - text_seq_len], dim=1
+        )
+        return encoder_hidden_states, hidden_states
+
+
+class BriaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginalModelMixin, CacheMixin):
+    """
+    The Transformer model introduced in Flux. Based on FluxPipeline with several changes:
+    - no pooled embeddings
+    - We use zero padding for prompts
+    - No guidance embedding since this is not a distilled version
     Reference: https://blackforestlabs.ai/announcing-black-forest-labs/
 
-    Args:
-        patch_size (`int`, defaults to `1`):
-            Patch size to turn the input data into small patches.
-        in_channels (`int`, defaults to `64`):
-            The number of channels in the input.
-        out_channels (`int`, *optional*, defaults to `None`):
-            The number of channels in the output. If not specified, it defaults to `in_channels`.
-        num_layers (`int`, defaults to `19`):
-            The number of layers of dual stream DiT blocks to use.
-        num_single_layers (`int`, defaults to `38`):
-            The number of layers of single stream DiT blocks to use.
-        attention_head_dim (`int`, defaults to `128`):
-            The number of dimensions to use for each attention head.
-        num_attention_heads (`int`, defaults to `24`):
-            The number of attention heads to use.
-        joint_attention_dim (`int`, defaults to `4096`):
-            The number of dimensions to use for the joint attention (embedding/channel dimension of
-            `encoder_hidden_states`).
-        pooled_projection_dim (`int`, defaults to `768`):
-            The number of dimensions to use for the pooled projection.
-        guidance_embeds (`bool`, defaults to `False`):
-            Whether to use guidance embeddings for guidance-distilled variant of the model.
-        axes_dims_rope (`Tuple[int]`, defaults to `(16, 56, 56)`):
-            The dimensions to use for the rotary positional embeddings.
+    Parameters:
+        patch_size (`int`): Patch size to turn the input data into small patches.
+        in_channels (`int`, *optional*, defaults to 16): The number of channels in the input.
+        num_layers (`int`, *optional*, defaults to 18): The number of layers of MMDiT blocks to use.
+        num_single_layers (`int`, *optional*, defaults to 18): The number of layers of single DiT blocks to use.
+        attention_head_dim (`int`, *optional*, defaults to 64): The number of channels in each head.
+        num_attention_heads (`int`, *optional*, defaults to 18): The number of heads to use for multi-head attention.
+        joint_attention_dim (`int`, *optional*): The number of `encoder_hidden_states` dimensions to use.
+        pooled_projection_dim (`int`): Number of dimensions to use when projecting the `pooled_projections`.
+        guidance_embeds (`bool`, defaults to False): Whether to use guidance embeddings.
     """
 
     _supports_gradient_checkpointing = True
-    _no_split_modules = ["FluxTransformerBlock", "FluxSingleTransformerBlock"]
-    _skip_layerwise_casting_patterns = ["pos_embed", "norm"]
-    _repeated_blocks = ["FluxTransformerBlock", "FluxSingleTransformerBlock"]
 
     @register_to_config
     def __init__(
         self,
         patch_size: int = 1,
         in_channels: int = 64,
-        out_channels: Optional[int] = None,
         num_layers: int = 19,
         num_single_layers: int = 38,
         attention_head_dim: int = 128,
         num_attention_heads: int = 24,
         joint_attention_dim: int = 4096,
-        pooled_projection_dim: int = 768,
+        pooled_projection_dim: int = None,
         guidance_embeds: bool = False,
-        axes_dims_rope: Tuple[int, int, int] = (16, 56, 56),
+        axes_dims_rope: List[int] = [16, 56, 56],
+        rope_theta=10000,
+        time_theta=10000,
     ):
         super().__init__()
-        self.out_channels = out_channels or in_channels
-        self.inner_dim = num_attention_heads * attention_head_dim
+        self.out_channels = in_channels
+        self.inner_dim = self.config.num_attention_heads * self.config.attention_head_dim
 
-        self.pos_embed = FluxPosEmbed(theta=10000, axes_dim=axes_dims_rope)
+        self.pos_embed = BriaEmbedND(theta=rope_theta, axes_dim=axes_dims_rope)
 
-        text_time_guidance_cls = (
-            CombinedTimestepGuidanceTextProjEmbeddings if guidance_embeds else CombinedTimestepTextProjEmbeddings
-        )
-        self.time_text_embed = text_time_guidance_cls(
-            embedding_dim=self.inner_dim, pooled_projection_dim=pooled_projection_dim
-        )
+        self.time_embed = BriaTimestepProjEmbeddings(embedding_dim=self.inner_dim, time_theta=time_theta)
+        if guidance_embeds:
+            self.guidance_embed = BriaTimestepProjEmbeddings(embedding_dim=self.inner_dim)
 
-        self.context_embedder = mint.nn.Linear(joint_attention_dim, self.inner_dim)
-        self.x_embedder = mint.nn.Linear(in_channels, self.inner_dim)
+        self.context_embedder = mint.nn.Linear(self.config.joint_attention_dim, self.inner_dim)
+        self.x_embedder = mint.nn.Linear(self.config.in_channels, self.inner_dim)
 
         self.transformer_blocks = nn.CellList(
             [
-                FluxTransformerBlock(
+                BriaTransformerBlock(
                     dim=self.inner_dim,
-                    num_attention_heads=num_attention_heads,
-                    attention_head_dim=attention_head_dim,
+                    num_attention_heads=self.config.num_attention_heads,
+                    attention_head_dim=self.config.attention_head_dim,
                 )
-                for _ in range(num_layers)
+                for i in range(self.config.num_layers)
             ]
         )
 
         self.single_transformer_blocks = nn.CellList(
             [
-                FluxSingleTransformerBlock(
+                BriaSingleTransformerBlock(
                     dim=self.inner_dim,
-                    num_attention_heads=num_attention_heads,
-                    attention_head_dim=attention_head_dim,
+                    num_attention_heads=self.config.num_attention_heads,
+                    attention_head_dim=self.config.attention_head_dim,
                 )
-                for _ in range(num_single_layers)
+                for i in range(self.config.num_single_layers)
             ]
         )
 
@@ -711,19 +674,18 @@ class FluxTransformer2DModel(
         img_ids: ms.Tensor = None,
         txt_ids: ms.Tensor = None,
         guidance: ms.Tensor = None,
-        joint_attention_kwargs: Optional[Dict[str, Any]] = None,
+        attention_kwargs: Optional[Dict[str, Any]] = None,
+        return_dict: bool = True,
         controlnet_block_samples=None,
         controlnet_single_block_samples=None,
-        return_dict: bool = False,
-        controlnet_blocks_repeat: bool = False,
-    ) -> Union[ms.Tensor, Transformer2DModelOutput]:
+    ) -> Union[Tuple[ms.Tensor], Transformer2DModelOutput]:
         """
-        The [`FluxTransformer2DModel`] forward method.
+        The [`BriaTransformer2DModel`] forward method.
 
         Args:
-            hidden_states (`ms.Tensor` of shape `(batch_size, image_sequence_length, in_channels)`):
+            hidden_states (`ms.Tensor` of shape `(batch size, channel, height, width)`):
                 Input `hidden_states`.
-            encoder_hidden_states (`ms.Tensor` of shape `(batch_size, text_sequence_length, joint_attention_dim)`):
+            encoder_hidden_states (`ms.Tensor` of shape `(batch size, sequence_len, embed_dims)`):
                 Conditional embeddings (embeddings computed from the input conditions such as prompts) to use.
             pooled_projections (`ms.Tensor` of shape `(batch_size, projection_dim)`): Embeddings projected
                 from the embeddings of input conditions.
@@ -731,11 +693,11 @@ class FluxTransformer2DModel(
                 Used to indicate denoising step.
             block_controlnet_hidden_states: (`list` of `ms.Tensor`):
                 A list of tensors that if specified are added to the residuals of transformer blocks.
-            joint_attention_kwargs (`dict`, *optional*):
+            attention_kwargs (`dict`, *optional*):
                 A kwargs dictionary that if specified is passed along to the `AttentionProcessor` as defined under
                 `self.processor` in
                 [diffusers.models.attention_processor](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).
-            return_dict (`bool`, *optional*, defaults to `False`):
+            return_dict (`bool`, *optional*, defaults to `True`):
                 Whether or not to return a [`~models.transformer_2d.Transformer2DModelOutput`] instead of a plain
                 tuple.
 
@@ -743,45 +705,40 @@ class FluxTransformer2DModel(
             If `return_dict` is True, an [`~models.transformer_2d.Transformer2DModelOutput`] is returned, otherwise a
             `tuple` where the first element is the sample tensor.
         """
-
-        if joint_attention_kwargs is not None and joint_attention_kwargs.get("scale", None) is not None:
-            logger.warning(
-                "Passing `scale` via `joint_attention_kwargs` when not using the PEFT backend is ineffective."
+        if attention_kwargs is not None and "scale" in attention_kwargs:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer here
+            # and remove `lora_scale` from each PEFT layer at the end.
+            # scale_lora_layers & unscale_lora_layers maybe contains some operation forbidden in graph mode
+            raise RuntimeError(
+                f"You are trying to set scaling of lora layer by passing {attention_kwargs['scale']=}. "
+                f"However it's not allowed in on-the-fly model forwarding. "
+                f"Please manually call `scale_lora_layers(model, lora_scale)` before model forwarding and "
+                f"`unscale_lora_layers(model, lora_scale)` after model forwarding. "
+                f"For example, it can be done in a pipeline call like `StableDiffusionPipeline.__call__`."
             )
-
         hidden_states = self.x_embedder(hidden_states)
 
-        timestep = timestep.to(hidden_states.dtype) * 1000
+        timestep = timestep.to(hidden_states.dtype)
         if guidance is not None:
-            guidance = guidance.to(hidden_states.dtype) * 1000
+            guidance = guidance.to(hidden_states.dtype)
+        else:
+            guidance = None
 
-        temb = (
-            self.time_text_embed(timestep, pooled_projections)
-            if guidance is None
-            else self.time_text_embed(timestep, guidance, pooled_projections)
-        )
+        temb = self.time_embed(timestep, dtype=hidden_states.dtype)
+
+        if guidance:
+            temb += self.guidance_embed(guidance, dtype=hidden_states.dtype)
+
         encoder_hidden_states = self.context_embedder(encoder_hidden_states)
 
-        if txt_ids.ndim == 3:
-            logger.warning(
-                "Passing `txt_ids` 3d ms.Tensor is deprecated."
-                "Please remove the batch dimension and pass it as a 2d mindspore Tensor"
-            )
+        if len(txt_ids.shape) == 3:
             txt_ids = txt_ids[0]
-        if img_ids.ndim == 3:
-            logger.warning(
-                "Passing `img_ids` 3d ms.Tensor is deprecated."
-                "Please remove the batch dimension and pass it as a 2d mindspore Tensor"
-            )
+
+        if len(img_ids.shape) == 3:
             img_ids = img_ids[0]
 
         ids = mint.cat((txt_ids, img_ids), dim=0)
         image_rotary_emb = self.pos_embed(ids)
-
-        if joint_attention_kwargs is not None and "ip_adapter_image_embeds" in joint_attention_kwargs:
-            ip_adapter_image_embeds = joint_attention_kwargs.pop("ip_adapter_image_embeds")
-            ip_hidden_states = self.encoder_hid_proj(ip_adapter_image_embeds)
-            joint_attention_kwargs.update({"ip_hidden_states": ip_hidden_states})
 
         for index_block, block in enumerate(self.transformer_blocks):
             encoder_hidden_states, hidden_states = block(
@@ -789,21 +746,13 @@ class FluxTransformer2DModel(
                 encoder_hidden_states=encoder_hidden_states,
                 temb=temb,
                 image_rotary_emb=image_rotary_emb,
-                joint_attention_kwargs=joint_attention_kwargs,
             )
 
             # controlnet residual
             if controlnet_block_samples is not None:
-                interval_control = (len(self.transformer_blocks) + len(controlnet_block_samples) - 1) // len(
-                    controlnet_block_samples
-                )  # not supporting numpy
-                # For Xlabs ControlNet.
-                if controlnet_blocks_repeat:
-                    hidden_states = (
-                        hidden_states + controlnet_block_samples[index_block % len(controlnet_block_samples)]
-                    )
-                else:
-                    hidden_states = hidden_states + controlnet_block_samples[index_block // interval_control]
+                interval_control = len(self.transformer_blocks) / len(controlnet_block_samples)
+                interval_control = int(np.ceil(interval_control))
+                hidden_states = hidden_states + controlnet_block_samples[index_block // interval_control]
 
         for index_block, block in enumerate(self.single_transformer_blocks):
             encoder_hidden_states, hidden_states = block(
@@ -811,17 +760,16 @@ class FluxTransformer2DModel(
                 encoder_hidden_states=encoder_hidden_states,
                 temb=temb,
                 image_rotary_emb=image_rotary_emb,
-                joint_attention_kwargs=joint_attention_kwargs,
             )
 
             # controlnet residual
             if controlnet_single_block_samples is not None:
-                interval_control = (
-                    len(self.single_transformer_blocks) + len(controlnet_single_block_samples) - 1
-                ) // len(
-                    controlnet_single_block_samples
-                )  # not supporting numpy
-                hidden_states = hidden_states + controlnet_single_block_samples[index_block // interval_control]
+                interval_control = len(self.single_transformer_blocks) / len(controlnet_single_block_samples)
+                interval_control = int(np.ceil(interval_control))
+                hidden_states[:, encoder_hidden_states.shape[1] :, ...] = (
+                    hidden_states[:, encoder_hidden_states.shape[1] :, ...]
+                    + controlnet_single_block_samples[index_block // interval_control]
+                )
 
         hidden_states = self.norm_out(hidden_states, temb)
         output = self.proj_out(hidden_states)
@@ -830,12 +778,3 @@ class FluxTransformer2DModel(
             return (output,)
 
         return Transformer2DModelOutput(sample=output)
-
-
-class _GELU(nn.Cell):
-    def __init__(self, approximate: str = "none") -> None:
-        super().__init__()
-        self.approximate = approximate
-
-    def construct(self, input: ms.Tensor) -> ms.Tensor:
-        return mint.nn.functional.gelu(input, approximate=self.approximate)
