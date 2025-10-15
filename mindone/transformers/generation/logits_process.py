@@ -62,18 +62,6 @@ class LogitsProcessor:
         )
 
 
-class LogitsWarper:
-    """Abstract base class for all logit warpers that can be applied during generation with multinomial sampling."""
-
-    @add_start_docstrings(LOGITS_PROCESSOR_INPUTS_DOCSTRING)
-    def __call__(
-        self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray]
-    ) -> Union[ms.Tensor, np.ndarray]:
-        raise NotImplementedError(
-            f"{self.__class__} is an abstract class. Only classes inheriting this class can be called."
-        )
-
-
 class LogitsProcessorList(list):
     """
     This class can be used to create a list of [`LogitsProcessor`] to subsequently process a `scores` input tensor.
@@ -124,6 +112,37 @@ class MinLengthLogitsProcessor(LogitsProcessor):
             The minimum length below which the score of `eos_token_id` is set to `-float("Inf")`.
         eos_token_id (`Union[int, list[int], ms.Tensor, np.ndarray]`):
             The id(s) of the *end-of-sequence* token.
+
+    Examples:
+
+    ```python
+    >>> import mindspore as ms
+    >>> from transformers import AutoTokenizer
+    >>> from mindone.transformers import AutoModelForCausalLM
+
+    >>> tokenizer = AutoTokenizer.from_pretrained("bigscience/bloomz-560m")
+    >>> model = AutoModelForCausalLM.from_pretrained("bigscience/bloomz-560m")
+
+    >>> inputs = tokenizer("A number:", return_tensors="np")
+
+    >>> for key in inputs.keys():
+    >>>     inputs[key] = ms.tensor(inputs[key])
+
+    >>> gen_out = model.generate(**inputs)
+    >>> print(tokenizer.batch_decode(gen_out, skip_special_tokens=True)[0])
+    A number: one
+
+    >>> # setting `min_length` to a value smaller than the uncontrolled output length has no impact
+    >>> gen_out = model.generate(**inputs, min_length=3)
+    >>> print(tokenizer.batch_decode(gen_out, skip_special_tokens=True)[0])
+    A number: one
+
+    >>> # setting a larger `min_length` will force the model to generate beyond its natural ending point, which is not
+    >>> # necessarily incorrect
+    >>> gen_out = model.generate(**inputs, min_length=10)
+    >>> print(tokenizer.batch_decode(gen_out, skip_special_tokens=True)[0])
+    A number: one thousand, nine hundred and ninety-four
+    ```
     """
 
     def __init__(self, min_length: int, eos_token_id: Union[int, list[int], ms.Tensor, np.ndarray], **ignore):
@@ -177,6 +196,30 @@ class MinNewTokensLengthLogitsProcessor(LogitsProcessor):
             The minimum *new* tokens length below which the score of `eos_token_id` is set to `-float("Inf")`.
         eos_token_id (`Union[int, list[int], ms.Tensor]`):
             The id(s) of the *end-of-sequence* token.
+
+    Examples:
+
+    ```python
+    >>> from transformers import AutoTokenizer
+    >>> from mindone.transformers import AutoModelForCausalLM
+
+    >>> tokenizer = AutoTokenizer.from_pretrained("bigscience/bloomz-560m")
+    >>> model = AutoModelForCausalLM.from_pretrained("bigscience/bloomz-560m")
+
+    >>> inputs = tokenizer(["A number:"], return_tensors="np")
+    >>> for key in inputs.keys():
+    >>>     inputs[key] = ms.tensor(inputs[key])
+
+    >>> gen_out = model.generate(**inputs)
+    >>> print(tokenizer.batch_decode(gen_out, skip_special_tokens=True)[0])
+    A number: one
+
+    >>> # setting `min_new_tokens` will force the model to generate beyond its natural ending point, which is not
+    >>> # necessarily incorrect
+    >>> gen_out = model.generate(**inputs, min_new_tokens=2)
+    >>> print(tokenizer.batch_decode(gen_out, skip_special_tokens=True)[0])
+    A number: one thousand
+    ```
     """
 
     def __init__(
@@ -244,6 +287,38 @@ class TemperatureLogitsWarper(LogitsProcessor):
             Strictly positive float value used to modulate the logits distribution. A value smaller than `1` decreases
             randomness (and vice versa), with `0` being equivalent to shifting all probability mass to the most likely
             token.
+
+    Examples:
+
+    ```python
+    >>> import mindspore as ms
+    >>> from transformers import AutoTokenizer, set_seed
+    >>> from mindone.transformers import AutoModelForCausalLM
+
+    >>> set_seed(0)  # for reproducibility
+
+    >>> tokenizer = AutoTokenizer.from_pretrained("openai-community/gpt2")
+    >>> model = AutoModelForCausalLM.from_pretrained("openai-community/gpt2")
+    >>> model.config.pad_token_id = model.config.eos_token_id
+    >>> inputs = tokenizer(["Hugging Face Company is"], return_tensors="np")
+    >>> for key in inputs.keys():
+    >>>     inputs[key] = ms.tensor(inputs[key])
+
+    >>> # With temperature=1.0, the default, we consistently get random outputs due to random sampling.
+    >>> generate_kwargs = {"max_new_tokens": 10, "do_sample": True, "temperature": 1.0, "num_return_sequences": 2}
+    >>> outputs = model.generate(**inputs, **generate_kwargs)
+    >>> print(tokenizer.batch_decode(outputs, skip_special_tokens=True))
+    ['Hugging Face Company is one of these companies that is going to take a',
+    "Hugging Face Company is a brand created by Brian A. O'Neil"]
+
+    >>> # However, with temperature close to 0, it approximates greedy decoding strategies (invariant)
+    >>> generate_kwargs["temperature"] = 0.0001
+    >>> outputs = model.generate(**inputs, **generate_kwargs)
+    >>> print(tokenizer.batch_decode(outputs, skip_special_tokens=True))
+    ['Hugging Face Company is a company that has been around for over 20 years',
+    'Hugging Face Company is a company that has been around for over 20 years']
+    ```
+
     """
 
     def __init__(self, temperature: float):
@@ -283,6 +358,41 @@ class RepetitionPenaltyLogitsProcessor(LogitsProcessor):
             tokens. Between 0.0 and 1.0 rewards previously generated tokens.
         prompt_ignore_length (`int`, *optional*):
             The original input ids sequence length, which if provided, will not be used in the penalty calculation.
+    Examples:
+
+    ```py
+    >>> import mindspore as ms
+    >>> from transformers import AutoTokenizer
+    >>> from mindone.transformers import AutoModelForCausalLM, RepetitionPenaltyLogitsProcessor
+
+    >>> # Initializing the model and tokenizer for it
+    >>> model = AutoModelForCausalLM.from_pretrained("distilbert/distilgpt2")
+    >>> tokenizer = AutoTokenizer.from_pretrained("distilbert/distilgpt2")
+    >>> inputs = tokenizer(["I'm not going to"], return_tensors="np")
+    >>> for key in inputs.keys():
+    >>>     inputs[key] = ms.tensor(inputs[key])
+
+    >>> # This shows a normal generate without any specific parameters
+    >>> summary_ids = model.generate(**inputs)
+    >>> print(tokenizer.batch_decode(summary_ids, skip_special_tokens=True)[0])
+    I'm not going to be able to do that. I'm going to be able to do that
+
+    >>> # This generates a penalty for repeated tokens
+    >>> penalized_ids = model.generate(**inputs, repetition_penalty=1.1)
+    >>> print(tokenizer.batch_decode(penalized_ids, skip_special_tokens=True)[0])
+    I'm not going to be able to do that. I'll just have to go out and play
+
+    >>> # We can also exclude the input prompt by creating an instance of this class
+    >>> # with a `prompt_ignore_length` and passing it as a custom logit processor
+    >>> rep_pen_processor = RepetitionPenaltyLogitsProcessor(
+    ...     penalty=1.1,
+    ...     prompt_ignore_length=inputs["input_ids"].shape[-1]
+    ... )
+    >>> penalized_ids = model.generate(**inputs, logits_processor=[rep_pen_processor])
+    >>> print(tokenizer.batch_decode(penalized_ids, skip_special_tokens=True)[0])
+    I'm not going to be able to do that. I'm going to have to go through a lot of things, and
+    ```
+
     """
 
     def __init__(self, penalty: float, prompt_ignore_length: Optional[int] = None):
@@ -401,7 +511,7 @@ class EncoderRepetitionPenaltyLogitsProcessor(LogitsProcessor):
         return scores_processed
 
 
-class TopPLogitsWarper(LogitsWarper):
+class TopPLogitsWarper(LogitsProcessor):
     """
     [`LogitsWarper`] that performs top-p, i.e. restricting to top tokens summing to prob_cut_off <= prob_cut_off. Often
     used together with [`TemperatureLogitsWarper`] and [`TopKLogitsWarper`].
@@ -496,6 +606,33 @@ class TopKLogitsWarper(LogitsProcessor):
             All filtered values will be set to this float value.
         min_tokens_to_keep (`int`, *optional*, defaults to 1):
             Minimum number of tokens that cannot be filtered.
+
+    Examples:
+
+    ```python
+    >>> import mindspore as ms
+    >>> from transformers import AutoTokenizer, set_seed
+    >>> from mindone.transformers import AutoModelForCausalLM
+
+    >>> set_seed(1)
+    >>> model = AutoModelForCausalLM.from_pretrained("distilbert/distilgpt2")
+    >>> tokenizer = AutoTokenizer.from_pretrained("distilbert/distilgpt2")
+
+    >>> inputs = tokenizer("A sequence: A, B, C, D", return_tensors="np")
+    >>> for key in inputs.keys():
+    >>>     inputs[key] = ms.tensor(inputs[key])
+
+    >>> # With sampling, the output is unexpected -- sometimes too unexpected.
+    >>> outputs = model.generate(**inputs, do_sample=True)
+    >>> print(tokenizer.batch_decode(outputs, skip_special_tokens=True)[0])
+    A sequence: A, B, C, D, E — S — O, P — R
+
+    >>> # With `top_k` sampling, the output gets restricted the k most likely tokens.
+    >>> # Pro tip: In practice, LLMs use `top_k` in the 5-50 range.
+    >>> outputs = model.generate(**inputs, do_sample=True, top_k=2)
+    >>> print(tokenizer.batch_decode(outputs, skip_special_tokens=True)[0])
+    A sequence: A, B, C, D, E, F, G, H, I
+    ```
     """
 
     def __init__(self, top_k: int, filter_value: float = -float("Inf"), min_tokens_to_keep: int = 1):
@@ -546,13 +683,17 @@ class MinPLogitsWarper(LogitsProcessor):
     Examples:
 
     ```python
-    >>> from transformers import AutoTokenizer, AutoModelForCausalLM, set_seed
+    >>> import mindspore as ms
+    >>> from transformers import AutoTokenizer, set_seed
+    >>> from mindone.transformers import AutoModelForCausalLM
 
     >>> set_seed(1)
     >>> model = AutoModelForCausalLM.from_pretrained("distilbert/distilgpt2")
     >>> tokenizer = AutoTokenizer.from_pretrained("distilbert/distilgpt2")
 
-    >>> inputs = tokenizer("A sequence: 1, 2", return_tensors="pt")
+    >>> inputs = tokenizer("A sequence: 1, 2", return_tensors="np")
+    >>> for key in inputs.keys():
+    >>>     inputs[key] = ms.tensor(inputs[key])
 
     >>> # With sampling, the output is unexpected -- sometimes too unexpected.
     >>> outputs = model.generate(**inputs, do_sample=True)
@@ -618,12 +759,16 @@ class TypicalLogitsWarper(LogitsProcessor):
     Examples:
 
     ```python
-    >>> from transformers import AutoTokenizer, AutoModelForCausalLM, set_seed
+    >>> import mindspore as ms
+    >>> from transformers import AutoTokenizer, set_seed
+    >>> from mindone.transformers import AutoModelForCausalLM
 
     >>> model = AutoModelForCausalLM.from_pretrained("bigscience/bloomz-560m")
     >>> tokenizer = AutoTokenizer.from_pretrained("bigscience/bloomz-560m")
 
-    >>> inputs = tokenizer("1, 2, 3", return_tensors="pt")
+    >>> inputs = tokenizer("1, 2, 3", return_tensors="np")
+    >>> for key in inputs.keys():
+    >>>     inputs[key] = ms.tensor(inputs[key])
 
     >>> # We can see that greedy decoding produces a sequence of numbers
     >>> outputs = model.generate(**inputs)
@@ -703,13 +848,17 @@ class EpsilonLogitsWarper(LogitsProcessor):
 
     Examples:
     ```python
-    >>> from transformers import AutoTokenizer, AutoModelForCausalLM, set_seed
+    >>> import mindspore as ms
+    >>> from transformers import AutoTokenizer, set_seed
+    >>> from mindone.transformers import AutoModelForCausalLM
 
     >>> set_seed(1)
     >>> model = AutoModelForCausalLM.from_pretrained("distilbert/distilgpt2")
     >>> tokenizer = AutoTokenizer.from_pretrained("distilbert/distilgpt2")
 
-    >>> inputs = tokenizer("A sequence: 1, 2", return_tensors="pt")
+    >>> inputs = tokenizer("A sequence: 1, 2", return_tensors="np")
+    >>> for key in inputs.keys():
+    >>>     inputs[key] = ms.tensor(inputs[key])
 
     >>> # With sampling, the output is unexpected -- sometimes too unexpected.
     >>> outputs = model.generate(**inputs, do_sample=True)
@@ -720,7 +869,7 @@ class EpsilonLogitsWarper(LogitsProcessor):
 
     >>> # With epsilon sampling, the output gets restricted to high-probability tokens. Note that this is similar to
     >>> # Top P sampling, which restricts tokens based on their cumulative probability.
-    >>> # Pro tip: The paper recomends using `epsilon_cutoff` values between 3e-4 and 9e-4
+    >>> # Pro tip: The paper recommends using `epsilon_cutoff` values between 3e-4 and 9e-4
     >>> outputs = model.generate(**inputs, do_sample=True, epsilon_cutoff=0.1)
     >>> print(tokenizer.batch_decode(outputs, skip_special_tokens=True)[0])
     A sequence: 1, 2, 3, 4, 5, 6, 7, 8, 9
@@ -1309,6 +1458,44 @@ class PrefixConstrainedLogitsProcessor(LogitsProcessor):
             arguments `inputs_ids` and the batch ID `batch_id`. It has to return a list with the allowed tokens for the
             next generation step conditioned on the previously generated tokens `inputs_ids` and the batch ID
             `batch_id`.
+
+    Examples:
+
+    ```py
+    >>> import mindspore as ms
+    >>> from transformers import AutoTokenizer
+    >>> from mindone.transformers import AutoModelForCausalLM
+
+    >>> model = AutoModelForCausalLM.from_pretrained("bigscience/bloomz-560m")
+    >>> tokenizer = AutoTokenizer.from_pretrained("bigscience/bloomz-560m")
+
+    >>> inputs = tokenizer("Alice and Bob", return_tensors="np")
+    >>> for key in inputs.keys():
+    >>>     inputs[key] = ms.tensor(inputs[key])
+
+    >>> # By default, it continues generating according to the model's logits
+    >>> outputs = model.generate(**inputs, max_new_tokens=5)
+    >>> print(tokenizer.batch_decode(outputs, skip_special_tokens=True)[0])
+    Alice and Bob are friends
+
+    >>> # We can constrain it with `prefix_allowed_tokens_fn` to force a certain behavior based on a prefix.
+    >>> # For instance, we can force an entire entity to be generated when its beginning is detected.
+    >>> entity = ms.tensor(tokenizer(" Bob Marley", return_tensors="np").input_ids[0])  # 3 tokens
+    >>> def prefix_allowed_tokens_fn(batch_id, input_ids):
+    ...     '''
+    ...     Attempts to generate 'Bob Marley' when 'Bob' is detected.
+    ...     In this case, `batch_id` is not used, but you can set rules for each batch member.
+    ...     '''
+    ...     if input_ids[-1] == entity[0]:
+    ...         return [entity[1].item()]
+    ...     elif input_ids[-2] == entity[0] and input_ids[-1] == entity[1]:
+    ...         return [entity[2].item()]
+    ...     return list(range(tokenizer.vocab_size))  # If no match, allow all tokens
+
+    >>> outputs = model.generate(**inputs, max_new_tokens=5, prefix_allowed_tokens_fn=prefix_allowed_tokens_fn)
+    >>> print(tokenizer.batch_decode(outputs, skip_special_tokens=True)[0])
+    Alice and Bob Marley
+    ```
     """
 
     def __init__(self, prefix_allowed_tokens_fn: Callable[[int, ms.Tensor], list[int]], num_beams: int):
@@ -1722,6 +1909,33 @@ class LogitNormalization(LogitsProcessor):
     the scores during beam search, after applying the logits processors or warpers, since the search algorithm used in
     this library doesn't do it (it only does it before, but they may need re-normalization) but it still supposes that
     the scores are normalized when comparing the hypotheses.
+
+    Examples:
+
+    ```python
+    >>> from transformers import AutoTokenizer
+    >>> from mindone.transformers import AutoModelForCausalLM
+    >>> import mindspore as ms
+    >>> from mindspore import mint
+
+    >>> model = AutoModelForCausalLM.from_pretrained("distilbert/distilgpt2")
+    >>> tokenizer = AutoTokenizer.from_pretrained("distilbert/distilgpt2")
+
+    >>> inputs = tokenizer("A sequence: 1, 2, 3", return_tensors="np")
+    >>> for key in inputs.keys():
+    >>>     inputs[key] = ms.tensor(inputs[key])
+
+    >>> # By default, the scores are not normalized -- the sum of their exponentials is NOT a normalized probability
+    >>> # distribution, summing to 1
+    >>> outputs = model.generate(**inputs, return_dict_in_generate=True, output_scores=True)
+    >>> print(mint.allclose(mint.sum(mint.exp(outputs.scores[-1])), ms.Tensor((1.000,)), rtol=1e-4))
+    False
+
+    >>> # Normalizing them may have a positive impact on beam methods, or when using the scores on your application
+    >>> outputs = model.generate(**inputs, renormalize_logits=True, return_dict_in_generate=True, output_scores=True)
+    >>> print(mint.allclose(mint.sum(mint.exp(outputs.scores[-1])), ms.Tensor((1.000,)), rtol=1e-4))
+    True
+    ```
 
     """
 
