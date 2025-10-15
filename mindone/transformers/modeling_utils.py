@@ -2645,9 +2645,13 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         loading_task_model_from_base_state_dict = not has_prefix_module and expects_prefix_module
         loading_base_model_from_task_state_dict = has_prefix_module and not expects_prefix_module
 
+        # Mapping loaded_keys from pt to ms
+        pt2ms_mappings = _get_pt2ms_mappings(model)
+        loaded_keys = _get_pt2ms_mapped_k(pt2ms_mappings, has_prefix_module, expects_prefix_module, loaded_keys, prefix)
+
         # Find the key names that the model expects from the serialized keys
         key_renaming_mapping = model._get_key_renaming_mapping(
-            original_checkpoint_keys,
+            loaded_keys,
             key_mapping,
             loading_base_model_from_task_state_dict,
             loading_task_model_from_base_state_dict,
