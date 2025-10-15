@@ -98,7 +98,7 @@ class ModernBertMLP(nn.Cell):
 
 
 class ModernBertRotaryEmbedding(nn.Cell):
-    def __init__(self, config: ModernBertConfig, dim: int, base: float):
+    def __init__(self, config: ModernBertConfig):
         super().__init__()
         # BC: "rope_type" was originally "type"
         if hasattr(config, "rope_scaling") and config.rope_scaling is not None:
