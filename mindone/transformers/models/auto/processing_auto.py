@@ -25,6 +25,8 @@ import warnings
 from collections import OrderedDict
 
 # Build the list of all feature extractors
+import transformers
+from packaging import version
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import get_class_from_dynamic_module, resolve_trust_remote_code
 from transformers.models.auto.tokenization_auto import AutoTokenizer
@@ -54,7 +56,6 @@ PROCESSOR_MAPPING_NAMES = OrderedDict(
         ("chinese_clip", "ChineseCLIPProcessor"),
         ("colpali", "ColPaliProcessor"),
         ("flava", "FlavaProcessor"),
-        ("glm4v", "Glm4vProcessor"),
         ("idefics", "IdeficsProcessor"),
         ("instructblip", "InstructBlipProcessor"),
         ("layoutlmv3", "LayoutMv3Processor"),
@@ -71,6 +72,9 @@ PROCESSOR_MAPPING_NAMES = OrderedDict(
         ("siglip", "SiglipProcessor"),
     ]
 )
+
+if version.parse(transformers.__version__) >= version.parse("4.53.0"):
+    PROCESSOR_MAPPING_NAMES.update({"glm4v": "Glm4vProcessor"})
 
 PROCESSOR_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, PROCESSOR_MAPPING_NAMES)
 
