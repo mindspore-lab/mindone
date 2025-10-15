@@ -9484,7 +9484,19 @@ implemented for all pipelines (downloading, saving, running on a particular devi
 <span class="normal">544</span>
 <span class="normal">545</span>
 <span class="normal">546</span>
-<span class="normal">547</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AudioLDMPipeline</span><span class="p">(</span><span class="n">DeprecatedPipelineMixin</span><span class="p">,</span> <span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">StableDiffusionMixin</span><span class="p">):</span>
+<span class="normal">547</span>
+<span class="normal">548</span>
+<span class="normal">549</span>
+<span class="normal">550</span>
+<span class="normal">551</span>
+<span class="normal">552</span>
+<span class="normal">553</span>
+<span class="normal">554</span>
+<span class="normal">555</span>
+<span class="normal">556</span>
+<span class="normal">557</span>
+<span class="normal">558</span>
+<span class="normal">559</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AudioLDMPipeline</span><span class="p">(</span><span class="n">DeprecatedPipelineMixin</span><span class="p">,</span> <span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">StableDiffusionMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for text-to-audio generation using AudioLDM.</span>
 
@@ -9928,6 +9940,13 @@ implemented for all pipelines (downloading, saving, running on a particular devi
         <span class="c1"># 6. Prepare extra step kwargs</span>
         <span class="n">extra_step_kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepare_extra_step_kwargs</span><span class="p">(</span><span class="n">generator</span><span class="p">,</span> <span class="n">eta</span><span class="p">)</span>
 
+        <span class="c1"># we&#39;re popping the `scale` instead of getting it because otherwise `scale` will be propagated</span>
+        <span class="c1"># to the unet and will raise RuntimeError.</span>
+        <span class="n">lora_scale</span> <span class="o">=</span> <span class="n">cross_attention_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;scale&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="n">cross_attention_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># weight the lora layers by setting `lora_scale` for each PEFT layer</span>
+            <span class="n">scale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+
         <span class="c1"># 7. Denoising loop</span>
         <span class="n">num_warmup_steps</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span> <span class="o">-</span> <span class="n">num_inference_steps</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">order</span>
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">num_inference_steps</span><span class="p">)</span> <span class="k">as</span> <span class="n">progress_bar</span><span class="p">:</span>
@@ -9959,6 +9978,11 @@ implemented for all pipelines (downloading, saving, running on a particular devi
                     <span class="k">if</span> <span class="n">callback</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">%</span> <span class="n">callback_steps</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
                         <span class="n">step_idx</span> <span class="o">=</span> <span class="n">i</span> <span class="o">//</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">,</span> <span class="s2">&quot;order&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
                         <span class="n">callback</span><span class="p">(</span><span class="n">step_idx</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">latents</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># remove `lora_scale` from each PEFT layer</span>
+            <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+            <span class="n">cross_attention_kwargs</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lora_scale</span>
 
         <span class="c1"># 8. Post-processing</span>
         <span class="n">mel_spectrogram</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decode_latents</span><span class="p">(</span><span class="n">latents</span><span class="p">)</span>
@@ -10565,7 +10589,19 @@ returned where the first element is a list with the generated audio.</p>
 <span class="normal">544</span>
 <span class="normal">545</span>
 <span class="normal">546</span>
-<span class="normal">547</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">547</span>
+<span class="normal">548</span>
+<span class="normal">549</span>
+<span class="normal">550</span>
+<span class="normal">551</span>
+<span class="normal">552</span>
+<span class="normal">553</span>
+<span class="normal">554</span>
+<span class="normal">555</span>
+<span class="normal">556</span>
+<span class="normal">557</span>
+<span class="normal">558</span>
+<span class="normal">559</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">audio_length_in_s</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -10710,6 +10746,13 @@ returned where the first element is a list with the generated audio.</p>
     <span class="c1"># 6. Prepare extra step kwargs</span>
     <span class="n">extra_step_kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepare_extra_step_kwargs</span><span class="p">(</span><span class="n">generator</span><span class="p">,</span> <span class="n">eta</span><span class="p">)</span>
 
+    <span class="c1"># we&#39;re popping the `scale` instead of getting it because otherwise `scale` will be propagated</span>
+    <span class="c1"># to the unet and will raise RuntimeError.</span>
+    <span class="n">lora_scale</span> <span class="o">=</span> <span class="n">cross_attention_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;scale&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="n">cross_attention_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># weight the lora layers by setting `lora_scale` for each PEFT layer</span>
+        <span class="n">scale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+
     <span class="c1"># 7. Denoising loop</span>
     <span class="n">num_warmup_steps</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span> <span class="o">-</span> <span class="n">num_inference_steps</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">order</span>
     <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">num_inference_steps</span><span class="p">)</span> <span class="k">as</span> <span class="n">progress_bar</span><span class="p">:</span>
@@ -10741,6 +10784,11 @@ returned where the first element is a list with the generated audio.</p>
                 <span class="k">if</span> <span class="n">callback</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">%</span> <span class="n">callback_steps</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
                     <span class="n">step_idx</span> <span class="o">=</span> <span class="n">i</span> <span class="o">//</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">,</span> <span class="s2">&quot;order&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
                     <span class="n">callback</span><span class="p">(</span><span class="n">step_idx</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">latents</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># remove `lora_scale` from each PEFT layer</span>
+        <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+        <span class="n">cross_attention_kwargs</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lora_scale</span>
 
     <span class="c1"># 8. Post-processing</span>
     <span class="n">mel_spectrogram</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decode_latents</span><span class="p">(</span><span class="n">latents</span><span class="p">)</span>

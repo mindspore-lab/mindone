@@ -16115,7 +16115,19 @@ watermarker will be used.</p>
 <span class="normal">1635</span>
 <span class="normal">1636</span>
 <span class="normal">1637</span>
-<span class="normal">1638</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LEditsPPPipelineStableDiffusionXL</span><span class="p">(</span>
+<span class="normal">1638</span>
+<span class="normal">1639</span>
+<span class="normal">1640</span>
+<span class="normal">1641</span>
+<span class="normal">1642</span>
+<span class="normal">1643</span>
+<span class="normal">1644</span>
+<span class="normal">1645</span>
+<span class="normal">1646</span>
+<span class="normal">1647</span>
+<span class="normal">1648</span>
+<span class="normal">1649</span>
+<span class="normal">1650</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LEditsPPPipelineStableDiffusionXL</span><span class="p">(</span>
     <span class="n">DiffusionPipeline</span><span class="p">,</span>
     <span class="n">FromSingleFileMixin</span><span class="p">,</span>
     <span class="n">StableDiffusionXLLoraLoaderMixin</span><span class="p">,</span>
@@ -16951,6 +16963,13 @@ watermarker will be used.</p>
                 <span class="n">guidance_scale_tensor</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">time_cond_proj_dim</span>
             <span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">latents</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
+        <span class="c1"># we&#39;re popping the `scale` instead of getting it because otherwise `scale` will be propagated</span>
+        <span class="c1"># to the unet and will raise RuntimeError.</span>
+        <span class="n">lora_scale</span> <span class="o">=</span> <span class="n">cross_attention_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;scale&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="n">cross_attention_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># weight the lora layers by setting `lora_scale` for each PEFT layer</span>
+            <span class="n">scale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">_num_timesteps</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_num_timesteps</span><span class="p">)</span> <span class="k">as</span> <span class="n">progress_bar</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
@@ -17210,6 +17229,11 @@ watermarker will be used.</p>
                 <span class="c1"># call the callback, if provided</span>
                 <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span> <span class="ow">or</span> <span class="p">((</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">order</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
                     <span class="n">progress_bar</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># remove `lora_scale` from each PEFT layer</span>
+            <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+            <span class="n">cross_attention_kwargs</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lora_scale</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;latent&quot;</span><span class="p">:</span>
             <span class="c1"># make sure the VAE is in float32 mode, as it overflows in float16</span>
@@ -18842,7 +18866,19 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="normal">1373</span>
 <span class="normal">1374</span>
 <span class="normal">1375</span>
-<span class="normal">1376</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">1376</span>
+<span class="normal">1377</span>
+<span class="normal">1378</span>
+<span class="normal">1379</span>
+<span class="normal">1380</span>
+<span class="normal">1381</span>
+<span class="normal">1382</span>
+<span class="normal">1383</span>
+<span class="normal">1384</span>
+<span class="normal">1385</span>
+<span class="normal">1386</span>
+<span class="normal">1387</span>
+<span class="normal">1388</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">denoising_end</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">negative_prompt</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -19155,6 +19191,13 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
             <span class="n">guidance_scale_tensor</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">time_cond_proj_dim</span>
         <span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">latents</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
+    <span class="c1"># we&#39;re popping the `scale` instead of getting it because otherwise `scale` will be propagated</span>
+    <span class="c1"># to the unet and will raise RuntimeError.</span>
+    <span class="n">lora_scale</span> <span class="o">=</span> <span class="n">cross_attention_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;scale&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="n">cross_attention_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># weight the lora layers by setting `lora_scale` for each PEFT layer</span>
+        <span class="n">scale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+
     <span class="bp">self</span><span class="o">.</span><span class="n">_num_timesteps</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
     <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_num_timesteps</span><span class="p">)</span> <span class="k">as</span> <span class="n">progress_bar</span><span class="p">:</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
@@ -19414,6 +19457,11 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
             <span class="c1"># call the callback, if provided</span>
             <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span> <span class="ow">or</span> <span class="p">((</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">order</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
                 <span class="n">progress_bar</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># remove `lora_scale` from each PEFT layer</span>
+        <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+        <span class="n">cross_attention_kwargs</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lora_scale</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;latent&quot;</span><span class="p">:</span>
         <span class="c1"># make sure the VAE is in float32 mode, as it overflows in float16</span>
@@ -20728,19 +20776,7 @@ SD-XL in combination with [<code>DPMSolverMultistepScheduler</code>] will produc
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/ledits_pp/pipeline_leditspp_stable_diffusion_xl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1413</span>
-<span class="normal">1414</span>
-<span class="normal">1415</span>
-<span class="normal">1416</span>
-<span class="normal">1417</span>
-<span class="normal">1418</span>
-<span class="normal">1419</span>
-<span class="normal">1420</span>
-<span class="normal">1421</span>
-<span class="normal">1422</span>
-<span class="normal">1423</span>
-<span class="normal">1424</span>
-<span class="normal">1425</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1425</span>
 <span class="normal">1426</span>
 <span class="normal">1427</span>
 <span class="normal">1428</span>
@@ -20953,7 +20989,19 @@ SD-XL in combination with [<code>DPMSolverMultistepScheduler</code>] will produc
 <span class="normal">1635</span>
 <span class="normal">1636</span>
 <span class="normal">1637</span>
-<span class="normal">1638</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">invert</span><span class="p">(</span>
+<span class="normal">1638</span>
+<span class="normal">1639</span>
+<span class="normal">1640</span>
+<span class="normal">1641</span>
+<span class="normal">1642</span>
+<span class="normal">1643</span>
+<span class="normal">1644</span>
+<span class="normal">1645</span>
+<span class="normal">1646</span>
+<span class="normal">1647</span>
+<span class="normal">1648</span>
+<span class="normal">1649</span>
+<span class="normal">1650</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">invert</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">PipelineImageInput</span><span class="p">,</span>
     <span class="n">source_prompt</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>

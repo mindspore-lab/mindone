@@ -20480,7 +20480,14 @@ LoRA parameters then it won't have any effect.</p>
 <span class="normal">2581</span>
 <span class="normal">2582</span>
 <span class="normal">2583</span>
-<span class="normal">2584</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FluxLoraLoaderMixin</span><span class="p">(</span><span class="n">LoraBaseMixin</span><span class="p">):</span>
+<span class="normal">2584</span>
+<span class="normal">2585</span>
+<span class="normal">2586</span>
+<span class="normal">2587</span>
+<span class="normal">2588</span>
+<span class="normal">2589</span>
+<span class="normal">2590</span>
+<span class="normal">2591</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FluxLoraLoaderMixin</span><span class="p">(</span><span class="n">LoraBaseMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load LoRA layers into [`FluxTransformer2DModel`],</span>
 <span class="sd">    [`CLIPTextModel`](https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModel).</span>
@@ -20858,6 +20865,11 @@ LoRA parameters then it won't have any effect.</p>
             <span class="s2">&quot;If you notice something unexpected, please open an issue: https://github.com/huggingface/diffusers/issues.&quot;</span>
         <span class="p">)</span>
 
+        <span class="n">transformer_prefix_tmp</span> <span class="o">=</span> <span class="s2">&quot;model&quot;</span>
+        <span class="n">has_prefix_in_state_dict</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span><span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">transformer_prefix_tmp</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">state_dict</span><span class="p">)</span>
+        <span class="n">has_prefix_in_transformer</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span><span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">transformer_prefix_tmp</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">transformer</span><span class="o">.</span><span class="n">parameters_dict</span><span class="p">())</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">has_prefix_in_state_dict</span> <span class="ow">and</span> <span class="n">has_prefix_in_transformer</span><span class="p">:</span>
+            <span class="n">state_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">transformer_prefix_tmp</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">:</span> <span class="n">state_dict</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">state_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">())})</span>
         <span class="c1"># We can&#39;t load with strict=True because the current state_dict does not contain all the transformer keys</span>
         <span class="n">param_not_load</span><span class="p">,</span> <span class="n">unexpected_keys</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">load_param_into_net</span><span class="p">(</span><span class="n">transformer</span><span class="p">,</span> <span class="n">state_dict</span><span class="p">,</span> <span class="n">strict_load</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
@@ -21253,7 +21265,7 @@ LoRA parameters then it won't have any effect.</p>
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_maybe_expand_lora_state_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">transformer</span><span class="p">,</span> <span class="n">lora_state_dict</span><span class="p">):</span>
         <span class="n">expanded_module_names</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
-        <span class="n">transformer_state_dict</span> <span class="o">=</span> <span class="n">transformer</span><span class="o">.</span><span class="n">parameters_dict</span><span class="p">()</span>
+        <span class="n">transformer_state_dict</span> <span class="o">=</span> <span class="n">transformer</span><span class="o">.</span><span class="n">state_dict</span><span class="p">()</span>
         <span class="n">prefix</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">cls</span><span class="o">.</span><span class="n">transformer_name</span><span class="si">}</span><span class="s2">.&quot;</span>
 
         <span class="n">lora_module_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">key</span><span class="p">[:</span> <span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="s2">&quot;.lora_A.weight&quot;</span><span class="p">)]</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">lora_state_dict</span> <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.lora_A.weight&quot;</span><span class="p">)]</span>
@@ -21283,7 +21295,9 @@ LoRA parameters then it won't have any effect.</p>
                 <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">lora_A_param</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">base_weight_param</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
                 <span class="n">expanded_state_dict_weight</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
                 <span class="n">expanded_state_dict_weight</span><span class="p">[:,</span> <span class="p">:</span> <span class="n">lora_A_param</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span> <span class="o">+=</span> <span class="n">lora_A_param</span>
-                <span class="n">lora_state_dict</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}{</span><span class="n">k</span><span class="si">}</span><span class="s2">.lora_A.weight&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">expanded_state_dict_weight</span>
+                <span class="n">lora_state_dict</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}{</span><span class="n">k</span><span class="si">}</span><span class="s2">.lora_A.weight&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span>
+                    <span class="n">expanded_state_dict_weight</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}{</span><span class="n">k</span><span class="si">}</span><span class="s2">.lora_A.weight&quot;</span>
+                <span class="p">)</span>
                 <span class="n">expanded_module_names</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
             <span class="k">elif</span> <span class="n">base_module_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">lora_A_param</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
                 <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
@@ -21468,12 +21482,7 @@ LoRA parameters then it won't have any effect.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2250</span>
-<span class="normal">2251</span>
-<span class="normal">2252</span>
-<span class="normal">2253</span>
-<span class="normal">2254</span>
-<span class="normal">2255</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2255</span>
 <span class="normal">2256</span>
 <span class="normal">2257</span>
 <span class="normal">2258</span>
@@ -21526,7 +21535,12 @@ LoRA parameters then it won't have any effect.</p>
 <span class="normal">2305</span>
 <span class="normal">2306</span>
 <span class="normal">2307</span>
-<span class="normal">2308</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_lora</span><span class="p">(</span>
+<span class="normal">2308</span>
+<span class="normal">2309</span>
+<span class="normal">2310</span>
+<span class="normal">2311</span>
+<span class="normal">2312</span>
+<span class="normal">2313</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_lora</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span>
     <span class="n">lora_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
@@ -21777,12 +21791,7 @@ from the state dict.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2123</span>
-<span class="normal">2124</span>
-<span class="normal">2125</span>
-<span class="normal">2126</span>
-<span class="normal">2127</span>
-<span class="normal">2128</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2128</span>
 <span class="normal">2129</span>
 <span class="normal">2130</span>
 <span class="normal">2131</span>
@@ -21829,7 +21838,12 @@ from the state dict.</p>
 <span class="normal">2172</span>
 <span class="normal">2173</span>
 <span class="normal">2174</span>
-<span class="normal">2175</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">2175</span>
+<span class="normal">2176</span>
+<span class="normal">2177</span>
+<span class="normal">2178</span>
+<span class="normal">2179</span>
+<span class="normal">2180</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_into_text_encoder</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">load_lora_into_text_encoder</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -23179,12 +23193,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2177</span>
-<span class="normal">2178</span>
-<span class="normal">2179</span>
-<span class="normal">2180</span>
-<span class="normal">2181</span>
-<span class="normal">2182</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2182</span>
 <span class="normal">2183</span>
 <span class="normal">2184</span>
 <span class="normal">2185</span>
@@ -23250,7 +23259,12 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">2245</span>
 <span class="normal">2246</span>
 <span class="normal">2247</span>
-<span class="normal">2248</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">2248</span>
+<span class="normal">2249</span>
+<span class="normal">2250</span>
+<span class="normal">2251</span>
+<span class="normal">2252</span>
+<span class="normal">2253</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.save_lora_weights with unet-&gt;transformer</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_lora_weights</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -23380,12 +23394,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2310</span>
-<span class="normal">2311</span>
-<span class="normal">2312</span>
-<span class="normal">2313</span>
-<span class="normal">2314</span>
-<span class="normal">2315</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2315</span>
 <span class="normal">2316</span>
 <span class="normal">2317</span>
 <span class="normal">2318</span>
@@ -23398,7 +23407,12 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">2325</span>
 <span class="normal">2326</span>
 <span class="normal">2327</span>
-<span class="normal">2328</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">,</span> <span class="s2">&quot;text_encoder&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="normal">2328</span>
+<span class="normal">2329</span>
+<span class="normal">2330</span>
+<span class="normal">2331</span>
+<span class="normal">2332</span>
+<span class="normal">2333</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">,</span> <span class="s2">&quot;text_encoder&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Reverses the effect of</span>
 <span class="sd">    [`pipe.fuse_lora()`](https://huggingface.co/docs/diffusers/main/en/api/loaders#diffusers.loaders.LoraBaseMixin.fuse_lora).</span>
@@ -23477,12 +23491,7 @@ documentation</a> to learn more.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2331</span>
-<span class="normal">2332</span>
-<span class="normal">2333</span>
-<span class="normal">2334</span>
-<span class="normal">2335</span>
-<span class="normal">2336</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2336</span>
 <span class="normal">2337</span>
 <span class="normal">2338</span>
 <span class="normal">2339</span>
@@ -23535,7 +23544,12 @@ documentation</a> to learn more.</p>
 <span class="normal">2386</span>
 <span class="normal">2387</span>
 <span class="normal">2388</span>
-<span class="normal">2389</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unload_lora_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reset_to_overwritten_params</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="normal">2389</span>
+<span class="normal">2390</span>
+<span class="normal">2391</span>
+<span class="normal">2392</span>
+<span class="normal">2393</span>
+<span class="normal">2394</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unload_lora_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reset_to_overwritten_params</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Unloads the LoRA parameters.</span>
 
@@ -23635,14 +23649,7 @@ documentation</a> to learn more.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2749</span>
-<span class="normal">2750</span>
-<span class="normal">2751</span>
-<span class="normal">2752</span>
-<span class="normal">2753</span>
-<span class="normal">2754</span>
-<span class="normal">2755</span>
-<span class="normal">2756</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2756</span>
 <span class="normal">2757</span>
 <span class="normal">2758</span>
 <span class="normal">2759</span>
@@ -23947,7 +23954,14 @@ documentation</a> to learn more.</p>
 <span class="normal">3058</span>
 <span class="normal">3059</span>
 <span class="normal">3060</span>
-<span class="normal">3061</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CogVideoXLoraLoaderMixin</span><span class="p">(</span><span class="n">LoraBaseMixin</span><span class="p">):</span>
+<span class="normal">3061</span>
+<span class="normal">3062</span>
+<span class="normal">3063</span>
+<span class="normal">3064</span>
+<span class="normal">3065</span>
+<span class="normal">3066</span>
+<span class="normal">3067</span>
+<span class="normal">3068</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CogVideoXLoraLoaderMixin</span><span class="p">(</span><span class="n">LoraBaseMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load LoRA layers into [`CogVideoXTransformer3DModel`]. Specific to [`CogVideoXPipeline`].</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -24396,14 +24410,7 @@ documentation</a> to learn more.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2999</span>
-<span class="normal">3000</span>
-<span class="normal">3001</span>
-<span class="normal">3002</span>
-<span class="normal">3003</span>
-<span class="normal">3004</span>
-<span class="normal">3005</span>
-<span class="normal">3006</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3006</span>
 <span class="normal">3007</span>
 <span class="normal">3008</span>
 <span class="normal">3009</span>
@@ -24441,7 +24448,14 @@ documentation</a> to learn more.</p>
 <span class="normal">3041</span>
 <span class="normal">3042</span>
 <span class="normal">3043</span>
-<span class="normal">3044</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_lora</span><span class="p">(</span>
+<span class="normal">3044</span>
+<span class="normal">3045</span>
+<span class="normal">3046</span>
+<span class="normal">3047</span>
+<span class="normal">3048</span>
+<span class="normal">3049</span>
+<span class="normal">3050</span>
+<span class="normal">3051</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_lora</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span>
     <span class="n">lora_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
@@ -24621,14 +24635,7 @@ from the state dict.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2901</span>
-<span class="normal">2902</span>
-<span class="normal">2903</span>
-<span class="normal">2904</span>
-<span class="normal">2905</span>
-<span class="normal">2906</span>
-<span class="normal">2907</span>
-<span class="normal">2908</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2908</span>
 <span class="normal">2909</span>
 <span class="normal">2910</span>
 <span class="normal">2911</span>
@@ -24660,7 +24667,14 @@ from the state dict.</p>
 <span class="normal">2937</span>
 <span class="normal">2938</span>
 <span class="normal">2939</span>
-<span class="normal">2940</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">2940</span>
+<span class="normal">2941</span>
+<span class="normal">2942</span>
+<span class="normal">2943</span>
+<span class="normal">2944</span>
+<span class="normal">2945</span>
+<span class="normal">2946</span>
+<span class="normal">2947</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel-&gt;CogVideoXTransformer3DModel</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">load_lora_into_transformer</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -24815,14 +24829,7 @@ dict is loaded into <code>self.transformer</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2855</span>
-<span class="normal">2856</span>
-<span class="normal">2857</span>
-<span class="normal">2858</span>
-<span class="normal">2859</span>
-<span class="normal">2860</span>
-<span class="normal">2861</span>
-<span class="normal">2862</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2862</span>
 <span class="normal">2863</span>
 <span class="normal">2864</span>
 <span class="normal">2865</span>
@@ -24859,7 +24866,14 @@ dict is loaded into <code>self.transformer</code>.</p>
 <span class="normal">2896</span>
 <span class="normal">2897</span>
 <span class="normal">2898</span>
-<span class="normal">2899</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_lora_weights</span><span class="p">(</span>
+<span class="normal">2899</span>
+<span class="normal">2900</span>
+<span class="normal">2901</span>
+<span class="normal">2902</span>
+<span class="normal">2903</span>
+<span class="normal">2904</span>
+<span class="normal">2905</span>
+<span class="normal">2906</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_lora_weights</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">pretrained_model_name_or_path_or_dict</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]],</span>
     <span class="n">adapter_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -25102,14 +25116,7 @@ allowed by Git.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2757</span>
-<span class="normal">2758</span>
-<span class="normal">2759</span>
-<span class="normal">2760</span>
-<span class="normal">2761</span>
-<span class="normal">2762</span>
-<span class="normal">2763</span>
-<span class="normal">2764</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2764</span>
 <span class="normal">2765</span>
 <span class="normal">2766</span>
 <span class="normal">2767</span>
@@ -25198,7 +25205,14 @@ allowed by Git.</p>
 <span class="normal">2850</span>
 <span class="normal">2851</span>
 <span class="normal">2852</span>
-<span class="normal">2853</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">2853</span>
+<span class="normal">2854</span>
+<span class="normal">2855</span>
+<span class="normal">2856</span>
+<span class="normal">2857</span>
+<span class="normal">2858</span>
+<span class="normal">2859</span>
+<span class="normal">2860</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="nd">@validate_hf_hub_args</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.lora_state_dict</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">lora_state_dict</span><span class="p">(</span>
@@ -25453,14 +25467,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2942</span>
-<span class="normal">2943</span>
-<span class="normal">2944</span>
-<span class="normal">2945</span>
-<span class="normal">2946</span>
-<span class="normal">2947</span>
-<span class="normal">2948</span>
-<span class="normal">2949</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2949</span>
 <span class="normal">2950</span>
 <span class="normal">2951</span>
 <span class="normal">2952</span>
@@ -25508,7 +25515,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">2994</span>
 <span class="normal">2995</span>
 <span class="normal">2996</span>
-<span class="normal">2997</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">2997</span>
+<span class="normal">2998</span>
+<span class="normal">2999</span>
+<span class="normal">3000</span>
+<span class="normal">3001</span>
+<span class="normal">3002</span>
+<span class="normal">3003</span>
+<span class="normal">3004</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="c1"># Adapted from mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.save_lora_weights without support for text encoder</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_lora_weights</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -25638,14 +25652,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3046</span>
-<span class="normal">3047</span>
-<span class="normal">3048</span>
-<span class="normal">3049</span>
-<span class="normal">3050</span>
-<span class="normal">3051</span>
-<span class="normal">3052</span>
-<span class="normal">3053</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3053</span>
 <span class="normal">3054</span>
 <span class="normal">3055</span>
 <span class="normal">3056</span>
@@ -25653,7 +25660,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">3058</span>
 <span class="normal">3059</span>
 <span class="normal">3060</span>
-<span class="normal">3061</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="normal">3061</span>
+<span class="normal">3062</span>
+<span class="normal">3063</span>
+<span class="normal">3064</span>
+<span class="normal">3065</span>
+<span class="normal">3066</span>
+<span class="normal">3067</span>
+<span class="normal">3068</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Reverses the effect of</span>
 <span class="sd">    [`pipe.fuse_lora()`](https://huggingface.co/docs/diffusers/main/en/api/loaders#diffusers.loaders.LoraBaseMixin.fuse_lora).</span>
@@ -25710,14 +25724,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3064</span>
-<span class="normal">3065</span>
-<span class="normal">3066</span>
-<span class="normal">3067</span>
-<span class="normal">3068</span>
-<span class="normal">3069</span>
-<span class="normal">3070</span>
-<span class="normal">3071</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3071</span>
 <span class="normal">3072</span>
 <span class="normal">3073</span>
 <span class="normal">3074</span>
@@ -26025,7 +26032,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">3376</span>
 <span class="normal">3377</span>
 <span class="normal">3378</span>
-<span class="normal">3379</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Mochi1LoraLoaderMixin</span><span class="p">(</span><span class="n">LoraBaseMixin</span><span class="p">):</span>
+<span class="normal">3379</span>
+<span class="normal">3380</span>
+<span class="normal">3381</span>
+<span class="normal">3382</span>
+<span class="normal">3383</span>
+<span class="normal">3384</span>
+<span class="normal">3385</span>
+<span class="normal">3386</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Mochi1LoraLoaderMixin</span><span class="p">(</span><span class="n">LoraBaseMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load LoRA layers into [`MochiTransformer3DModel`]. Specific to [`MochiPipeline`].</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -26477,14 +26491,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3316</span>
-<span class="normal">3317</span>
-<span class="normal">3318</span>
-<span class="normal">3319</span>
-<span class="normal">3320</span>
-<span class="normal">3321</span>
-<span class="normal">3322</span>
-<span class="normal">3323</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3323</span>
 <span class="normal">3324</span>
 <span class="normal">3325</span>
 <span class="normal">3326</span>
@@ -26522,7 +26529,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">3358</span>
 <span class="normal">3359</span>
 <span class="normal">3360</span>
-<span class="normal">3361</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_lora</span><span class="p">(</span>
+<span class="normal">3361</span>
+<span class="normal">3362</span>
+<span class="normal">3363</span>
+<span class="normal">3364</span>
+<span class="normal">3365</span>
+<span class="normal">3366</span>
+<span class="normal">3367</span>
+<span class="normal">3368</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_lora</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span>
     <span class="n">lora_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
@@ -26702,14 +26716,7 @@ from the state dict.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3217</span>
-<span class="normal">3218</span>
-<span class="normal">3219</span>
-<span class="normal">3220</span>
-<span class="normal">3221</span>
-<span class="normal">3222</span>
-<span class="normal">3223</span>
-<span class="normal">3224</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3224</span>
 <span class="normal">3225</span>
 <span class="normal">3226</span>
 <span class="normal">3227</span>
@@ -26741,7 +26748,14 @@ from the state dict.</p>
 <span class="normal">3253</span>
 <span class="normal">3254</span>
 <span class="normal">3255</span>
-<span class="normal">3256</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">3256</span>
+<span class="normal">3257</span>
+<span class="normal">3258</span>
+<span class="normal">3259</span>
+<span class="normal">3260</span>
+<span class="normal">3261</span>
+<span class="normal">3262</span>
+<span class="normal">3263</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel-&gt;MochiTransformer3DModel</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">load_lora_into_transformer</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -26896,14 +26910,7 @@ dict is loaded into <code>self.transformer</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3171</span>
-<span class="normal">3172</span>
-<span class="normal">3173</span>
-<span class="normal">3174</span>
-<span class="normal">3175</span>
-<span class="normal">3176</span>
-<span class="normal">3177</span>
-<span class="normal">3178</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3178</span>
 <span class="normal">3179</span>
 <span class="normal">3180</span>
 <span class="normal">3181</span>
@@ -26940,7 +26947,14 @@ dict is loaded into <code>self.transformer</code>.</p>
 <span class="normal">3212</span>
 <span class="normal">3213</span>
 <span class="normal">3214</span>
-<span class="normal">3215</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_lora_weights</span><span class="p">(</span>
+<span class="normal">3215</span>
+<span class="normal">3216</span>
+<span class="normal">3217</span>
+<span class="normal">3218</span>
+<span class="normal">3219</span>
+<span class="normal">3220</span>
+<span class="normal">3221</span>
+<span class="normal">3222</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_lora_weights</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">pretrained_model_name_or_path_or_dict</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]],</span>
     <span class="n">adapter_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -27183,14 +27197,7 @@ allowed by Git.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3072</span>
-<span class="normal">3073</span>
-<span class="normal">3074</span>
-<span class="normal">3075</span>
-<span class="normal">3076</span>
-<span class="normal">3077</span>
-<span class="normal">3078</span>
-<span class="normal">3079</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3079</span>
 <span class="normal">3080</span>
 <span class="normal">3081</span>
 <span class="normal">3082</span>
@@ -27279,7 +27286,14 @@ allowed by Git.</p>
 <span class="normal">3165</span>
 <span class="normal">3166</span>
 <span class="normal">3167</span>
-<span class="normal">3168</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">3168</span>
+<span class="normal">3169</span>
+<span class="normal">3170</span>
+<span class="normal">3171</span>
+<span class="normal">3172</span>
+<span class="normal">3173</span>
+<span class="normal">3174</span>
+<span class="normal">3175</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="nd">@validate_hf_hub_args</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.lora_state_dict</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">lora_state_dict</span><span class="p">(</span>
@@ -27534,14 +27548,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3258</span>
-<span class="normal">3259</span>
-<span class="normal">3260</span>
-<span class="normal">3261</span>
-<span class="normal">3262</span>
-<span class="normal">3263</span>
-<span class="normal">3264</span>
-<span class="normal">3265</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3265</span>
 <span class="normal">3266</span>
 <span class="normal">3267</span>
 <span class="normal">3268</span>
@@ -27589,7 +27596,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">3310</span>
 <span class="normal">3311</span>
 <span class="normal">3312</span>
-<span class="normal">3313</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">3313</span>
+<span class="normal">3314</span>
+<span class="normal">3315</span>
+<span class="normal">3316</span>
+<span class="normal">3317</span>
+<span class="normal">3318</span>
+<span class="normal">3319</span>
+<span class="normal">3320</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_lora_weights</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -27719,14 +27733,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3364</span>
-<span class="normal">3365</span>
-<span class="normal">3366</span>
-<span class="normal">3367</span>
-<span class="normal">3368</span>
-<span class="normal">3369</span>
-<span class="normal">3370</span>
-<span class="normal">3371</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3371</span>
 <span class="normal">3372</span>
 <span class="normal">3373</span>
 <span class="normal">3374</span>
@@ -27734,7 +27741,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">3376</span>
 <span class="normal">3377</span>
 <span class="normal">3378</span>
-<span class="normal">3379</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="normal">3379</span>
+<span class="normal">3380</span>
+<span class="normal">3381</span>
+<span class="normal">3382</span>
+<span class="normal">3383</span>
+<span class="normal">3384</span>
+<span class="normal">3385</span>
+<span class="normal">3386</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Reverses the effect of</span>
 <span class="sd">    [`pipe.fuse_lora()`](https://huggingface.co/docs/diffusers/main/en/api/loaders#diffusers.loaders.LoraBaseMixin.fuse_lora).</span>
@@ -27791,14 +27805,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3382</span>
-<span class="normal">3383</span>
-<span class="normal">3384</span>
-<span class="normal">3385</span>
-<span class="normal">3386</span>
-<span class="normal">3387</span>
-<span class="normal">3388</span>
-<span class="normal">3389</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3389</span>
 <span class="normal">3390</span>
 <span class="normal">3391</span>
 <span class="normal">3392</span>
@@ -28109,7 +28116,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">3697</span>
 <span class="normal">3698</span>
 <span class="normal">3699</span>
-<span class="normal">3700</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LTXVideoLoraLoaderMixin</span><span class="p">(</span><span class="n">LoraBaseMixin</span><span class="p">):</span>
+<span class="normal">3700</span>
+<span class="normal">3701</span>
+<span class="normal">3702</span>
+<span class="normal">3703</span>
+<span class="normal">3704</span>
+<span class="normal">3705</span>
+<span class="normal">3706</span>
+<span class="normal">3707</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LTXVideoLoraLoaderMixin</span><span class="p">(</span><span class="n">LoraBaseMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load LoRA layers into [`LTXVideoTransformer3DModel`]. Specific to [`LTXPipeline`].</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -28564,14 +28578,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3637</span>
-<span class="normal">3638</span>
-<span class="normal">3639</span>
-<span class="normal">3640</span>
-<span class="normal">3641</span>
-<span class="normal">3642</span>
-<span class="normal">3643</span>
-<span class="normal">3644</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3644</span>
 <span class="normal">3645</span>
 <span class="normal">3646</span>
 <span class="normal">3647</span>
@@ -28609,7 +28616,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">3679</span>
 <span class="normal">3680</span>
 <span class="normal">3681</span>
-<span class="normal">3682</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_lora</span><span class="p">(</span>
+<span class="normal">3682</span>
+<span class="normal">3683</span>
+<span class="normal">3684</span>
+<span class="normal">3685</span>
+<span class="normal">3686</span>
+<span class="normal">3687</span>
+<span class="normal">3688</span>
+<span class="normal">3689</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_lora</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span>
     <span class="n">lora_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
@@ -28789,14 +28803,7 @@ from the state dict.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3538</span>
-<span class="normal">3539</span>
-<span class="normal">3540</span>
-<span class="normal">3541</span>
-<span class="normal">3542</span>
-<span class="normal">3543</span>
-<span class="normal">3544</span>
-<span class="normal">3545</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3545</span>
 <span class="normal">3546</span>
 <span class="normal">3547</span>
 <span class="normal">3548</span>
@@ -28828,7 +28835,14 @@ from the state dict.</p>
 <span class="normal">3574</span>
 <span class="normal">3575</span>
 <span class="normal">3576</span>
-<span class="normal">3577</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">3577</span>
+<span class="normal">3578</span>
+<span class="normal">3579</span>
+<span class="normal">3580</span>
+<span class="normal">3581</span>
+<span class="normal">3582</span>
+<span class="normal">3583</span>
+<span class="normal">3584</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel-&gt;LTXVideoTransformer3DModel</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">load_lora_into_transformer</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -28983,14 +28997,7 @@ dict is loaded into <code>self.transformer</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3492</span>
-<span class="normal">3493</span>
-<span class="normal">3494</span>
-<span class="normal">3495</span>
-<span class="normal">3496</span>
-<span class="normal">3497</span>
-<span class="normal">3498</span>
-<span class="normal">3499</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3499</span>
 <span class="normal">3500</span>
 <span class="normal">3501</span>
 <span class="normal">3502</span>
@@ -29027,7 +29034,14 @@ dict is loaded into <code>self.transformer</code>.</p>
 <span class="normal">3533</span>
 <span class="normal">3534</span>
 <span class="normal">3535</span>
-<span class="normal">3536</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_lora_weights</span><span class="p">(</span>
+<span class="normal">3536</span>
+<span class="normal">3537</span>
+<span class="normal">3538</span>
+<span class="normal">3539</span>
+<span class="normal">3540</span>
+<span class="normal">3541</span>
+<span class="normal">3542</span>
+<span class="normal">3543</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_lora_weights</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">pretrained_model_name_or_path_or_dict</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]],</span>
     <span class="n">adapter_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -29270,14 +29284,7 @@ allowed by Git.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3390</span>
-<span class="normal">3391</span>
-<span class="normal">3392</span>
-<span class="normal">3393</span>
-<span class="normal">3394</span>
-<span class="normal">3395</span>
-<span class="normal">3396</span>
-<span class="normal">3397</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3397</span>
 <span class="normal">3398</span>
 <span class="normal">3399</span>
 <span class="normal">3400</span>
@@ -29369,7 +29376,14 @@ allowed by Git.</p>
 <span class="normal">3486</span>
 <span class="normal">3487</span>
 <span class="normal">3488</span>
-<span class="normal">3489</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">3489</span>
+<span class="normal">3490</span>
+<span class="normal">3491</span>
+<span class="normal">3492</span>
+<span class="normal">3493</span>
+<span class="normal">3494</span>
+<span class="normal">3495</span>
+<span class="normal">3496</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="nd">@validate_hf_hub_args</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.lora_state_dict</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">lora_state_dict</span><span class="p">(</span>
@@ -29627,14 +29641,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3579</span>
-<span class="normal">3580</span>
-<span class="normal">3581</span>
-<span class="normal">3582</span>
-<span class="normal">3583</span>
-<span class="normal">3584</span>
-<span class="normal">3585</span>
-<span class="normal">3586</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3586</span>
 <span class="normal">3587</span>
 <span class="normal">3588</span>
 <span class="normal">3589</span>
@@ -29682,7 +29689,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">3631</span>
 <span class="normal">3632</span>
 <span class="normal">3633</span>
-<span class="normal">3634</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">3634</span>
+<span class="normal">3635</span>
+<span class="normal">3636</span>
+<span class="normal">3637</span>
+<span class="normal">3638</span>
+<span class="normal">3639</span>
+<span class="normal">3640</span>
+<span class="normal">3641</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_lora_weights</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -29812,14 +29826,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3685</span>
-<span class="normal">3686</span>
-<span class="normal">3687</span>
-<span class="normal">3688</span>
-<span class="normal">3689</span>
-<span class="normal">3690</span>
-<span class="normal">3691</span>
-<span class="normal">3692</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3692</span>
 <span class="normal">3693</span>
 <span class="normal">3694</span>
 <span class="normal">3695</span>
@@ -29827,7 +29834,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">3697</span>
 <span class="normal">3698</span>
 <span class="normal">3699</span>
-<span class="normal">3700</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="normal">3700</span>
+<span class="normal">3701</span>
+<span class="normal">3702</span>
+<span class="normal">3703</span>
+<span class="normal">3704</span>
+<span class="normal">3705</span>
+<span class="normal">3706</span>
+<span class="normal">3707</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Reverses the effect of</span>
 <span class="sd">    [`pipe.fuse_lora()`](https://huggingface.co/docs/diffusers/main/en/api/loaders#diffusers.loaders.LoraBaseMixin.fuse_lora).</span>
@@ -29884,14 +29898,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3703</span>
-<span class="normal">3704</span>
-<span class="normal">3705</span>
-<span class="normal">3706</span>
-<span class="normal">3707</span>
-<span class="normal">3708</span>
-<span class="normal">3709</span>
-<span class="normal">3710</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3710</span>
 <span class="normal">3711</span>
 <span class="normal">3712</span>
 <span class="normal">3713</span>
@@ -30199,7 +30206,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">4015</span>
 <span class="normal">4016</span>
 <span class="normal">4017</span>
-<span class="normal">4018</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SanaLoraLoaderMixin</span><span class="p">(</span><span class="n">LoraBaseMixin</span><span class="p">):</span>
+<span class="normal">4018</span>
+<span class="normal">4019</span>
+<span class="normal">4020</span>
+<span class="normal">4021</span>
+<span class="normal">4022</span>
+<span class="normal">4023</span>
+<span class="normal">4024</span>
+<span class="normal">4025</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SanaLoraLoaderMixin</span><span class="p">(</span><span class="n">LoraBaseMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load LoRA layers into [`SanaTransformer2DModel`]. Specific to [`SanaPipeline`].</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -30651,14 +30665,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3955</span>
-<span class="normal">3956</span>
-<span class="normal">3957</span>
-<span class="normal">3958</span>
-<span class="normal">3959</span>
-<span class="normal">3960</span>
-<span class="normal">3961</span>
-<span class="normal">3962</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3962</span>
 <span class="normal">3963</span>
 <span class="normal">3964</span>
 <span class="normal">3965</span>
@@ -30696,7 +30703,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">3997</span>
 <span class="normal">3998</span>
 <span class="normal">3999</span>
-<span class="normal">4000</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_lora</span><span class="p">(</span>
+<span class="normal">4000</span>
+<span class="normal">4001</span>
+<span class="normal">4002</span>
+<span class="normal">4003</span>
+<span class="normal">4004</span>
+<span class="normal">4005</span>
+<span class="normal">4006</span>
+<span class="normal">4007</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_lora</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span>
     <span class="n">lora_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
@@ -30876,14 +30890,7 @@ from the state dict.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3856</span>
-<span class="normal">3857</span>
-<span class="normal">3858</span>
-<span class="normal">3859</span>
-<span class="normal">3860</span>
-<span class="normal">3861</span>
-<span class="normal">3862</span>
-<span class="normal">3863</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3863</span>
 <span class="normal">3864</span>
 <span class="normal">3865</span>
 <span class="normal">3866</span>
@@ -30915,7 +30922,14 @@ from the state dict.</p>
 <span class="normal">3892</span>
 <span class="normal">3893</span>
 <span class="normal">3894</span>
-<span class="normal">3895</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">3895</span>
+<span class="normal">3896</span>
+<span class="normal">3897</span>
+<span class="normal">3898</span>
+<span class="normal">3899</span>
+<span class="normal">3900</span>
+<span class="normal">3901</span>
+<span class="normal">3902</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel-&gt;SanaTransformer2DModel</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">load_lora_into_transformer</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -31070,14 +31084,7 @@ dict is loaded into <code>self.transformer</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3810</span>
-<span class="normal">3811</span>
-<span class="normal">3812</span>
-<span class="normal">3813</span>
-<span class="normal">3814</span>
-<span class="normal">3815</span>
-<span class="normal">3816</span>
-<span class="normal">3817</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3817</span>
 <span class="normal">3818</span>
 <span class="normal">3819</span>
 <span class="normal">3820</span>
@@ -31114,7 +31121,14 @@ dict is loaded into <code>self.transformer</code>.</p>
 <span class="normal">3851</span>
 <span class="normal">3852</span>
 <span class="normal">3853</span>
-<span class="normal">3854</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_lora_weights</span><span class="p">(</span>
+<span class="normal">3854</span>
+<span class="normal">3855</span>
+<span class="normal">3856</span>
+<span class="normal">3857</span>
+<span class="normal">3858</span>
+<span class="normal">3859</span>
+<span class="normal">3860</span>
+<span class="normal">3861</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_lora_weights</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">pretrained_model_name_or_path_or_dict</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]],</span>
     <span class="n">adapter_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -31357,14 +31371,7 @@ allowed by Git.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3711</span>
-<span class="normal">3712</span>
-<span class="normal">3713</span>
-<span class="normal">3714</span>
-<span class="normal">3715</span>
-<span class="normal">3716</span>
-<span class="normal">3717</span>
-<span class="normal">3718</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3718</span>
 <span class="normal">3719</span>
 <span class="normal">3720</span>
 <span class="normal">3721</span>
@@ -31453,7 +31460,14 @@ allowed by Git.</p>
 <span class="normal">3804</span>
 <span class="normal">3805</span>
 <span class="normal">3806</span>
-<span class="normal">3807</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">3807</span>
+<span class="normal">3808</span>
+<span class="normal">3809</span>
+<span class="normal">3810</span>
+<span class="normal">3811</span>
+<span class="normal">3812</span>
+<span class="normal">3813</span>
+<span class="normal">3814</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="nd">@validate_hf_hub_args</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.lora_state_dict</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">lora_state_dict</span><span class="p">(</span>
@@ -31708,14 +31722,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3897</span>
-<span class="normal">3898</span>
-<span class="normal">3899</span>
-<span class="normal">3900</span>
-<span class="normal">3901</span>
-<span class="normal">3902</span>
-<span class="normal">3903</span>
-<span class="normal">3904</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3904</span>
 <span class="normal">3905</span>
 <span class="normal">3906</span>
 <span class="normal">3907</span>
@@ -31763,7 +31770,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">3949</span>
 <span class="normal">3950</span>
 <span class="normal">3951</span>
-<span class="normal">3952</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">3952</span>
+<span class="normal">3953</span>
+<span class="normal">3954</span>
+<span class="normal">3955</span>
+<span class="normal">3956</span>
+<span class="normal">3957</span>
+<span class="normal">3958</span>
+<span class="normal">3959</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_lora_weights</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -31893,14 +31907,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4003</span>
-<span class="normal">4004</span>
-<span class="normal">4005</span>
-<span class="normal">4006</span>
-<span class="normal">4007</span>
-<span class="normal">4008</span>
-<span class="normal">4009</span>
-<span class="normal">4010</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4010</span>
 <span class="normal">4011</span>
 <span class="normal">4012</span>
 <span class="normal">4013</span>
@@ -31908,7 +31915,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">4015</span>
 <span class="normal">4016</span>
 <span class="normal">4017</span>
-<span class="normal">4018</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="normal">4018</span>
+<span class="normal">4019</span>
+<span class="normal">4020</span>
+<span class="normal">4021</span>
+<span class="normal">4022</span>
+<span class="normal">4023</span>
+<span class="normal">4024</span>
+<span class="normal">4025</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Reverses the effect of</span>
 <span class="sd">    [`pipe.fuse_lora()`](https://huggingface.co/docs/diffusers/main/en/api/loaders#diffusers.loaders.LoraBaseMixin.fuse_lora).</span>
@@ -31965,14 +31979,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4021</span>
-<span class="normal">4022</span>
-<span class="normal">4023</span>
-<span class="normal">4024</span>
-<span class="normal">4025</span>
-<span class="normal">4026</span>
-<span class="normal">4027</span>
-<span class="normal">4028</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4028</span>
 <span class="normal">4029</span>
 <span class="normal">4030</span>
 <span class="normal">4031</span>
@@ -32282,7 +32289,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">4335</span>
 <span class="normal">4336</span>
 <span class="normal">4337</span>
-<span class="normal">4338</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">HunyuanVideoLoraLoaderMixin</span><span class="p">(</span><span class="n">LoraBaseMixin</span><span class="p">):</span>
+<span class="normal">4338</span>
+<span class="normal">4339</span>
+<span class="normal">4340</span>
+<span class="normal">4341</span>
+<span class="normal">4342</span>
+<span class="normal">4343</span>
+<span class="normal">4344</span>
+<span class="normal">4345</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">HunyuanVideoLoraLoaderMixin</span><span class="p">(</span><span class="n">LoraBaseMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load LoRA layers into [`HunyuanVideoTransformer3DModel`]. Specific to [`HunyuanVideoPipeline`].</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -32736,14 +32750,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4275</span>
-<span class="normal">4276</span>
-<span class="normal">4277</span>
-<span class="normal">4278</span>
-<span class="normal">4279</span>
-<span class="normal">4280</span>
-<span class="normal">4281</span>
-<span class="normal">4282</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4282</span>
 <span class="normal">4283</span>
 <span class="normal">4284</span>
 <span class="normal">4285</span>
@@ -32781,7 +32788,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">4317</span>
 <span class="normal">4318</span>
 <span class="normal">4319</span>
-<span class="normal">4320</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_lora</span><span class="p">(</span>
+<span class="normal">4320</span>
+<span class="normal">4321</span>
+<span class="normal">4322</span>
+<span class="normal">4323</span>
+<span class="normal">4324</span>
+<span class="normal">4325</span>
+<span class="normal">4326</span>
+<span class="normal">4327</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_lora</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span>
     <span class="n">lora_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
@@ -32961,14 +32975,7 @@ from the state dict.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4176</span>
-<span class="normal">4177</span>
-<span class="normal">4178</span>
-<span class="normal">4179</span>
-<span class="normal">4180</span>
-<span class="normal">4181</span>
-<span class="normal">4182</span>
-<span class="normal">4183</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4183</span>
 <span class="normal">4184</span>
 <span class="normal">4185</span>
 <span class="normal">4186</span>
@@ -33000,7 +33007,14 @@ from the state dict.</p>
 <span class="normal">4212</span>
 <span class="normal">4213</span>
 <span class="normal">4214</span>
-<span class="normal">4215</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">4215</span>
+<span class="normal">4216</span>
+<span class="normal">4217</span>
+<span class="normal">4218</span>
+<span class="normal">4219</span>
+<span class="normal">4220</span>
+<span class="normal">4221</span>
+<span class="normal">4222</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel-&gt;HunyuanVideoTransformer3DModel # noqa</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">load_lora_into_transformer</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -33155,14 +33169,7 @@ dict is loaded into <code>self.transformer</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4130</span>
-<span class="normal">4131</span>
-<span class="normal">4132</span>
-<span class="normal">4133</span>
-<span class="normal">4134</span>
-<span class="normal">4135</span>
-<span class="normal">4136</span>
-<span class="normal">4137</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4137</span>
 <span class="normal">4138</span>
 <span class="normal">4139</span>
 <span class="normal">4140</span>
@@ -33199,7 +33206,14 @@ dict is loaded into <code>self.transformer</code>.</p>
 <span class="normal">4171</span>
 <span class="normal">4172</span>
 <span class="normal">4173</span>
-<span class="normal">4174</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_lora_weights</span><span class="p">(</span>
+<span class="normal">4174</span>
+<span class="normal">4175</span>
+<span class="normal">4176</span>
+<span class="normal">4177</span>
+<span class="normal">4178</span>
+<span class="normal">4179</span>
+<span class="normal">4180</span>
+<span class="normal">4181</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_lora_weights</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">pretrained_model_name_or_path_or_dict</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]],</span>
     <span class="n">adapter_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -33442,14 +33456,7 @@ allowed by Git.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4029</span>
-<span class="normal">4030</span>
-<span class="normal">4031</span>
-<span class="normal">4032</span>
-<span class="normal">4033</span>
-<span class="normal">4034</span>
-<span class="normal">4035</span>
-<span class="normal">4036</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4036</span>
 <span class="normal">4037</span>
 <span class="normal">4038</span>
 <span class="normal">4039</span>
@@ -33540,7 +33547,14 @@ allowed by Git.</p>
 <span class="normal">4124</span>
 <span class="normal">4125</span>
 <span class="normal">4126</span>
-<span class="normal">4127</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">4127</span>
+<span class="normal">4128</span>
+<span class="normal">4129</span>
+<span class="normal">4130</span>
+<span class="normal">4131</span>
+<span class="normal">4132</span>
+<span class="normal">4133</span>
+<span class="normal">4134</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="nd">@validate_hf_hub_args</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">lora_state_dict</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -33797,14 +33811,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4217</span>
-<span class="normal">4218</span>
-<span class="normal">4219</span>
-<span class="normal">4220</span>
-<span class="normal">4221</span>
-<span class="normal">4222</span>
-<span class="normal">4223</span>
-<span class="normal">4224</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4224</span>
 <span class="normal">4225</span>
 <span class="normal">4226</span>
 <span class="normal">4227</span>
@@ -33852,7 +33859,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">4269</span>
 <span class="normal">4270</span>
 <span class="normal">4271</span>
-<span class="normal">4272</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">4272</span>
+<span class="normal">4273</span>
+<span class="normal">4274</span>
+<span class="normal">4275</span>
+<span class="normal">4276</span>
+<span class="normal">4277</span>
+<span class="normal">4278</span>
+<span class="normal">4279</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_lora_weights</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -33982,14 +33996,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4323</span>
-<span class="normal">4324</span>
-<span class="normal">4325</span>
-<span class="normal">4326</span>
-<span class="normal">4327</span>
-<span class="normal">4328</span>
-<span class="normal">4329</span>
-<span class="normal">4330</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4330</span>
 <span class="normal">4331</span>
 <span class="normal">4332</span>
 <span class="normal">4333</span>
@@ -33997,7 +34004,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">4335</span>
 <span class="normal">4336</span>
 <span class="normal">4337</span>
-<span class="normal">4338</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="normal">4338</span>
+<span class="normal">4339</span>
+<span class="normal">4340</span>
+<span class="normal">4341</span>
+<span class="normal">4342</span>
+<span class="normal">4343</span>
+<span class="normal">4344</span>
+<span class="normal">4345</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Reverses the effect of</span>
 <span class="sd">    [`pipe.fuse_lora()`](https://huggingface.co/docs/diffusers/main/en/api/loaders#diffusers.loaders.LoraBaseMixin.fuse_lora).</span>
@@ -34054,14 +34068,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4341</span>
-<span class="normal">4342</span>
-<span class="normal">4343</span>
-<span class="normal">4344</span>
-<span class="normal">4345</span>
-<span class="normal">4346</span>
-<span class="normal">4347</span>
-<span class="normal">4348</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4348</span>
 <span class="normal">4349</span>
 <span class="normal">4350</span>
 <span class="normal">4351</span>
@@ -34372,7 +34379,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">4656</span>
 <span class="normal">4657</span>
 <span class="normal">4658</span>
-<span class="normal">4659</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Lumina2LoraLoaderMixin</span><span class="p">(</span><span class="n">LoraBaseMixin</span><span class="p">):</span>
+<span class="normal">4659</span>
+<span class="normal">4660</span>
+<span class="normal">4661</span>
+<span class="normal">4662</span>
+<span class="normal">4663</span>
+<span class="normal">4664</span>
+<span class="normal">4665</span>
+<span class="normal">4666</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Lumina2LoraLoaderMixin</span><span class="p">(</span><span class="n">LoraBaseMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load LoRA layers into [`Lumina2Transformer2DModel`]. Specific to [`Lumina2Text2ImgPipeline`].</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -34827,14 +34841,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4596</span>
-<span class="normal">4597</span>
-<span class="normal">4598</span>
-<span class="normal">4599</span>
-<span class="normal">4600</span>
-<span class="normal">4601</span>
-<span class="normal">4602</span>
-<span class="normal">4603</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4603</span>
 <span class="normal">4604</span>
 <span class="normal">4605</span>
 <span class="normal">4606</span>
@@ -34872,7 +34879,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">4638</span>
 <span class="normal">4639</span>
 <span class="normal">4640</span>
-<span class="normal">4641</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_lora</span><span class="p">(</span>
+<span class="normal">4641</span>
+<span class="normal">4642</span>
+<span class="normal">4643</span>
+<span class="normal">4644</span>
+<span class="normal">4645</span>
+<span class="normal">4646</span>
+<span class="normal">4647</span>
+<span class="normal">4648</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_lora</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span>
     <span class="n">lora_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
@@ -35052,14 +35066,7 @@ from the state dict.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4497</span>
-<span class="normal">4498</span>
-<span class="normal">4499</span>
-<span class="normal">4500</span>
-<span class="normal">4501</span>
-<span class="normal">4502</span>
-<span class="normal">4503</span>
-<span class="normal">4504</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4504</span>
 <span class="normal">4505</span>
 <span class="normal">4506</span>
 <span class="normal">4507</span>
@@ -35091,7 +35098,14 @@ from the state dict.</p>
 <span class="normal">4533</span>
 <span class="normal">4534</span>
 <span class="normal">4535</span>
-<span class="normal">4536</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">4536</span>
+<span class="normal">4537</span>
+<span class="normal">4538</span>
+<span class="normal">4539</span>
+<span class="normal">4540</span>
+<span class="normal">4541</span>
+<span class="normal">4542</span>
+<span class="normal">4543</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel-&gt;Lumina2Transformer2DModel</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">load_lora_into_transformer</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -35246,14 +35260,7 @@ dict is loaded into <code>self.transformer</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4451</span>
-<span class="normal">4452</span>
-<span class="normal">4453</span>
-<span class="normal">4454</span>
-<span class="normal">4455</span>
-<span class="normal">4456</span>
-<span class="normal">4457</span>
-<span class="normal">4458</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4458</span>
 <span class="normal">4459</span>
 <span class="normal">4460</span>
 <span class="normal">4461</span>
@@ -35290,7 +35297,14 @@ dict is loaded into <code>self.transformer</code>.</p>
 <span class="normal">4492</span>
 <span class="normal">4493</span>
 <span class="normal">4494</span>
-<span class="normal">4495</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_lora_weights</span><span class="p">(</span>
+<span class="normal">4495</span>
+<span class="normal">4496</span>
+<span class="normal">4497</span>
+<span class="normal">4498</span>
+<span class="normal">4499</span>
+<span class="normal">4500</span>
+<span class="normal">4501</span>
+<span class="normal">4502</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_lora_weights</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">pretrained_model_name_or_path_or_dict</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]],</span>
     <span class="n">adapter_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -35533,14 +35547,7 @@ allowed by Git.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4349</span>
-<span class="normal">4350</span>
-<span class="normal">4351</span>
-<span class="normal">4352</span>
-<span class="normal">4353</span>
-<span class="normal">4354</span>
-<span class="normal">4355</span>
-<span class="normal">4356</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4356</span>
 <span class="normal">4357</span>
 <span class="normal">4358</span>
 <span class="normal">4359</span>
@@ -35632,7 +35639,14 @@ allowed by Git.</p>
 <span class="normal">4445</span>
 <span class="normal">4446</span>
 <span class="normal">4447</span>
-<span class="normal">4448</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">4448</span>
+<span class="normal">4449</span>
+<span class="normal">4450</span>
+<span class="normal">4451</span>
+<span class="normal">4452</span>
+<span class="normal">4453</span>
+<span class="normal">4454</span>
+<span class="normal">4455</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="nd">@validate_hf_hub_args</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">lora_state_dict</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -35890,14 +35904,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4538</span>
-<span class="normal">4539</span>
-<span class="normal">4540</span>
-<span class="normal">4541</span>
-<span class="normal">4542</span>
-<span class="normal">4543</span>
-<span class="normal">4544</span>
-<span class="normal">4545</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4545</span>
 <span class="normal">4546</span>
 <span class="normal">4547</span>
 <span class="normal">4548</span>
@@ -35945,7 +35952,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">4590</span>
 <span class="normal">4591</span>
 <span class="normal">4592</span>
-<span class="normal">4593</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">4593</span>
+<span class="normal">4594</span>
+<span class="normal">4595</span>
+<span class="normal">4596</span>
+<span class="normal">4597</span>
+<span class="normal">4598</span>
+<span class="normal">4599</span>
+<span class="normal">4600</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_lora_weights</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -36075,14 +36089,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4644</span>
-<span class="normal">4645</span>
-<span class="normal">4646</span>
-<span class="normal">4647</span>
-<span class="normal">4648</span>
-<span class="normal">4649</span>
-<span class="normal">4650</span>
-<span class="normal">4651</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4651</span>
 <span class="normal">4652</span>
 <span class="normal">4653</span>
 <span class="normal">4654</span>
@@ -36090,7 +36097,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">4656</span>
 <span class="normal">4657</span>
 <span class="normal">4658</span>
-<span class="normal">4659</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="normal">4659</span>
+<span class="normal">4660</span>
+<span class="normal">4661</span>
+<span class="normal">4662</span>
+<span class="normal">4663</span>
+<span class="normal">4664</span>
+<span class="normal">4665</span>
+<span class="normal">4666</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Reverses the effect of</span>
 <span class="sd">    [`pipe.fuse_lora()`](https://huggingface.co/docs/diffusers/main/en/api/loaders#diffusers.loaders.LoraBaseMixin.fuse_lora).</span>
@@ -36147,14 +36161,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4662</span>
-<span class="normal">4663</span>
-<span class="normal">4664</span>
-<span class="normal">4665</span>
-<span class="normal">4666</span>
-<span class="normal">4667</span>
-<span class="normal">4668</span>
-<span class="normal">4669</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4669</span>
 <span class="normal">4670</span>
 <span class="normal">4671</span>
 <span class="normal">4672</span>
@@ -36531,7 +36538,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">5043</span>
 <span class="normal">5044</span>
 <span class="normal">5045</span>
-<span class="normal">5046</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">WanLoraLoaderMixin</span><span class="p">(</span><span class="n">LoraBaseMixin</span><span class="p">):</span>
+<span class="normal">5046</span>
+<span class="normal">5047</span>
+<span class="normal">5048</span>
+<span class="normal">5049</span>
+<span class="normal">5050</span>
+<span class="normal">5051</span>
+<span class="normal">5052</span>
+<span class="normal">5053</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">WanLoraLoaderMixin</span><span class="p">(</span><span class="n">LoraBaseMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load LoRA layers into [`WanTransformer3DModel`]. Specific to [`WanPipeline`] and `[WanImageToVideoPipeline`].</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -37052,14 +37066,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4983</span>
-<span class="normal">4984</span>
-<span class="normal">4985</span>
-<span class="normal">4986</span>
-<span class="normal">4987</span>
-<span class="normal">4988</span>
-<span class="normal">4989</span>
-<span class="normal">4990</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4990</span>
 <span class="normal">4991</span>
 <span class="normal">4992</span>
 <span class="normal">4993</span>
@@ -37097,7 +37104,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">5025</span>
 <span class="normal">5026</span>
 <span class="normal">5027</span>
-<span class="normal">5028</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_lora</span><span class="p">(</span>
+<span class="normal">5028</span>
+<span class="normal">5029</span>
+<span class="normal">5030</span>
+<span class="normal">5031</span>
+<span class="normal">5032</span>
+<span class="normal">5033</span>
+<span class="normal">5034</span>
+<span class="normal">5035</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_lora</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span>
     <span class="n">lora_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
@@ -37277,14 +37291,7 @@ from the state dict.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4884</span>
-<span class="normal">4885</span>
-<span class="normal">4886</span>
-<span class="normal">4887</span>
-<span class="normal">4888</span>
-<span class="normal">4889</span>
-<span class="normal">4890</span>
-<span class="normal">4891</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4891</span>
 <span class="normal">4892</span>
 <span class="normal">4893</span>
 <span class="normal">4894</span>
@@ -37316,7 +37323,14 @@ from the state dict.</p>
 <span class="normal">4920</span>
 <span class="normal">4921</span>
 <span class="normal">4922</span>
-<span class="normal">4923</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">4923</span>
+<span class="normal">4924</span>
+<span class="normal">4925</span>
+<span class="normal">4926</span>
+<span class="normal">4927</span>
+<span class="normal">4928</span>
+<span class="normal">4929</span>
+<span class="normal">4930</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel-&gt;WanTransformer3DModel</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">load_lora_into_transformer</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -37471,14 +37485,7 @@ dict is loaded into <code>self.transformer</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4815</span>
-<span class="normal">4816</span>
-<span class="normal">4817</span>
-<span class="normal">4818</span>
-<span class="normal">4819</span>
-<span class="normal">4820</span>
-<span class="normal">4821</span>
-<span class="normal">4822</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4822</span>
 <span class="normal">4823</span>
 <span class="normal">4824</span>
 <span class="normal">4825</span>
@@ -37538,7 +37545,14 @@ dict is loaded into <code>self.transformer</code>.</p>
 <span class="normal">4879</span>
 <span class="normal">4880</span>
 <span class="normal">4881</span>
-<span class="normal">4882</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_lora_weights</span><span class="p">(</span>
+<span class="normal">4882</span>
+<span class="normal">4883</span>
+<span class="normal">4884</span>
+<span class="normal">4885</span>
+<span class="normal">4886</span>
+<span class="normal">4887</span>
+<span class="normal">4888</span>
+<span class="normal">4889</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_lora_weights</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">pretrained_model_name_or_path_or_dict</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]],</span>
     <span class="n">adapter_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -37804,14 +37818,7 @@ allowed by Git.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4670</span>
-<span class="normal">4671</span>
-<span class="normal">4672</span>
-<span class="normal">4673</span>
-<span class="normal">4674</span>
-<span class="normal">4675</span>
-<span class="normal">4676</span>
-<span class="normal">4677</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4677</span>
 <span class="normal">4678</span>
 <span class="normal">4679</span>
 <span class="normal">4680</span>
@@ -37902,7 +37909,14 @@ allowed by Git.</p>
 <span class="normal">4765</span>
 <span class="normal">4766</span>
 <span class="normal">4767</span>
-<span class="normal">4768</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">4768</span>
+<span class="normal">4769</span>
+<span class="normal">4770</span>
+<span class="normal">4771</span>
+<span class="normal">4772</span>
+<span class="normal">4773</span>
+<span class="normal">4774</span>
+<span class="normal">4775</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="nd">@validate_hf_hub_args</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">lora_state_dict</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -38159,14 +38173,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4925</span>
-<span class="normal">4926</span>
-<span class="normal">4927</span>
-<span class="normal">4928</span>
-<span class="normal">4929</span>
-<span class="normal">4930</span>
-<span class="normal">4931</span>
-<span class="normal">4932</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4932</span>
 <span class="normal">4933</span>
 <span class="normal">4934</span>
 <span class="normal">4935</span>
@@ -38214,7 +38221,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">4977</span>
 <span class="normal">4978</span>
 <span class="normal">4979</span>
-<span class="normal">4980</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">4980</span>
+<span class="normal">4981</span>
+<span class="normal">4982</span>
+<span class="normal">4983</span>
+<span class="normal">4984</span>
+<span class="normal">4985</span>
+<span class="normal">4986</span>
+<span class="normal">4987</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_lora_weights</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -38344,14 +38358,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">5031</span>
-<span class="normal">5032</span>
-<span class="normal">5033</span>
-<span class="normal">5034</span>
-<span class="normal">5035</span>
-<span class="normal">5036</span>
-<span class="normal">5037</span>
-<span class="normal">5038</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">5038</span>
 <span class="normal">5039</span>
 <span class="normal">5040</span>
 <span class="normal">5041</span>
@@ -38359,7 +38366,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">5043</span>
 <span class="normal">5044</span>
 <span class="normal">5045</span>
-<span class="normal">5046</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="normal">5046</span>
+<span class="normal">5047</span>
+<span class="normal">5048</span>
+<span class="normal">5049</span>
+<span class="normal">5050</span>
+<span class="normal">5051</span>
+<span class="normal">5052</span>
+<span class="normal">5053</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Reverses the effect of</span>
 <span class="sd">    [`pipe.fuse_lora()`](https://huggingface.co/docs/diffusers/main/en/api/loaders#diffusers.loaders.LoraBaseMixin.fuse_lora).</span>
@@ -38416,14 +38430,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">5049</span>
-<span class="normal">5050</span>
-<span class="normal">5051</span>
-<span class="normal">5052</span>
-<span class="normal">5053</span>
-<span class="normal">5054</span>
-<span class="normal">5055</span>
-<span class="normal">5056</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">5056</span>
 <span class="normal">5057</span>
 <span class="normal">5058</span>
 <span class="normal">5059</span>
@@ -38784,7 +38791,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">5414</span>
 <span class="normal">5415</span>
 <span class="normal">5416</span>
-<span class="normal">5417</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SkyReelsV2LoraLoaderMixin</span><span class="p">(</span><span class="n">LoraBaseMixin</span><span class="p">):</span>
+<span class="normal">5417</span>
+<span class="normal">5418</span>
+<span class="normal">5419</span>
+<span class="normal">5420</span>
+<span class="normal">5421</span>
+<span class="normal">5422</span>
+<span class="normal">5423</span>
+<span class="normal">5424</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SkyReelsV2LoraLoaderMixin</span><span class="p">(</span><span class="n">LoraBaseMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load LoRA layers into [`SkyReelsV2Transformer3DModel`].</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -39289,14 +39303,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">5354</span>
-<span class="normal">5355</span>
-<span class="normal">5356</span>
-<span class="normal">5357</span>
-<span class="normal">5358</span>
-<span class="normal">5359</span>
-<span class="normal">5360</span>
-<span class="normal">5361</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">5361</span>
 <span class="normal">5362</span>
 <span class="normal">5363</span>
 <span class="normal">5364</span>
@@ -39334,7 +39341,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">5396</span>
 <span class="normal">5397</span>
 <span class="normal">5398</span>
-<span class="normal">5399</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_lora</span><span class="p">(</span>
+<span class="normal">5399</span>
+<span class="normal">5400</span>
+<span class="normal">5401</span>
+<span class="normal">5402</span>
+<span class="normal">5403</span>
+<span class="normal">5404</span>
+<span class="normal">5405</span>
+<span class="normal">5406</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_lora</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span>
     <span class="n">lora_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
@@ -39514,14 +39528,7 @@ from the state dict.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">5255</span>
-<span class="normal">5256</span>
-<span class="normal">5257</span>
-<span class="normal">5258</span>
-<span class="normal">5259</span>
-<span class="normal">5260</span>
-<span class="normal">5261</span>
-<span class="normal">5262</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">5262</span>
 <span class="normal">5263</span>
 <span class="normal">5264</span>
 <span class="normal">5265</span>
@@ -39553,7 +39560,14 @@ from the state dict.</p>
 <span class="normal">5291</span>
 <span class="normal">5292</span>
 <span class="normal">5293</span>
-<span class="normal">5294</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">5294</span>
+<span class="normal">5295</span>
+<span class="normal">5296</span>
+<span class="normal">5297</span>
+<span class="normal">5298</span>
+<span class="normal">5299</span>
+<span class="normal">5300</span>
+<span class="normal">5301</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel-&gt;SkyReelsV2Transformer3DModel</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">load_lora_into_transformer</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -39708,14 +39722,7 @@ dict is loaded into <code>self.transformer</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">5205</span>
-<span class="normal">5206</span>
-<span class="normal">5207</span>
-<span class="normal">5208</span>
-<span class="normal">5209</span>
-<span class="normal">5210</span>
-<span class="normal">5211</span>
-<span class="normal">5212</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">5212</span>
 <span class="normal">5213</span>
 <span class="normal">5214</span>
 <span class="normal">5215</span>
@@ -39756,7 +39763,14 @@ dict is loaded into <code>self.transformer</code>.</p>
 <span class="normal">5250</span>
 <span class="normal">5251</span>
 <span class="normal">5252</span>
-<span class="normal">5253</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_lora_weights</span><span class="p">(</span>
+<span class="normal">5253</span>
+<span class="normal">5254</span>
+<span class="normal">5255</span>
+<span class="normal">5256</span>
+<span class="normal">5257</span>
+<span class="normal">5258</span>
+<span class="normal">5259</span>
+<span class="normal">5260</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_lora_weights</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">pretrained_model_name_or_path_or_dict</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]],</span>
     <span class="n">adapter_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -40003,14 +40017,7 @@ allowed by Git.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">5057</span>
-<span class="normal">5058</span>
-<span class="normal">5059</span>
-<span class="normal">5060</span>
-<span class="normal">5061</span>
-<span class="normal">5062</span>
-<span class="normal">5063</span>
-<span class="normal">5064</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">5064</span>
 <span class="normal">5065</span>
 <span class="normal">5066</span>
 <span class="normal">5067</span>
@@ -40102,7 +40109,14 @@ allowed by Git.</p>
 <span class="normal">5153</span>
 <span class="normal">5154</span>
 <span class="normal">5155</span>
-<span class="normal">5156</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">5156</span>
+<span class="normal">5157</span>
+<span class="normal">5158</span>
+<span class="normal">5159</span>
+<span class="normal">5160</span>
+<span class="normal">5161</span>
+<span class="normal">5162</span>
+<span class="normal">5163</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="nd">@validate_hf_hub_args</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.WanLoraLoaderMixin.lora_state_dict</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">lora_state_dict</span><span class="p">(</span>
@@ -40360,14 +40374,7 @@ replace <code>ms.save_checkpoint</code> with another method. Can be configured w
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">5296</span>
-<span class="normal">5297</span>
-<span class="normal">5298</span>
-<span class="normal">5299</span>
-<span class="normal">5300</span>
-<span class="normal">5301</span>
-<span class="normal">5302</span>
-<span class="normal">5303</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">5303</span>
 <span class="normal">5304</span>
 <span class="normal">5305</span>
 <span class="normal">5306</span>
@@ -40415,7 +40422,14 @@ replace <code>ms.save_checkpoint</code> with another method. Can be configured w
 <span class="normal">5348</span>
 <span class="normal">5349</span>
 <span class="normal">5350</span>
-<span class="normal">5351</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">5351</span>
+<span class="normal">5352</span>
+<span class="normal">5353</span>
+<span class="normal">5354</span>
+<span class="normal">5355</span>
+<span class="normal">5356</span>
+<span class="normal">5357</span>
+<span class="normal">5358</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_lora_weights</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -40545,14 +40559,7 @@ replace <code>ms.save_checkpoint</code> with another method. Can be configured w
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">5402</span>
-<span class="normal">5403</span>
-<span class="normal">5404</span>
-<span class="normal">5405</span>
-<span class="normal">5406</span>
-<span class="normal">5407</span>
-<span class="normal">5408</span>
-<span class="normal">5409</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">5409</span>
 <span class="normal">5410</span>
 <span class="normal">5411</span>
 <span class="normal">5412</span>
@@ -40560,7 +40567,14 @@ replace <code>ms.save_checkpoint</code> with another method. Can be configured w
 <span class="normal">5414</span>
 <span class="normal">5415</span>
 <span class="normal">5416</span>
-<span class="normal">5417</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="normal">5417</span>
+<span class="normal">5418</span>
+<span class="normal">5419</span>
+<span class="normal">5420</span>
+<span class="normal">5421</span>
+<span class="normal">5422</span>
+<span class="normal">5423</span>
+<span class="normal">5424</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Reverses the effect of</span>
 <span class="sd">    [`pipe.fuse_lora()`](https://huggingface.co/docs/diffusers/main/en/api/loaders#diffusers.loaders.LoraBaseMixin.fuse_lora).</span>
@@ -40615,14 +40629,7 @@ replace <code>ms.save_checkpoint</code> with another method. Can be configured w
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2589</span>
-<span class="normal">2590</span>
-<span class="normal">2591</span>
-<span class="normal">2592</span>
-<span class="normal">2593</span>
-<span class="normal">2594</span>
-<span class="normal">2595</span>
-<span class="normal">2596</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2596</span>
 <span class="normal">2597</span>
 <span class="normal">2598</span>
 <span class="normal">2599</span>
@@ -40772,7 +40779,14 @@ replace <code>ms.save_checkpoint</code> with another method. Can be configured w
 <span class="normal">2743</span>
 <span class="normal">2744</span>
 <span class="normal">2745</span>
-<span class="normal">2746</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AmusedLoraLoaderMixin</span><span class="p">(</span><span class="n">StableDiffusionLoraLoaderMixin</span><span class="p">):</span>
+<span class="normal">2746</span>
+<span class="normal">2747</span>
+<span class="normal">2748</span>
+<span class="normal">2749</span>
+<span class="normal">2750</span>
+<span class="normal">2751</span>
+<span class="normal">2752</span>
+<span class="normal">2753</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AmusedLoraLoaderMixin</span><span class="p">(</span><span class="n">StableDiffusionLoraLoaderMixin</span><span class="p">):</span>
     <span class="n">_lora_loadable_modules</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;transformer&quot;</span><span class="p">,</span> <span class="s2">&quot;text_encoder&quot;</span><span class="p">]</span>
     <span class="n">transformer_name</span> <span class="o">=</span> <span class="n">TRANSFORMER_NAME</span>
     <span class="n">text_encoder_name</span> <span class="o">=</span> <span class="n">TEXT_ENCODER_NAME</span>
@@ -41132,14 +41146,7 @@ from the state dict.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2640</span>
-<span class="normal">2641</span>
-<span class="normal">2642</span>
-<span class="normal">2643</span>
-<span class="normal">2644</span>
-<span class="normal">2645</span>
-<span class="normal">2646</span>
-<span class="normal">2647</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2647</span>
 <span class="normal">2648</span>
 <span class="normal">2649</span>
 <span class="normal">2650</span>
@@ -41184,7 +41191,14 @@ from the state dict.</p>
 <span class="normal">2689</span>
 <span class="normal">2690</span>
 <span class="normal">2691</span>
-<span class="normal">2692</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">2692</span>
+<span class="normal">2693</span>
+<span class="normal">2694</span>
+<span class="normal">2695</span>
+<span class="normal">2696</span>
+<span class="normal">2697</span>
+<span class="normal">2698</span>
+<span class="normal">2699</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_into_text_encoder</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">load_lora_into_text_encoder</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -41389,14 +41403,7 @@ from the state dict.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2594</span>
-<span class="normal">2595</span>
-<span class="normal">2596</span>
-<span class="normal">2597</span>
-<span class="normal">2598</span>
-<span class="normal">2599</span>
-<span class="normal">2600</span>
-<span class="normal">2601</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2601</span>
 <span class="normal">2602</span>
 <span class="normal">2603</span>
 <span class="normal">2604</span>
@@ -41433,7 +41440,14 @@ from the state dict.</p>
 <span class="normal">2635</span>
 <span class="normal">2636</span>
 <span class="normal">2637</span>
-<span class="normal">2638</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">2638</span>
+<span class="normal">2639</span>
+<span class="normal">2640</span>
+<span class="normal">2641</span>
+<span class="normal">2642</span>
+<span class="normal">2643</span>
+<span class="normal">2644</span>
+<span class="normal">2645</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="c1"># Copied from diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin.load_lora_into_transformer with FluxTransformer2DModel-&gt;UVit2DModel</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">load_lora_into_transformer</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -41633,14 +41647,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2694</span>
-<span class="normal">2695</span>
-<span class="normal">2696</span>
-<span class="normal">2697</span>
-<span class="normal">2698</span>
-<span class="normal">2699</span>
-<span class="normal">2700</span>
-<span class="normal">2701</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2701</span>
 <span class="normal">2702</span>
 <span class="normal">2703</span>
 <span class="normal">2704</span>
@@ -41685,7 +41692,14 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">2743</span>
 <span class="normal">2744</span>
 <span class="normal">2745</span>
-<span class="normal">2746</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">2746</span>
+<span class="normal">2747</span>
+<span class="normal">2748</span>
+<span class="normal">2749</span>
+<span class="normal">2750</span>
+<span class="normal">2751</span>
+<span class="normal">2752</span>
+<span class="normal">2753</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_lora_weights</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
     <span class="n">save_directory</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">],</span>
@@ -41777,7 +41791,10 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/lora_base.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">393</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">390</span>
+<span class="normal">391</span>
+<span class="normal">392</span>
+<span class="normal">393</span>
 <span class="normal">394</span>
 <span class="normal">395</span>
 <span class="normal">396</span>
@@ -42283,10 +42300,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">896</span>
 <span class="normal">897</span>
 <span class="normal">898</span>
-<span class="normal">899</span>
-<span class="normal">900</span>
-<span class="normal">901</span>
-<span class="normal">902</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LoraBaseMixin</span><span class="p">:</span>
+<span class="normal">899</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LoraBaseMixin</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Utility class for handling LoRAs.&quot;&quot;&quot;</span>
 
     <span class="n">_lora_loadable_modules</span> <span class="o">=</span> <span class="p">[]</span>
@@ -42934,7 +42948,10 @@ return 1.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">750</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">747</span>
+<span class="normal">748</span>
+<span class="normal">749</span>
+<span class="normal">750</span>
 <span class="normal">751</span>
 <span class="normal">752</span>
 <span class="normal">753</span>
@@ -42964,10 +42981,7 @@ return 1.</p>
 <span class="normal">777</span>
 <span class="normal">778</span>
 <span class="normal">779</span>
-<span class="normal">780</span>
-<span class="normal">781</span>
-<span class="normal">782</span>
-<span class="normal">783</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">delete_adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">adapter_names</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">]):</span>
+<span class="normal">780</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">delete_adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">adapter_names</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">]):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Delete an adapter&#39;s LoRA layers from the pipeline.</span>
 
@@ -43035,7 +43049,10 @@ return 1.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">696</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">693</span>
+<span class="normal">694</span>
+<span class="normal">695</span>
+<span class="normal">696</span>
 <span class="normal">697</span>
 <span class="normal">698</span>
 <span class="normal">699</span>
@@ -43057,10 +43074,7 @@ return 1.</p>
 <span class="normal">715</span>
 <span class="normal">716</span>
 <span class="normal">717</span>
-<span class="normal">718</span>
-<span class="normal">719</span>
-<span class="normal">720</span>
-<span class="normal">721</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">718</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Disables the active LoRA layers of the pipeline.</span>
 
@@ -43120,7 +43134,10 @@ return 1.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">723</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">720</span>
+<span class="normal">721</span>
+<span class="normal">722</span>
+<span class="normal">723</span>
 <span class="normal">724</span>
 <span class="normal">725</span>
 <span class="normal">726</span>
@@ -43142,10 +43159,7 @@ return 1.</p>
 <span class="normal">742</span>
 <span class="normal">743</span>
 <span class="normal">744</span>
-<span class="normal">745</span>
-<span class="normal">746</span>
-<span class="normal">747</span>
-<span class="normal">748</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">745</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Enables the active LoRA layers of the pipeline.</span>
 
@@ -43241,7 +43255,10 @@ different.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">830</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">827</span>
+<span class="normal">828</span>
+<span class="normal">829</span>
+<span class="normal">830</span>
 <span class="normal">831</span>
 <span class="normal">832</span>
 <span class="normal">833</span>
@@ -43254,10 +43271,7 @@ different.</p>
 <span class="normal">840</span>
 <span class="normal">841</span>
 <span class="normal">842</span>
-<span class="normal">843</span>
-<span class="normal">844</span>
-<span class="normal">845</span>
-<span class="normal">846</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_lora_hotswap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">843</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_lora_hotswap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Hotswap adapters without triggering recompilation of a model or if the ranks of the loaded adapters are</span>
 <span class="sd">    different.</span>
@@ -43400,7 +43414,10 @@ different.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">448</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">445</span>
+<span class="normal">446</span>
+<span class="normal">447</span>
+<span class="normal">448</span>
 <span class="normal">449</span>
 <span class="normal">450</span>
 <span class="normal">451</span>
@@ -43485,10 +43502,7 @@ different.</p>
 <span class="normal">530</span>
 <span class="normal">531</span>
 <span class="normal">532</span>
-<span class="normal">533</span>
-<span class="normal">534</span>
-<span class="normal">535</span>
-<span class="normal">536</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_lora</span><span class="p">(</span>
+<span class="normal">533</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_lora</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[],</span>
     <span class="n">lora_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
@@ -43608,7 +43622,10 @@ different.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">785</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">782</span>
+<span class="normal">783</span>
+<span class="normal">784</span>
+<span class="normal">785</span>
 <span class="normal">786</span>
 <span class="normal">787</span>
 <span class="normal">788</span>
@@ -43631,10 +43648,7 @@ different.</p>
 <span class="normal">805</span>
 <span class="normal">806</span>
 <span class="normal">807</span>
-<span class="normal">808</span>
-<span class="normal">809</span>
-<span class="normal">810</span>
-<span class="normal">811</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_active_adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="normal">808</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_active_adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Gets the list of the current active adapters.</span>
 
@@ -43683,7 +43697,10 @@ different.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">813</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">810</span>
+<span class="normal">811</span>
+<span class="normal">812</span>
+<span class="normal">813</span>
 <span class="normal">814</span>
 <span class="normal">815</span>
 <span class="normal">816</span>
@@ -43695,10 +43712,7 @@ different.</p>
 <span class="normal">822</span>
 <span class="normal">823</span>
 <span class="normal">824</span>
-<span class="normal">825</span>
-<span class="normal">826</span>
-<span class="normal">827</span>
-<span class="normal">828</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_list_adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="normal">825</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_list_adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Gets the current list of all available adapters in the pipeline.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -43797,7 +43811,10 @@ adapters.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">595</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">592</span>
+<span class="normal">593</span>
+<span class="normal">594</span>
+<span class="normal">595</span>
 <span class="normal">596</span>
 <span class="normal">597</span>
 <span class="normal">598</span>
@@ -43893,10 +43910,7 @@ adapters.</p>
 <span class="normal">688</span>
 <span class="normal">689</span>
 <span class="normal">690</span>
-<span class="normal">691</span>
-<span class="normal">692</span>
-<span class="normal">693</span>
-<span class="normal">694</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_adapters</span><span class="p">(</span>
+<span class="normal">691</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_adapters</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">adapter_names</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">],</span>
     <span class="n">adapter_weights</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -44087,7 +44101,10 @@ LoRA parameters then it won't have any effect.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">538</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">535</span>
+<span class="normal">536</span>
+<span class="normal">537</span>
+<span class="normal">538</span>
 <span class="normal">539</span>
 <span class="normal">540</span>
 <span class="normal">541</span>
@@ -44139,10 +44156,7 @@ LoRA parameters then it won't have any effect.</p>
 <span class="normal">587</span>
 <span class="normal">588</span>
 <span class="normal">589</span>
-<span class="normal">590</span>
-<span class="normal">591</span>
-<span class="normal">592</span>
-<span class="normal">593</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="normal">590</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Reverses the effect of</span>
 <span class="sd">    [`pipe.fuse_lora()`](https://huggingface.co/docs/diffusers/main/en/api/loaders#diffusers.loaders.LoraBaseMixin.fuse_lora).</span>
@@ -44225,7 +44239,10 @@ LoRA parameters then it won't have any effect.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">428</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">425</span>
+<span class="normal">426</span>
+<span class="normal">427</span>
+<span class="normal">428</span>
 <span class="normal">429</span>
 <span class="normal">430</span>
 <span class="normal">431</span>
@@ -44240,10 +44257,7 @@ LoRA parameters then it won't have any effect.</p>
 <span class="normal">440</span>
 <span class="normal">441</span>
 <span class="normal">442</span>
-<span class="normal">443</span>
-<span class="normal">444</span>
-<span class="normal">445</span>
-<span class="normal">446</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unload_lora_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">443</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unload_lora_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Unloads the LoRA parameters.</span>
 
@@ -44288,7 +44302,10 @@ LoRA parameters then it won't have any effect.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">853</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">850</span>
+<span class="normal">851</span>
+<span class="normal">852</span>
+<span class="normal">853</span>
 <span class="normal">854</span>
 <span class="normal">855</span>
 <span class="normal">856</span>
@@ -44334,10 +44351,7 @@ LoRA parameters then it won't have any effect.</p>
 <span class="normal">896</span>
 <span class="normal">897</span>
 <span class="normal">898</span>
-<span class="normal">899</span>
-<span class="normal">900</span>
-<span class="normal">901</span>
-<span class="normal">902</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
+<span class="normal">899</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">write_lora_layers</span><span class="p">(</span>
     <span class="n">state_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
     <span class="n">save_directory</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>

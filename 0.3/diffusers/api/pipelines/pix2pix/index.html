@@ -9851,7 +9851,19 @@ more details about a model's potential harms.</p>
 <span class="normal">895</span>
 <span class="normal">896</span>
 <span class="normal">897</span>
-<span class="normal">898</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionInstructPix2PixPipeline</span><span class="p">(</span>
+<span class="normal">898</span>
+<span class="normal">899</span>
+<span class="normal">900</span>
+<span class="normal">901</span>
+<span class="normal">902</span>
+<span class="normal">903</span>
+<span class="normal">904</span>
+<span class="normal">905</span>
+<span class="normal">906</span>
+<span class="normal">907</span>
+<span class="normal">908</span>
+<span class="normal">909</span>
+<span class="normal">910</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionInstructPix2PixPipeline</span><span class="p">(</span>
     <span class="n">DiffusionPipeline</span><span class="p">,</span>
     <span class="n">StableDiffusionMixin</span><span class="p">,</span>
     <span class="n">TextualInversionLoaderMixin</span><span class="p">,</span>
@@ -10172,6 +10184,13 @@ more details about a model's potential harms.</p>
         <span class="c1"># 8.1 Add image embeds for IP-Adapter</span>
         <span class="n">added_cond_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;image_embeds&quot;</span><span class="p">:</span> <span class="n">image_embeds</span><span class="p">}</span> <span class="k">if</span> <span class="n">ip_adapter_image</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
 
+        <span class="c1"># we&#39;re popping the `scale` instead of getting it because otherwise `scale` will be propagated</span>
+        <span class="c1"># to the unet and will raise RuntimeError.</span>
+        <span class="n">lora_scale</span> <span class="o">=</span> <span class="n">cross_attention_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;scale&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="n">cross_attention_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># weight the lora layers by setting `lora_scale` for each PEFT layer</span>
+            <span class="n">scale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+
         <span class="c1"># 9. Denoising loop</span>
         <span class="n">num_warmup_steps</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span> <span class="o">-</span> <span class="n">num_inference_steps</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">order</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_num_timesteps</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
@@ -10225,6 +10244,11 @@ more details about a model's potential harms.</p>
                     <span class="k">if</span> <span class="n">callback</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">%</span> <span class="n">callback_steps</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
                         <span class="n">step_idx</span> <span class="o">=</span> <span class="n">i</span> <span class="o">//</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">,</span> <span class="s2">&quot;order&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
                         <span class="n">callback</span><span class="p">(</span><span class="n">step_idx</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">latents</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># remove `lora_scale` from each PEFT layer</span>
+            <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+            <span class="n">cross_attention_kwargs</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lora_scale</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;latent&quot;</span><span class="p">:</span>
             <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">latents</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">scaling_factor</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
@@ -11442,7 +11466,19 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="normal">474</span>
 <span class="normal">475</span>
 <span class="normal">476</span>
-<span class="normal">477</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">477</span>
+<span class="normal">478</span>
+<span class="normal">479</span>
+<span class="normal">480</span>
+<span class="normal">481</span>
+<span class="normal">482</span>
+<span class="normal">483</span>
+<span class="normal">484</span>
+<span class="normal">485</span>
+<span class="normal">486</span>
+<span class="normal">487</span>
+<span class="normal">488</span>
+<span class="normal">489</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">PipelineImageInput</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -11674,6 +11710,13 @@ second element is a list of <code>bool</code>s indicating whether the correspond
     <span class="c1"># 8.1 Add image embeds for IP-Adapter</span>
     <span class="n">added_cond_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;image_embeds&quot;</span><span class="p">:</span> <span class="n">image_embeds</span><span class="p">}</span> <span class="k">if</span> <span class="n">ip_adapter_image</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
 
+    <span class="c1"># we&#39;re popping the `scale` instead of getting it because otherwise `scale` will be propagated</span>
+    <span class="c1"># to the unet and will raise RuntimeError.</span>
+    <span class="n">lora_scale</span> <span class="o">=</span> <span class="n">cross_attention_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;scale&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="n">cross_attention_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># weight the lora layers by setting `lora_scale` for each PEFT layer</span>
+        <span class="n">scale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+
     <span class="c1"># 9. Denoising loop</span>
     <span class="n">num_warmup_steps</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span> <span class="o">-</span> <span class="n">num_inference_steps</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">order</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_num_timesteps</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
@@ -11727,6 +11770,11 @@ second element is a list of <code>bool</code>s indicating whether the correspond
                 <span class="k">if</span> <span class="n">callback</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">%</span> <span class="n">callback_steps</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
                     <span class="n">step_idx</span> <span class="o">=</span> <span class="n">i</span> <span class="o">//</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">,</span> <span class="s2">&quot;order&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
                     <span class="n">callback</span><span class="p">(</span><span class="n">step_idx</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">latents</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># remove `lora_scale` from each PEFT layer</span>
+        <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+        <span class="n">cross_attention_kwargs</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lora_scale</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;latent&quot;</span><span class="p">:</span>
         <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">latents</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">scaling_factor</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
@@ -12841,7 +12889,19 @@ watermarker will be used.</p>
 <span class="normal">934</span>
 <span class="normal">935</span>
 <span class="normal">936</span>
-<span class="normal">937</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionXLInstructPix2PixPipeline</span><span class="p">(</span>
+<span class="normal">937</span>
+<span class="normal">938</span>
+<span class="normal">939</span>
+<span class="normal">940</span>
+<span class="normal">941</span>
+<span class="normal">942</span>
+<span class="normal">943</span>
+<span class="normal">944</span>
+<span class="normal">945</span>
+<span class="normal">946</span>
+<span class="normal">947</span>
+<span class="normal">948</span>
+<span class="normal">949</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionXLInstructPix2PixPipeline</span><span class="p">(</span>
     <span class="n">DiffusionPipeline</span><span class="p">,</span>
     <span class="n">StableDiffusionMixin</span><span class="p">,</span>
     <span class="n">TextualInversionLoaderMixin</span><span class="p">,</span>
@@ -13589,6 +13649,13 @@ watermarker will be used.</p>
             <span class="n">num_inference_steps</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">ts</span><span class="p">:</span> <span class="n">ts</span> <span class="o">&gt;=</span> <span class="n">discrete_timestep_cutoff</span><span class="p">,</span> <span class="n">timesteps</span><span class="p">)))</span>
             <span class="n">timesteps</span> <span class="o">=</span> <span class="n">timesteps</span><span class="p">[:</span><span class="n">num_inference_steps</span><span class="p">]</span>
 
+        <span class="c1"># we&#39;re popping the `scale` instead of getting it because otherwise `scale` will be propagated</span>
+        <span class="c1"># to the unet and will raise RuntimeError.</span>
+        <span class="n">lora_scale</span> <span class="o">=</span> <span class="n">cross_attention_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;scale&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="n">cross_attention_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># weight the lora layers by setting `lora_scale` for each PEFT layer</span>
+            <span class="n">scale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">num_inference_steps</span><span class="p">)</span> <span class="k">as</span> <span class="n">progress_bar</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
                 <span class="c1"># Expand the latents if we are doing classifier free guidance.</span>
@@ -13633,6 +13700,11 @@ watermarker will be used.</p>
                     <span class="k">if</span> <span class="n">callback</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">%</span> <span class="n">callback_steps</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
                         <span class="n">step_idx</span> <span class="o">=</span> <span class="n">i</span> <span class="o">//</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">,</span> <span class="s2">&quot;order&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
                         <span class="n">callback</span><span class="p">(</span><span class="n">step_idx</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">latents</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># remove `lora_scale` from each PEFT layer</span>
+            <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+            <span class="n">cross_attention_kwargs</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lora_scale</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;latent&quot;</span><span class="p">:</span>
             <span class="c1"># make sure the VAE is in float32 mode, as it overflows in float16</span>
@@ -14762,7 +14834,19 @@ simulate an aesthetic score of the generated image by influencing the negative t
 <span class="normal">934</span>
 <span class="normal">935</span>
 <span class="normal">936</span>
-<span class="normal">937</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">937</span>
+<span class="normal">938</span>
+<span class="normal">939</span>
+<span class="normal">940</span>
+<span class="normal">941</span>
+<span class="normal">942</span>
+<span class="normal">943</span>
+<span class="normal">944</span>
+<span class="normal">945</span>
+<span class="normal">946</span>
+<span class="normal">947</span>
+<span class="normal">948</span>
+<span class="normal">949</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">prompt_2</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -15046,6 +15130,13 @@ simulate an aesthetic score of the generated image by influencing the negative t
         <span class="n">num_inference_steps</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">ts</span><span class="p">:</span> <span class="n">ts</span> <span class="o">&gt;=</span> <span class="n">discrete_timestep_cutoff</span><span class="p">,</span> <span class="n">timesteps</span><span class="p">)))</span>
         <span class="n">timesteps</span> <span class="o">=</span> <span class="n">timesteps</span><span class="p">[:</span><span class="n">num_inference_steps</span><span class="p">]</span>
 
+    <span class="c1"># we&#39;re popping the `scale` instead of getting it because otherwise `scale` will be propagated</span>
+    <span class="c1"># to the unet and will raise RuntimeError.</span>
+    <span class="n">lora_scale</span> <span class="o">=</span> <span class="n">cross_attention_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;scale&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="n">cross_attention_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># weight the lora layers by setting `lora_scale` for each PEFT layer</span>
+        <span class="n">scale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+
     <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">num_inference_steps</span><span class="p">)</span> <span class="k">as</span> <span class="n">progress_bar</span><span class="p">:</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
             <span class="c1"># Expand the latents if we are doing classifier free guidance.</span>
@@ -15090,6 +15181,11 @@ simulate an aesthetic score of the generated image by influencing the negative t
                 <span class="k">if</span> <span class="n">callback</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">%</span> <span class="n">callback_steps</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
                     <span class="n">step_idx</span> <span class="o">=</span> <span class="n">i</span> <span class="o">//</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">,</span> <span class="s2">&quot;order&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
                     <span class="n">callback</span><span class="p">(</span><span class="n">step_idx</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">latents</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># remove `lora_scale` from each PEFT layer</span>
+        <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+        <span class="n">cross_attention_kwargs</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lora_scale</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;latent&quot;</span><span class="p">:</span>
         <span class="c1"># make sure the VAE is in float32 mode, as it overflows in float16</span>

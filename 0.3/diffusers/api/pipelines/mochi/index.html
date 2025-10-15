@@ -10051,7 +10051,6 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
         <span class="n">width</span><span class="p">,</span>
         <span class="n">num_frames</span><span class="p">,</span>
         <span class="n">dtype</span><span class="p">,</span>
-        <span class="n">device</span><span class="p">,</span>
         <span class="n">generator</span><span class="p">,</span>
         <span class="n">latents</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
@@ -10062,7 +10061,7 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
         <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">num_channels_latents</span><span class="p">,</span> <span class="n">num_frames</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">latents</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">latents</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">latents</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">generator</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">generator</span><span class="p">)</span> <span class="o">!=</span> <span class="n">batch_size</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;You have passed a list of generators of length </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">generator</span><span class="p">)</span><span class="si">}</span><span class="s2">, but requested an effective batch&quot;</span>
@@ -10150,7 +10149,7 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
 <span class="sd">            num_videos_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">                The number of videos to generate per prompt.</span>
 <span class="sd">            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
-<span class="sd">                One or a list of [numpy generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)</span>
+<span class="sd">                One or a list of [numpy generator(s)](https://numpy.org/doc/stable/reference/random/generator.html)</span>
 <span class="sd">                to make generation deterministic.</span>
 <span class="sd">            latents (`ms.Tensor`, *optional*):</span>
 <span class="sd">                Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image</span>
@@ -10277,7 +10276,7 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
 
         <span class="c1"># we&#39;re popping the `scale` instead of getting it because otherwise `scale` will be propagated</span>
         <span class="c1"># to the transformer and will raise RuntimeError.</span>
-        <span class="n">lora_scale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">attention_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;scale&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">attention_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="n">lora_scale</span> <span class="o">=</span> <span class="n">attention_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;scale&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="n">attention_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
         <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="c1"># weight the lora layers by setting `lora_scale` for each PEFT layer</span>
             <span class="n">scale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
@@ -10335,6 +10334,7 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
         <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="c1"># remove `lora_scale` from each PEFT layer</span>
             <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+            <span class="n">attention_kwargs</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lora_scale</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_current_timestep</span> <span class="o">=</span> <span class="kc">None</span>
 
@@ -10571,7 +10571,7 @@ the text <code>prompt</code>, usually at the expense of lower image quality.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>One or a list of <a href="https://pytorch.org/docs/stable/generated/torch.Generator.html">numpy generator(s)</a>
+                <p>One or a list of <a href="https://numpy.org/doc/stable/reference/random/generator.html">numpy generator(s)</a>
 to make generation deterministic.</p>
               </div>
               <p>
@@ -10848,7 +10848,8 @@ is returned where the first element is a list with the generated images.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/mochi/pipeline_mochi.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">462</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">461</span>
+<span class="normal">462</span>
 <span class="normal">463</span>
 <span class="normal">464</span>
 <span class="normal">465</span>
@@ -11162,7 +11163,7 @@ is returned where the first element is a list with the generated images.</p>
 <span class="sd">        num_videos_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">            The number of videos to generate per prompt.</span>
 <span class="sd">        generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
-<span class="sd">            One or a list of [numpy generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)</span>
+<span class="sd">            One or a list of [numpy generator(s)](https://numpy.org/doc/stable/reference/random/generator.html)</span>
 <span class="sd">            to make generation deterministic.</span>
 <span class="sd">        latents (`ms.Tensor`, *optional*):</span>
 <span class="sd">            Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image</span>
@@ -11289,7 +11290,7 @@ is returned where the first element is a list with the generated images.</p>
 
     <span class="c1"># we&#39;re popping the `scale` instead of getting it because otherwise `scale` will be propagated</span>
     <span class="c1"># to the transformer and will raise RuntimeError.</span>
-    <span class="n">lora_scale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">attention_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;scale&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">attention_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="n">lora_scale</span> <span class="o">=</span> <span class="n">attention_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;scale&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="n">attention_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
     <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="c1"># weight the lora layers by setting `lora_scale` for each PEFT layer</span>
         <span class="n">scale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
@@ -11347,6 +11348,7 @@ is returned where the first element is a list with the generated images.</p>
     <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="c1"># remove `lora_scale` from each PEFT layer</span>
         <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+        <span class="n">attention_kwargs</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lora_scale</span>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">_current_timestep</span> <span class="o">=</span> <span class="kc">None</span>
 

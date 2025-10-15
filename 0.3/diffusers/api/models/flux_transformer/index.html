@@ -9288,7 +9288,13 @@ specific language governing permissions and limitations under the License.
 <span class="normal">829</span>
 <span class="normal">830</span>
 <span class="normal">831</span>
-<span class="normal">832</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FluxTransformer2DModel</span><span class="p">(</span>
+<span class="normal">832</span>
+<span class="normal">833</span>
+<span class="normal">834</span>
+<span class="normal">835</span>
+<span class="normal">836</span>
+<span class="normal">837</span>
+<span class="normal">838</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FluxTransformer2DModel</span><span class="p">(</span>
     <span class="n">ModelMixin</span><span class="p">,</span>
     <span class="n">ConfigMixin</span><span class="p">,</span>
     <span class="n">PeftAdapterMixin</span><span class="p">,</span>
@@ -9432,10 +9438,16 @@ specific language governing permissions and limitations under the License.
 <span class="sd">            If `return_dict` is True, an [`~models.transformer_2d.Transformer2DModelOutput`] is returned, otherwise a</span>
 <span class="sd">            `tuple` where the first element is the sample tensor.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-
-        <span class="k">if</span> <span class="n">joint_attention_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">joint_attention_kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;scale&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-                <span class="s2">&quot;Passing `scale` via `joint_attention_kwargs` when not using the PEFT backend is ineffective.&quot;</span>
+        <span class="k">if</span> <span class="n">joint_attention_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="s2">&quot;scale&quot;</span> <span class="ow">in</span> <span class="n">joint_attention_kwargs</span><span class="p">:</span>
+            <span class="c1"># weight the lora layers by setting `lora_scale` for each PEFT layer here</span>
+            <span class="c1"># and remove `lora_scale` from each PEFT layer at the end.</span>
+            <span class="c1"># scale_lora_layers &amp; unscale_lora_layers maybe contains some operation forbidden in graph mode</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;You are trying to set scaling of lora layer by passing </span><span class="si">{</span><span class="n">joint_attention_kwargs</span><span class="p">[</span><span class="s1">&#39;scale&#39;</span><span class="p">]</span><span class="si">=}</span><span class="s2">. &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;However it&#39;s not allowed in on-the-fly model forwarding. &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Please manually call `scale_lora_layers(model, lora_scale)` before model forwarding and &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;`unscale_lora_layers(model, lora_scale)` after model forwarding. &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;For example, it can be done in a pipeline call like `StableDiffusionPipeline.__call__`.&quot;</span>
             <span class="p">)</span>
 
         <span class="n">hidden_states</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">x_embedder</span><span class="p">(</span><span class="n">hidden_states</span><span class="p">)</span>
@@ -9869,7 +9881,13 @@ tuple.</p>
 <span class="normal">829</span>
 <span class="normal">830</span>
 <span class="normal">831</span>
-<span class="normal">832</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
+<span class="normal">832</span>
+<span class="normal">833</span>
+<span class="normal">834</span>
+<span class="normal">835</span>
+<span class="normal">836</span>
+<span class="normal">837</span>
+<span class="normal">838</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">hidden_states</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">encoder_hidden_states</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -9910,10 +9928,16 @@ tuple.</p>
 <span class="sd">        If `return_dict` is True, an [`~models.transformer_2d.Transformer2DModelOutput`] is returned, otherwise a</span>
 <span class="sd">        `tuple` where the first element is the sample tensor.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="k">if</span> <span class="n">joint_attention_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">joint_attention_kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;scale&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-            <span class="s2">&quot;Passing `scale` via `joint_attention_kwargs` when not using the PEFT backend is ineffective.&quot;</span>
+    <span class="k">if</span> <span class="n">joint_attention_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="s2">&quot;scale&quot;</span> <span class="ow">in</span> <span class="n">joint_attention_kwargs</span><span class="p">:</span>
+        <span class="c1"># weight the lora layers by setting `lora_scale` for each PEFT layer here</span>
+        <span class="c1"># and remove `lora_scale` from each PEFT layer at the end.</span>
+        <span class="c1"># scale_lora_layers &amp; unscale_lora_layers maybe contains some operation forbidden in graph mode</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;You are trying to set scaling of lora layer by passing </span><span class="si">{</span><span class="n">joint_attention_kwargs</span><span class="p">[</span><span class="s1">&#39;scale&#39;</span><span class="p">]</span><span class="si">=}</span><span class="s2">. &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;However it&#39;s not allowed in on-the-fly model forwarding. &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Please manually call `scale_lora_layers(model, lora_scale)` before model forwarding and &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;`unscale_lora_layers(model, lora_scale)` after model forwarding. &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;For example, it can be done in a pipeline call like `StableDiffusionPipeline.__call__`.&quot;</span>
         <span class="p">)</span>
 
     <span class="n">hidden_states</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">x_embedder</span><span class="p">(</span><span class="n">hidden_states</span><span class="p">)</span>

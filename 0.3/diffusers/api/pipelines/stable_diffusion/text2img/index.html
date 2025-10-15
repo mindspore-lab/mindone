@@ -8875,7 +8875,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.ip_adapter.IPAdapterMixin (mindone.diffusers.loaders.IPAdapterMixin)" href="../../../loaders/ip_adapter/#mindone.diffusers.loaders.ip_adapter.IPAdapterMixin">IPAdapterMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin (mindone.diffusers.loaders.TextualInversionLoaderMixin)" href="../../../loaders/textual_inversion/#mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin">TextualInversionLoaderMixin</a></code>, <code><span title="mindone.diffusers.loaders.LoraLoaderMixin">LoraLoaderMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.single_file.FromSingleFileMixin (mindone.diffusers.loaders.FromSingleFileMixin)" href="../../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin (mindone.diffusers.loaders.TextualInversionLoaderMixin)" href="../../../loaders/textual_inversion/#mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin">TextualInversionLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin (mindone.diffusers.loaders.StableDiffusionLoraLoaderMixin)" href="../../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin">StableDiffusionLoraLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.ip_adapter.IPAdapterMixin (mindone.diffusers.loaders.IPAdapterMixin)" href="../../../loaders/ip_adapter/#mindone.diffusers.loaders.ip_adapter.IPAdapterMixin">IPAdapterMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.single_file.FromSingleFileMixin (mindone.diffusers.loaders.FromSingleFileMixin)" href="../../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code></p>
 
 
         <p>Pipeline for text-to-image generation using Stable Diffusion.</p>
@@ -8887,8 +8887,8 @@ implemented for all pipelines (downloading, saving, running on a particular devi
   <summary>The pipeline also inherits the following loading methods</summary>
   <ul>
 <li>[<code>~loaders.TextualInversionLoaderMixin.load_textual_inversion</code>] for loading textual inversion embeddings</li>
-<li>[<code>~loaders.LoraLoaderMixin.load_lora_weights</code>] for loading LoRA weights</li>
-<li>[<code>~loaders.LoraLoaderMixin.save_lora_weights</code>] for saving LoRA weights</li>
+<li>[<code>~loaders.StableDiffusionLoraLoaderMixin.load_lora_weights</code>] for loading LoRA weights</li>
+<li>[<code>~loaders.StableDiffusionLoraLoaderMixin.save_lora_weights</code>] for saving LoRA weights</li>
 <li>[<code>~loaders.FromSingleFileMixin.from_single_file</code>] for loading <code>.ckpt</code> files</li>
 <li>[<code>~loaders.IPAdapterMixin.load_ip_adapter</code>] for loading IP Adapters</li>
 </ul>
@@ -9977,15 +9977,12 @@ more details about a model's potential harms.</p>
 <span class="normal">1084</span>
 <span class="normal">1085</span>
 <span class="normal">1086</span>
-<span class="normal">1087</span>
-<span class="normal">1088</span>
-<span class="normal">1089</span>
-<span class="normal">1090</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionPipeline</span><span class="p">(</span>
+<span class="normal">1087</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionPipeline</span><span class="p">(</span>
     <span class="n">DiffusionPipeline</span><span class="p">,</span>
     <span class="n">StableDiffusionMixin</span><span class="p">,</span>
-    <span class="n">IPAdapterMixin</span><span class="p">,</span>
     <span class="n">TextualInversionLoaderMixin</span><span class="p">,</span>
-    <span class="n">LoraLoaderMixin</span><span class="p">,</span>
+    <span class="n">StableDiffusionLoraLoaderMixin</span><span class="p">,</span>
+    <span class="n">IPAdapterMixin</span><span class="p">,</span>
     <span class="n">FromSingleFileMixin</span><span class="p">,</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -9996,8 +9993,8 @@ more details about a model's potential harms.</p>
 
 <span class="sd">    The pipeline also inherits the following loading methods:</span>
 <span class="sd">        - [`~loaders.TextualInversionLoaderMixin.load_textual_inversion`] for loading textual inversion embeddings</span>
-<span class="sd">        - [`~loaders.LoraLoaderMixin.load_lora_weights`] for loading LoRA weights</span>
-<span class="sd">        - [`~loaders.LoraLoaderMixin.save_lora_weights`] for saving LoRA weights</span>
+<span class="sd">        - [`~loaders.StableDiffusionLoraLoaderMixin.load_lora_weights`] for loading LoRA weights</span>
+<span class="sd">        - [`~loaders.StableDiffusionLoraLoaderMixin.save_lora_weights`] for saving LoRA weights</span>
 <span class="sd">        - [`~loaders.FromSingleFileMixin.from_single_file`] for loading `.ckpt` files</span>
 <span class="sd">        - [`~loaders.IPAdapterMixin.load_ip_adapter`] for loading IP Adapters</span>
 
@@ -10196,7 +10193,7 @@ more details about a model's potential harms.</p>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># set lora scale so that monkey patched LoRA</span>
         <span class="c1"># function of text encoder can correctly access it</span>
-        <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">StableDiffusionLoraLoaderMixin</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_lora_scale</span> <span class="o">=</span> <span class="n">lora_scale</span>
 
             <span class="c1"># dynamically adjust the LoRA scale</span>
@@ -10324,7 +10321,7 @@ more details about a model's potential harms.</p>
             <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">negative_prompt_embeds</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">batch_size</span> <span class="o">*</span> <span class="n">num_images_per_prompt</span><span class="p">,</span> <span class="n">seq_len</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">StableDiffusionLoraLoaderMixin</span><span class="p">):</span>
                 <span class="c1"># Retrieve the original scale by scaling back the LoRA layers</span>
                 <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
 
@@ -10358,6 +10355,9 @@ more details about a model's potential harms.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_ip_adapter_image_embeds</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">ip_adapter_image</span><span class="p">,</span> <span class="n">ip_adapter_image_embeds</span><span class="p">,</span> <span class="n">num_images_per_prompt</span><span class="p">,</span> <span class="n">do_classifier_free_guidance</span>
     <span class="p">):</span>
+        <span class="n">image_embeds</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
+            <span class="n">negative_image_embeds</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">if</span> <span class="n">ip_adapter_image_embeds</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ip_adapter_image</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
                 <span class="n">ip_adapter_image</span> <span class="o">=</span> <span class="p">[</span><span class="n">ip_adapter_image</span><span class="p">]</span>
@@ -10367,7 +10367,6 @@ more details about a model's potential harms.</p>
                     <span class="sa">f</span><span class="s2">&quot;`ip_adapter_image` must have same length as the number of IP Adapters. Got </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">ip_adapter_image</span><span class="p">)</span><span class="si">}</span><span class="s2"> images and </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">encoder_hid_proj</span><span class="o">.</span><span class="n">image_projection_layers</span><span class="p">)</span><span class="si">}</span><span class="s2"> IP Adapters.&quot;</span>  <span class="c1"># noqa: E501</span>
                 <span class="p">)</span>
 
-            <span class="n">image_embeds</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">for</span> <span class="n">single_ip_adapter_image</span><span class="p">,</span> <span class="n">image_proj_layer</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
                 <span class="n">ip_adapter_image</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">encoder_hid_proj</span><span class="o">.</span><span class="n">image_projection_layers</span>
             <span class="p">):</span>
@@ -10375,33 +10374,27 @@ more details about a model's potential harms.</p>
                 <span class="n">single_image_embeds</span><span class="p">,</span> <span class="n">single_negative_image_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode_image</span><span class="p">(</span>
                     <span class="n">single_ip_adapter_image</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">output_hidden_state</span>
                 <span class="p">)</span>
-                <span class="n">single_image_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">single_image_embeds</span><span class="p">]</span> <span class="o">*</span> <span class="n">num_images_per_prompt</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-                <span class="n">single_negative_image_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">single_negative_image_embeds</span><span class="p">]</span> <span class="o">*</span> <span class="n">num_images_per_prompt</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
+                <span class="n">image_embeds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">single_image_embeds</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:])</span>
                 <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-                    <span class="n">single_image_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">single_negative_image_embeds</span><span class="p">,</span> <span class="n">single_image_embeds</span><span class="p">])</span>
-
-                <span class="n">image_embeds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">single_image_embeds</span><span class="p">)</span>
+                    <span class="n">negative_image_embeds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">single_negative_image_embeds</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:])</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">repeat_dims</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-            <span class="n">image_embeds</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">for</span> <span class="n">single_image_embeds</span> <span class="ow">in</span> <span class="n">ip_adapter_image_embeds</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
                     <span class="n">single_negative_image_embeds</span><span class="p">,</span> <span class="n">single_image_embeds</span> <span class="o">=</span> <span class="n">single_image_embeds</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
-                    <span class="n">single_image_embeds</span> <span class="o">=</span> <span class="n">single_image_embeds</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span>
-                        <span class="p">(</span><span class="n">num_images_per_prompt</span><span class="p">,</span> <span class="o">*</span><span class="p">(</span><span class="n">repeat_dims</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">single_image_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:])))</span>
-                    <span class="p">)</span>
-                    <span class="n">single_negative_image_embeds</span> <span class="o">=</span> <span class="n">single_negative_image_embeds</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span>
-                        <span class="p">(</span><span class="n">num_images_per_prompt</span><span class="p">,</span> <span class="o">*</span><span class="p">(</span><span class="n">repeat_dims</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">single_negative_image_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:])))</span>
-                    <span class="p">)</span>
-                    <span class="n">single_image_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">single_negative_image_embeds</span><span class="p">,</span> <span class="n">single_image_embeds</span><span class="p">])</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">single_image_embeds</span> <span class="o">=</span> <span class="n">single_image_embeds</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span>
-                        <span class="p">(</span><span class="n">num_images_per_prompt</span><span class="p">,</span> <span class="o">*</span><span class="p">(</span><span class="n">repeat_dims</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">single_image_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:])))</span>
-                    <span class="p">)</span>
+                    <span class="n">negative_image_embeds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">single_negative_image_embeds</span><span class="p">)</span>
                 <span class="n">image_embeds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">single_image_embeds</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">image_embeds</span>
+        <span class="n">ip_adapter_image_embeds</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">single_image_embeds</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">image_embeds</span><span class="p">):</span>
+            <span class="n">single_image_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">single_image_embeds</span><span class="p">]</span> <span class="o">*</span> <span class="n">num_images_per_prompt</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
+                <span class="n">single_negative_image_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_image_embeds</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="o">*</span> <span class="n">num_images_per_prompt</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">single_image_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">single_negative_image_embeds</span><span class="p">,</span> <span class="n">single_image_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+            <span class="n">ip_adapter_image_embeds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">single_image_embeds</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">ip_adapter_image_embeds</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">run_safety_checker</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">safety_checker</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -10913,6 +10906,7 @@ more details about a model's potential harms.</p>
         <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="c1"># remove `lora_scale` from each PEFT layer</span>
             <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cross_attention_kwargs</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lora_scale</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;latent&quot;</span><span class="p">:</span>
             <span class="n">latents</span> <span class="o">=</span> <span class="p">(</span><span class="n">latents</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">scaling_factor</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
@@ -11488,7 +11482,11 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion/pipeline_stable_diffusion.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 767</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 763</span>
+<span class="normal"> 764</span>
+<span class="normal"> 765</span>
+<span class="normal"> 766</span>
+<span class="normal"> 767</span>
 <span class="normal"> 768</span>
 <span class="normal"> 769</span>
 <span class="normal"> 770</span>
@@ -11808,10 +11806,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="normal">1084</span>
 <span class="normal">1085</span>
 <span class="normal">1086</span>
-<span class="normal">1087</span>
-<span class="normal">1088</span>
-<span class="normal">1089</span>
-<span class="normal">1090</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">1087</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">height</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -12116,6 +12111,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
     <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="c1"># remove `lora_scale` from each PEFT layer</span>
         <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cross_attention_kwargs</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lora_scale</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;latent&quot;</span><span class="p">:</span>
         <span class="n">latents</span> <span class="o">=</span> <span class="p">(</span><span class="n">latents</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">scaling_factor</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
@@ -12535,7 +12531,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c1"># set lora scale so that monkey patched LoRA</span>
     <span class="c1"># function of text encoder can correctly access it</span>
-    <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">StableDiffusionLoraLoaderMixin</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_lora_scale</span> <span class="o">=</span> <span class="n">lora_scale</span>
 
         <span class="c1"># dynamically adjust the LoRA scale</span>
@@ -12663,7 +12659,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
         <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">negative_prompt_embeds</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">batch_size</span> <span class="o">*</span> <span class="n">num_images_per_prompt</span><span class="p">,</span> <span class="n">seq_len</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">StableDiffusionLoraLoaderMixin</span><span class="p">):</span>
             <span class="c1"># Retrieve the original scale by scaling back the LoRA layers</span>
             <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
 
@@ -12782,7 +12778,11 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion/pipeline_stable_diffusion.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">706</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">702</span>
+<span class="normal">703</span>
+<span class="normal">704</span>
+<span class="normal">705</span>
+<span class="normal">706</span>
 <span class="normal">707</span>
 <span class="normal">708</span>
 <span class="normal">709</span>
@@ -12806,11 +12806,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="normal">727</span>
 <span class="normal">728</span>
 <span class="normal">729</span>
-<span class="normal">730</span>
-<span class="normal">731</span>
-<span class="normal">732</span>
-<span class="normal">733</span>
-<span class="normal">734</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_guidance_scale_embedding</span><span class="p">(</span>
+<span class="normal">730</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_guidance_scale_embedding</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">w</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">512</span><span class="p">,</span> <span class="n">dtype</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Type</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
