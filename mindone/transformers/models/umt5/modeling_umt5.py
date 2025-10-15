@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2023 Mesh TensorFlow authors, T5 Authors and HuggingFace Inc. team.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -26,6 +29,7 @@ import mindspore as ms
 from mindspore import nn, ops
 
 from ...activations import ACT2FN
+from ...mindspore_adapter import dtype_to_max
 from ...modeling_outputs import (
     BaseModelOutput,
     BaseModelOutputWithPastAndCrossAttentions,
@@ -41,24 +45,6 @@ logger = logging.get_logger(__name__)
 
 _CONFIG_FOR_DOC = "UMT5Config"
 _CHECKPOINT_FOR_DOC = "google/umt5-small"
-
-_MAX_FP16 = ms.tensor(np.finfo(np.float16).max, dtype=ms.float16)
-_MAX_FP32 = ms.tensor(np.finfo(np.float32).max, dtype=ms.float32)
-_MAX_FP64 = ms.tensor(np.finfo(np.float64).max, dtype=ms.float64)
-_MAX_BF16 = ms.tensor(float.fromhex("0x1.fe00000000000p+127"), dtype=ms.bfloat16)
-
-
-def dtype_to_max(dtype):
-    if dtype == ms.float16:
-        return _MAX_FP16
-    if dtype == ms.float32:
-        return _MAX_FP32
-    if dtype == ms.float64:
-        return _MAX_FP64
-    if dtype == ms.bfloat16:
-        return _MAX_BF16
-    else:
-        raise ValueError(f"Only support get maximum value of (float16, ), but got {dtype}")
 
 
 # Copied from transformers.models.t5.modeling_t5.T5LayerNorm with T5->UMT5

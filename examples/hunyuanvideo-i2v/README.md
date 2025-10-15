@@ -67,7 +67,7 @@ Here is the development plan of the project:
 
 ## 🎥 Demo
 
-The following videos are generated based on MindSpore and Ascend 910B.
+The following videos are generated based on MindSpore and Ascend Atlas 800T A2 machines.
 
 |  Reference Image | Generated Video |
 |:----------------:|:----------------:|

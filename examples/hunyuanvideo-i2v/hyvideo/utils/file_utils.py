@@ -1,3 +1,4 @@
+# Adapted from https://github.com/Tencent-Hunyuan/HunyuanVideo-I2V to work with MindSpore.
 def process_prompt_and_text_embed(prompt, text_embed_path):
     """
     Process the prompt and text embed path to ensure they are in the correct format and match in number.

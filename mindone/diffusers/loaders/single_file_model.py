@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,22 +17,40 @@
 import importlib
 import inspect
 import re
+from contextlib import nullcontext
 from typing import Optional
 
 from huggingface_hub.utils import validate_hf_hub_args
+from typing_extensions import Self
 
+import mindspore as ms
+
+from .. import __version__
 from ..models.modeling_utils import _convert_state_dict
 from ..utils import deprecate, logging
 from .single_file_utils import (
     SingleFileComponentError,
     _load_param_into_net,
     convert_animatediff_checkpoint_to_diffusers,
+    convert_auraflow_transformer_checkpoint_to_diffusers,
+    convert_autoencoder_dc_checkpoint_to_diffusers,
+    convert_chroma_transformer_checkpoint_to_diffusers,
     convert_controlnet_checkpoint,
+    convert_cosmos_transformer_checkpoint_to_diffusers,
     convert_flux_transformer_checkpoint_to_diffusers,
+    convert_hidream_transformer_to_diffusers,
+    convert_hunyuan_video_transformer_to_diffusers,
     convert_ldm_unet_checkpoint,
     convert_ldm_vae_checkpoint,
+    convert_ltx_transformer_checkpoint_to_diffusers,
+    convert_ltx_vae_checkpoint_to_diffusers,
+    convert_lumina2_to_diffusers,
+    convert_mochi_transformer_checkpoint_to_diffusers,
+    convert_sana_transformer_to_diffusers,
     convert_sd3_transformer_checkpoint_to_diffusers,
     convert_stable_cascade_unet_single_file_to_diffusers,
+    convert_wan_transformer_to_diffusers,
+    convert_wan_vae_to_diffusers,
     create_controlnet_diffusers_config_from_ldm,
     create_unet_diffusers_config_from_ldm,
     create_vae_diffusers_config_from_ldm,
@@ -76,7 +97,68 @@ SINGLE_FILE_LOADABLE_CLASSES = {
         "checkpoint_mapping_fn": convert_flux_transformer_checkpoint_to_diffusers,
         "default_subfolder": "transformer",
     },
+    "ChromaTransformer2DModel": {
+        "checkpoint_mapping_fn": convert_chroma_transformer_checkpoint_to_diffusers,
+        "default_subfolder": "transformer",
+    },
+    "LTXVideoTransformer3DModel": {
+        "checkpoint_mapping_fn": convert_ltx_transformer_checkpoint_to_diffusers,
+        "default_subfolder": "transformer",
+    },
+    "AutoencoderKLLTXVideo": {
+        "checkpoint_mapping_fn": convert_ltx_vae_checkpoint_to_diffusers,
+        "default_subfolder": "vae",
+    },
+    "AutoencoderDC": {"checkpoint_mapping_fn": convert_autoencoder_dc_checkpoint_to_diffusers},
+    "MochiTransformer3DModel": {
+        "checkpoint_mapping_fn": convert_mochi_transformer_checkpoint_to_diffusers,
+        "default_subfolder": "transformer",
+    },
+    "HunyuanVideoTransformer3DModel": {
+        "checkpoint_mapping_fn": convert_hunyuan_video_transformer_to_diffusers,
+        "default_subfolder": "transformer",
+    },
+    "AuraFlowTransformer2DModel": {
+        "checkpoint_mapping_fn": convert_auraflow_transformer_checkpoint_to_diffusers,
+        "default_subfolder": "transformer",
+    },
+    "Lumina2Transformer2DModel": {
+        "checkpoint_mapping_fn": convert_lumina2_to_diffusers,
+        "default_subfolder": "transformer",
+    },
+    "SanaTransformer2DModel": {
+        "checkpoint_mapping_fn": convert_sana_transformer_to_diffusers,
+        "default_subfolder": "transformer",
+    },
+    "WanTransformer3DModel": {
+        "checkpoint_mapping_fn": convert_wan_transformer_to_diffusers,
+        "default_subfolder": "transformer",
+    },
+    "WanVACETransformer3DModel": {
+        "checkpoint_mapping_fn": convert_wan_transformer_to_diffusers,
+        "default_subfolder": "transformer",
+    },
+    "AutoencoderKLWan": {
+        "checkpoint_mapping_fn": convert_wan_vae_to_diffusers,
+        "default_subfolder": "vae",
+    },
+    "HiDreamImageTransformer2DModel": {
+        "checkpoint_mapping_fn": convert_hidream_transformer_to_diffusers,
+        "default_subfolder": "transformer",
+    },
+    "CosmosTransformer3DModel": {
+        "checkpoint_mapping_fn": convert_cosmos_transformer_checkpoint_to_diffusers,
+        "default_subfolder": "transformer",
+    },
+    "QwenImageTransformer2DModel": {
+        "checkpoint_mapping_fn": lambda x: x,
+        "default_subfolder": "transformer",
+    },
 }
+
+
+def _should_convert_state_dict_to_diffusers(model_state_dict, checkpoint_state_dict):
+    return not set(model_state_dict.keys()).issubset(set(checkpoint_state_dict.keys()))
 
 
 def _get_single_file_loadable_mapping_class(cls):
@@ -108,7 +190,7 @@ class FromOriginalModelMixin:
 
     @classmethod
     @validate_hf_hub_args
-    def from_single_file(cls, pretrained_model_link_or_path_or_dict: Optional[str] = None, **kwargs):
+    def from_single_file(cls, pretrained_model_link_or_path_or_dict: Optional[str] = None, **kwargs) -> Self:
         r"""
         Instantiate a model from pretrained weights saved in the original `.ckpt` or `.safetensors` format. The model
         is set in evaluation mode (`model.eval()`) by default.
@@ -130,9 +212,8 @@ class FromOriginalModelMixin:
             original_config (`str`, *optional*):
                 Dict or path to a yaml file containing the configuration for the model in its original format.
                     If a dict is provided, it will be used to initialize the model configuration.
-            torch_dtype (`str` or `torch.dtype`, *optional*):
-                Override the default `torch.dtype` and load the model with another dtype. If `"auto"` is passed, the
-                dtype is automatically derived from the model's weights.
+            mindspore_dtype (`ms.Type`, *optional*):
+                Override the default `ms.Type` and load the model with another dtype.
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
                 cached versions if they exist.
@@ -152,6 +233,9 @@ class FromOriginalModelMixin:
             revision (`str`, *optional*, defaults to `"main"`):
                 The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
                 allowed by Git.
+            disable_mmap ('bool', *optional*, defaults to 'False'):
+                Whether to disable mmap when loading a Safetensors model. This option can perform better when the model
+                is on a network mount or hard drive, which may not handle the seeky-ness of mmap very well.
             kwargs (remaining dictionary of keyword arguments, *optional*):
                 Can be used to overwrite load and saveable variables (for example the pipeline components of the
                 specific pipeline class). The overwritten components are directly passed to the pipelines `__init__`
@@ -195,7 +279,16 @@ class FromOriginalModelMixin:
         local_files_only = kwargs.pop("local_files_only", None)
         subfolder = kwargs.pop("subfolder", None)
         revision = kwargs.pop("revision", None)
+        config_revision = kwargs.pop("config_revision", None)
         mindspore_dtype = kwargs.pop("mindspore_dtype", None)
+        disable_mmap = kwargs.pop("disable_mmap", False)
+
+        user_agent = {"diffusers": __version__, "file_type": "single_file", "framework": "pytorch"}
+        if mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
+            mindspore_dtype = ms.float32
+            logger.warning(
+                f"Passed `mindspore_dtype` {mindspore_dtype} is not a `ms.Type`. Defaulting to `ms.float32`."
+            )
 
         if isinstance(pretrained_model_link_or_path_or_dict, dict):
             checkpoint = pretrained_model_link_or_path_or_dict
@@ -208,12 +301,14 @@ class FromOriginalModelMixin:
                 cache_dir=cache_dir,
                 local_files_only=local_files_only,
                 revision=revision,
+                disable_mmap=disable_mmap,
+                user_agent=user_agent,
             )
 
         mapping_functions = SINGLE_FILE_LOADABLE_CLASSES[mapping_class_name]
 
         checkpoint_mapping_fn = mapping_functions["checkpoint_mapping_fn"]
-        if original_config:
+        if original_config is not None:
             if "config_mapping_fn" in mapping_functions:
                 config_mapping_fn = mapping_functions["config_mapping_fn"]
             else:
@@ -237,7 +332,7 @@ class FromOriginalModelMixin:
                 original_config=original_config, checkpoint=checkpoint, **config_mapping_kwargs
             )
         else:
-            if config:
+            if config is not None:
                 if isinstance(config, str):
                     default_pretrained_model_config_name = config
                 else:
@@ -263,6 +358,8 @@ class FromOriginalModelMixin:
                 pretrained_model_name_or_path=default_pretrained_model_config_name,
                 subfolder=subfolder,
                 local_files_only=local_files_only,
+                token=token,
+                revision=config_revision,
             )
             expected_kwargs, optional_kwargs = cls._get_signature_keys(cls)
 
@@ -276,16 +373,23 @@ class FromOriginalModelMixin:
             model_kwargs = {k: kwargs.get(k) for k in kwargs if k in expected_kwargs or k in optional_kwargs}
             diffusers_model_config.update(model_kwargs)
 
+        ctx = nullcontext
+        with ctx():
+            model = cls.from_config(diffusers_model_config)
+
         checkpoint_mapping_kwargs = _get_mapping_function_kwargs(checkpoint_mapping_fn, **kwargs)
-        diffusers_format_checkpoint = checkpoint_mapping_fn(
-            config=diffusers_model_config, checkpoint=checkpoint, **checkpoint_mapping_kwargs
-        )
+
+        if _should_convert_state_dict_to_diffusers(model.state_dict(), checkpoint):
+            diffusers_format_checkpoint = checkpoint_mapping_fn(
+                config=diffusers_model_config, checkpoint=checkpoint, **checkpoint_mapping_kwargs
+            )
+        else:
+            diffusers_format_checkpoint = checkpoint
+
         if not diffusers_format_checkpoint:
             raise SingleFileComponentError(
                 f"Failed to load {mapping_class_name}. Weights for this component appear to be missing in the checkpoint."
             )
-
-        model = cls.from_config(diffusers_model_config)
 
         diffusers_format_checkpoint = _convert_state_dict(model, diffusers_format_checkpoint)
         _, unexpected_keys = _load_param_into_net(model, diffusers_format_checkpoint, mindspore_dtype)

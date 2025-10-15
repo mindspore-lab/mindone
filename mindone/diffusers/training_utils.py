@@ -1,10 +1,13 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/training_utils.py."""
+
 import contextlib
 import copy
 import logging
-import math
 import os
 import random
+import re
 import time
+import warnings
 from abc import ABCMeta, abstractmethod
 from multiprocessing import Process, Queue
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
@@ -13,7 +16,7 @@ import numpy as np
 from tqdm.auto import tqdm
 
 import mindspore as ms
-from mindspore import context, nn, ops
+from mindspore import context, mint, nn, ops
 from mindspore.amp import DynamicLossScaler, StaticLossScaler, all_finite
 from mindspore.common import dtype as mstype
 from mindspore.common.api import _pynative_executor
@@ -22,8 +25,8 @@ from mindspore.communication.management import GlobalComm
 from mindspore.context import ParallelMode
 from mindspore.parallel._utils import _get_parallel_mode
 
-from mindone.diffusers._peft import set_peft_model_state_dict
 from mindone.diffusers.models.model_loading_utils import silence_mindspore_logger
+from mindone.peft import set_peft_model_state_dict
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.trainers.zero import ZeroHelper, prepare_network
 
@@ -44,6 +47,17 @@ def compute_snr(noise_scheduler, timesteps):
     """
     Computes SNR as per
     https://github.com/TiankaiHang/Min-SNR-Diffusion-Training/blob/521b624bd70c67cee4bdf49225915f5945a872e3/guided_diffusion/gaussian_diffusion.py#L847-L849
+    for the given timesteps using the provided noise scheduler.
+
+    Args:
+        noise_scheduler (`NoiseScheduler`):
+            An object containing the noise schedule parameters, specifically `alphas_cumprod`, which is used to compute
+            the SNR values.
+        timesteps (`ms.Tensor`):
+            A tensor of timesteps for which the SNR is computed.
+
+    Returns:
+        `ms.Tensor`: A tensor containing the computed SNR values for each timestep.
     """
     alphas_cumprod = noise_scheduler.alphas_cumprod
     sqrt_alphas_cumprod = alphas_cumprod**0.5
@@ -71,9 +85,9 @@ def compute_dream_and_update_latents(
     dream_detail_preservation: float = 1.0,
 ) -> Tuple[Optional[ms.Tensor], Optional[ms.Tensor]]:
     """
-    Implements "DREAM (Diffusion Rectification and Estimation-Adaptive Models)" from http://arxiv.org/abs/2312.00210.
-    DREAM helps align training with sampling to help training be more efficient and accurate at the cost of an extra
-    forward step without gradients.
+    Implements "DREAM (Diffusion Rectification and Estimation-Adaptive Models)" from
+    https://huggingface.co/papers/2312.00210. DREAM helps align training with sampling to help training be more
+    efficient and accurate at the cost of an extra forward step without gradients.
 
     Args:
         `unet`: The state unet to use to make a prediction.
@@ -139,10 +153,18 @@ def _set_state_dict_into_text_encoder(lora_state_dict: Dict[str, ms.Tensor], pre
     """
 
     text_encoder_state_dict = {
-        f'{k.replace(prefix, "")}': v for k, v in lora_state_dict.items() if k.startswith(prefix)
+        f"{k.replace(prefix, '')}": v for k, v in lora_state_dict.items() if k.startswith(prefix)
     }
     text_encoder_state_dict = convert_state_dict_to_peft(convert_state_dict_to_diffusers(text_encoder_state_dict))
     set_peft_model_state_dict(text_encoder, text_encoder_state_dict, adapter_name="default")
+
+
+def _collate_lora_metadata(modules_to_save: Dict[str, nn.Cell]) -> Dict[str, Any]:
+    metadatas = {}
+    for module_name, module in modules_to_save.items():
+        if module is not None:
+            metadatas[f"{module_name}_lora_adapter_metadata"] = module.peft_config["default"].to_dict()
+    return metadatas
 
 
 def compute_density_for_timestep_sampling(
@@ -153,17 +175,17 @@ def compute_density_for_timestep_sampling(
 
     Courtesy: This was contributed by Rafie Walker in https://github.com/huggingface/diffusers/pull/8528.
 
-    SD3 paper reference: https://arxiv.org/abs/2403.03206v1.
+    SD3 paper reference: https://huggingface.co/papers/2403.03206v1.
     """
     if weighting_scheme == "logit_normal":
         # See 3.1 in the SD3 paper ($rf/lognorm(0.00,1.00)$).
-        u = ops.normal(mean=logit_mean, stddev=logit_std, shape=(batch_size,))
-        u = ops.sigmoid(u)
+        u = mint.normal(mean=logit_mean, std=logit_std, size=(batch_size,))
+        u = mint.sigmoid(u)
     elif weighting_scheme == "mode":
-        u = ops.rand(batch_size)
-        u = 1 - u - mode_scale * (ops.cos(math.pi * u / 2) ** 2 - 1 + u)
+        u = mint.rand(batch_size)
+        u = 1 - u - mode_scale * (mint.cos(ms.numpy.pi * u / 2) ** 2 - 1 + u)
     else:
-        u = ops.rand(batch_size)
+        u = mint.rand(batch_size)
     return u
 
 
@@ -173,16 +195,56 @@ def compute_loss_weighting_for_sd3(weighting_scheme: str, sigmas=None):
 
     Courtesy: This was contributed by Rafie Walker in https://github.com/huggingface/diffusers/pull/8528.
 
-    SD3 paper reference: https://arxiv.org/abs/2403.03206v1.
+    SD3 paper reference: https://huggingface.co/papers/2403.03206v1.
     """
     if weighting_scheme == "sigma_sqrt":
         weighting = (sigmas**-2.0).float()
     elif weighting_scheme == "cosmap":
         bot = 1 - 2 * sigmas + 2 * sigmas**2
-        weighting = 2 / (math.pi * bot)
+        weighting = 2 / (ms.numpy.pi * bot)
     else:
-        weighting = ops.ones_like(sigmas)
+        weighting = mint.ones_like(sigmas)
     return weighting
+
+
+def parse_buckets_string(buckets_str):
+    """Parses a string defining buckets into a list of (height, width) tuples."""
+    if not buckets_str:
+        raise ValueError("Bucket string cannot be empty.")
+
+    bucket_pairs = buckets_str.strip().split(";")
+    parsed_buckets = []
+    for pair_str in bucket_pairs:
+        match = re.match(r"^\s*(\d+)\s*,\s*(\d+)\s*$", pair_str)
+        if not match:
+            raise ValueError(f"Invalid bucket format: '{pair_str}'. Expected 'height,width'.")
+        try:
+            height = int(match.group(1))
+            width = int(match.group(2))
+            if height <= 0 or width <= 0:
+                raise ValueError("Bucket dimensions must be positive integers.")
+            if height % 8 != 0 or width % 8 != 0:
+                warnings.warn(f"Bucket dimension ({height},{width}) not divisible by 8. This might cause issues.")
+            parsed_buckets.append((height, width))
+        except ValueError as e:
+            raise ValueError(f"Invalid integer in bucket pair '{pair_str}': {e}") from e
+
+    if not parsed_buckets:
+        raise ValueError("No valid buckets found in the provided string.")
+
+    return parsed_buckets
+
+
+def find_nearest_bucket(h, w, bucket_options):
+    """Finds the closes bucket to the given height and width."""
+    min_metric = float("inf")
+    best_bucket_idx = None
+    for bucket_idx, (bucket_h, bucket_w) in enumerate(bucket_options):
+        metric = abs(h * bucket_w - w * bucket_h)
+        if metric <= min_metric:
+            min_metric = metric
+            best_bucket_idx = bucket_idx
+    return best_bucket_idx
 
 
 # Adapted from torch-ema https://github.com/fadel/pytorch_ema/blob/master/torch_ema/ema.py#L14
@@ -240,7 +302,7 @@ class EMAModel:
 
     @classmethod
     def from_pretrained(cls, path, model_cls, foreach=False) -> "EMAModel":
-        _, ema_kwargs = model_cls.load_config(path, return_unused_kwargs=True)
+        _, ema_kwargs = model_cls.from_config(path, return_unused_kwargs=True)
         model = model_cls.from_pretrained(path)
 
         ema_model = cls(model.get_parameters(), model_cls=model_cls, model_config=model.config, foreach=foreach)
@@ -496,7 +558,7 @@ def _grad_accum(cumulative_grad, grad):
 
 
 def _grad_clear(cumulative_grad):
-    return ops.assign(cumulative_grad, ops.zeros_like(cumulative_grad))
+    return ops.assign(cumulative_grad, mint.zeros_like(cumulative_grad))
 
 
 @ms.jit_class
@@ -575,8 +637,8 @@ class GradAccumulator:
             raise ValueError(f"'gradient_accumulation_steps' must be positive, but got {gradient_accumulation_steps}")
 
         self.gradient_accumulation_steps = gradient_accumulation_steps
-        self.batch_idx = ms.Parameter(ms.Tensor(0, ms.int64), name="batch_idx", requires_grad=False)
-        self.sync_gradients = ms.Parameter(ms.Tensor(True), name="sync_gradients", requires_grad=False)
+        self.batch_idx = ms.Parameter(ms.tensor(0, ms.int64), name="batch_idx", requires_grad=False)
+        self.sync_gradients = ms.Parameter(ms.tensor(True), name="sync_gradients", requires_grad=False)
         self.hyper_map = ops.HyperMap()
 
         if self.sync_with_dataloader and self.length_of_dataloader <= 0:
@@ -650,7 +712,7 @@ class GradScaler:
             self.step = self._maybe_opt_step
         else:
             raise NotImplementedError(f"Unsupported loss scaler: {type(loss_scaler)}")
-        self.all_finite = ms.Parameter(ms.Tensor(True), name="all_finite", requires_grad=False)
+        self.all_finite = ms.Parameter(ms.tensor(True), name="all_finite", requires_grad=False)
 
     def scale(self, inputs):
         return self.loss_scaler.scale(inputs)
@@ -921,7 +983,7 @@ def prepare_train_network(
         )
 
     if isinstance(scale_sense, float):
-        scale_sense = ms.Tensor(scale_sense, ms.float32)
+        scale_sense = ms.tensor(scale_sense, ms.float32)
     train_network = DiffusersTrainOneStepWrapper(
         network,
         optimizer,
@@ -959,7 +1021,12 @@ class DiffusersTrainOneStepWrapper(TrainOneStepWrapper):
             optimizer_file = os.path.join(output_dir, "mindspore_model", f"zero_pp_{args.local_rank}_optim_states.ckpt")
         elif self.need_save_optimizer(args):
             optimizer_file = os.path.join(output_dir, "optimizer.ckpt")
-        ms.save_checkpoint(self.optimizer, optimizer_file, choice_func=optimizer_state_filter)
+        else:
+            optimizer_file = None
+
+        if optimizer_file:
+            ms.save_checkpoint(self.optimizer, optimizer_file, choice_func=optimizer_state_filter)
+
         if is_master(args):
             # Loss Scaler states
             loss_scaler_file = os.path.join(output_dir, "loss_scaler.ckpt")
@@ -997,7 +1064,7 @@ class DiffusersTrainOneStepWrapper(TrainOneStepWrapper):
         loss_scaler_file = os.path.join(input_dir, "loss_scaler.ckpt")
         loss_scaler_state_dict = ms.load_checkpoint(loss_scaler_file)
 
-        scale_sense = loss_scaler_state_dict.get("scale_sense", ms.Tensor(1.0, dtype=mstype.float32))
+        scale_sense = loss_scaler_state_dict.get("scale_sense", ms.tensor(1.0, dtype=mstype.float32))
         cur_iter = loss_scaler_state_dict.get("cur_iter", None)
         last_overflow_iter = loss_scaler_state_dict.get("last_overflow_iter", None)
 

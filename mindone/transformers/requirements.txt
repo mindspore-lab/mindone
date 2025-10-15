@@ -1,4 +1,4 @@
-transformers==4.42.4
+transformers==4.46.3
 evaluate
 datasets
 safetensors

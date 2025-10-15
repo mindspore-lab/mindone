@@ -95,7 +95,7 @@ We conduct experiments to verify our implementation's effectiveness on
 the [UCF-101](https://www.crcv.ucf.edu/data/UCF101.php) dataset containing 13,320 videos. We split the videos into
 training and test sets by 8:2.
 
-The training performance on MindSpore 2.3.1 and Ascend 910* and the accuracy on the test set are as follows.
+The training performance on MindSpore 2.3.1 and Ascend Atlas 800T A2 machines and the accuracy on the test set are as follows.
 
 | model name | cards | batch size | resolution | precision | OPL Loss | s/step | PSNR  | SSIM |
 |:----------:|:-----:|:----------:|:----------:|:---------:|:--------:|:------:|:-----:|:----:|
@@ -256,7 +256,7 @@ to [here](https://github.com/hadipash/mindone/blob/movie_gen/examples/moviegen/m
 To verify the effectiveness of our design and implementation, we perform 3-stage training on
 a [mixkit](https://mixkit.co/) subset consisting of 100 HQ videos up to 1080P.
 
-Experiments were conducted on Ascend 910* using MindSpore 2.3.1 in graph mode.
+Experiments were conducted on Ascend Atlas 800T A2 machines using MindSpore 2.3.1 in graph mode.
 
 | Model | Cards |   Stage   |      Batch size       |       Resolution        |        Recompute         | TAE Cache | Sequence Parallel | Time (s/step) |                              Recipe                               |
 |:-----:|:-----:|:---------:|:---------------------:|:-----------------------:|:------------------------:|:---------:|:-----------------:|:-------------:|:-----------------------------------------------------------------:|

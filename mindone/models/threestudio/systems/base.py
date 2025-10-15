@@ -2,16 +2,16 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, List, Optional
 
-import threestudio
-from threestudio.models.exporters.base import ExporterOutput
-from threestudio.utils.base import Updateable, update_if_possible
-from threestudio.utils.config import parse_structured
-from threestudio.utils.misc import C, load_module_weights
-from threestudio.utils.saving import SaverMixin
-
 import mindspore as ms
 import mindspore.mint.nn.functional as F
 from mindspore import nn
+
+import mindone.models.threestudio as threestudio
+from mindone.models.threestudio.models.exporters.base import ExporterOutput
+from mindone.models.threestudio.utils.base import Updateable, update_if_possible
+from mindone.models.threestudio.utils.config import parse_structured
+from mindone.models.threestudio.utils.misc import C, load_module_weights
+from mindone.models.threestudio.utils.saving import SaverMixin
 
 
 class BaseSystem(nn.Cell, Updateable, SaverMixin):
@@ -119,8 +119,8 @@ class BaseSystem(nn.Cell, Updateable, SaverMixin):
         threestudio.info(f"Running avg step speed: {avg_step_speed:.3f} step/s")
 
         self.preprocess_data(batch, "train")
-        update_if_possible(dataset, self.true_current_epoch, self.true_global_step)
-        self.do_update_step(self.true_current_epoch, self.true_global_step)
+        # update_if_possible(dataset, self.true_current_epoch, self.true_global_step)
+        # self.do_update_step(self.true_current_epoch, self.true_global_step)
 
     def on_validation_batch_start(self, batch, batch_idx, dataset, dataloader_idx=0):
         self.preprocess_data(batch, "validation")

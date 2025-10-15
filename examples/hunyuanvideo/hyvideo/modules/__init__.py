@@ -1,7 +1,9 @@
+# Adapted from https://github.com/Tencent-Hunyuan/HunyuanVideo to work with MindSpore.
 from hyvideo.constants import PRECISION_TO_TYPE
 
 import mindspore as ms
 from mindspore.communication.management import GlobalComm
+from mindspore.nn import no_init_parameters
 
 from mindone.trainers.zero import prepare_network
 
@@ -32,20 +34,21 @@ def load_model(
         model (nn.Module): The hunyuan video model
     """
     if name in HUNYUAN_VIDEO_CONFIG.keys():
-        model = HYVideoDiffusionTransformer(
-            text_states_dim=text_states_dim,
-            text_states_dim_2=text_states_dim_2,
-            in_channels=in_channels,
-            out_channels=out_channels,
-            **HUNYUAN_VIDEO_CONFIG[name],
-            **factor_kwargs,
-        )
+        with no_init_parameters():
+            model = HYVideoDiffusionTransformer(
+                text_states_dim=text_states_dim,
+                text_states_dim_2=text_states_dim_2,
+                in_channels=in_channels,
+                out_channels=out_channels,
+                **HUNYUAN_VIDEO_CONFIG[name],
+                **factor_kwargs,
+            )
         if zero_stage is not None:
             assert zero_stage in [0, 1, 2, 3], "zero_stage should be in [0, 1, 2, 3]"
             model = prepare_network(
                 model,
                 zero_stage=zero_stage,
-                op_group=GlobalComm.WORLD_COMM_GROUP,
+                optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP,
             )
 
         # half model parameter

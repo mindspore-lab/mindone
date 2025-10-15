@@ -1,0 +1,159 @@
+{
+  "paths": {
+    "ROOT_VIDEO": "/path/to/video/folder",
+    "ROOT_CLIPS": "/path/to/video/clips/folder",
+    "ROOT_META": "/path/to/meta/folder",
+    "PYTHONPATH": "$(pwd)"
+  },
+  "meta_steps": {
+    "run": true,
+    "convert_dataset": {
+      "run": true,
+      "output_meta_csv": "${paths.ROOT_META}/meta.csv"
+    },
+    "remove_broken_videos": {
+      "run": true,
+      "input_meta_csv": "${paths.ROOT_META}/meta.csv",
+      "fmin": 1
+    },
+    "split_video": {
+      "run": false,
+      "scene_detection": {
+        "run": true,
+        "detector": "adaptive",
+        "max_cutscene_len": null,
+        "input_meta_csv": "${paths.ROOT_META}/meta_info_fmin${meta_steps.remove_broken_videos.fmin}.csv"
+      },
+      "cut_videos": {
+        "run": true,
+        "min_seconds": 2,
+        "max_seconds": 20,
+        "target_fps": null,
+        "shorter_size": null,
+        "drop_invalid_timestamps": null
+      },
+      "create_clips_meta": {
+        "run": true,
+        "output_meta_csv": "${paths.ROOT_META}/meta_clips.csv"
+      },
+      "remove_broken_clips": {
+        "run": true,
+        "fmin": 1
+      }
+    }
+  },
+  "pipeline_steps": {
+    "run": true,
+    "input_meta_csv": "${paths.ROOT_META}/meta_clips_info_fmin${meta_steps.split_video.remove_broken_clips.fmin}.csv",
+    "deduplication": {
+      "run": true,
+      "hash": "phash",
+      "threshold": 15
+    },
+    "scoring_filtering": {
+      "run": true,
+      "option_matching": {
+        "run": false,
+        "num_frames": 1,
+        "batch_size": 64,
+        "option": "animal",
+        "use_ascend": true,
+        "worker_num": 2
+      },
+      "option_filtering": {
+        "run": true,
+        "matchmin": 20.0
+      },
+      "ocr_scoring": {
+        "run": true,
+        "num_boxes": false,
+        "max_single_percentage": false,
+        "total_text_percentage": true,
+        "worker_num": 2
+      },
+      "ocr_filtering": {
+        "run": true,
+        "ocr_box_max": null,
+        "ocr_single_max": null,
+        "ocr_total_max": 0.15
+      },
+      "lpips_scoring": {
+        "run": true,
+        "seconds": 1,
+        "target_height": 224,
+        "target_width": 224,
+        "use_ascend": true,
+        "worker_num": 2
+      },
+      "lpips_filtering": {
+          "run": true,
+          "lpipsmin": 0.2
+      },
+      "aesthetic_scoring": {
+        "run": true,
+        "num_frames": 1,
+        "batch_size": 64,
+        "use_ascend": true,
+        "worker_num": 2
+      },
+      "aesthetic_filtering": {
+        "run": true,
+        "aesmin": 4.5
+      },
+      "nsfw_scoring": {
+        "run": true,
+        "num_frames": 1,
+        "threshold": 0.2,
+        "batch_size": 64,
+        "use_ascend": true,
+        "worker_num": 2
+      },
+      "nsfw_filtering": {
+          "run": true
+      }
+    },
+    "captioning": {
+      "run": true,
+      "qwen2vl_caption": {
+        "run": true,
+        "question": "Describe the video in details.",
+        "height": 448,
+        "width": 672,
+        "fps": 4,
+        "batch_size": 1,
+        "max_new_tokens": 200,
+        "worker_num": 2
+      },
+      "llava_caption": {
+        "run": false,
+        "question": "Describe the video in details.",
+        "max_new_tokens": 200,
+        "worker_num": 2
+      },
+      "pllava_caption": {
+        "run": false,
+        "question": "Describe the video in details.",
+        "num_frames": 4,
+        "max_new_tokens": 200,
+        "worker_num": 2
+      },
+      "clean_caption": {
+        "run": true,
+        "clean_caption": true,
+        "refine_llm_caption": true,
+        "remove_empty_caption": true
+      },
+      "matching_with_captions": {
+        "run": false,
+        "num_frames": 3,
+        "batch_size": 64,
+        "use_ascend": true,
+        "worker_num": 2
+      },
+      "caption_filtering": {
+        "run": true,
+        "matchmin": 20.0
+      }
+    }
+  }
+}

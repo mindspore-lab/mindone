@@ -1,11 +1,16 @@
 import random
 
 import numpy as np
+import torch
 
-global_rng = random.Random()
+import mindspore as ms
+
+global_rng = random.Random(42)  # fix seed for reproducibility
 
 
-def ids_numpy(shape, vocab_size, rng=None, name=None):
+# Adapted from
+# https://github.com/huggingface/transformers/blob/main/tests/test_modeling_common.py
+def ids_numpy(shape, vocab_size, rng=None, name=None) -> np.ndarray:
     #  Creates a random int32 numpy array of the shape within the vocab size
     if rng is None:
         rng = global_rng
@@ -29,7 +34,9 @@ def random_attention_mask(shape, rng=None, name=None):
     return attn_mask
 
 
-def floats_numpy(shape, scale=1.0, rng=None, name=None):
+# Adapted from
+# https://github.com/huggingface/transformers/blob/main/tests/test_modeling_common.py
+def floats_numpy(shape, scale=1.0, rng=None, name=None) -> np.ndarray:
     """Creates a random float32 numpy"""
     if rng is None:
         rng = global_rng
@@ -43,3 +50,21 @@ def floats_numpy(shape, scale=1.0, rng=None, name=None):
         values.append(rng.random() * scale)
 
     return np.array(values, dtype=np.float32).reshape(shape)
+
+
+def set_random_seed_for_all(seed, python=True, numpy=True, mindspore=True, pytorch=True):
+    """Set random seed for reproducibility if the seed value is valid."""
+    seed = int(seed)
+    assert seed > 0 and seed < 4294967295
+    if python:
+        random.seed(seed)
+    if numpy:
+        np.random.seed(seed)
+    if mindspore:
+        ms.set_seed(seed)
+    if pytorch:
+        torch.manual_seed(seed)
+    print(
+        f"set global seed for {'python' if python else ''}, {'numpy' if numpy else ''}, "
+        f"{'mindspore' if mindspore else ''}, {'pytorch' if pytorch else ''} to {seed}"
+    )

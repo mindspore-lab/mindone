@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/flux/test_pipeline_flux_inpaint.py."""
+
 import random
 import unittest
 
@@ -8,9 +10,12 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -18,10 +23,8 @@ from ..pipeline_test_utils import (
 )
 
 test_cases = [
-    {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
+    {"mode": ms.PYNATIVE_MODE, "dtype": "bfloat16"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float32"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float16"},
 ]
 
 
@@ -188,3 +191,37 @@ class FluxInpaintPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+
+
+@slow
+@ddt
+class FluxInpaintPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_flux_inference(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.flux.pipeline_flux_inpaint.FluxInpaintPipeline")
+        pipe = pipe_cls.from_pretrained("black-forest-labs/FLUX.1-schnell", mindspore_dtype=ms_dtype)
+        prompt = "Face of a yellow cat, high resolution, sitting on a park bench"
+        source = load_downloaded_image_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            "inpaint_input.png",
+            subfolder="stable_diffusion_xl",
+        )
+        mask = load_downloaded_image_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            "inpaint_mask.png",
+            subfolder="stable_diffusion_xl",
+        )
+
+        torch.manual_seed(0)
+        image = pipe(prompt=prompt, image=source, mask_image=mask)[0][0]
+
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
+            f"flux_inpaint_{dtype}.npy",
+            subfolder="flux",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

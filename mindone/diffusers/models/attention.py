@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,25 +14,388 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+import mindspore.nn as nn
+from mindspore import mint
 
 from ..utils import logging
-from .activations import GEGLU, GELU, ApproximateGELU, FP32SiLU, SwiGLU
-from .attention_processor import Attention, JointAttnProcessor2_0
+from .activations import GEGLU, GELU, ApproximateGELU, FP32SiLU, LinearActivation, SwiGLU
+from .attention_processor import Attention, AttentionProcessor, JointAttnProcessor2_0
 from .embeddings import SinusoidalPositionalEmbedding
-from .normalization import (
-    AdaLayerNorm,
-    AdaLayerNormContinuous,
-    AdaLayerNormZero,
-    LayerNorm,
-    RMSNorm,
-    SD35AdaLayerNormZeroX,
-)
+from .normalization import AdaLayerNorm, AdaLayerNormContinuous, AdaLayerNormZero, RMSNorm, SD35AdaLayerNormZeroX
 
 logger = logging.get_logger(__name__)
+
+
+class AttentionMixin:
+    @property
+    def attn_processors(self) -> Dict[str, AttentionProcessor]:
+        r"""
+        Returns:
+            `dict` of attention processors: A dictionary containing all attention processors used in the model with
+            indexed by its weight name.
+        """
+        # set recursively
+        processors = {}
+
+        def fn_recursive_add_processors(name: str, module: nn.Cell, processors: Dict[str, AttentionProcessor]):
+            if hasattr(module, "get_processor"):
+                processors[f"{name}.processor"] = module.get_processor()
+
+            for sub_name, child in module.name_cells().items():
+                fn_recursive_add_processors(f"{name}.{sub_name}", child, processors)
+
+            return processors
+
+        for name, module in self.name_cells().items():
+            fn_recursive_add_processors(name, module, processors)
+
+        return processors
+
+    def set_attn_processor(self, processor: Union[AttentionProcessor, Dict[str, AttentionProcessor]]):
+        r"""
+        Sets the attention processor to use to compute attention.
+
+        Parameters:
+            processor (`dict` of `AttentionProcessor` or only `AttentionProcessor`):
+                The instantiated processor class or a dictionary of processor classes that will be set as the processor
+                for **all** `Attention` layers.
+
+                If `processor` is a dict, the key needs to define the path to the corresponding cross attention
+                processor. This is strongly recommended when setting trainable attention processors.
+
+        """
+        count = len(self.attn_processors.keys())
+
+        if isinstance(processor, dict) and len(processor) != count:
+            raise ValueError(
+                f"A dict of processors was passed, but the number of processors {len(processor)} does not match the"
+                f" number of attention layers: {count}. Please make sure to pass {count} processor classes."
+            )
+
+        def fn_recursive_attn_processor(name: str, module: nn.Cell, processor):
+            if hasattr(module, "set_processor"):
+                if not isinstance(processor, dict):
+                    module.set_processor(processor)
+                else:
+                    module.set_processor(processor.pop(f"{name}.processor"))
+
+            for sub_name, child in module.name_cells().items():
+                fn_recursive_attn_processor(f"{name}.{sub_name}", child, processor)
+
+        for name, module in self.name_cells().items():
+            fn_recursive_attn_processor(name, module, processor)
+
+    def fuse_qkv_projections(self):
+        """
+        Enables fused QKV projections. For self-attention modules, all projection matrices (i.e., query, key, value)
+        are fused. For cross-attention modules, key and value projection matrices are fused.
+        """
+        for _, attn_processor in self.attn_processors.items():
+            if "Added" in str(attn_processor.__class__.__name__):
+                raise ValueError("`fuse_qkv_projections()` is not supported for models having added KV projections.")
+
+        for module in self.cells():
+            if isinstance(module, AttentionModuleMixin):
+                module.fuse_projections()
+
+    def unfuse_qkv_projections(self):
+        """Disables the fused QKV projection if enabled.
+
+        <Tip warning={true}>
+
+        This API is 🧪 experimental.
+
+        </Tip>
+        """
+        for module in self.cells():
+            if isinstance(module, AttentionModuleMixin):
+                module.unfuse_projections()
+
+
+class AttentionModuleMixin:
+    _default_processor_cls = None
+    _available_processors = []
+    fused_projections = False
+
+    def set_processor(self, processor: AttentionProcessor) -> None:
+        """
+        Set the attention processor to use.
+
+        Args:
+            processor (`AttnProcessor`):
+                The attention processor to use.
+        """
+        # if current processor is in `self._modules` and if passed `processor` is not, we need to
+        # pop `processor` from `self._modules`
+        if hasattr(self, "processor") and isinstance(self.processor, nn.Cell) and not isinstance(processor, nn.Cell):
+            logger.info(f"You are removing possibly trained weights of {self.processor} with {processor}")
+            self._modules.pop("processor")
+
+        self.processor = processor
+
+    def get_processor(self, return_deprecated_lora: bool = False) -> "AttentionProcessor":
+        """
+        Get the attention processor in use.
+
+        Args:
+            return_deprecated_lora (`bool`, *optional*, defaults to `False`):
+                Set to `True` to return the deprecated LoRA attention processor.
+
+        Returns:
+            "AttentionProcessor": The attention processor in use.
+        """
+        if not return_deprecated_lora:
+            return self.processor
+
+    def fuse_projections(self):
+        """
+        Fuse the query, key, and value projections into a single projection for efficiency.
+        """
+        # Skip if already fused
+        if getattr(self, "fused_projections", False):
+            return
+
+        dtype = self.to_q.weight.data.dtype
+
+        if hasattr(self, "is_cross_attention") and self.is_cross_attention:
+            # Fuse cross-attention key-value projections
+            concatenated_weights = mint.cat([self.to_k.weight.data, self.to_v.weight.data])
+            in_features = concatenated_weights.shape[1]
+            out_features = concatenated_weights.shape[0]
+
+            self.to_kv = mint.nn.Linear(in_features, out_features, bias=self.use_bias, dtype=dtype)
+            self.to_kv.weight.copy_(concatenated_weights)
+            if hasattr(self, "use_bias") and self.use_bias:
+                concatenated_bias = mint.cat([self.to_k.bias.data, self.to_v.bias.data])
+                self.to_kv.bias.copy_(concatenated_bias)
+        else:
+            # Fuse self-attention projections
+            concatenated_weights = mint.cat([self.to_q.weight.data, self.to_k.weight.data, self.to_v.weight.data])
+            in_features = concatenated_weights.shape[1]
+            out_features = concatenated_weights.shape[0]
+
+            self.to_qkv = mint.nn.Linear(in_features, out_features, bias=self.use_bias, dtype=dtype)
+            self.to_qkv.weight.copy_(concatenated_weights)
+            if hasattr(self, "use_bias") and self.use_bias:
+                concatenated_bias = mint.cat([self.to_q.bias.data, self.to_k.bias.data, self.to_v.bias.data])
+                self.to_qkv.bias.copy_(concatenated_bias)
+
+        # Handle added projections for models like SD3, Flux, etc.
+        if (
+            getattr(self, "add_q_proj", None) is not None
+            and getattr(self, "add_k_proj", None) is not None
+            and getattr(self, "add_v_proj", None) is not None
+        ):
+            concatenated_weights = mint.cat(
+                [self.add_q_proj.weight.data, self.add_k_proj.weight.data, self.add_v_proj.weight.data]
+            )
+            in_features = concatenated_weights.shape[1]
+            out_features = concatenated_weights.shape[0]
+
+            self.to_added_qkv = mint.nn.Linear(in_features, out_features, bias=self.added_proj_bias, dtype=dtype)
+            self.to_added_qkv.weight.copy_(concatenated_weights)
+            if self.added_proj_bias:
+                concatenated_bias = mint.cat(
+                    [self.add_q_proj.bias.data, self.add_k_proj.bias.data, self.add_v_proj.bias.data]
+                )
+                self.to_added_qkv.bias.copy_(concatenated_bias)
+
+        self.fused_projections = True
+
+    def unfuse_projections(self):
+        """
+        Unfuse the query, key, and value projections back to separate projections.
+        """
+        # Skip if not fused
+        if not getattr(self, "fused_projections", False):
+            return
+
+        # Remove fused projection layers
+        if hasattr(self, "to_qkv"):
+            delattr(self, "to_qkv")
+
+        if hasattr(self, "to_kv"):
+            delattr(self, "to_kv")
+
+        if hasattr(self, "to_added_qkv"):
+            delattr(self, "to_added_qkv")
+
+        self.fused_projections = False
+
+    def set_attention_slice(self, slice_size: int) -> None:
+        """
+        Set the slice size for attention computation.
+
+        Args:
+            slice_size (`int`):
+                The slice size for attention computation.
+        """
+        if hasattr(self, "sliceable_head_dim") and slice_size is not None and slice_size > self.sliceable_head_dim:
+            raise ValueError(f"slice_size {slice_size} has to be smaller or equal to {self.sliceable_head_dim}.")
+
+        processor = None
+
+        # Try to get a compatible processor for sliced attention
+        if slice_size is not None:
+            processor = self._get_compatible_processor("sliced")
+
+        # If no processor was found or slice_size is None, use default processor
+        if processor is None:
+            processor = self.default_processor_cls()
+
+        self.set_processor(processor)
+
+    def batch_to_head_dim(self, tensor: ms.Tensor) -> ms.Tensor:
+        """
+        Reshape the tensor from `[batch_size, seq_len, dim]` to `[batch_size // heads, seq_len, dim * heads]`.
+
+        Args:
+            tensor (`ms.Tensor`): The tensor to reshape.
+
+        Returns:
+            `ms.Tensor`: The reshaped tensor.
+        """
+        head_size = self.heads
+        batch_size, seq_len, dim = tensor.shape
+        tensor = tensor.reshape(batch_size // head_size, head_size, seq_len, dim)
+        tensor = tensor.permute(0, 2, 1, 3).reshape(batch_size // head_size, seq_len, dim * head_size)
+        return tensor
+
+    def head_to_batch_dim(self, tensor: ms.Tensor, out_dim: int = 3) -> ms.Tensor:
+        """
+        Reshape the tensor for multi-head attention processing.
+
+        Args:
+            tensor (`ms.Tensor`): The tensor to reshape.
+            out_dim (`int`, *optional*, defaults to `3`): The output dimension of the tensor.
+
+        Returns:
+            `ms.Tensor`: The reshaped tensor.
+        """
+        head_size = self.heads
+        if tensor.ndim == 3:
+            batch_size, seq_len, dim = tensor.shape
+            extra_dim = 1
+        else:
+            batch_size, extra_dim, seq_len, dim = tensor.shape
+        tensor = tensor.reshape(batch_size, seq_len * extra_dim, head_size, dim // head_size)
+        tensor = tensor.permute(0, 2, 1, 3)
+
+        if out_dim == 3:
+            tensor = tensor.reshape(batch_size * head_size, seq_len * extra_dim, dim // head_size)
+
+        return tensor
+
+    def get_attention_scores(
+        self, query: ms.Tensor, key: ms.Tensor, attention_mask: Optional[ms.Tensor] = None
+    ) -> ms.Tensor:
+        """
+        Compute the attention scores.
+
+        Args:
+            query (`ms.Tensor`): The query tensor.
+            key (`ms.Tensor`): The key tensor.
+            attention_mask (`ms.Tensor`, *optional*): The attention mask to use.
+
+        Returns:
+            `ms.Tensor`: The attention probabilities/scores.
+        """
+        dtype = query.dtype
+        if self.upcast_attention:
+            query = query.float()
+            key = key.float()
+
+        if attention_mask is None:
+            baddbmm_input = mint.empty(query.shape[0], query.shape[1], key.shape[1], dtype=query.dtype)
+            beta = 0
+        else:
+            baddbmm_input = attention_mask
+            beta = 1
+
+        attention_scores = mint.baddbmm(
+            baddbmm_input,
+            query,
+            key.swapaxes(-1, -2),
+            beta=beta,
+            alpha=self.scale,
+        )
+        del baddbmm_input
+
+        if self.upcast_softmax:
+            attention_scores = attention_scores.float()
+
+        attention_probs = attention_scores.softmax(dim=-1)
+        del attention_scores
+
+        attention_probs = attention_probs.to(dtype)
+
+        return attention_probs
+
+    def prepare_attention_mask(
+        self, attention_mask: ms.Tensor, target_length: int, batch_size: int, out_dim: int = 3
+    ) -> ms.Tensor:
+        """
+        Prepare the attention mask for the attention computation.
+
+        Args:
+            attention_mask (`ms.Tensor`): The attention mask to prepare.
+            target_length (`int`): The target length of the attention mask.
+            batch_size (`int`): The batch size for repeating the attention mask.
+            out_dim (`int`, *optional*, defaults to `3`): Output dimension.
+
+        Returns:
+            `ms.Tensor`: The prepared attention mask.
+        """
+        head_size = self.heads
+        if attention_mask is None:
+            return attention_mask
+
+        current_length: int = attention_mask.shape[-1]
+        if current_length != target_length:
+            # TODO: for pipelines such as stable-diffusion, padding cross-attn mask:
+            #       we want to instead pad by (0, remaining_length), where remaining_length is:
+            #       remaining_length: int = target_length - current_length
+            # TODO: re-enable tests/models/test_models_unet_2d_condition.py#test_model_xattn_padding
+            attention_mask = mint.nn.functional.pad(attention_mask, (0, target_length), value=0.0)
+
+        if out_dim == 3:
+            if attention_mask.shape[0] < batch_size * head_size:
+                attention_mask = attention_mask.repeat_interleave(head_size, dim=0)
+        elif out_dim == 4:
+            attention_mask = attention_mask.unsqueeze(1)
+            attention_mask = attention_mask.repeat_interleave(head_size, dim=1)
+
+        return attention_mask
+
+    def norm_encoder_hidden_states(self, encoder_hidden_states: ms.Tensor) -> ms.Tensor:
+        """
+        Normalize the encoder hidden states.
+
+        Args:
+            encoder_hidden_states (`ms.Tensor`): Hidden states of the encoder.
+
+        Returns:
+            `ms.Tensor`: The normalized encoder hidden states.
+        """
+        assert self.norm_cross is not None, "self.norm_cross must be defined to call self.norm_encoder_hidden_states"
+        if isinstance(self.norm_cross, mint.nn.LayerNorm):
+            encoder_hidden_states = self.norm_cross(encoder_hidden_states)
+        elif isinstance(self.norm_cross, mint.nn.GroupNorm):
+            # Group norm norms along the channels dimension and expects
+            # input to be in the shape of (N, C, *). In this case, we want
+            # to norm along the hidden dimension, so we need to move
+            # (batch_size, sequence_length, hidden_size) ->
+            # (batch_size, hidden_size, sequence_length)
+            encoder_hidden_states = encoder_hidden_states.swapaxes(1, 2)
+            encoder_hidden_states = self.norm_cross(encoder_hidden_states)
+            encoder_hidden_states = encoder_hidden_states.swapaxes(1, 2)
+        else:
+            assert False
+
+        return encoder_hidden_states
 
 
 def _chunked_feed_forward(ff: nn.Cell, hidden_states: ms.Tensor, chunk_dim: int, chunk_size: int):
@@ -40,9 +406,9 @@ def _chunked_feed_forward(ff: nn.Cell, hidden_states: ms.Tensor, chunk_dim: int,
         )
 
     num_chunks = hidden_states.shape[chunk_dim] // chunk_size
-    ff_output = ops.cat(
-        [ff(hid_slice) for hid_slice in hidden_states.chunk(num_chunks, axis=chunk_dim)],
-        axis=chunk_dim,
+    ff_output = mint.cat(
+        [ff(hid_slice) for hid_slice in hidden_states.chunk(num_chunks, dim=chunk_dim)],
+        dim=chunk_dim,
     )
     return ff_output
 
@@ -62,13 +428,13 @@ class GatedSelfAttentionDense(nn.Cell):
         super().__init__()
 
         # we need a linear projection since we need cat visual feature and obj feature
-        self.linear = nn.Dense(context_dim, query_dim)
+        self.linear = mint.nn.Linear(context_dim, query_dim)
 
         self.attn = Attention(query_dim=query_dim, heads=n_heads, dim_head=d_head)
         self.ff = FeedForward(query_dim, activation_fn="geglu")
 
-        self.norm1 = LayerNorm(query_dim)
-        self.norm2 = LayerNorm(query_dim)
+        self.norm1 = mint.nn.LayerNorm(query_dim)
+        self.norm2 = mint.nn.LayerNorm(query_dim)
 
         self.alpha_attn = ms.Parameter(ms.tensor(0.0), name="alpha_attn")
         self.alpha_dense = ms.Parameter(ms.tensor(0.0), name="alpha_dense")
@@ -82,7 +448,7 @@ class GatedSelfAttentionDense(nn.Cell):
         n_visual = x.shape[1]
         objs = self.linear(objs)
 
-        x = x + self.alpha_attn.tanh() * self.attn(self.norm1(ops.cat([x, objs], axis=1)))[:, :n_visual, :]
+        x = x + self.alpha_attn.tanh() * self.attn(self.norm1(mint.cat([x, objs], dim=1)))[:, :n_visual, :]
         x = x + self.alpha_dense.tanh() * self.ff(self.norm2(x))
 
         return x
@@ -92,7 +458,7 @@ class JointTransformerBlock(nn.Cell):
     r"""
     A Transformer block following the MMDiT architecture, introduced in Stable Diffusion 3.
 
-    Reference: https://arxiv.org/abs/2403.03206
+    Reference: https://huggingface.co/papers/2403.03206
 
     Parameters:
         dim (`int`): The number of channels in the input and output.
@@ -164,11 +530,11 @@ class JointTransformerBlock(nn.Cell):
         else:
             self.attn2 = None
 
-        self.norm2 = LayerNorm(dim, elementwise_affine=False, eps=1e-6)
+        self.norm2 = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=1e-6)
         self.ff = FeedForward(dim=dim, dim_out=dim, activation_fn="gelu-approximate")
 
         if not context_pre_only:
-            self.norm2_context = LayerNorm(dim, elementwise_affine=False, eps=1e-6)
+            self.norm2_context = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=1e-6)
             self.ff_context = FeedForward(dim=dim, dim_out=dim, activation_fn="gelu-approximate")
         else:
             self.norm2_context = None
@@ -184,7 +550,14 @@ class JointTransformerBlock(nn.Cell):
         self._chunk_size = chunk_size
         self._chunk_dim = dim
 
-    def construct(self, hidden_states: ms.Tensor, encoder_hidden_states: ms.Tensor, temb: ms.Tensor):
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: ms.Tensor,
+        temb: ms.Tensor,
+        joint_attention_kwargs: Optional[Dict[str, Any]] = None,
+    ):
+        joint_attention_kwargs = joint_attention_kwargs or {}
         if self.use_dual_attention:
             norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp, norm_hidden_states2, gate_msa2 = self.norm1(
                 hidden_states, emb=temb
@@ -202,7 +575,9 @@ class JointTransformerBlock(nn.Cell):
 
         # Attention.
         attn_output, context_attn_output = self.attn(
-            hidden_states=norm_hidden_states, encoder_hidden_states=norm_encoder_hidden_states
+            hidden_states=norm_hidden_states,
+            encoder_hidden_states=norm_encoder_hidden_states,
+            **joint_attention_kwargs,
         )
 
         # Process attention outputs for the `hidden_states`.
@@ -210,7 +585,7 @@ class JointTransformerBlock(nn.Cell):
         hidden_states = hidden_states + attn_output
 
         if self.use_dual_attention:
-            attn_output2 = self.attn2(hidden_states=norm_hidden_states2)
+            attn_output2 = self.attn2(hidden_states=norm_hidden_states2, **joint_attention_kwargs)
             attn_output2 = gate_msa2.unsqueeze(1) * attn_output2
             hidden_states = hidden_states + attn_output2
 
@@ -363,7 +738,7 @@ class BasicTransformerBlock(nn.Cell):
                 "rms_norm",
             )
         else:
-            self.norm1 = LayerNorm(dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
+            self.norm1 = mint.nn.LayerNorm(dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
 
         self.attn1 = Attention(
             query_dim=dim,
@@ -393,7 +768,7 @@ class BasicTransformerBlock(nn.Cell):
                     "rms_norm",
                 )
             else:
-                self.norm2 = LayerNorm(dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
+                self.norm2 = mint.nn.LayerNorm(dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
 
             self.attn2 = Attention(
                 query_dim=dim,
@@ -407,7 +782,7 @@ class BasicTransformerBlock(nn.Cell):
             )  # is self-attn if encoder_hidden_states is none
         else:
             if norm_type == "ada_norm_single":  # For Latte
-                self.norm2 = LayerNorm(dim, norm_eps, norm_elementwise_affine)
+                self.norm2 = mint.nn.LayerNorm(dim, norm_eps, norm_elementwise_affine)
             else:
                 self.norm2 = None
             self.attn2 = None
@@ -424,7 +799,7 @@ class BasicTransformerBlock(nn.Cell):
             )
 
         elif norm_type in ["ada_norm_zero", "ada_norm", "layer_norm"]:
-            self.norm3 = LayerNorm(dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
+            self.norm3 = mint.nn.LayerNorm(dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
         elif norm_type == "layer_norm_i2vgen":
             self.norm3 = None
 
@@ -443,7 +818,7 @@ class BasicTransformerBlock(nn.Cell):
 
         # 5. Scale-shift for PixArt-Alpha.
         if norm_type == "ada_norm_single":
-            self.scale_shift_table = ms.Parameter(ops.randn(6, dim) / dim**0.5, name="scale_shift_table")
+            self.scale_shift_table = ms.Parameter(mint.randn(6, dim) / dim**0.5, name="scale_shift_table")
 
         # let chunk size default to None
         self._chunk_size = None
@@ -484,7 +859,7 @@ class BasicTransformerBlock(nn.Cell):
         elif self.norm_type == "ada_norm_single":
             shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
                 self.scale_shift_table[None] + timestep.reshape(batch_size, 6, -1)
-            ).chunk(6, axis=1)
+            ).chunk(6, dim=1)
             norm_hidden_states = self.norm1(hidden_states)
             norm_hidden_states = norm_hidden_states * (1 + scale_msa) + shift_msa
         else:
@@ -608,26 +983,25 @@ class LuminaFeedForward(nn.Cell):
         ffn_dim_multiplier: Optional[float] = None,
     ):
         super().__init__()
-        inner_dim = int(2 * inner_dim / 3)
         # custom hidden_size factor multiplier
         if ffn_dim_multiplier is not None:
             inner_dim = int(ffn_dim_multiplier * inner_dim)
         inner_dim = multiple_of * ((inner_dim + multiple_of - 1) // multiple_of)
 
-        self.linear_1 = nn.Dense(
+        self.linear_1 = mint.nn.Linear(
             dim,
             inner_dim,
-            has_bias=False,
+            bias=False,
         )
-        self.linear_2 = nn.Dense(
+        self.linear_2 = mint.nn.Linear(
             inner_dim,
             dim,
-            has_bias=False,
+            bias=False,
         )
-        self.linear_3 = nn.Dense(
+        self.linear_3 = mint.nn.Linear(
             dim,
             inner_dim,
-            has_bias=False,
+            bias=False,
         )
         self.silu = FP32SiLU()
 
@@ -658,7 +1032,7 @@ class TemporalBasicTransformerBlock(nn.Cell):
         super().__init__()
         self.is_res = dim == time_mix_inner_dim
 
-        self.norm_in = LayerNorm(dim)
+        self.norm_in = mint.nn.LayerNorm(dim)
 
         # Define 3 blocks. Each block has its own normalization layer.
         # 1. Self-Attn
@@ -668,7 +1042,7 @@ class TemporalBasicTransformerBlock(nn.Cell):
             activation_fn="geglu",
         )
 
-        self.norm1 = LayerNorm(time_mix_inner_dim)
+        self.norm1 = mint.nn.LayerNorm(time_mix_inner_dim)
         self.attn1 = Attention(
             query_dim=time_mix_inner_dim,
             heads=num_attention_heads,
@@ -681,7 +1055,7 @@ class TemporalBasicTransformerBlock(nn.Cell):
             # We currently only use AdaLayerNormZero for self attention where there will only be one attention block.
             # I.e. the number of returned modulation chunks from AdaLayerZero would not make sense if returned during
             # the second cross attention block.
-            self.norm2 = LayerNorm(time_mix_inner_dim)
+            self.norm2 = mint.nn.LayerNorm(time_mix_inner_dim)
             self.attn2 = Attention(
                 query_dim=time_mix_inner_dim,
                 cross_attention_dim=cross_attention_dim,
@@ -693,7 +1067,7 @@ class TemporalBasicTransformerBlock(nn.Cell):
             self.attn2 = None
 
         # 3. Feed-forward
-        self.norm3 = LayerNorm(time_mix_inner_dim)
+        self.norm3 = mint.nn.LayerNorm(time_mix_inner_dim)
         self.ff = FeedForward(time_mix_inner_dim, activation_fn="geglu")
 
         # let chunk size default to None
@@ -779,7 +1153,7 @@ class SkipFFTransformerBlock(nn.Cell):
     ):
         super().__init__()
         if kv_input_dim != dim:
-            self.kv_mapper = nn.Dense(kv_input_dim, dim, has_bias=kv_input_dim_proj_use_bias)
+            self.kv_mapper = mint.nn.Linear(kv_input_dim, dim, bias=kv_input_dim_proj_use_bias)
         else:
             self.kv_mapper = None
 
@@ -818,7 +1192,7 @@ class SkipFFTransformerBlock(nn.Cell):
             cross_attention_kwargs = {}
 
         if self.kv_mapper is not None:
-            encoder_hidden_states = self.kv_mapper(ops.silu(encoder_hidden_states))
+            encoder_hidden_states = self.kv_mapper(mint.nn.functional.silu(encoder_hidden_states))
 
         norm_hidden_states = self.norm1(hidden_states)
 
@@ -839,6 +1213,366 @@ class SkipFFTransformerBlock(nn.Cell):
         )
 
         hidden_states = attn_output + hidden_states
+
+        return hidden_states
+
+
+class FreeNoiseTransformerBlock(nn.Cell):
+    r"""
+    A FreeNoise Transformer block.
+
+    Parameters:
+        dim (`int`):
+            The number of channels in the input and output.
+        num_attention_heads (`int`):
+            The number of heads to use for multi-head attention.
+        attention_head_dim (`int`):
+            The number of channels in each head.
+        dropout (`float`, *optional*, defaults to 0.0):
+            The dropout probability to use.
+        cross_attention_dim (`int`, *optional*):
+            The size of the encoder_hidden_states vector for cross attention.
+        activation_fn (`str`, *optional*, defaults to `"geglu"`):
+            Activation function to be used in feed-forward.
+        num_embeds_ada_norm (`int`, *optional*):
+            The number of diffusion steps used during training. See `Transformer2DModel`.
+        attention_bias (`bool`, defaults to `False`):
+            Configure if the attentions should contain a bias parameter.
+        only_cross_attention (`bool`, defaults to `False`):
+            Whether to use only cross-attention layers. In this case two cross attention layers are used.
+        double_self_attention (`bool`, defaults to `False`):
+            Whether to use two self-attention layers. In this case no cross attention layers are used.
+        upcast_attention (`bool`, defaults to `False`):
+            Whether to upcast the attention computation to float32. This is useful for mixed precision training.
+        norm_elementwise_affine (`bool`, defaults to `True`):
+            Whether to use learnable elementwise affine parameters for normalization.
+        norm_type (`str`, defaults to `"layer_norm"`):
+            The normalization layer to use. Can be `"layer_norm"`, `"ada_norm"` or `"ada_norm_zero"`.
+        final_dropout (`bool` defaults to `False`):
+            Whether to apply a final dropout after the last feed-forward layer.
+        attention_type (`str`, defaults to `"default"`):
+            The type of attention to use. Can be `"default"` or `"gated"` or `"gated-text-image"`.
+        positional_embeddings (`str`, *optional*):
+            The type of positional embeddings to apply to.
+        num_positional_embeddings (`int`, *optional*, defaults to `None`):
+            The maximum number of positional embeddings to apply.
+        ff_inner_dim (`int`, *optional*):
+            Hidden dimension of feed-forward MLP.
+        ff_bias (`bool`, defaults to `True`):
+            Whether or not to use bias in feed-forward MLP.
+        attention_out_bias (`bool`, defaults to `True`):
+            Whether or not to use bias in attention output project layer.
+        context_length (`int`, defaults to `16`):
+            The maximum number of frames that the FreeNoise block processes at once.
+        context_stride (`int`, defaults to `4`):
+            The number of frames to be skipped before starting to process a new batch of `context_length` frames.
+        weighting_scheme (`str`, defaults to `"pyramid"`):
+            The weighting scheme to use for weighting averaging of processed latent frames. As described in the
+            Equation 9. of the [FreeNoise](https://huggingface.co/papers/2310.15169) paper, "pyramid" is the default
+            setting used.
+    """
+
+    def __init__(
+        self,
+        dim: int,
+        num_attention_heads: int,
+        attention_head_dim: int,
+        dropout: float = 0.0,
+        cross_attention_dim: Optional[int] = None,
+        activation_fn: str = "geglu",
+        num_embeds_ada_norm: Optional[int] = None,
+        attention_bias: bool = False,
+        only_cross_attention: bool = False,
+        double_self_attention: bool = False,
+        upcast_attention: bool = False,
+        norm_elementwise_affine: bool = True,
+        norm_type: str = "layer_norm",
+        norm_eps: float = 1e-5,
+        final_dropout: bool = False,
+        positional_embeddings: Optional[str] = None,
+        num_positional_embeddings: Optional[int] = None,
+        ff_inner_dim: Optional[int] = None,
+        ff_bias: bool = True,
+        attention_out_bias: bool = True,
+        context_length: int = 16,
+        context_stride: int = 4,
+        weighting_scheme: str = "pyramid",
+    ):
+        super().__init__()
+        self.dim = dim
+        self.num_attention_heads = num_attention_heads
+        self.attention_head_dim = attention_head_dim
+        self.dropout = dropout
+        self.cross_attention_dim = cross_attention_dim
+        self.activation_fn = activation_fn
+        self.attention_bias = attention_bias
+        self.double_self_attention = double_self_attention
+        self.norm_elementwise_affine = norm_elementwise_affine
+        self.positional_embeddings = positional_embeddings
+        self.num_positional_embeddings = num_positional_embeddings
+        self.only_cross_attention = only_cross_attention
+
+        self.set_free_noise_properties(context_length, context_stride, weighting_scheme)
+
+        # We keep these boolean flags for backward-compatibility.
+        self.use_ada_layer_norm_zero = (num_embeds_ada_norm is not None) and norm_type == "ada_norm_zero"
+        self.use_ada_layer_norm = (num_embeds_ada_norm is not None) and norm_type == "ada_norm"
+        self.use_ada_layer_norm_single = norm_type == "ada_norm_single"
+        self.use_layer_norm = norm_type == "layer_norm"
+        self.use_ada_layer_norm_continuous = norm_type == "ada_norm_continuous"
+
+        if norm_type in ("ada_norm", "ada_norm_zero") and num_embeds_ada_norm is None:
+            raise ValueError(
+                f"`norm_type` is set to {norm_type}, but `num_embeds_ada_norm` is not defined. Please make sure to"
+                f" define `num_embeds_ada_norm` if setting `norm_type` to {norm_type}."
+            )
+
+        self.norm_type = norm_type
+        self.num_embeds_ada_norm = num_embeds_ada_norm
+
+        if positional_embeddings and (num_positional_embeddings is None):
+            raise ValueError(
+                "If `positional_embedding` type is defined, `num_positition_embeddings` must also be defined."
+            )
+
+        if positional_embeddings == "sinusoidal":
+            self.pos_embed = SinusoidalPositionalEmbedding(dim, max_seq_length=num_positional_embeddings)
+        else:
+            self.pos_embed = None
+
+        # Define 3 blocks. Each block has its own normalization layer.
+        # 1. Self-Attn
+        self.norm1 = mint.nn.LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
+
+        self.attn1 = Attention(
+            query_dim=dim,
+            heads=num_attention_heads,
+            dim_head=attention_head_dim,
+            dropout=dropout,
+            bias=attention_bias,
+            cross_attention_dim=cross_attention_dim if only_cross_attention else None,
+            upcast_attention=upcast_attention,
+            out_bias=attention_out_bias,
+        )
+
+        # 2. Cross-Attn
+        if cross_attention_dim is not None or double_self_attention:
+            self.norm2 = mint.nn.LayerNorm(dim, norm_eps, norm_elementwise_affine)
+
+            self.attn2 = Attention(
+                query_dim=dim,
+                cross_attention_dim=cross_attention_dim if not double_self_attention else None,
+                heads=num_attention_heads,
+                dim_head=attention_head_dim,
+                dropout=dropout,
+                bias=attention_bias,
+                upcast_attention=upcast_attention,
+                out_bias=attention_out_bias,
+            )  # is self-attn if encoder_hidden_states is none
+
+        # 3. Feed-forward
+        self.ff = FeedForward(
+            dim,
+            dropout=dropout,
+            activation_fn=activation_fn,
+            final_dropout=final_dropout,
+            inner_dim=ff_inner_dim,
+            bias=ff_bias,
+        )
+
+        self.norm3 = mint.nn.LayerNorm(dim, norm_eps, norm_elementwise_affine)
+
+        # let chunk size default to None
+        self._chunk_size = None
+        self._chunk_dim = 0
+
+    def _get_frame_indices(self, num_frames: int) -> List[Tuple[int, int]]:
+        frame_indices = []
+        for i in range(0, num_frames - self.context_length + 1, self.context_stride):
+            window_start = i
+            window_end = min(num_frames, i + self.context_length)
+            frame_indices.append((window_start, window_end))
+        return frame_indices
+
+    def _get_frame_weights(self, num_frames: int, weighting_scheme: str = "pyramid") -> List[float]:
+        if weighting_scheme == "flat":
+            weights = [1.0] * num_frames
+
+        elif weighting_scheme == "pyramid":
+            if num_frames % 2 == 0:
+                # num_frames = 4 => [1, 2, 2, 1]
+                mid = num_frames // 2
+                weights = list(range(1, mid + 1))
+                weights = weights + weights[::-1]
+            else:
+                # num_frames = 5 => [1, 2, 3, 2, 1]
+                mid = (num_frames + 1) // 2
+                weights = list(range(1, mid))
+                weights = weights + [mid] + weights[::-1]
+
+        elif weighting_scheme == "delayed_reverse_sawtooth":
+            if num_frames % 2 == 0:
+                # num_frames = 4 => [0.01, 2, 2, 1]
+                mid = num_frames // 2
+                weights = [0.01] * (mid - 1) + [mid]
+                weights = weights + list(range(mid, 0, -1))
+            else:
+                # num_frames = 5 => [0.01, 0.01, 3, 2, 1]
+                mid = (num_frames + 1) // 2
+                weights = [0.01] * mid
+                weights = weights + list(range(mid, 0, -1))
+        else:
+            raise ValueError(f"Unsupported value for weighting_scheme={weighting_scheme}")
+
+        return weights
+
+    def set_free_noise_properties(
+        self, context_length: int, context_stride: int, weighting_scheme: str = "pyramid"
+    ) -> None:
+        self.context_length = context_length
+        self.context_stride = context_stride
+        self.weighting_scheme = weighting_scheme
+
+    def set_chunk_feed_forward(self, chunk_size: Optional[int], dim: int = 0) -> None:
+        # Sets chunk feed-forward
+        self._chunk_size = chunk_size
+        self._chunk_dim = dim
+
+    def to(self, dtype: Optional[ms.Type] = None):
+        for p in self.get_parameters():
+            p.set_dtype(dtype)
+        return self
+
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        encoder_hidden_states: Optional[ms.Tensor] = None,
+        encoder_attention_mask: Optional[ms.Tensor] = None,
+        cross_attention_kwargs: Dict[str, Any] = None,
+        timestep: Optional[ms.Tensor] = None,
+        class_labels: Optional[ms.Tensor] = None,
+    ) -> ms.Tensor:
+        if cross_attention_kwargs is not None:
+            if cross_attention_kwargs.get("scale", None) is not None:
+                logger.warning("Passing `scale` to `cross_attention_kwargs` is deprecated. `scale` will be ignored.")
+
+        if cross_attention_kwargs is not None:
+            # copy and pop cross_attention_kwargs manually, as dict.copy/pop is not supported in GRAPH MODE syntax
+            copied_cross_attention_kwargs = {}
+            for k, v in cross_attention_kwargs.items():
+                copied_cross_attention_kwargs[k] = v
+            cross_attention_kwargs = copied_cross_attention_kwargs
+        else:
+            cross_attention_kwargs = {}
+
+        # hidden_states: [B x H x W, F, C]
+        dtype = hidden_states.dtype
+
+        num_frames = hidden_states.shape[1]
+        frame_indices = self._get_frame_indices(num_frames)
+        frame_weights = self._get_frame_weights(self.context_length, self.weighting_scheme)
+        frame_weights = ms.tensor(frame_weights, dtype=dtype).unsqueeze(0).unsqueeze(-1)
+        is_last_frame_batch_complete = frame_indices[-1][1] == num_frames
+
+        # Handle out-of-bounds case if num_frames isn't perfectly divisible by context_length
+        # For example, num_frames=25, context_length=16, context_stride=4, then we expect the ranges:
+        #    [(0, 16), (4, 20), (8, 24), (10, 26)]
+        # adapt to graph mode
+        last_frame_batch_length = 0
+        if not is_last_frame_batch_complete:
+            if num_frames < self.context_length:
+                raise ValueError(f"Expected {num_frames=} to be greater or equal than {self.context_length=}")
+            last_frame_batch_length = num_frames - frame_indices[-1][1]
+            frame_indices.append((num_frames - self.context_length, num_frames))
+
+        num_times_accumulated = mint.zeros((1, num_frames, 1))
+        accumulated_values = mint.zeros_like(hidden_states)
+
+        for i, (frame_start, frame_end) in enumerate(frame_indices):
+            # The reason for slicing here is to ensure that if (frame_end - frame_start) is to handle
+            # cases like frame_indices=[(0, 16), (16, 20)], if the user provided a video with 19 frames, or
+            # essentially a non-multiple of `context_length`.
+            weights = mint.ones_like(num_times_accumulated[:, frame_start:frame_end])
+            weights *= frame_weights
+
+            hidden_states_chunk = hidden_states[:, frame_start:frame_end]
+
+            # Notice that normalization is always applied before the real computation in the following blocks.
+            # 1. Self-Attention
+            norm_hidden_states = self.norm1(hidden_states_chunk)
+
+            if self.pos_embed is not None:
+                norm_hidden_states = self.pos_embed(norm_hidden_states)
+
+            attn_output = self.attn1(
+                norm_hidden_states,
+                encoder_hidden_states=encoder_hidden_states if self.only_cross_attention else None,
+                attention_mask=attention_mask,
+                **cross_attention_kwargs,
+            )
+
+            hidden_states_chunk = attn_output + hidden_states_chunk
+            if hidden_states_chunk.ndim == 4:
+                hidden_states_chunk = hidden_states_chunk.squeeze(1)
+
+            # 2. Cross-Attention
+            if self.attn2 is not None:
+                norm_hidden_states = self.norm2(hidden_states_chunk)
+
+                if self.pos_embed is not None and self.norm_type != "ada_norm_single":
+                    norm_hidden_states = self.pos_embed(norm_hidden_states)
+
+                attn_output = self.attn2(
+                    norm_hidden_states,
+                    encoder_hidden_states=encoder_hidden_states,
+                    attention_mask=encoder_attention_mask,
+                    **cross_attention_kwargs,
+                )
+                hidden_states_chunk = attn_output + hidden_states_chunk
+
+            if i == len(frame_indices) - 1 and not is_last_frame_batch_complete:
+                accumulated_values[:, -last_frame_batch_length:] += (
+                    hidden_states_chunk[:, -last_frame_batch_length:] * weights[:, -last_frame_batch_length:]
+                )
+                num_times_accumulated[:, -last_frame_batch_length:] += weights[:, -last_frame_batch_length]
+            else:
+                accumulated_values[:, frame_start:frame_end] += hidden_states_chunk * weights
+                num_times_accumulated[:, frame_start:frame_end] += weights
+
+        # TODO(aryan): Maybe this could be done in a better way.
+        #
+        # Previously, this was:
+        # hidden_states = torch.where(
+        #    num_times_accumulated > 0, accumulated_values / num_times_accumulated, accumulated_values
+        # )
+        #
+        # The reasoning for the change here is `torch.where` became a bottleneck at some point when golfing memory
+        # spikes. It is particularly noticeable when the number of frames is high. My understanding is that this comes
+        # from tensors being copied - which is why we resort to spliting and concatenating here. I've not particularly
+        # looked into this deeply because other memory optimizations led to more pronounced reductions.
+        hidden_states = mint.cat(
+            [
+                mint.where(num_times_split > 0, accumulated_split / num_times_split, accumulated_split)
+                for accumulated_split, num_times_split in zip(
+                    accumulated_values.split(self.context_length, dim=1),
+                    num_times_accumulated.split(self.context_length, dim=1),
+                )
+            ],
+            dim=1,
+        ).to(dtype)
+
+        # 3. Feed-forward
+        norm_hidden_states = self.norm3(hidden_states)
+
+        if self._chunk_size is not None:
+            ff_output = _chunked_feed_forward(self.ff, norm_hidden_states, self._chunk_dim, self._chunk_size)
+        else:
+            ff_output = self.ff(norm_hidden_states)
+
+        hidden_states = ff_output + hidden_states
+        if hidden_states.ndim == 4:
+            hidden_states = hidden_states.squeeze(1)
 
         return hidden_states
 
@@ -883,17 +1617,19 @@ class FeedForward(nn.Cell):
             act_fn = ApproximateGELU(dim, inner_dim, bias=bias)
         elif activation_fn == "swiglu":
             act_fn = SwiGLU(dim, inner_dim, bias=bias)
+        elif activation_fn == "linear-silu":
+            act_fn = LinearActivation(dim, inner_dim, bias=bias, activation="silu")
 
         net = []
         # project in
         net.append(act_fn)
         # project dropout
-        net.append(nn.Dropout(p=dropout))
+        net.append(mint.nn.Dropout(p=dropout))
         # project out
-        net.append(nn.Dense(inner_dim, dim_out, has_bias=bias))
+        net.append(mint.nn.Linear(inner_dim, dim_out, bias=bias))
         # FF as used in Vision Transformer, MLP-Mixer, etc. have a final dropout
         if final_dropout:
-            net.append(nn.Dropout(p=dropout))
+            net.append(mint.nn.Dropout(p=dropout))
         self.net = nn.CellList(net)
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:

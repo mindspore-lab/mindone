@@ -1,11 +1,12 @@
 import math
 
 from nerfstudio_ms.encoding import HashEncoding, SHEncoding
-from threestudio.utils.base import Updateable
-from threestudio.utils.config import config_to_primitive
-from threestudio.utils.ops import get_activation
 
 from mindspore import mint, nn
+
+from mindone.models.threestudio.utils.base import Updateable
+from mindone.models.threestudio.utils.config import config_to_primitive
+from mindone.models.threestudio.utils.ops import get_activation
 
 
 class CompositeEncoding(nn.Cell, Updateable):

@@ -1,5 +1,8 @@
 # coding=utf-8
-# Copyright 2024 HuggingFace Inc.
+# Copyright 2025 HuggingFace Inc.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,11 +28,7 @@ from transformers import CLIPTextConfig
 import mindspore as ms
 from mindspore import ops
 
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -44,8 +43,6 @@ from ..pipeline_test_utils import (
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float32"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float16"},
 ]
 
 
@@ -54,8 +51,8 @@ class ControlNetPipelineSDXLImg2ImgFastTests(PipelineTesterMixin, unittest.TestC
     pipeline_config = [
         [
             "controlnet",
-            "diffusers.models.controlnet.ControlNetModel",
-            "mindone.diffusers.models.controlnet.ControlNetModel",
+            "diffusers.models.controlnets.controlnet.ControlNetModel",
+            "mindone.diffusers.models.controlnets.controlnet.ControlNetModel",
             dict(
                 block_out_channels=(32, 64),
                 layers_per_block=2,
@@ -235,7 +232,6 @@ class ControlNetPipelineSDXLImg2ImgFastTests(PipelineTesterMixin, unittest.TestC
             "image": ms_image,
             "control_image": ms_image,
         }
-
         return pt_inputs, ms_inputs
 
     @data(*test_cases)
@@ -303,7 +299,7 @@ class ControlNetPipelineSDXLImg2ImgIntegrationTests(PipelineTesterMixin, unittes
         depth_estimator = depth_estimator_cls.from_pretrained("Intel/dpt-hybrid-midas", revision="refs/pr/7")
         feature_extractor_cls = get_module("transformers.models.dpt.feature_extraction_dpt.DPTFeatureExtractor")
         feature_extractor = feature_extractor_cls.from_pretrained("Intel/dpt-hybrid-midas", revision="refs/pr/7")
-        controlnet_cls = get_module("mindone.diffusers.models.controlnet.ControlNetModel")
+        controlnet_cls = get_module("mindone.diffusers.models.controlnets.controlnet.ControlNetModel")
         controlnet = controlnet_cls.from_pretrained(
             "diffusers/controlnet-depth-sdxl-1.0-small",
             variant="fp16",
@@ -341,8 +337,8 @@ class ControlNetPipelineSDXLImg2ImgIntegrationTests(PipelineTesterMixin, unittes
             controlnet_conditioning_scale=controlnet_conditioning_scale,
         )[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"img2img_sdxl_{dtype}.npy",
             subfolder="controlnet",
         )

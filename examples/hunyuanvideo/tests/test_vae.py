@@ -294,7 +294,7 @@ def get_parser():
         "--max-device-memory",
         type=str,
         default=None,
-        help="Maximum device memory to use, e.g., `30GB` for 910a, `59GB` for 910b.",
+        help="Maximum device memory to use, e.g., `30GB` for Ascend 910, `59GB` for Ascend Atlas 800T A2 machines.",
     )
     parser.add_argument("--use-parallel", default=False, type=str2bool, help="Use parallel processing.")
     parser.add_argument(

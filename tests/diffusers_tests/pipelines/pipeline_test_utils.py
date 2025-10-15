@@ -8,7 +8,7 @@ from typing import Callable, List, Optional, Tuple, Union
 import torch
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from mindone.diffusers.models.modeling_utils import ModelMixin
 from mindone.diffusers.pipelines.pipeline_utils import DiffusionPipeline
@@ -22,6 +22,8 @@ logger = logging.getLogger("PipelinesUnitTest")
 THRESHOLD_FP16 = 5e-2
 THRESHOLD_FP32 = 5e-3
 THRESHOLD_PIXEL = 20.0
+AUDIO_THRESHOLD_FP16 = 1e-1
+AUDIO_THRESHOLD_FP32 = 5e-1
 
 
 # copied from mindone.diffusers.models.modeling_utils
@@ -39,16 +41,24 @@ def get_pt2ms_mappings(m):
                 mappings[f"{name}.running_mean"] = f"{name}.moving_mean", lambda x: x
                 mappings[f"{name}.running_var"] = f"{name}.moving_variance", lambda x: x
                 mappings[f"{name}.num_batches_tracked"] = None, lambda x: x
+        elif isinstance(cell, mint.nn.BatchNorm2d):
+            mappings[f"{name}.num_batches_tracked"] = None, lambda x: x.to(ms.float32)
     return mappings
 
 
 # adapted from mindone.diffusers.models.modeling_utils
 def convert_state_dict(m, state_dict_pt):
     mappings = get_pt2ms_mappings(m)
+    dtype = m.dtype
     state_dict_ms = {}
     for name_pt, data_pt in state_dict_pt.items():
         name_ms, data_mapping = mappings.get(name_pt, (name_pt, lambda x: x))
-        data_ms = ms.Parameter(data_mapping(ms.Tensor.from_numpy(data_pt.numpy())), name=name_ms)
+        if data_pt.is_meta:
+            data_pt = torch.randn(data_pt.shape, dtype=data_pt.dtype)
+        data_ms = data_mapping(ms.Tensor.from_numpy(data_pt.numpy()))
+        if ops.is_floating_point(data_ms) and data_ms.dtype != dtype:
+            data_ms = data_ms.to(dtype)
+        data_ms = ms.Parameter(data_ms, name=name_ms)
         if name_ms is not None:
             state_dict_ms[name_ms] = data_ms
     return state_dict_ms
@@ -73,7 +83,7 @@ def randn_tensor(
         dtype = torch.float32
     elif dtype == ms.bfloat16:
         dtype = torch.bfloat16
-    else:
+    elif dtype == ms.float16:
         dtype = torch.float16
 
     layout = layout or torch.strided

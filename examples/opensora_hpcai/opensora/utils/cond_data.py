@@ -2,12 +2,10 @@
 import os
 from typing import List, Tuple, Union
 
-import albumentations
+import cv2
 import numpy as np
 import pandas as pd
 from PIL import Image
-
-from mindspore.dataset.vision import Inter
 
 from mindone.data.video_reader import VideoReader
 
@@ -36,54 +34,17 @@ def read_captions_from_txt(path):
     return captions
 
 
-def transform_conditional_images(image_paths, H, W, random_crop=True, normalize=True, save_dir=None):
-    if isinstance(image_paths, str):
-        image_paths = [image_paths]
-    image_paths = list(image_paths)
-    images = load_rgb_images(image_paths)
-    if random_crop:
-        cropper = albumentations.RandomResizedCrop(H, W, (1.0, 1.0), ratio=(W / H, W / H))
-    else:
-        cropper = albumentations.CenterCrop(height=H, width=W)
-
-    if normalize:
-
-        def image_norm(image):
-            image = image.mean(axis=0, keepdims=True).repeat(3, axis=0)
-            image -= image.min()
-            image /= image.max()
-            return image
-
-    else:
-        image_norm = lambda x: x.astype(np.float32) / 255
-
-    controlnet_images = [
-        image_norm(cropper(image=np.array(img).astype(np.uint8))["image"].transpose(2, 0, 1)) for img in images
-    ]  # (c, h, w)
-
-    if save_dir is not None:
-        assert os.path.exists(save_dir), f"save_dir {save_dir} does not exist!"
-        os.makedirs(os.path.join(save_dir, "control_images"), exist_ok=True)
-        my_save_dir = os.path.join(save_dir, "control_images")
-        existing_files = [f for f in os.listdir(my_save_dir) if os.path.isfile(os.path.join(my_save_dir, f))]
-        for i, image in enumerate(controlnet_images, len(existing_files)):
-            Image.fromarray((255.0 * (image.transpose(1, 2, 0))).astype(np.uint8)).save(
-                f"{save_dir}/control_images/{i}.png"
-            )
-
-    controlnet_images = np.expand_dims(np.stack(controlnet_images), axis=0)
-    return controlnet_images
-
-
 def get_references(
     reference_paths: List[Union[str, None]], image_size: Tuple[int, int]
 ) -> List[Union[List[np.ndarray], None]]:
     # initialize transform operations once only
-    get_references.img_transforms = getattr(  # matching `Image.BICUBIC` from the original repo
-        get_references, "img_transforms", create_infer_transforms(target_size=image_size, interpolation=Inter.PILCUBIC)
+    get_references.img_transforms = getattr(
+        get_references, "img_transforms", create_infer_transforms(target_size=image_size, interpolation=cv2.INTER_AREA)
     )
     get_references.vid_transforms = getattr(
-        get_references, "vid_transforms", create_infer_transforms(target_size=image_size, interpolation=Inter.BILINEAR)
+        get_references,
+        "vid_transforms",
+        create_infer_transforms(target_size=image_size, interpolation=cv2.INTER_AREA),
     )
 
     references = []

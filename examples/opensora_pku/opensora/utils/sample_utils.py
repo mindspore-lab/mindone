@@ -1,3 +1,5 @@
+# Adapted from https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/utils/sample_utils.py
+
 import argparse
 import glob
 import logging
@@ -633,7 +635,12 @@ def get_args():
     parser.add_argument("--batch_size", default=1, type=int, help="batch size for dataloader")
     # MS new args
     parser.add_argument("--device", type=str, default="Ascend", help="Ascend or GPU")
-    parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b")
+    parser.add_argument(
+        "--max_device_memory",
+        type=str,
+        default=None,
+        help="e.g. `30GB` for Ascend 910, `59GB` for Ascend Atlas 800T A2 machines",
+    )
     parser.add_argument("--mode", default=1, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument(

@@ -1,0 +1,8 @@
+mindspore==2.4.*
+numpy
+imageio
+opencv-python
+decord
+moviepy
+peft
+safetensors

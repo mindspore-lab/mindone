@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List
 
-import threestudio
-from threestudio.models.background.base import BaseBackground
-from threestudio.models.geometry.base import BaseImplicitGeometry
-from threestudio.models.materials.base import BaseMaterial
-from threestudio.utils.base import BaseObject
+import mindone.models.threestudio as threestudio
+from mindone.models.threestudio.models.background.base import BaseBackground
+from mindone.models.threestudio.models.geometry.base import BaseImplicitGeometry
+from mindone.models.threestudio.models.materials.base import BaseMaterial
+from mindone.models.threestudio.utils.base import BaseObject
 
 
 @dataclass

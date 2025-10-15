@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/tests//models/bert/test_modeling_bert.py."""
+
 # This module contains test cases that are defined in the `.test_cases.py` file, structured as lists or tuples like
 #     [name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map].
 #
@@ -25,7 +27,7 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import ids_numpy, random_attention_mask
+from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy, random_attention_mask
 
 # CrossEntropyLoss not support bf16
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3}
@@ -56,6 +58,7 @@ class BertModelTester:
         num_labels=3,
         num_choices=4,
         scope=None,
+        attn_implementation="eager",
     ):
         self.batch_size = batch_size
         self.seq_length = seq_length
@@ -78,6 +81,7 @@ class BertModelTester:
         self.num_labels = num_labels
         self.num_choices = num_choices
         self.scope = scope
+        self.attn_implementation = attn_implementation
 
     def prepare_config_and_inputs(self):
         input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
@@ -118,6 +122,34 @@ class BertModelTester:
             type_vocab_size=self.type_vocab_size,
             is_decoder=False,
             initializer_range=self.initializer_range,
+            attn_implementation=self.attn_implementation,
+        )
+
+    def prepare_config_and_inputs_for_decoder(self):
+        (
+            config,
+            input_ids,
+            token_type_ids,
+            input_mask,
+            sequence_labels,
+            token_labels,
+            choice_labels,
+        ) = self.prepare_config_and_inputs()
+
+        config.is_decoder = True
+        encoder_hidden_states = floats_numpy([self.batch_size, self.seq_length, self.hidden_size])
+        encoder_attention_mask = ids_numpy([self.batch_size, self.seq_length], vocab_size=2)
+
+        return (
+            config,
+            input_ids,
+            token_type_ids,
+            input_mask,
+            sequence_labels,
+            token_labels,
+            choice_labels,
+            encoder_hidden_states,
+            encoder_attention_mask,
         )
 
 
@@ -321,6 +353,7 @@ def test_named_modules(
     if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
         pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
         ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
+    ms_inputs_kwargs["return_dict"] = False
 
     with torch.no_grad():
         pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)

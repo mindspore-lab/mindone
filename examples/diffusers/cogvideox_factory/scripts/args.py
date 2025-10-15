@@ -18,6 +18,18 @@ def _get_model_args(parser: argparse.ArgumentParser) -> None:
         help="Path to pretrained model or model identifier from huggingface.co/models.",
     )
     parser.add_argument(
+        "--transformer_config",
+        type=str,
+        default=None,
+        help="Config of transformers. If set it, not use the pretrained_model_name_or_path transformer config.",
+    )
+    parser.add_argument(
+        "--transformer_ckpt_path",
+        type=str,
+        default=None,
+        help="Path to the transformer checkpoint. Only effective when set transformer_config.",
+    )
+    parser.add_argument(
         "--revision",
         type=str,
         default=None,

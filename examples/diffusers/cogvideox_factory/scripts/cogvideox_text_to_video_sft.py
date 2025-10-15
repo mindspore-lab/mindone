@@ -168,15 +168,30 @@ def main(args):
     # CogVideoX-2b weights are stored in float16
     # CogVideoX-5b and CogVideoX-5b-I2V weights are stored in bfloat16
     # load_dtype = ms.bfloat16 if "5b" in args.pretrained_model_name_or_path.lower() else ms.float16
-    transformer = CogVideoXTransformer3DModel_SP.from_pretrained(
-        args.pretrained_model_name_or_path,
-        subfolder="transformer",
-        mindspore_dtype=weight_dtype,
-        revision=args.revision,
-        variant=args.variant,
-        max_text_seq_length=args.max_sequence_length,
-        enable_sequence_parallelism=enable_sequence_parallelism,
-    )
+    if args.transformer_config is None:
+        transformer = CogVideoXTransformer3DModel_SP.from_pretrained(
+            args.pretrained_model_name_or_path,
+            subfolder="transformer",
+            mindspore_dtype=weight_dtype,
+            revision=args.revision,
+            variant=args.variant,
+            max_text_seq_length=args.max_sequence_length,
+            enable_sequence_parallelism=enable_sequence_parallelism,
+        )
+    elif os.path.exists(args.transformer_config):
+        with open(args.transformer_config) as f:
+            config = yaml.safe_load(f)["transformer"]
+            config["max_text_seq_length"] = args.max_sequence_length
+            config["enable_sequence_parallelism"] = enable_sequence_parallelism
+            transformer = CogVideoXTransformer3DModel_SP(**config)
+            logger.info(f"Build transformer model from {args.transformer_config}")
+            if os.path.exists(args.transformer_ckpt_path):
+                ms.load_checkpoint(args.transformer_ckpt_path, transformer)
+                logger.info(f"Load transformer checkpoint from {args.transformer_ckpt_path}")
+
+    else:
+        raise ValueError(f"transformer_config: {args.transformer_config} is not exist!")
+
     transformer.fa_checkpointing = args.fa_gradient_checkpointing
 
     text_encoder, vae = None, None
@@ -641,10 +656,12 @@ class TrainStepForCogVideo(nn.Cell):
         if self.enable_sequence_parallelism:
             from cogvideox.acceleration import get_sequence_parallel_group
 
-            from mindspore.communication import get_rank
+            from mindspore.communication import get_group_size, get_rank
 
             self.sp_group = get_sequence_parallel_group()
+            self.global_rank = get_rank()
             self.sp_rank = get_rank(self.sp_group)
+            self.sp_group_size = get_group_size(self.sp_group)
 
     def compute_prompt_embeddings(
         self,
@@ -675,7 +692,8 @@ class TrainStepForCogVideo(nn.Cell):
     def _broadcast_out(self, x):
         x = x.contiguous()
         if self.enable_sequence_parallelism:
-            mint.distributed.broadcast(tensor=x, src=0, group=self.sp_group)
+            src_global_rank = self.global_rank // self.sp_group_size * self.sp_group_size
+            mint.distributed.broadcast(tensor=x, src=src_global_rank, group=self.sp_group)
         return x
 
     def prepare_transformer_inputs(self, videos, text_input_ids_or_prompt_embeds, image_rotary_emb=None):

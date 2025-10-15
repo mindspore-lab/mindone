@@ -1,3 +1,24 @@
+# Copyright (c) 2023-2024 DeepSeek.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to
+# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+# the Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
+# This code is adapted from https://github.com/deepseek-ai/Janus to work with MindSpore.
+
 import argparse
 import os
 import sys
@@ -11,7 +32,7 @@ sys.path.insert(0, mindone_lib_path)
 
 from janus.models import MultiModalityCausalLM, VLChatProcessor
 from janus.utils.io import load_pil_images, set_model_param_dtype
-from transformers import AutoConfig, AutoModelForCausalLM
+from transformers import AutoConfig
 
 from mindspore.nn.utils import no_init_parameters
 
@@ -85,6 +106,12 @@ if __name__ == "__main__":
     parser.add_argument("--image", type=str, default="images/doge.png", help="path to input image")
     parser.add_argument("--question", type=str, default="explain this meme", help="path to input image")
     parser.add_argument(
+        "--ckpt_path",
+        type=str,
+        default=None,
+        help="path to model checkpoint in .ckpt format, if None, will use the pretrained weight in mode_path",
+    )
+    parser.add_argument(
         "--model_path",
         type=str,
         default="ckpts/Janus-Pro-1B",
@@ -118,12 +145,22 @@ if __name__ == "__main__":
     language_config = config.language_config
     language_config._attn_implementation = "eager"
     # language_config._attn_implementation = 'flash_attention_2'
-    with no_init_parameters():
-        vl_gpt: MultiModalityCausalLM = AutoModelForCausalLM.from_pretrained(
-            args.model_path, language_config=language_config, trust_remote_code=True
-        )
-    dtype = ms.bfloat16
-    vl_gpt = set_model_param_dtype(vl_gpt, dtype)
+    if args.ckpt_path is not None:
+        with no_init_parameters():
+            vl_gpt = MultiModalityCausalLM(config=config)
+        dtype = ms.bfloat16
+        vl_gpt = set_model_param_dtype(vl_gpt, dtype)
+
+        parameter_dict = ms.load_checkpoint(args.ckpt_path)
+        param_not_load, ckpt_not_load = ms.load_param_into_net(vl_gpt, parameter_dict, strict_load=True)
+        print("net param not load: {}".format(param_not_load))
+        print("ckpt param not load: {}".format(ckpt_not_load))
+    else:
+        with no_init_parameters():
+            vl_gpt = MultiModalityCausalLM.from_pretrained(args.model_path, config=config)
+        dtype = ms.bfloat16
+        vl_gpt = set_model_param_dtype(vl_gpt, dtype)
+
     vl_gpt.set_train(False)
 
     # infer

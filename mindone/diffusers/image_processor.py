@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,7 +23,7 @@ import PIL.Image
 from PIL import Image, ImageFilter, ImageOps
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from .configuration_utils import ConfigMixin, register_to_config
 from .utils import CONFIG_NAME, PIL_INTERPOLATION, deprecate
@@ -40,12 +43,15 @@ PipelineDepthInput = PipelineImageInput
 def is_valid_image(image) -> bool:
     r"""
     Checks if the input is a valid image.
+
     A valid image can be:
     - A `PIL.Image.Image`.
     - A 2D or 3D `np.ndarray` or `ms.Tensor` (grayscale or color image).
+
     Args:
         image (`Union[PIL.Image.Image, np.ndarray, ms.Tensor]`):
             The image to validate. It can be a PIL image, a NumPy array, or a MindSpore tensor.
+
     Returns:
         `bool`:
             `True` if the input is a valid image, `False` otherwise.
@@ -56,15 +62,18 @@ def is_valid_image(image) -> bool:
 def is_valid_image_imagelist(images):
     r"""
     Checks if the input is a valid image or list of images.
+
     The input can be one of the following formats:
     - A 4D tensor or numpy array (batch of images).
     - A valid single image: `PIL.Image.Image`, 2D `np.ndarray` or `ms.Tensor` (grayscale image), 3D `np.ndarray` or
       `ms.Tensor`.
     - A list of valid images.
+
     Args:
         images (`Union[np.ndarray, ms.Tensor, PIL.Image.Image, List]`):
             The image(s) to check. Can be a batch of images (4D tensor/array), a single image, or a list of valid
             images.
+
     Returns:
         `bool`:
             `True` if the input is valid, `False` otherwise.
@@ -109,6 +118,7 @@ class VaeImageProcessor(ConfigMixin):
         vae_scale_factor: int = 8,
         vae_latent_channels: int = 4,
         resample: str = "lanczos",
+        reducing_gap: int = None,
         do_normalize: bool = True,
         do_binarize: bool = False,
         do_convert_rgb: bool = False,
@@ -130,6 +140,7 @@ class VaeImageProcessor(ConfigMixin):
         Args:
             images (`np.ndarray`):
                 The image array to convert to PIL format.
+
         Returns:
             `List[PIL.Image.Image]`:
                 A list of PIL images.
@@ -149,9 +160,11 @@ class VaeImageProcessor(ConfigMixin):
     def pil_to_numpy(images: Union[List[PIL.Image.Image], PIL.Image.Image]) -> np.ndarray:
         r"""
         Convert a PIL image or a list of PIL images to NumPy arrays.
+
         Args:
             images (`PIL.Image.Image` or `List[PIL.Image.Image]`):
                 The PIL image or list of images to convert to NumPy format.
+
         Returns:
             `np.ndarray`:
                 A NumPy array representation of the images.
@@ -178,7 +191,7 @@ class VaeImageProcessor(ConfigMixin):
         if images.ndim == 3:
             images = images[..., None]
 
-        images = ms.Tensor(images.transpose(0, 3, 1, 2))
+        images = ms.tensor(images.transpose(0, 3, 1, 2))
         return images
 
     @staticmethod
@@ -189,6 +202,7 @@ class VaeImageProcessor(ConfigMixin):
         Args:
             images (`ms.Tensor`):
                 The MindSpore tensor to convert to NumPy format.
+
         Returns:
             `np.ndarray`:
                 A NumPy array representation of the images.
@@ -204,6 +218,7 @@ class VaeImageProcessor(ConfigMixin):
         Args:
             images (`np.ndarray` or `ms.Tensor`):
                 The image array to normalize.
+
         Returns:
             `np.ndarray` or `ms.Tensor`:
                 The normalized image array.
@@ -218,11 +233,12 @@ class VaeImageProcessor(ConfigMixin):
         Args:
             images (`np.ndarray` or `ms.Tensor`):
                 The image array to denormalize.
+
         Returns:
             `np.ndarray` or `ms.Tensor`:
                 The denormalized image array.
         """
-        return (images / 2 + 0.5).clamp(0, 1)
+        return (images * 0.5 + 0.5).clamp(0, 1)
 
     @staticmethod
     def convert_to_rgb(image: PIL.Image.Image) -> PIL.Image.Image:
@@ -232,6 +248,7 @@ class VaeImageProcessor(ConfigMixin):
         Args:
             image (`PIL.Image.Image`):
                 The PIL image to convert to RGB.
+
         Returns:
             `PIL.Image.Image`:
                 The RGB-converted PIL image.
@@ -248,6 +265,7 @@ class VaeImageProcessor(ConfigMixin):
         Args:
             image (`PIL.Image.Image`):
                 The input image to convert.
+
         Returns:
             `PIL.Image.Image`:
                 The image converted to grayscale.
@@ -264,6 +282,7 @@ class VaeImageProcessor(ConfigMixin):
         Args:
             image (`PIL.Image.Image`):
                 The PIL image to convert to grayscale.
+
         Returns:
             `PIL.Image.Image`:
                 The grayscale-converted PIL image.
@@ -481,7 +500,11 @@ class VaeImageProcessor(ConfigMixin):
             raise ValueError(f"Only PIL image input is supported for resize_mode {resize_mode}")
         if isinstance(image, PIL.Image.Image):
             if resize_mode == "default":
-                image = image.resize((width, height), resample=PIL_INTERPOLATION[self.config.resample])
+                image = image.resize(
+                    (width, height),
+                    resample=PIL_INTERPOLATION[self.config.resample],
+                    reducing_gap=self.config.reducing_gap,
+                )
             elif resize_mode == "fill":
                 image = self._resize_and_fill(image, width, height)
             elif resize_mode == "crop":
@@ -490,13 +513,13 @@ class VaeImageProcessor(ConfigMixin):
                 raise ValueError(f"resize_mode {resize_mode} is not supported")
 
         elif isinstance(image, ms.Tensor):
-            image = ops.interpolate(
+            image = mint.nn.functional.interpolate(
                 image,
                 size=(height, width),
             )
         elif isinstance(image, np.ndarray):
             image = self.numpy_to_ms(image)
-            image = ops.interpolate(
+            image = mint.nn.functional.interpolate(
                 image,
                 size=(height, width),
             )
@@ -519,6 +542,24 @@ class VaeImageProcessor(ConfigMixin):
         image[image >= 0.5] = 1
 
         return image
+
+    def _denormalize_conditionally(self, images: ms.Tensor, do_denormalize: Optional[List[bool]] = None) -> ms.Tensor:
+        r"""
+        Denormalize a batch of images based on a condition list.
+
+        Args:
+            images (`ms.Tensor`):
+                The input image tensor.
+            do_denormalize (`Optional[List[bool]`, *optional*, defaults to `None`):
+                A list of booleans indicating whether to denormalize each image in the batch. If `None`, will use the
+                value of `do_normalize` in the `VaeImageProcessor` config.
+        """
+        if do_denormalize is None:
+            return self.denormalize(images) if self.config.do_normalize else images
+
+        return mint.stack(
+            [self.denormalize(images[i]) if do_denormalize[i] else images[i] for i in range(images.shape[0])]
+        )
 
     def get_default_height_width(
         self,
@@ -635,7 +676,7 @@ class VaeImageProcessor(ConfigMixin):
                 "Please concatenate the list along the batch dimension and pass it as a single 4d ms.Tensor",
                 FutureWarning,
             )
-            image = ops.cat(image, axis=0)
+            image = mint.cat(image, dim=0)
 
         if not is_valid_image_imagelist(image):
             raise ValueError(
@@ -667,7 +708,7 @@ class VaeImageProcessor(ConfigMixin):
                 image = self.resize(image, height, width)
 
         elif isinstance(image[0], ms.Tensor):
-            image = ops.cat(image, axis=0) if image[0].ndim == 4 else ops.stack(image, axis=0)
+            image = mint.cat(image, dim=0) if image[0].ndim == 4 else mint.stack(image, dim=0)
 
             if self.config.do_convert_grayscale and image.ndim == 3:
                 image = image.unsqueeze(1)
@@ -735,12 +776,7 @@ class VaeImageProcessor(ConfigMixin):
         if output_type == "latent":
             return image
 
-        if do_denormalize is None:
-            do_denormalize = [self.config.do_normalize] * image.shape[0]
-
-        image = ops.stack(
-            [self.denormalize(image[i]) if do_denormalize[i] else image[i] for i in range(image.shape[0])]
-        )
+        image = self._denormalize_conditionally(image, do_denormalize)
 
         if output_type == "ms":
             return image
@@ -778,13 +814,11 @@ class VaeImageProcessor(ConfigMixin):
                 The final image with the overlay applied.
         """
 
-        width, height = image.width, image.height
-
-        init_image = self.resize(init_image, width=width, height=height)
-        mask = self.resize(mask, width=width, height=height)
+        width, height = init_image.width, init_image.height
 
         init_image_masked = PIL.Image.new("RGBa", (width, height))
         init_image_masked.paste(init_image.convert("RGBA").convert("RGBa"), mask=ImageOps.invert(mask.convert("L")))
+
         init_image_masked = init_image_masked.convert("RGBA")
 
         if crop_coords is not None:
@@ -801,6 +835,286 @@ class VaeImageProcessor(ConfigMixin):
         image = image.convert("RGB")
 
         return image
+
+
+class VaeImageProcessorLDM3D(VaeImageProcessor):
+    """
+    Image processor for VAE LDM3D.
+
+    Args:
+        do_resize (`bool`, *optional*, defaults to `True`):
+            Whether to downscale the image's (height, width) dimensions to multiples of `vae_scale_factor`.
+        vae_scale_factor (`int`, *optional*, defaults to `8`):
+            VAE scale factor. If `do_resize` is `True`, the image is automatically resized to multiples of this factor.
+        resample (`str`, *optional*, defaults to `lanczos`):
+            Resampling filter to use when resizing the image.
+        do_normalize (`bool`, *optional*, defaults to `True`):
+            Whether to normalize the image to [-1,1].
+    """
+
+    config_name = CONFIG_NAME
+
+    @register_to_config
+    def __init__(
+        self,
+        do_resize: bool = True,
+        vae_scale_factor: int = 8,
+        resample: str = "lanczos",
+        do_normalize: bool = True,
+    ):
+        super().__init__()
+
+    @staticmethod
+    def numpy_to_pil(images: np.ndarray) -> List[PIL.Image.Image]:
+        r"""
+        Convert a NumPy image or a batch of images to a list of PIL images.
+
+        Args:
+            images (`np.ndarray`):
+                The input NumPy array of images, which can be a single image or a batch.
+
+        Returns:
+            `List[PIL.Image.Image]`:
+                A list of PIL images converted from the input NumPy array.
+        """
+        if images.ndim == 3:
+            images = images[None, ...]
+        images = (images * 255).round().astype("uint8")
+        if images.shape[-1] == 1:
+            # special case for grayscale (single channel) images
+            pil_images = [Image.fromarray(image.squeeze(), mode="L") for image in images]
+        else:
+            pil_images = [Image.fromarray(image[:, :, :3]) for image in images]
+
+        return pil_images
+
+    @staticmethod
+    def depth_pil_to_numpy(images: Union[List[PIL.Image.Image], PIL.Image.Image]) -> np.ndarray:
+        r"""
+        Convert a PIL image or a list of PIL images to NumPy arrays.
+
+        Args:
+            images (`Union[List[PIL.Image.Image], PIL.Image.Image]`):
+                The input image or list of images to be converted.
+
+        Returns:
+            `np.ndarray`:
+                A NumPy array of the converted images.
+        """
+        if not isinstance(images, list):
+            images = [images]
+
+        images = [np.array(image).astype(np.float32) / (2**16 - 1) for image in images]
+        images = np.stack(images, axis=0)
+        return images
+
+    @staticmethod
+    def rgblike_to_depthmap(image: Union[np.ndarray, ms.Tensor]) -> Union[np.ndarray, ms.Tensor]:
+        r"""
+        Convert an RGB-like depth image to a depth map.
+
+        Args:
+            image (`Union[np.ndarray, ms.Tensor]`):
+                The RGB-like depth image to convert.
+
+        Returns:
+            `Union[np.ndarray, ms.Tensor]`:
+                The corresponding depth map.
+        """
+        return image[:, :, 1] * 2**8 + image[:, :, 2]
+
+    def numpy_to_depth(self, images: np.ndarray) -> List[PIL.Image.Image]:
+        r"""
+        Convert a NumPy depth image or a batch of images to a list of PIL images.
+
+        Args:
+            images (`np.ndarray`):
+                The input NumPy array of depth images, which can be a single image or a batch.
+
+        Returns:
+            `List[PIL.Image.Image]`:
+                A list of PIL images converted from the input NumPy depth images.
+        """
+        if images.ndim == 3:
+            images = images[None, ...]
+        images_depth = images[:, :, :, 3:]
+        if images.shape[-1] == 6:
+            images_depth = (images_depth * 255).round().astype("uint8")
+            pil_images = [
+                Image.fromarray(self.rgblike_to_depthmap(image_depth), mode="I;16") for image_depth in images_depth
+            ]
+        elif images.shape[-1] == 4:
+            images_depth = (images_depth * 65535.0).astype(np.uint16)
+            pil_images = [Image.fromarray(image_depth, mode="I;16") for image_depth in images_depth]
+        else:
+            raise Exception("Not supported")
+
+        return pil_images
+
+    def postprocess(
+        self,
+        image: ms.Tensor,
+        output_type: str = "pil",
+        do_denormalize: Optional[List[bool]] = None,
+    ) -> Union[PIL.Image.Image, np.ndarray, ms.Tensor]:
+        """
+        Postprocess the image output from tensor to `output_type`.
+
+        Args:
+            image (`ms.Tensor`):
+                The image input, should be a mindspore tensor with shape `B x C x H x W`.
+            output_type (`str`, *optional*, defaults to `pil`):
+                The output type of the image, can be one of `pil`, `np`, `pt`, `latent`.
+            do_denormalize (`List[bool]`, *optional*, defaults to `None`):
+                Whether to denormalize the image to [0,1]. If `None`, will use the value of `do_normalize` in the
+                `VaeImageProcessor` config.
+
+        Returns:
+            `PIL.Image.Image`, `np.ndarray` or `ms.Tensor`:
+                The postprocessed image.
+        """
+        if not isinstance(image, ms.Tensor):
+            raise ValueError(
+                f"Input for postprocessing is in incorrect format: {type(image)}. We only support MindSpore tensor"
+            )
+        if output_type not in ["latent", "pt", "np", "pil"]:
+            deprecation_message = (
+                f"the output_type {output_type} is outdated and has been set to `np`. Please make sure to set it to one of these instead: "
+                "`pil`, `np`, `pt`, `latent`"
+            )
+            deprecate("Unsupported output_type", "1.0.0", deprecation_message, standard_warn=False)
+            output_type = "np"
+
+        image = self._denormalize_conditionally(image, do_denormalize)
+
+        image = self.ms_to_numpy(image)
+
+        if output_type == "np":
+            if image.shape[-1] == 6:
+                image_depth = np.stack([self.rgblike_to_depthmap(im[:, :, 3:]) for im in image], axis=0)
+            else:
+                image_depth = image[:, :, :, 3:]
+            return image[:, :, :, :3], image_depth
+
+        if output_type == "pil":
+            return self.numpy_to_pil(image), self.numpy_to_depth(image)
+        else:
+            raise Exception(f"This type {output_type} is not supported")
+
+    def preprocess(
+        self,
+        rgb: Union[ms.Tensor, PIL.Image.Image, np.ndarray],
+        depth: Union[ms.Tensor, PIL.Image.Image, np.ndarray],
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        target_res: Optional[int] = None,
+    ) -> ms.Tensor:
+        r"""
+        Preprocess the image input. Accepted formats are PIL images, NumPy arrays, or MindSpore tensors.
+
+        Args:
+            rgb (`Union[ms.Tensor, PIL.Image.Image, np.ndarray]`):
+                The RGB input image, which can be a single image or a batch.
+            depth (`Union[ms.Tensor, PIL.Image.Image, np.ndarray]`):
+                The depth input image, which can be a single image or a batch.
+            height (`Optional[int]`, *optional*, defaults to `None`):
+                The desired height of the processed image. If `None`, defaults to the height of the input image.
+            width (`Optional[int]`, *optional*, defaults to `None`):
+                The desired width of the processed image. If `None`, defaults to the width of the input image.
+            target_res (`Optional[int]`, *optional*, defaults to `None`):
+                Target resolution for resizing the images. If specified, overrides height and width.
+
+        Returns:
+            `Tuple[ms.Tensor, ms.Tensor]`:
+                A tuple containing the processed RGB and depth images as MindSpore tensors.
+        """
+        supported_formats = (PIL.Image.Image, np.ndarray, ms.Tensor)
+
+        # Expand the missing dimension for 3-dimensional mindspore tensor or numpy array that represents grayscale image
+        if self.config.do_convert_grayscale and isinstance(rgb, (ms.Tensor, np.ndarray)) and rgb.ndim == 3:
+            raise Exception("This is not yet supported")
+
+        if isinstance(rgb, supported_formats):
+            rgb = [rgb]
+            depth = [depth]
+        elif not (isinstance(rgb, list) and all(isinstance(i, supported_formats) for i in rgb)):
+            raise ValueError(
+                f"Input is in incorrect format: {[type(i) for i in rgb]}. Currently, we only support {', '.join(supported_formats)}"
+            )
+
+        if isinstance(rgb[0], PIL.Image.Image):
+            if self.config.do_convert_rgb:
+                raise Exception("This is not yet supported")
+                # rgb = [self.convert_to_rgb(i) for i in rgb]
+                # depth = [self.convert_to_depth(i) for i in depth]  #TODO define convert_to_depth
+            if self.config.do_resize or target_res:
+                height, width = self.get_default_height_width(rgb[0], height, width) if not target_res else target_res
+                rgb = [self.resize(i, height, width) for i in rgb]
+                depth = [self.resize(i, height, width) for i in depth]
+            rgb = self.pil_to_numpy(rgb)  # to np
+            rgb = self.numpy_to_pt(rgb)  # to pt
+
+            depth = self.depth_pil_to_numpy(depth)  # to np
+            depth = self.numpy_to_pt(depth)  # to pt
+
+        elif isinstance(rgb[0], np.ndarray):
+            rgb = np.concatenate(rgb, axis=0) if rgb[0].ndim == 4 else np.stack(rgb, axis=0)
+            rgb = self.numpy_to_pt(rgb)
+            height, width = self.get_default_height_width(rgb, height, width)
+            if self.config.do_resize:
+                rgb = self.resize(rgb, height, width)
+
+            depth = np.concatenate(depth, axis=0) if rgb[0].ndim == 4 else np.stack(depth, axis=0)
+            depth = self.numpy_to_pt(depth)
+            height, width = self.get_default_height_width(depth, height, width)
+            if self.config.do_resize:
+                depth = self.resize(depth, height, width)
+
+        elif isinstance(rgb[0], ms.Tensor):
+            raise Exception("This is not yet supported")
+            # rgb = ops.cat(rgb, axis=0) if rgb[0].ndim == 4 else ops.stack(rgb, axis=0)
+
+            # if self.config.do_convert_grayscale and rgb.ndim == 3:
+            #     rgb = rgb.unsqueeze(1)
+
+            # channel = rgb.shape[1]
+
+            # height, width = self.get_default_height_width(rgb, height, width)
+            # if self.config.do_resize:
+            #     rgb = self.resize(rgb, height, width)
+
+            # depth = ops.cat(depth, axis=0) if depth[0].ndim == 4 else ops.stack(depth, axis=0)
+
+            # if self.config.do_convert_grayscale and depth.ndim == 3:
+            #     depth = depth.unsqueeze(1)
+
+            # channel = depth.shape[1]
+            # # don't need any preprocess if the image is latents
+            # if depth == 4:
+            #     return rgb, depth
+
+            # height, width = self.get_default_height_width(depth, height, width)
+            # if self.config.do_resize:
+            #     depth = self.resize(depth, height, width)
+        # expected range [0,1], normalize to [-1,1]
+        do_normalize = self.config.do_normalize
+        if rgb.min() < 0 and do_normalize:
+            warnings.warn(
+                "Passing `image` as mindspore tensor with value range in [-1,1] is deprecated. The expected value range for image tensor is [0,1] "
+                f"when passing as mindspore tensor or numpy Array. You passed `image` with value range [{rgb.min()},{rgb.max()}]",
+                FutureWarning,
+            )
+            do_normalize = False
+
+        if do_normalize:
+            rgb = self.normalize(rgb)
+            depth = self.normalize(depth)
+
+        if self.config.do_binarize:
+            rgb = self.binarize(rgb)
+            depth = self.binarize(depth)
+
+        return rgb, depth
 
 
 class IPAdapterMaskProcessor(VaeImageProcessor):
@@ -872,7 +1186,9 @@ class IPAdapterMaskProcessor(VaeImageProcessor):
         mask_h = int(mask_h) + int((num_queries % int(mask_h)) != 0)
         mask_w = num_queries // mask_h
 
-        mask_downsample = ops.interpolate(mask.unsqueeze(0), size=(mask_h, mask_w), mode="bicubic").squeeze(0)
+        mask_downsample = mint.nn.functional.interpolate(
+            mask.unsqueeze(0), size=(mask_h, mask_w), mode="bicubic"
+        ).squeeze(0)
 
         # Repeat batch_size times
         if mask_downsample.shape[0] < batch_size:
@@ -884,7 +1200,9 @@ class IPAdapterMaskProcessor(VaeImageProcessor):
         # If the output image and the mask do not have the same aspect ratio, tensor shapes will not match
         # Pad tensor if downsampled_mask.shape[1] is smaller than num_queries
         if downsampled_area < num_queries:
-            mask_downsample = ops.Pad(paddings=((0, 0), (0, num_queries - mask_downsample.shape[1])))(mask_downsample)
+            mask_downsample = mint.nn.functional.pad(
+                mask_downsample, (0, num_queries - mask_downsample.shape[1]), value=0.0
+            )
         # Discard last embeddings if downsampled_mask.shape[1] is bigger than num_queries
         if downsampled_area > num_queries:
             mask_downsample = mask_downsample[:, :num_queries]
@@ -978,9 +1296,16 @@ class PixArtImageProcessor(VaeImageProcessor):
             resized_height = int(orig_height * ratio)
 
             # Resize
-            samples = ops.interpolate(
+            # mindspore interpolate does not support bfloat16
+            cur_dtype = samples.dtype
+            need_upcast = cur_dtype == ms.bfloat16
+            if need_upcast:
+                samples = samples.to(ms.float32)
+            samples = mint.nn.functional.interpolate(
                 samples, size=(resized_height, resized_width), mode="bilinear", align_corners=False
             )
+            if need_upcast:
+                samples = samples.to(cur_dtype)
 
             # Center Crop
             start_x = (resized_width - new_width) // 2

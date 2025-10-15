@@ -6,7 +6,6 @@ tqdm
 imageio
 easydict
 ftfy
-dashscope
 imageio-ffmpeg
-gradio>=5.0.0
+gradio>=4.44.1
 numpy>=1.23.5,<2

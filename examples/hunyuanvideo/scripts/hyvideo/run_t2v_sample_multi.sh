@@ -1,4 +1,4 @@
-
+export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir="./sample_videos/parallel_logs/" \
    sample_video.py \
     --video-size 256 256 \

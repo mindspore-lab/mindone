@@ -1,4 +1,7 @@
-# Copyright 2024 Katherine Crowson and The HuggingFace Team. All rights reserved.
+# Copyright 2025 Katherine Crowson and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +21,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput, is_scipy_available, logging
@@ -98,7 +101,7 @@ def betas_for_alpha_bar(
 # Copied from diffusers.schedulers.scheduling_ddim.rescale_zero_terminal_snr
 def rescale_zero_terminal_snr(betas):
     """
-    Rescales betas to have zero terminal SNR Based on https://arxiv.org/pdf/2305.08891.pdf (Algorithm 1)
+    Rescales betas to have zero terminal SNR Based on https://huggingface.co/papers/2305.08891 (Algorithm 1)
 
 
     Args:
@@ -110,7 +113,7 @@ def rescale_zero_terminal_snr(betas):
     """
     # Convert betas to alphas_bar_sqrt
     alphas = 1.0 - betas
-    alphas_cumprod = ops.cumprod(alphas, dim=0)
+    alphas_cumprod = mint.cumprod(alphas, dim=0)
     alphas_bar_sqrt = alphas_cumprod.sqrt()
 
     # Store old values.
@@ -126,7 +129,7 @@ def rescale_zero_terminal_snr(betas):
     # Convert alphas_bar_sqrt to betas
     alphas_bar = alphas_bar_sqrt**2  # Revert sqrt
     alphas = alphas_bar[1:] / alphas_bar[:-1]  # Revert cumprod
-    alphas = ops.cat([alphas_bar[0:1], alphas])
+    alphas = mint.cat([alphas_bar[0:1], alphas])
     betas = 1 - alphas
 
     return betas
@@ -229,7 +232,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
             self.betas = rescale_zero_terminal_snr(self.betas)
 
         self.alphas = 1.0 - self.betas
-        self.alphas_cumprod = ops.cumprod(self.alphas, dim=0)
+        self.alphas_cumprod = mint.cumprod(self.alphas, dim=0)
 
         if rescale_betas_zero_snr:
             # Close to 0 without being 0 so first sigma is not inf
@@ -238,18 +241,18 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
 
         sigmas = (((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5).flip((0,))
         timesteps = np.linspace(0, num_train_timesteps - 1, num_train_timesteps, dtype=float)[::-1].copy()
-        timesteps = ms.Tensor(timesteps).to(dtype=ms.float32)
+        timesteps = ms.tensor(timesteps).to(dtype=ms.float32)
 
         # setable values
         self.num_inference_steps = None
 
         # TODO: Support the full EDM scalings for all prediction types and timestep types
         if timestep_type == "continuous" and prediction_type == "v_prediction":
-            self.timesteps = ms.Tensor([0.25 * sigma.log().item() for sigma in sigmas])
+            self.timesteps = ms.tensor([0.25 * sigma.log().item() for sigma in sigmas])
         else:
             self.timesteps = timesteps
 
-        self.sigmas = ops.cat([sigmas, ops.zeros(1)])
+        self.sigmas = mint.cat([sigmas, mint.zeros(1)])
 
         self.is_scale_input_called = False
         self.use_karras_sigmas = use_karras_sigmas
@@ -374,7 +377,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
             if timesteps is not None:
                 timesteps = np.array(timesteps).astype(np.float32)
             else:
-                # "linspace", "leading", "trailing" corresponds to annotation of Table 2. of https://arxiv.org/abs/2305.08891
+                # "linspace", "leading", "trailing" corresponds to annotation of Table 2. of https://huggingface.co/papers/2305.08891
                 if self.config.timestep_spacing == "linspace":
                     timesteps = np.linspace(
                         0, self.config.num_train_timesteps - 1, num_inference_steps, dtype=np.float32
@@ -416,11 +419,11 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
                 timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas])
 
             elif self.config.use_exponential_sigmas:
-                sigmas = self._convert_to_exponential(in_sigmas=sigmas, num_inference_steps=self.num_inference_steps)
+                sigmas = self._convert_to_exponential(in_sigmas=sigmas, num_inference_steps=num_inference_steps)
                 timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas])
 
             elif self.config.use_beta_sigmas:
-                sigmas = self._convert_to_beta(in_sigmas=sigmas, num_inference_steps=self.num_inference_steps)
+                sigmas = self._convert_to_beta(in_sigmas=sigmas, num_inference_steps=num_inference_steps)
                 timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas])
 
             if self.config.final_sigmas_type == "sigma_min":
@@ -437,13 +440,13 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
 
             sigmas = np.concatenate([sigmas, [sigma_last]]).astype(np.float32)
 
-        sigmas = ms.Tensor(sigmas).to(dtype=ms.float32)
+        sigmas = ms.tensor(sigmas).to(dtype=ms.float32)
 
         # TODO: Support the full EDM scalings for all prediction types and timestep types
         if self.config.timestep_type == "continuous" and self.config.prediction_type == "v_prediction":
-            self.timesteps = ms.Tensor([0.25 * sigma.log().item() for sigma in sigmas[:-1]])
+            self.timesteps = ms.tensor([0.25 * sigma.log().item() for sigma in sigmas[:-1]])
         else:
-            self.timesteps = ms.Tensor(timesteps.astype(np.float32))
+            self.timesteps = ms.tensor(timesteps.astype(np.float32))
 
         self._step_index = None
         self._begin_index = None
@@ -517,7 +520,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         sigma_min = sigma_min if sigma_min is not None else in_sigmas[-1].item()
         sigma_max = sigma_max if sigma_max is not None else in_sigmas[0].item()
 
-        sigmas = ops.linspace(math.log(sigma_max), math.log(sigma_min), num_inference_steps).exp()
+        sigmas = np.exp(np.linspace(math.log(sigma_max), math.log(sigma_min), num_inference_steps))
         return sigmas
 
     def _convert_to_beta(
@@ -540,7 +543,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         sigma_min = sigma_min if sigma_min is not None else in_sigmas[-1].item()
         sigma_max = sigma_max if sigma_max is not None else in_sigmas[0].item()
 
-        sigmas = ms.Tensor(
+        sigmas = np.array(
             [
                 sigma_min + (ppf * (sigma_max - sigma_min))
                 for ppf in [
@@ -708,7 +711,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         sigma = sigmas[step_indices].flatten()
         # while len(sigma.shape) < len(original_samples.shape):
         #     sigma = sigma.unsqueeze(-1)
-        sigma = ops.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sigma = mint.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         noisy_samples = original_samples + noise * sigma
         return noisy_samples

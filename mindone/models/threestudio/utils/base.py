@@ -2,10 +2,12 @@ from dataclasses import dataclass
 from typing import Any, Optional, Union
 
 from omegaconf import DictConfig
-from threestudio.utils.config import parse_structured
-from threestudio.utils.misc import load_module_weights
 
 from mindspore import Parameter, Tensor, nn
+
+import mindone.models.threestudio as threestudio
+from mindone.models.threestudio.utils.config import parse_structured
+from mindone.models.threestudio.utils.misc import load_module_weights
 
 
 class Configurable:
@@ -38,7 +40,7 @@ class Updateable:
             try:
                 module = getattr(self, attr)
             except Exception:
-                print("get attr fail, try next module_name")
+                threestudio.debug("get attr fail, try next module_name")
                 continue  # ignore attributes like property, which can't be retrived using getattr?
             if isinstance(module, Updateable):
                 # if attr in self.system_mod_list:

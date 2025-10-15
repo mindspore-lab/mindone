@@ -1,4 +1,4 @@
-<!--Copyright 2024 The HuggingFace Team. All rights reserved.
+<!--Copyright 2025 The HuggingFace Team. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may obtain a copy of the License at
@@ -14,14 +14,14 @@ specific language governing permissions and limitations under the License.
 
 Customized activation functions for supporting various models in 🤗 Diffusers.
 
-::: mindone.diffusers.models.activations.sigmoid
-
-::: mindone.diffusers.models.activations.SiLU
-
-::: mindone.diffusers.models.activations.FP32SiLU
-
 ::: mindone.diffusers.models.activations.GELU
 
 ::: mindone.diffusers.models.activations.GEGLU
 
 ::: mindone.diffusers.models.activations.ApproximateGELU
+
+::: mindone.diffusers.models.activations.SwiGLU
+
+::: mindone.diffusers.models.activations.FP32SiLU
+
+::: mindone.diffusers.models.activations.LinearActivation

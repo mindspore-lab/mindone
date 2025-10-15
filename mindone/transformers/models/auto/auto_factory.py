@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2021 The HuggingFace Inc. team.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -561,7 +564,9 @@ class _BaseAutoModelClass:
             )
         elif type(config) in cls._model_mapping.keys():
             model_class = _get_model_class(config, cls._model_mapping)
-            return model_class.from_pretrained(pretrained_model_name_or_path, *model_args, config=config, **hub_kwargs)
+            return model_class.from_pretrained(
+                pretrained_model_name_or_path, *model_args, config=config, **hub_kwargs, **kwargs
+            )
         raise ValueError(
             f"Unrecognized configuration class {config.__class__} for this kind of AutoModel: {cls.__name__}.\n"
             f"Model type should be one of {', '.join(c.__name__ for c in cls._model_mapping.keys())}."
@@ -692,15 +697,28 @@ def getattribute_from_module(module, attr):
         return getattr(module, attr)
     # Some of the mappings have entries model_type -> object of another model type. In that case we try to grab the
     # object at the top level.
-    transformers_module = importlib.import_module("transformers")
+    try:
+        sub_path = os.path.abspath(os.path.dirname(__file__))
+        sub_path = str(Path(sub_path).parent.parent.parent.parent)
+        sys.path.insert(0, sub_path)
+        transformers_module = importlib.import_module("mindone.transformers")
+        if module != transformers_module:
+            try:
+                return getattribute_from_module(transformers_module, attr)
+            except ValueError:
+                raise ValueError(f"Could not find {attr} neither in {module} nor in {transformers_module}!")
+        else:
+            raise ValueError(f"Could not find {attr} in {transformers_module}!")
+    except Exception:
+        transformers_module = importlib.import_module("transformers")
 
-    if module != transformers_module:
-        try:
-            return getattribute_from_module(transformers_module, attr)
-        except ValueError:
-            raise ValueError(f"Could not find {attr} neither in {module} nor in {transformers_module}!")
-    else:
-        raise ValueError(f"Could not find {attr} in {transformers_module}!")
+        if module != transformers_module:
+            try:
+                return getattribute_from_module(transformers_module, attr)
+            except ValueError:
+                raise ValueError(f"Could not find {attr} neither in {module} nor in {transformers_module}!")
+        else:
+            raise ValueError(f"Could not find {attr} in {transformers_module}!")
 
 
 def add_generation_mixin_to_remote_model(model_class):
@@ -776,7 +794,7 @@ class _LazyAutoMapping(OrderedDict):
             sub_path = os.path.abspath(os.path.dirname(__file__))
             sub_path = str(Path(sub_path).parent.parent.parent.parent)
             sys.path.insert(0, sub_path)
-            self._modules[module_name] = importlib.import_module(f"mindone.transformers.models.{model_type}")
+            self._modules[module_name] = importlib.import_module(f".{module_name}", "mindone.transformers.models")
         if module_name not in self._modules:
             self._modules[module_name] = importlib.import_module(f".{module_name}", "transformers.models")
         return getattribute_from_module(self._modules[module_name], attr)

@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2022 The HuggingFace Inc. team.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -26,7 +29,7 @@ from typing import TYPE_CHECKING, Dict, Optional, Tuple, Union
 # Build the list of all image processors
 from transformers import PretrainedConfig
 from transformers.dynamic_module_utils import get_class_from_dynamic_module, resolve_trust_remote_code
-from transformers.utils import CONFIG_NAME, get_file_from_repo
+from transformers.utils import CONFIG_NAME, cached_file
 
 from ...image_processing_utils import BaseImageProcessor, ImageProcessingMixin
 from ...image_processing_utils_fast import BaseImageProcessorFast
@@ -47,8 +50,32 @@ else:
             ("beit", ("BeitImageProcessor",)),
             ("blip", ("BlipImageProcessor",)),
             ("blip-2", ("BlipImageProcessor",)),
+            ("chameleon", ("ChameleonImageProcessor",)),
+            ("chinese_clip", ("ChineseCLIPImageProcessor",)),
             ("clip", ("CLIPImageProcessor",)),
+            ("convnext", ("ConvNextImageProcessor",)),
+            ("convnextv2", ("ConvNextImageProcessor",)),
+            ("cvt", ("ConvNextImageProcessor",)),
+            ("depth_anything", ("DPTImageProcessor",)),
+            ("depth_pro", ("DepthProImageProcessor",)),
+            ("dinov2", ("BitImageProcessor",)),
             ("dpt", ("DPTImageProcessor",)),
+            ("efficientnet", ("EfficientNetImageProcessor",)),
+            ("flava", ("FlavaImageProcessor",)),
+            ("llava_next", ("LlavaNextImageProcessor",)),
+            ("llava_next_video", ("LlavaNextVideoImageProcessor",)),
+            ("llava_onevision", ("LlavaOnevisionImageProcessor",)),
+            ("maskformer", ("MaskFormerImageProcessor",)),
+            ("mllama", ("MllamaImageProcessor",)),
+            ("oneformer", ("OneFormerImageProcessor",)),
+            ("owlv2", ("Owlv2ImageProcessor",)),
+            ("owlvit", ("OwlViTImageProcessor",)),
+            ("qwen2_5_vl", ("Qwen2VLImageProcessor",)),
+            ("sam", ("SamImageProcessor",)),
+            ("segformer", ("SegformerImageProcessor",)),
+            ("siglip", ("SiglipImageProcessor", "SiglipImageProcessorFast")),
+            ("videomae", ("VideoMAEImageProcessor",)),
+            ("yolos", ("YolosImageProcessor",)),
         ]
     )
 
@@ -177,7 +204,7 @@ def get_image_processor_config(
             raise ValueError("`token` and `use_auth_token` are both specified. Please set only the argument `token`.")
         token = use_auth_token
 
-    resolved_config_file = get_file_from_repo(
+    resolved_config_file = cached_file(
         pretrained_model_name_or_path,
         IMAGE_PROCESSOR_NAME,
         cache_dir=cache_dir,
@@ -187,6 +214,9 @@ def get_image_processor_config(
         token=token,
         revision=revision,
         local_files_only=local_files_only,
+        _raise_exceptions_for_gated_repo=False,
+        _raise_exceptions_for_missing_entries=False,
+        _raise_exceptions_for_connection_errors=False,
     )
     if resolved_config_file is None:
         logger.info(

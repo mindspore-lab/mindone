@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Inc. team. All rights reserved.
+# Copyright 2024 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,4 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .modeling_gemma2 import Gemma2Model, Gemma2PreTrainedModel
+from .modeling_gemma2 import (
+    Gemma2ForCausalLM,
+    Gemma2ForSequenceClassification,
+    Gemma2ForTokenClassification,
+    Gemma2Model,
+    Gemma2PreTrainedModel,
+)

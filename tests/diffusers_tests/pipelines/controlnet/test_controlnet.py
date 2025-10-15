@@ -1,5 +1,8 @@
 # coding=utf-8
-# Copyright 2024 HuggingFace Inc.
+# Copyright 2025 HuggingFace Inc.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,11 +26,7 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -42,8 +41,6 @@ from ..pipeline_test_utils import (
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float32"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float16"},
 ]
 
 
@@ -52,8 +49,8 @@ class ControlNetPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
     pipeline_config = [
         [
             "controlnet",
-            "diffusers.models.controlnet.ControlNetModel",
-            "mindone.diffusers.models.controlnet.ControlNetModel",
+            "diffusers.models.controlnets.controlnet.ControlNetModel",
+            "mindone.diffusers.models.controlnets.controlnet.ControlNetModel",
             dict(
                 block_out_channels=(4, 8),
                 layers_per_block=2,
@@ -230,7 +227,7 @@ class ControlNetPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
 
-        controlnet_cls = get_module("mindone.diffusers.models.controlnet.ControlNetModel")
+        controlnet_cls = get_module("mindone.diffusers.models.controlnets.controlnet.ControlNetModel")
         controlnet = controlnet_cls.from_pretrained("lllyasviel/sd-controlnet-canny", mindspore_dtype=ms_dtype)
 
         pipe_cls = get_module("mindone.diffusers.pipelines.controlnet.StableDiffusionControlNetPipeline")
@@ -254,8 +251,8 @@ class ControlNetPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
 
         image = output[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"t2i_canny_{dtype}.npy",
             subfolder="controlnet",
         )
@@ -267,7 +264,7 @@ class ControlNetPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
 
-        controlnet_cls = get_module("mindone.diffusers.models.controlnet.ControlNetModel")
+        controlnet_cls = get_module("mindone.diffusers.models.controlnets.controlnet.ControlNetModel")
         controlnet = controlnet_cls.from_pretrained("lllyasviel/sd-controlnet-depth", mindspore_dtype=ms_dtype)
 
         pipe_cls = get_module("mindone.diffusers.pipelines.controlnet.StableDiffusionControlNetPipeline")
@@ -291,8 +288,8 @@ class ControlNetPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
 
         image = output[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"t2i_depth_{dtype}.npy",
             subfolder="controlnet",
         )

@@ -1,7 +1,5 @@
 import logging
 
-from . import data, models, systems
-
 __modules__ = {}
 
 
@@ -20,3 +18,5 @@ def find(name):
 logger = logging.getLogger("")
 info = logger.info
 debug = logger.debug
+
+from . import data, models, systems

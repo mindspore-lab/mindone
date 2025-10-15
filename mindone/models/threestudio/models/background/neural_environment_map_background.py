@@ -2,12 +2,12 @@ import random
 from dataclasses import dataclass, field
 from typing import Optional, Tuple
 
-import threestudio
-from threestudio.models.background.base import BaseBackground
-from threestudio.models.networks import get_encoding, get_mlp
-from threestudio.utils.ops import get_activation
-
 from mindspore import Tensor, mint
+
+import mindone.models.threestudio as threestudio
+from mindone.models.threestudio.models.background.base import BaseBackground
+from mindone.models.threestudio.models.networks import get_encoding, get_mlp
+from mindone.models.threestudio.utils.ops import get_activation
 
 
 @threestudio.register("neural-environment-map-background")

@@ -1,0 +1,124 @@
+env:
+  mode: 1
+  debug: False
+
+model:
+  from_pretrained: hpcai-tech/Open-Sora-v2/Open_Sora_v2.safetensors
+  guidance_embed: False
+  fused_qkv: False
+  use_liger_rope: True
+  # model architecture
+  in_channels: 64
+  vec_in_dim: 768
+  context_in_dim: 4096
+  hidden_size: 3072
+  mlp_ratio: 4.0
+  num_heads: 24
+  depth: 19
+  depth_single_blocks: 38
+  axes_dim: [ 16, 56, 56 ]
+  theta: 10_000
+  qkv_bias: True
+  cond_embed: True
+  dtype: bf16
+
+ae:
+  from_pretrained: hpcai-tech/Open-Sora-v2/hunyuan_vae.safetensors
+  in_channels: 3
+  out_channels: 3
+  layers_per_block: 2
+  latent_channels: 16
+  use_spatial_tiling: True
+  use_temporal_tiling: False
+  dtype: bf16
+
+text_emb:
+  prompts:
+  neg_prompts:
+  t5_dir:
+  neg_t5_dir:
+  clip_dir:
+  neg_clip_dir:
+
+t5:
+  from_pretrained: DeepFloyd/t5-v1_1-xxl
+  max_length: 512
+  dtype: bf16
+
+clip:
+  from_pretrained: openai/clip-vit-large-patch14
+  max_length: 77
+  dtype: bf16
+
+sampling_option:
+  resolution: 768px  # 256px or 768px
+  aspect_ratio: "16:9"  # 9:16 or 16:9 or 1:1
+  num_frames: 129  # number of frames
+  num_steps: 50  # number of steps
+  shift: True
+  temporal_reduction: 4
+  is_causal_vae: True
+  guidance: 7.5  # guidance for text-to-video
+  guidance_img: 3.0  # guidance for image-to-video
+  text_osci: True  # enable text guidance oscillation
+  image_osci: True  # enable image guidance oscillation
+  scale_temporal_osci: True
+  method: i2v
+  motion_score: "4"  # motion score for video generation
+  batch_size: 1
+  cond_type: "t2v"
+
+saving_option:
+  output_path: ../../../samples  # save directory
+  fps: 24  # fps for video generation and saving
+
+# T2I. TODO: separate config
+img_model:
+  from_pretrained: hpcai-tech/Open-Sora-v2/flux1-dev.safetensors
+  guidance_embed: True
+  # model architecture
+  in_channels: 64
+  vec_in_dim: 768
+  context_in_dim: 4096
+  hidden_size: 3072
+  mlp_ratio: 4.0
+  num_heads: 24
+  depth: 19
+  depth_single_blocks: 38
+  axes_dim: [ 16, 56, 56 ]
+  theta: 10_000
+  qkv_bias: True
+  cond_embed: False  # pass i2v & v2v info for t2v need this layer too but with x_cond and mask all set to 0
+  dtype: bf16
+
+img_ae:
+  from_pretrained: hpcai-tech/Open-Sora-v2/flux1-dev-ae.safetensors
+  resolution: 256
+  in_channels: 3
+  ch: 128
+  out_ch: 3
+  ch_mult: [ 1, 2, 4, 4 ]
+  num_res_blocks: 2
+  z_channels: 16
+  scale_factor: 0.3611
+  shift_factor: 0.1159
+  dtype: bf16
+
+sampling_option_t2i:
+  resolution: 768px  # 256px or 768px
+  resized_resolution: 256px
+  aspect_ratio: "16:9"  # 9:16 or 16:9 or 1:1
+  num_frames: 1  # number of frames
+  num_steps: 50  # number of steps
+  shift: True
+  temporal_reduction: 4
+  is_causal_vae: True
+  guidance: 4.0  # guidance for text-to-video
+  guidance_img: 3.0  # guidance for image-to-video
+  text_osci: True  # enable text guidance oscillation
+  image_osci: True  # enable image guidance oscillation
+  scale_temporal_osci: True
+  method: distill
+  motion_score: "4"  # motion score for video generation
+  batch_size: 1
+  cond_type: "t2v"

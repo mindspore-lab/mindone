@@ -1,3 +1,5 @@
+# Adapted from https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/train/train_causalvae.py
+
 """
 Train AutoEncoders with GAN loss
 """
@@ -191,6 +193,7 @@ def main(args):
         device_num=device_num,
         rank_id=rank_id,
         ds_name="video",
+        dataset_iterator_no_copy=args.dataset_iterator_no_copy,
     )
     dataset_size = train_loader.get_dataset_size()
 

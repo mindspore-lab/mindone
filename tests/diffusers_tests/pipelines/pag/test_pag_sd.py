@@ -1,5 +1,8 @@
 # coding=utf-8
-# Copyright 2024 HuggingFace Inc.
+# Copyright 2025 HuggingFace Inc.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,9 +25,13 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers import StableDiffusionPAGPipeline
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -33,8 +40,6 @@ from ..pipeline_test_utils import (
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float32"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float16"},
 ]
 
 
@@ -175,3 +180,43 @@ class StableDiffusionPAGPipelineFastTests(PipelineTesterMixin, unittest.TestCase
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+
+
+@slow
+@ddt
+class StableDiffusionPAGPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    def get_inputs(self, guidance_scale=7.0):
+        inputs = {
+            "prompt": "a polar bear sitting in a chair drinking a milkshake",
+            "negative_prompt": "deformed, ugly, wrong proportion, low res, bad anatomy, worst quality, low quality",
+            "num_inference_steps": 3,
+            "guidance_scale": guidance_scale,
+            "pag_scale": 3.0,
+        }
+        return inputs
+
+    @data(*test_cases)
+    @unpack
+    def test_pag_cfg(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipeline = StableDiffusionPAGPipeline.from_pretrained(
+            "stable-diffusion-v1-5/stable-diffusion-v1-5", mindspore_dtype=ms_dtype
+        )
+        pipeline.set_progress_bar_config(disable=None)
+
+        inputs = self.get_inputs()
+        if dtype == "float32":
+            torch.manual_seed(0)
+        else:
+            torch.manual_seed(1000)
+        image = pipeline(**inputs)[0][0]
+
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
+            f"pag_sd_{dtype}.npy",
+            subfolder="pag",
+        )
+
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

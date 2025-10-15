@@ -16,15 +16,18 @@ from .activation import ACT2FN
 
 
 class LlamaRMSNorm(nn.Cell):
-    def __init__(self, hidden_size: Union[int, Sequence[int]], eps: float = 1e-6):
+    def __init__(self, hidden_size: Union[int, Sequence[int]], eps: float = 1e-6, dtype: ms.Type = ms.float32):
         super().__init__()
-        self.weight = Parameter(np.ones(hidden_size).astype(np.float32))  # keep normalization at FP32
+        self.weight = Parameter(Tensor(np.ones(hidden_size), dtype=dtype))  # noqa
         self.variance_epsilon = eps
+        self._dtype = dtype
 
     def construct(self, hidden_states: Tensor) -> Tensor:
-        input_dtype = hidden_states.dtype
-        hidden_states, _ = ops.rms_norm(hidden_states.to(ms.float32), self.weight, epsilon=self.variance_epsilon)
-        return hidden_states.to(input_dtype)
+        if self._dtype == ms.float16:  # for faster graph building
+            return ops.rms_norm(
+                hidden_states.to(ms.float32), self.weight.to(ms.float32), epsilon=self.variance_epsilon
+            )[0].to(ms.float16)
+        return ops.rms_norm(hidden_states, self.weight, epsilon=self.variance_epsilon)[0]
 
 
 class LlamaMLP(nn.Cell):
@@ -38,9 +41,9 @@ class LlamaMLP(nn.Cell):
         super().__init__()
         self.hidden_size = hidden_size
         self.intermediate_size = intermediate_size
-        self.gate_proj = mint.nn.Linear(self.hidden_size, self.intermediate_size, bias=False, dtype=dtype)
-        self.up_proj = mint.nn.Linear(self.hidden_size, self.intermediate_size, bias=False, dtype=dtype)
-        self.down_proj = mint.nn.Linear(self.intermediate_size, self.hidden_size, bias=False, dtype=dtype)
+        self.gate_proj = nn.Dense(self.hidden_size, self.intermediate_size, has_bias=False, dtype=dtype)
+        self.up_proj = nn.Dense(self.hidden_size, self.intermediate_size, has_bias=False, dtype=dtype)
+        self.down_proj = nn.Dense(self.intermediate_size, self.hidden_size, has_bias=False, dtype=dtype)
         self.act_fn = ACT2FN[hidden_act]
 
     def construct(self, hidden_state: Tensor) -> Tensor:
@@ -68,7 +71,7 @@ class LlamaAttention(nn.Cell):
         dtype: ms.Type = ms.float32,
     ) -> None:
         super().__init__()
-
+        self.dtype = dtype
         self.attention_dropout = attention_dropout
         self.hidden_size = hidden_size
         self.num_heads = num_attention_heads
@@ -81,14 +84,14 @@ class LlamaAttention(nn.Cell):
                 f"hidden_size must be divisible by num_heads (got `hidden_size`: {self.hidden_size}"
                 f" and `num_heads`: {self.num_heads})."
             )
-        self.q_proj = mint.nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=attention_bias, dtype=dtype)
-        self.k_proj = mint.nn.Linear(
-            self.hidden_size, self.num_key_value_heads * self.head_dim, bias=attention_bias, dtype=dtype
+        self.q_proj = nn.Dense(self.hidden_size, self.num_heads * self.head_dim, has_bias=attention_bias, dtype=dtype)
+        self.k_proj = nn.Dense(
+            self.hidden_size, self.num_key_value_heads * self.head_dim, has_bias=attention_bias, dtype=dtype
         )
-        self.v_proj = mint.nn.Linear(
-            self.hidden_size, self.num_key_value_heads * self.head_dim, bias=attention_bias, dtype=dtype
+        self.v_proj = nn.Dense(
+            self.hidden_size, self.num_key_value_heads * self.head_dim, has_bias=attention_bias, dtype=dtype
         )
-        self.o_proj = mint.nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=attention_bias, dtype=dtype)
+        self.o_proj = nn.Dense(self.num_heads * self.head_dim, self.hidden_size, has_bias=attention_bias, dtype=dtype)
 
         if (sp_group := get_sequence_parallel_group()) is not None:
             self.sp_group_size = get_group_size(sp_group)
@@ -188,7 +191,16 @@ class LlamaFlashAttention(LlamaAttention):
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
+        if self.dtype == ms.float32:  # MS2.5.0 doesn't support FP32 for FA
+            query_states = query_states.to(ms.bfloat16)
+            key_states = key_states.to(ms.bfloat16)
+            value_states = value_states.to(ms.bfloat16)
+
         _, _, _, attn_output = self.flash_attention(query_states, key_states, value_states, None, None, None, None)
+
+        if self.dtype == ms.float32:
+            attn_output = attn_output.to(ms.float32)
+
         attn_output = mint.permute(attn_output, (0, 2, 1, 3))
         attn_output = self.alltoall(attn_output)
         attn_output = ops.reshape(attn_output, (bsz, q_len, -1))
@@ -240,8 +252,8 @@ class LinearPatchEmbed3D(nn.Cell):
     ) -> None:
         super().__init__()
         self.patch_size = patch_size
-        self.proj = mint.nn.Linear(
-            patch_size[0] * patch_size[1] * patch_size[2] * in_channels, hidden_size, bias=False, dtype=dtype
+        self.proj = nn.Dense(
+            patch_size[0] * patch_size[1] * patch_size[2] * in_channels, hidden_size, has_bias=False, dtype=dtype
         )
 
     def construct(self, x: Tensor) -> Tensor:
@@ -270,18 +282,14 @@ class TimestepEmbedder(nn.Cell):
     ) -> None:
         super().__init__()
         self.mlp = nn.SequentialCell(
-            mint.nn.Linear(frequency_embedding_size, hidden_size, bias=False, dtype=dtype),
+            nn.Dense(frequency_embedding_size, hidden_size, has_bias=False, dtype=dtype),
             ACT2FN[hidden_act],
-            mint.nn.Linear(hidden_size, hidden_size, bias=False, dtype=dtype),
+            nn.Dense(hidden_size, hidden_size, has_bias=False, dtype=dtype),
         )
         self.frequency_embedding_size = frequency_embedding_size
         half = frequency_embedding_size // 2
         self._freqs = Tensor(np.exp(-np.log(max_period) * np.arange(start=0, stop=half, dtype=np.float32) / half)[None])
         self._dtype = dtype
-
-    @property
-    def dtype(self):
-        return self._dtype
 
     def timestep_embedding(self, t: Tensor) -> Tensor:
         args = ops.unsqueeze(t, 1).to(ms.float32) * self._freqs
@@ -292,5 +300,5 @@ class TimestepEmbedder(nn.Cell):
 
     def construct(self, t: Tensor) -> Tensor:
         t_freq = self.timestep_embedding(t)
-        t_emb = self.mlp(t_freq.to(self.dtype))
+        t_emb = self.mlp(t_freq.to(self._dtype))
         return t_emb

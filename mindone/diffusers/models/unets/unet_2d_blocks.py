@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,12 +19,12 @@ from typing import Any, Dict, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...utils import logging
 from ..activations import get_activation
 from ..attention_processor import Attention, AttnAddedKVProcessor
-from ..normalization import AdaGroupNorm, GroupNorm
+from ..normalization import AdaGroupNorm
 from ..resnet import (
     Downsample2D,
     FirDownsample2D,
@@ -565,20 +568,20 @@ class AutoencoderTinyBlock(nn.Cell):
 
     def __init__(self, in_channels: int, out_channels: int, act_fn: str):
         super().__init__()
-        act_fn = get_activation(act_fn)()
+        act_fn = get_activation(act_fn)
         self.conv = nn.SequentialCell(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, pad_mode="pad", has_bias=True),
+            mint.nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
             act_fn,
-            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1, pad_mode="pad", has_bias=True),
+            mint.nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
             act_fn,
-            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1, pad_mode="pad", has_bias=True),
+            mint.nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
         )
         self.skip = (
-            nn.Conv2d(in_channels, out_channels, kernel_size=1, has_bias=False)
+            mint.nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
             if in_channels != out_channels
-            else nn.Identity()
+            else mint.nn.Identity()
         )
-        self.fuse = nn.ReLU()
+        self.fuse = mint.nn.ReLU()
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         return self.fuse(self.conv(x) + self.skip(x))
@@ -732,6 +735,8 @@ class UNetMidBlock2D(nn.Cell):
         self.attentions = nn.CellList(attentions)
         self.resnets = nn.CellList(resnets)
 
+        self.gradient_checkpointing = False
+
     def construct(self, hidden_states: ms.Tensor, temb: Optional[ms.Tensor] = None) -> ms.Tensor:
         hidden_states = self.resnets[0](hidden_states, temb)
         # nn.CellList doesn't support append 'None', thus we have to modify code to fit it
@@ -848,18 +853,7 @@ class UNetMidBlock2DCrossAttn(nn.Cell):
         self.attentions = nn.CellList(attentions)
         self.resnets = nn.CellList(resnets)
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        # we exclude 0-th resnet following huggingface/diffusers. HF does this just for simplicity in forward?
-        for resnet in self.resnets[1:]:
-            resnet._recompute(value)
+        self.gradient_checkpointing = False
 
     def construct(
         self,
@@ -1100,6 +1094,8 @@ class AttnDownBlock2D(nn.Cell):
         else:
             self.downsamplers = None
 
+        self.gradient_checkpointing = False
+
     def construct(
         self,
         hidden_states: ms.Tensor,
@@ -1218,17 +1214,7 @@ class CrossAttnDownBlock2D(nn.Cell):
         else:
             self.downsamplers = None
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        for resnet in self.resnets:
-            resnet._recompute(value)
+        self.gradient_checkpointing = False
 
     def construct(
         self,
@@ -1322,17 +1308,7 @@ class DownBlock2D(nn.Cell):
         else:
             self.downsamplers = None
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        for resnet in self.resnets:
-            resnet._recompute(value)
+        self.gradient_checkpointing = False
 
     def construct(
         self, hidden_states: ms.Tensor, temb: Optional[ms.Tensor] = None
@@ -1609,7 +1585,7 @@ class AttnSkipDownBlock2D(nn.Cell):
                 kernel="fir",
             )
             self.downsamplers = nn.CellList([FirDownsample2D(out_channels, out_channels=out_channels)])
-            self.skip_conv = nn.Conv2d(3, out_channels, kernel_size=(1, 1), stride=(1, 1))
+            self.skip_conv = mint.nn.Conv2d(3, out_channels, kernel_size=(1, 1), stride=(1, 1), bias=False)
         else:
             self.resnet_down = None
             self.downsamplers = None
@@ -1696,7 +1672,7 @@ class SkipDownBlock2D(nn.Cell):
                 kernel="fir",
             )
             self.downsamplers = nn.CellList([FirDownsample2D(out_channels, out_channels=out_channels)])
-            self.skip_conv = nn.Conv2d(3, out_channels, kernel_size=(1, 1), stride=(1, 1))
+            self.skip_conv = mint.nn.Conv2d(3, out_channels, kernel_size=(1, 1), stride=(1, 1), bias=False)
         else:
             self.resnet_down = None
             self.downsamplers = None
@@ -2209,6 +2185,7 @@ class AttnUpBlock2D(nn.Cell):
         else:
             self.upsamplers = None
 
+        self.gradient_checkpointing = False
         self.resolution_idx = resolution_idx
 
     def construct(
@@ -2222,7 +2199,7 @@ class AttnUpBlock2D(nn.Cell):
             # pop res hidden states
             res_hidden_states = res_hidden_states_tuple[-1]
             res_hidden_states_tuple = res_hidden_states_tuple[:-1]
-            hidden_states = ops.cat([hidden_states, res_hidden_states], axis=1)
+            hidden_states = mint.cat([hidden_states, res_hidden_states], dim=1)
 
             hidden_states = resnet(hidden_states, temb)
             hidden_states = attn(hidden_states)
@@ -2326,17 +2303,7 @@ class CrossAttnUpBlock2D(nn.Cell):
             self.upsamplers = None
 
         self.resolution_idx = resolution_idx
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        for resnet in self.resnets:
-            resnet._recompute(value)
+        self.gradient_checkpointing = False
 
     def construct(
         self,
@@ -2365,7 +2332,7 @@ class CrossAttnUpBlock2D(nn.Cell):
             if is_freeu_enabled:
                 raise NotImplementedError("apply_freeu is not implemented")
 
-            hidden_states = ops.cat([hidden_states, res_hidden_states], axis=1)
+            hidden_states = mint.cat([hidden_states, res_hidden_states], dim=1)
 
             hidden_states = resnet(hidden_states, temb)
             hidden_states = attn(
@@ -2433,18 +2400,8 @@ class UpBlock2D(nn.Cell):
         else:
             self.upsamplers = None
 
+        self.gradient_checkpointing = False
         self.resolution_idx = resolution_idx
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        for resnet in self.resnets:
-            resnet._recompute(value)
 
     def construct(
         self,
@@ -2469,7 +2426,7 @@ class UpBlock2D(nn.Cell):
             if is_freeu_enabled:
                 raise NotImplementedError("apply_freeu is not implemented")
 
-            hidden_states = ops.cat([hidden_states, res_hidden_states], axis=1)
+            hidden_states = mint.cat([hidden_states, res_hidden_states], dim=1)
 
             hidden_states = resnet(hidden_states, temb)
 
@@ -2736,13 +2693,13 @@ class AttnSkipUpBlock2D(nn.Cell):
                 up=True,
                 kernel="fir",
             )
-            self.skip_conv = nn.Conv2d(
-                out_channels, 3, kernel_size=(3, 3), stride=(1, 1), pad_mode="pad", padding=(1, 1)
+            self.skip_conv = mint.nn.Conv2d(
+                out_channels, 3, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False
             )
-            self.skip_norm = GroupNorm(
+            self.skip_norm = mint.nn.GroupNorm(
                 num_groups=min(out_channels // 4, 32), num_channels=out_channels, eps=resnet_eps, affine=True
             )
-            self.act = nn.SiLU()
+            self.act = mint.nn.SiLU()
         else:
             self.resnet_up = None
             self.skip_conv = None
@@ -2765,7 +2722,7 @@ class AttnSkipUpBlock2D(nn.Cell):
             # pop res hidden states
             res_hidden_states = res_hidden_states_tuple[-1]
             res_hidden_states_tuple = res_hidden_states_tuple[:-1]
-            hidden_states = ops.cat([hidden_states, res_hidden_states], axis=1)
+            hidden_states = mint.cat([hidden_states, res_hidden_states], dim=1)
 
             hidden_states = resnet(hidden_states, temb)
 
@@ -2848,13 +2805,13 @@ class SkipUpBlock2D(nn.Cell):
                 up=True,
                 kernel="fir",
             )
-            self.skip_conv = nn.Conv2d(
-                out_channels, 3, kernel_size=(3, 3), stride=(1, 1), pad_mode="pad", padding=(1, 1)
+            self.skip_conv = mint.nn.Conv2d(
+                out_channels, 3, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False
             )
-            self.skip_norm = GroupNorm(
+            self.skip_norm = mint.nn.GroupNorm(
                 num_groups=min(out_channels // 4, 32), num_channels=out_channels, eps=resnet_eps, affine=True
             )
-            self.act = nn.SiLU()
+            self.act = mint.nn.SiLU()
         else:
             self.resnet_up = None
             self.skip_conv = None
@@ -2875,7 +2832,7 @@ class SkipUpBlock2D(nn.Cell):
             # pop res hidden states
             res_hidden_states = res_hidden_states_tuple[-1]
             res_hidden_states_tuple = res_hidden_states_tuple[:-1]
-            hidden_states = ops.cat([hidden_states, res_hidden_states], axis=1)
+            hidden_states = mint.cat([hidden_states, res_hidden_states], dim=1)
 
             hidden_states = resnet(hidden_states, temb)
 
@@ -2977,7 +2934,7 @@ class ResnetUpsampleBlock2D(nn.Cell):
             # pop res hidden states
             res_hidden_states = res_hidden_states_tuple[-1]
             res_hidden_states_tuple = res_hidden_states_tuple[:-1]
-            hidden_states = ops.cat([hidden_states, res_hidden_states], axis=1)
+            hidden_states = mint.cat([hidden_states, res_hidden_states], dim=1)
 
             hidden_states = resnet(hidden_states, temb)
 
@@ -3114,7 +3071,7 @@ class SimpleCrossAttnUpBlock2D(nn.Cell):
             # pop res hidden states
             res_hidden_states = res_hidden_states_tuple[-1]
             res_hidden_states_tuple = res_hidden_states_tuple[:-1]
-            hidden_states = ops.cat([hidden_states, res_hidden_states], axis=1)
+            hidden_states = mint.cat([hidden_states, res_hidden_states], dim=1)
 
             hidden_states = resnet(hidden_states, temb)
 
@@ -3192,7 +3149,7 @@ class KUpBlock2D(nn.Cell):
     ) -> ms.Tensor:
         res_hidden_states_tuple = res_hidden_states_tuple[-1]
         if res_hidden_states_tuple is not None:
-            hidden_states = ops.cat([hidden_states, res_hidden_states_tuple], axis=1)
+            hidden_states = mint.cat([hidden_states, res_hidden_states_tuple], dim=1)
 
         for resnet in self.resnets:
             hidden_states = resnet(hidden_states, temb)
@@ -3303,7 +3260,7 @@ class KCrossAttnUpBlock2D(nn.Cell):
     ) -> ms.Tensor:
         res_hidden_states_tuple = res_hidden_states_tuple[-1]
         if res_hidden_states_tuple is not None:
-            hidden_states = ops.cat([hidden_states, res_hidden_states_tuple], axis=1)
+            hidden_states = mint.cat([hidden_states, res_hidden_states_tuple], dim=1)
 
         for resnet, attn in zip(self.resnets, self.attentions):
             hidden_states = resnet(hidden_states, temb)

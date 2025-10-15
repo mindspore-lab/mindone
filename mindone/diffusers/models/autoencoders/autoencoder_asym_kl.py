@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +19,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn
+from mindspore import mint
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ..modeling_outputs import AutoencoderKLOutput
@@ -26,8 +29,8 @@ from .vae import DecoderOutput, DiagonalGaussianDistribution, Encoder, MaskCondi
 
 class AsymmetricAutoencoderKL(ModelMixin, ConfigMixin):
     r"""
-    Designing a Better Asymmetric VQGAN for StableDiffusion https://arxiv.org/abs/2306.04632 . A VAE model with KL loss
-    for encoding images into latents and decoding latent representations into images.
+    Designing a Better Asymmetric VQGAN for StableDiffusion https://huggingface.co/papers/2306.04632 . A VAE model with
+    KL loss for encoding images into latents and decoding latent representations into images.
 
     This model inherits from [`ModelMixin`]. Check the superclass documentation for it's generic methods implemented
     for all models (such as downloading or saving).
@@ -58,8 +61,10 @@ class AsymmetricAutoencoderKL(ModelMixin, ConfigMixin):
             model. The latents are scaled with the formula `z = z * scaling_factor` before being passed to the
             diffusion model. When decoding, the latents are scaled back to the original scale with the formula: `z = 1
             / scaling_factor * z`. For more details, refer to sections 4.3.2 and D.1 of the [High-Resolution Image
-            Synthesis with Latent Diffusion Models](https://arxiv.org/abs/2112.10752) paper.
+            Synthesis with Latent Diffusion Models](https://huggingface.co/papers/2112.10752) paper.
     """
+
+    _skip_layerwise_casting_patterns = ["decoder"]
 
     @register_to_config
     def __init__(
@@ -104,8 +109,8 @@ class AsymmetricAutoencoderKL(ModelMixin, ConfigMixin):
         )
         self.diag_gauss_dist = DiagonalGaussianDistribution()
 
-        self.quant_conv = nn.Conv2d(2 * latent_channels, 2 * latent_channels, 1, has_bias=True)
-        self.post_quant_conv = nn.Conv2d(latent_channels, latent_channels, 1, has_bias=True)
+        self.quant_conv = mint.nn.Conv2d(2 * latent_channels, 2 * latent_channels, 1)
+        self.post_quant_conv = mint.nn.Conv2d(latent_channels, latent_channels, 1)
 
         self.use_slicing = False
         self.use_tiling = False

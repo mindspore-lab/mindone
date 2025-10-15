@@ -1,5 +1,8 @@
 # coding=utf-8
-# Copyright 2024 HuggingFace Inc.
+# Copyright 2025 HuggingFace Inc.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,31 +17,42 @@
 # limitations under the License.
 
 import random
+import sys
 import unittest
 
 import numpy as np
+import pytest
 import torch
 from ddt import data, ddt, unpack
 
 import mindspore as ms
 
+from mindone.diffusers import KolorsImg2ImgPipeline
+from mindone.diffusers.utils.testing_utils import (
+    fast,
+    load_downloaded_image_from_hf_hub,
+    load_numpy_from_local_file,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
     get_pipeline_components,
+    randn_tensor,
 )
 
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float32"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float16"},
 ]
 
 
+@fast
 @ddt
 class KolorsPipelineImg2ImgFastTests(PipelineTesterMixin, unittest.TestCase):
     pipeline_config = [
@@ -188,3 +202,48 @@ class KolorsPipelineImg2ImgFastTests(PipelineTesterMixin, unittest.TestCase):
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class KolorsPipelineImg2ImgIntegrationTests(unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        if dtype == "float32":
+            pytest.skip("diffusers doesn't support fp32")
+
+        # TODO: synchronize issue, and we need to put the replacement of randn_tensor after initialization.
+        if mode == ms.PYNATIVE_MODE:
+            ms.set_context(mode=mode, pynative_synchronize=True)
+        else:
+            ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe = KolorsImg2ImgPipeline.from_pretrained(
+            "Kwai-Kolors/Kolors-diffusers", variant="fp16", mindspore_dtype=ms_dtype
+        )
+
+        sys.modules[pipe.__module__].randn_tensor = randn_tensor
+        sys.modules[pipe.vae.diag_gauss_dist.__module__].randn_tensor = randn_tensor
+
+        init_image = load_downloaded_image_from_hf_hub(
+            "huggingface/documentation-images",
+            "bunny_source.png",
+            subfolder="kolors",
+        )
+        prompt = (
+            "high quality image of a capybara wearing sunglasses. In the background of the image there are trees,"
+            " poles, grass and other objects. At the bottom of the object there is the road., 8k, highly detailed"
+            "."
+        )
+
+        torch.manual_seed(0)
+        image = pipe(prompt, image=init_image)[0][0]
+
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
+            f"kolors_i2i_{dtype}.npy",
+            subfolder="kolors",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

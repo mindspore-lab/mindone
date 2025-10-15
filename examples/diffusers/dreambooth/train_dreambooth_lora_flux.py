@@ -34,14 +34,11 @@ from tqdm.auto import tqdm
 from transformers import CLIPTokenizer, PretrainedConfig, T5TokenizerFast
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 from mindspore.amp import StaticLossScaler
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
 from mindone.diffusers import AutoencoderKL, FlowMatchEulerDiscreteScheduler, FluxPipeline, FluxTransformer2DModel
-from mindone.diffusers._peft import LoraConfig, set_peft_model_state_dict
-from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
-from mindone.diffusers._peft.utils import get_peft_model_state_dict
 from mindone.diffusers.optimization import get_scheduler
 from mindone.diffusers.training_utils import compute_density_for_timestep_sampling  # noqa F401
 from mindone.diffusers.training_utils import (
@@ -55,6 +52,9 @@ from mindone.diffusers.training_utils import (
     set_seed,
 )
 from mindone.diffusers.utils import convert_unet_state_dict_to_peft
+from mindone.peft import LoraConfig, set_peft_model_state_dict
+from mindone.peft.tuners.tuners_utils import BaseTunerLayer
+from mindone.peft.utils import get_peft_model_state_dict
 
 logger = logging.getLogger(__name__)
 
@@ -200,6 +200,20 @@ def parse_args(input_args=None):
         default=None,
         required=False,
         help="A folder containing the training data of class images.",
+    )
+    parser.add_argument(
+        "--jit_level",
+        type=str,
+        default="O1",
+        choices=["O0", "O1", "O2"],
+        help=(
+            "Used to control the compilation optimization level, supports [O0, O1, O2]. The framework automatically "
+            "selects the execution method. O0: All optimizations except those necessary for functionality are "
+            "disabled, using an operator-by-operator execution method. O1: Enables common optimizations and automatic "
+            "operator fusion optimizations, using an operator-by-operator execution method. This is an experimental "
+            "optimization level, which is continuously being improved. O2: Enables extreme performance optimization, "
+            "using a sinking execution method."
+        ),
     )
     parser.add_argument(
         "--instance_prompt",
@@ -457,6 +471,15 @@ def parse_args(input_args=None):
         "--adam_weight_decay_text_encoder", type=float, default=1e-03, help="Weight decay to use for text_encoder"
     )
 
+    parser.add_argument(
+        "--lora_layers",
+        type=str,
+        default=None,
+        help=(
+            'The transformer modules to apply LoRA training on. Please specify the layers in a comma seperated. E.g. - "to_k,to_q,to_v,to_out.0" will \
+                result in lora training of attention layers only'
+        ),
+    )
     parser.add_argument(
         "--adam_epsilon",
         type=float,
@@ -836,7 +859,7 @@ def _encode_prompt_with_t5(
     text_input_ids=None,
 ):
     batch_size = text_input_ids.shape[0]
-    prompt_embeds = text_encoder(text_input_ids)[0]
+    prompt_embeds = text_encoder(text_input_ids, return_dict=False)[0]
 
     dtype = text_encoder.dtype
     prompt_embeds = prompt_embeds.to(dtype=dtype)
@@ -899,7 +922,11 @@ def encode_prompt(
 
 def main(args):
     args = parse_args()
-    ms.set_context(mode=ms.GRAPH_MODE, jit_syntax_level=ms.STRICT)
+    ms.set_context(
+        mode=ms.GRAPH_MODE,
+        jit_syntax_level=ms.STRICT,
+        jit_config={"jit_level": args.jit_level},
+    )
     init_distributed_device(args)
 
     logging_dir = Path(args.output_dir, args.logging_dir)
@@ -1037,12 +1064,27 @@ def main(args):
         # if args.train_text_encoder:
         #     text_encoder_one.gradient_checkpointing_enable()
 
+    if args.lora_layers is not None:
+        target_modules = [layer.strip() for layer in args.lora_layers.split(",")]
+    else:
+        target_modules = [
+            "attn.to_k",
+            "attn.to_q",
+            "attn.to_v",
+            "attn.to_out.0",
+            "attn.add_k_proj",
+            "attn.add_q_proj",
+            "attn.add_v_proj",
+            "attn.to_add_out",
+            "ff.net.0.proj",
+            "ff.net.2",
+            "ff_context.net.0.proj",
+            "ff_context.net.2",
+        ]
+
     # now we will add new LoRA weights to the attention layers
     transformer_lora_config = LoraConfig(
-        r=args.lora_rank,
-        lora_alpha=args.lora_rank,
-        init_lora_weights="gaussian",
-        target_modules=["to_k", "to_q", "to_v", "to_out.0"],
+        r=args.lora_rank, lora_alpha=args.lora_rank, init_lora_weights="gaussian", target_modules=target_modules
     )
     transformer.add_adapter(transformer_lora_config)
 
@@ -1178,8 +1220,8 @@ def main(args):
                 tokenize_prompt(tokenizer_two, args.class_prompt, args.max_sequence_length)
             )
 
-            tokens_one = ops.cat([tokens_one, class_tokens_one], axis=0)
-            tokens_two = ops.cat([tokens_two, class_tokens_two], axis=0)
+            tokens_one = mint.cat([tokens_one, class_tokens_one], dim=0)
+            tokens_two = mint.cat([tokens_two, class_tokens_two], dim=0)
 
         # If no type of tuning is done on the text_encoder and custom instance prompts are NOT
         # provided (i.e. the --instance_prompt is used for all images), we encode the instance prompt once to avoid
@@ -1428,6 +1470,23 @@ def main(args):
                 epoch=epoch + 1,
             )
 
+    # Notes: repeated pipeline initalization might cause oom, so we still use the pipeline defined at the begining
+    # instead of loading a new one, and the components are updated during training.
+    # lora weigts saving might change dtypes of some layers, so we do final inference before saving, or it might raise dtype error.
+
+    # Final inference
+    if args.validation_prompt and args.num_validation_images > 0:
+        pipeline_args = {"prompt": args.validation_prompt, "num_inference_steps": 25}
+        log_validation(
+            pipeline,
+            args,
+            trackers,
+            logging_dir,
+            pipeline_args,
+            args.num_train_epochs,
+            is_final_validation=True,
+        )
+
     # Save the lora layers
     if is_master(args):
         if args.upcast_before_saving:
@@ -1447,19 +1506,6 @@ def main(args):
             text_encoder_lora_layers=text_encoder_lora_layers,
         )
 
-    # Final inference
-    if args.validation_prompt and args.num_validation_images > 0:
-        pipeline_args = {"prompt": args.validation_prompt, "num_inference_steps": 25}
-        log_validation(
-            pipeline,
-            args,
-            trackers,
-            logging_dir,
-            pipeline_args,
-            args.num_train_epochs,
-            is_final_validation=True,
-        )
-
     # End of training
     for tracker_name, tracker in trackers.items():
         if tracker_name == "tensorboard":
@@ -1475,7 +1521,7 @@ def compute_weighting_mse_loss(weighting, pred, target):
     target_ndim = target.ndim
     square_loss = ((pred.float() - target.float()) ** 2).tile((repeats,) + (1,) * (target_ndim - 1))
 
-    weighting_mse_loss = ops.mean(
+    weighting_mse_loss = mint.mean(
         (weighting * square_loss).reshape(target.shape[0], -1),
         1,
     )
@@ -1519,7 +1565,7 @@ class TrainStepForFluxDevDB(TrainStep):
         self.vae_config_scaling_factor = vae.config.scaling_factor
         self.vae_config_shift_factor = vae.config.shift_factor
         self.vae_config_block_out_channels = vae.config.block_out_channels
-        self.vae_scale_factor = 2 ** (len(self.vae_config_block_out_channels))
+        self.vae_scale_factor = 2 ** (len(self.vae_config_block_out_channels) - 1)
 
         self.text_encoder_one = text_encoder_one
         self.text_encoder_two = text_encoder_two
@@ -1584,26 +1630,26 @@ class TrainStepForFluxDevDB(TrainStep):
 
         latent_image_ids = FluxPipeline._prepare_latent_image_ids(
             model_input.shape[0],
-            model_input.shape[2],
-            model_input.shape[3],
+            model_input.shape[2] // 2,
+            model_input.shape[3] // 2,
             self.weight_dtype,
         )
 
         # Sample noise that we'll add to the latents
-        noise = ops.randn_like(model_input, dtype=model_input.dtype)
+        noise = mint.randn_like(model_input, dtype=model_input.dtype)
         bsz = model_input.shape[0]
 
         # Sample a random timestep for each image
         # for weighting schemes where we sample timesteps non-uniformly
         if self.args.weighting_scheme == "logit_normal":
             # See 3.1 in the SD3 paper ($rf/lognorm(0.00,1.00)$).
-            u = ops.normal(mean=self.args.logit_mean, stddev=self.args.logit_std, shape=(bsz,))
-            u = ops.sigmoid(u)
+            u = mint.normal(mean=self.args.logit_mean, std=self.args.logit_std, size=(bsz,))
+            u = mint.sigmoid(u)
         elif self.args.weighting_scheme == "mode":
-            u = ops.rand(bsz)
-            u = 1 - u - self.args.mode_scale * (ops.cos(ms.numpy.pi * u / 2) ** 2 - 1 + u)
+            u = mint.rand(bsz)
+            u = 1 - u - self.args.mode_scale * (mint.cos(ms.numpy.pi * u / 2) ** 2 - 1 + u)
         else:
-            u = ops.rand(bsz)
+            u = mint.rand(bsz)
 
         indices = (u * self.noise_scheduler_num_train_timesteps).long()
         timesteps = self.noise_scheduler.timesteps[indices]
@@ -1642,8 +1688,8 @@ class TrainStepForFluxDevDB(TrainStep):
         )[0]
         model_pred = FluxPipeline._unpack_latents(
             model_pred,
-            height=int(model_input.shape[2] * self.vae_scale_factor / 2),
-            width=int(model_input.shape[3] * self.vae_scale_factor / 2),
+            height=model_input.shape[2] * self.vae_scale_factor,
+            width=model_input.shape[3] * self.vae_scale_factor,
             vae_scale_factor=self.vae_scale_factor,
         )
 
@@ -1656,8 +1702,8 @@ class TrainStepForFluxDevDB(TrainStep):
 
         if self.args.with_prior_preservation:
             # Chunk the noise and model_pred into two parts and compute the loss on each part separately.
-            model_pred, model_pred_prior = ops.chunk(model_pred, 2, axis=0)
-            target, target_prior = ops.chunk(target, 2, axis=0)
+            model_pred, model_pred_prior = mint.chunk(model_pred, 2, dim=0)
+            target, target_prior = mint.chunk(target, 2, dim=0)
 
             # Compute prior loss
             prior_loss = compute_weighting_mse_loss(weighting, model_pred_prior, target_prior)

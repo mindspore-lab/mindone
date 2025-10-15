@@ -25,7 +25,7 @@ from mg.models.tae import TemporalAutoencoder
 from mg.pipelines import InferPipeline
 from mg.utils import init_model, to_numpy
 
-from mindone.utils import init_train_env, set_logger
+from mindone.utils import init_env, set_logger
 from mindone.visualize import save_videos
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,7 @@ def main(args):
         os.makedirs(latent_dir, exist_ok=True)
 
     # 1. init env
-    _, rank_id, device_num = init_train_env(**args.env)  # TODO: rename as train and infer are identical?
+    _, rank_id, device_num = init_env(**args.env)
 
     if args.enable_sequence_parallel:
         set_sequence_parallel_group(GlobalComm.WORLD_COMM_GROUP)
@@ -109,7 +109,7 @@ def main(args):
     prompt_prefix = [os.path.basename(emb)[:-4] for emb in ul2_emb]
     ul2_emb = ms.Tensor([np.load(emb)["text_emb"] for emb in ul2_emb], dtype=ms.float32)
     # metaclip_emb = ms.Tensor([np.load(emb)["text_emb"] for emb in metaclip_emb], dtype=ms.float32)
-    metaclip_emb = ms.Tensor(np.ones((ul2_emb.shape[0], 300, 1280)), dtype=ms.float32)  # FIXME: replace with actual
+    metaclip_emb = ms.Tensor(np.ones((ul2_emb.shape[0], 256, 1280)), dtype=ms.float32)  # FIXME: replace with actual
     byt5_emb = ms.Tensor([np.load(emb)["text_emb"] for emb in byt5_emb], dtype=ms.float32)
     num_prompts = ul2_emb.shape[0]
 
@@ -189,7 +189,7 @@ if __name__ == "__main__":
         action=ActionConfigFile,
         help="Path to load a config yaml file that describes the setting which will override the default arguments.",
     )
-    parser.add_function_arguments(init_train_env, "env")
+    parser.add_function_arguments(init_env, "env")
     parser.add_function_arguments(init_model, "model", skip={"resume"})
     tae_group = parser.add_argument_group("TAE parameters")
     tae_group.add_subclass_arguments(TemporalAutoencoder, "tae", instantiate=False, required=False)

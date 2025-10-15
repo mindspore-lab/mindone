@@ -128,7 +128,7 @@ class InferPipeline:
         # for token/text drop in caption embedder for condition-free guidance training. The null mask is the same as text mask.
         n = x.shape[0]
         # (n_tokens, dim_emb) -> (b n_tokens dim_emb)
-        null_emb = self.model.y_embedder.y_embedding[None, :, :].repeat(n, axis=0)
+        null_emb = self.model.y_embedder.y_embedding[None, :, :].repeat_interleave(n, dim=0)
 
         if self.use_cfg:
             y = ops.cat([text_emb, null_emb], axis=0)

@@ -3,9 +3,6 @@ import os
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
-import threestudio
-from threestudio.utils.base import BaseObject
-from threestudio.utils.ops import shifted_expotional_decay
 from transformers import AutoTokenizer
 
 import mindspore as ms
@@ -13,6 +10,9 @@ import mindspore.mint.nn.functional as F
 import mindspore.multiprocessing as multiprocessing
 from mindspore import Tensor, mint
 
+import mindone.models.threestudio as threestudio
+from mindone.models.threestudio.utils.base import BaseObject
+from mindone.models.threestudio.utils.ops import shifted_expotional_decay
 from mindone.transformers import BertForMaskedLM
 
 
@@ -20,7 +20,7 @@ def hash_prompt(model: str, prompt: str) -> str:
     import hashlib
 
     identifier = f"{model}-{prompt}"
-    return hashlib.md5(identifier.encode()).hexdigest()
+    return hashlib.md5(identifier.encode(), usedforsecurity=False).hexdigest()
 
 
 @dataclass

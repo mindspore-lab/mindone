@@ -1,14 +1,15 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Tuple, Union
 
-import threestudio
 from omegaconf import DictConfig
-from threestudio.models.geometry.base import BaseGeometry, BaseImplicitGeometry, contract_to_unisphere
-from threestudio.models.networks import get_encoding, get_mlp
-from threestudio.utils.ops import get_activation
 
 import mindspore as ms
 from mindspore import Tensor, mint, ops
+
+import mindone.models.threestudio as threestudio
+from mindone.models.threestudio.models.geometry.base import BaseGeometry, BaseImplicitGeometry, contract_to_unisphere
+from mindone.models.threestudio.models.networks import get_encoding, get_mlp
+from mindone.models.threestudio.utils.ops import get_activation
 
 
 @threestudio.register("implicit-volume")

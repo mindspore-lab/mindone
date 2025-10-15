@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team.
+# Copyright 2025 The HuggingFace Team.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,6 +22,9 @@ import torch
 from ddt import data, ddt, unpack
 
 import mindspore as ms
+
+from mindone.diffusers import CogVideoXPipeline
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -174,3 +180,37 @@ class CogVideoXPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
             np.max(np.linalg.norm(pt_generated_video - ms_generated_video) / np.linalg.norm(pt_generated_video))
             < threshold
         )
+
+
+@slow
+@ddt
+class CogVideoXPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_cogvideox(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe = CogVideoXPipeline.from_pretrained("THUDM/CogVideoX-2b", mindspore_dtype=ms_dtype)
+
+        prompt = "A painting of a squirrel eating a burger."
+
+        torch.manual_seed(0)
+        video = pipe(
+            prompt=prompt,
+            height=480,
+            width=720,
+            num_frames=16,
+            num_inference_steps=2,
+            output_type="np",
+        )[
+            0
+        ][0]
+
+        expected_video = load_numpy_from_local_file(
+            "mindone-testing-arrays",
+            f"cogvideo_t2v_{dtype}.npy",
+            subfolder="cogvideo",
+        )
+        threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
+        assert np.max(np.linalg.norm(expected_video - video) / np.linalg.norm(expected_video)) < threshold

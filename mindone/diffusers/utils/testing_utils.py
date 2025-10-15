@@ -1,4 +1,7 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/utils/testing_utils.py."""
+
 import functools
+import importlib
 import inspect
 import io
 import logging
@@ -10,6 +13,7 @@ import struct
 import sys
 import tempfile
 import time
+import unittest
 import urllib.parse
 from contextlib import contextmanager
 from io import BytesIO, StringIO
@@ -28,9 +32,10 @@ from packaging import version
 from PIL import Image
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
-from .import_utils import BACKENDS_MAPPING, is_opencv_available
+from .constants import DIFFUSERS_REQUEST_TIMEOUT
+from .import_utils import BACKENDS_MAPPING, is_kernels_available, is_opencv_available
 from .logging import get_logger
 
 global_rng = random.Random()
@@ -39,7 +44,7 @@ logger = get_logger(__name__)
 
 
 def mindspore_all_close(a, b, *args, **kwargs):
-    if not ops.all(ops.isclose(a, b, *args, **kwargs)):
+    if not mint.all(mint.isclose(a, b, *args, **kwargs)):
         assert False, f"Max diff is absolute {(a - b).abs().max()}. Diff tensor is {(a - b).abs()}."
     return True
 
@@ -49,6 +54,29 @@ def numpy_cosine_similarity_distance(a, b):
     distance = 1.0 - similarity.mean()
 
     return distance
+
+
+def check_if_dicts_are_equal(dict1, dict2):
+    dict1, dict2 = dict1.copy(), dict2.copy()
+
+    for key, value in dict1.items():
+        if isinstance(value, set):
+            dict1[key] = sorted(value)
+    for key, value in dict2.items():
+        if isinstance(value, set):
+            dict2[key] = sorted(value)
+
+    for key in dict1:
+        if key not in dict2:
+            return False
+        if dict1[key] != dict2[key]:
+            return False
+
+    for key in dict2:
+        if key not in dict1:
+            return False
+
+    return True
 
 
 def print_tensor_test(
@@ -62,6 +90,7 @@ def print_tensor_test(
         np.set_printoptions(threshold=10000)  # str(ms.Tensor) -> str(tensor.asnumpy())
 
     test_name = os.environ.get("PYTEST_CURRENT_TEST")
+    # todo: unavailable mint interface
     if not ops.is_tensor(tensor):
         tensor = ms.Tensor.from_numpy(tensor)
     if limit_to_slices:
@@ -190,11 +219,35 @@ def require_peft_version_greater(peft_version):
     """
 
     def decorator(test_case):
-        from mindone.diffusers._peft import __version__ as _mindone_diffusers_peft_version
+        from mindone.peft import __version__ as _mindone_peft_version
 
-        correct_peft_version = version.parse(_mindone_diffusers_peft_version) > version.parse(peft_version)
+        correct_peft_version = version.parse(_mindone_peft_version) > version.parse(peft_version)
         return pytest.mark.skipif(
             not correct_peft_version, reason=f"test requires PEFT backend with the version greater than {peft_version}"
+        )(test_case)
+
+    return decorator
+
+
+def require_hf_hub_version_greater(hf_hub_version):
+    def decorator(test_case):
+        correct_hf_hub_version = version.parse(
+            version.parse(importlib.metadata.version("huggingface_hub")).base_version
+        ) > version.parse(hf_hub_version)
+        return unittest.skipUnless(
+            correct_hf_hub_version, f"Test requires huggingface_hub with the version greater than {hf_hub_version}."
+        )(test_case)
+
+    return decorator
+
+
+def require_kernels_version_greater_or_equal(kernels_version):
+    def decorator(test_case):
+        correct_kernels_version = is_kernels_available() and version.parse(
+            version.parse(importlib.metadata.version("kernels")).base_version
+        ) >= version.parse(kernels_version)
+        return unittest.skipUnless(
+            correct_kernels_version, f"Test requires kernels with version greater than {kernels_version}."
         )(test_case)
 
     return decorator
@@ -212,7 +265,7 @@ def load_numpy(arry: Union[str, np.ndarray], local_path: Optional[str] = None) -
             # local_path can be passed to correct images of tests
             return Path(local_path, arry.split("/")[-5], arry.split("/")[-2], arry.split("/")[-1]).as_posix()
         elif arry.startswith("http://") or arry.startswith("https://"):
-            response = requests.get(arry)
+            response = requests.get(arry, timeout=DIFFUSERS_REQUEST_TIMEOUT)
             response.raise_for_status()
             arry = np.load(BytesIO(response.content))
         elif os.path.isfile(arry):
@@ -245,7 +298,7 @@ def load_image(image: Union[str, PIL.Image.Image]) -> PIL.Image.Image:
     """
     if isinstance(image, str):
         if image.startswith("http://") or image.startswith("https://"):
-            image = PIL.Image.open(requests.get(image, stream=True).raw)
+            image = PIL.Image.open(requests.get(image, stream=True, timeout=DIFFUSERS_REQUEST_TIMEOUT).raw)
         elif os.path.isfile(image):
             image = PIL.Image.open(image)
         else:
@@ -518,7 +571,7 @@ def pytest_terminal_summary_main(tr, id):
             f.write("slowest durations\n")
             for i, rep in enumerate(dlist):
                 if rep.duration < durations_min:
-                    f.write(f"{len(dlist)-i} durations < {durations_min} secs were omitted")
+                    f.write(f"{len(dlist) - i} durations < {durations_min} secs were omitted")
                     break
                 f.write(f"{rep.duration:02.2f}s {rep.when:<8} {rep.nodeid}\n")
 
@@ -585,10 +638,10 @@ def pytest_terminal_summary_main(tr, id):
     config.option.tbstyle = orig_tbstyle
 
 
-# Copied from https://github.com/huggingface/transformers/blob/000e52aec8850d3fe2f360adc6fd256e5b47fe4c/src/transformers/testing_utils.py#L1905
+# Adapted from https://github.com/huggingface/transformers/blob/000e52aec8850d3fe2f360adc6fd256e5b47fe4c/src/transformers/testing_utils.py#L1905
 def is_flaky(max_attempts: int = 5, wait_before_retry: Optional[float] = None, description: Optional[str] = None):
     """
-    To decorate flaky tests. They will be retried on failures.
+    To decorate flaky tests (methods or entire classes). They will be retried on failures.
 
     Args:
         max_attempts (`int`, *optional*, defaults to 5):
@@ -600,22 +653,33 @@ def is_flaky(max_attempts: int = 5, wait_before_retry: Optional[float] = None, d
             etc.)
     """
 
-    def decorator(test_func_ref):
-        @functools.wraps(test_func_ref)
+    def decorator(obj):
+        # If decorating a class, wrap each test method on it
+        if inspect.isclass(obj):
+            for attr_name, attr_value in list(obj.__dict__.items()):
+                if callable(attr_value) and attr_name.startswith("test"):
+                    # recursively decorate the method
+                    setattr(obj, attr_name, decorator(attr_value))
+            return obj
+
+        # Otherwise we're decorating a single test function / method
+        @functools.wraps(obj)
         def wrapper(*args, **kwargs):
             retry_count = 1
-
             while retry_count < max_attempts:
                 try:
-                    return test_func_ref(*args, **kwargs)
-
+                    return obj(*args, **kwargs)
                 except Exception as err:
-                    print(f"Test failed with {err} at try {retry_count}/{max_attempts}.", file=sys.stderr)
+                    msg = (
+                        f"[FLAKY] {description or obj.__name__!r} "
+                        f"failed on attempt {retry_count}/{max_attempts}: {err}"
+                    )
+                    print(msg, file=sys.stderr)
                     if wait_before_retry is not None:
                         time.sleep(wait_before_retry)
                     retry_count += 1
 
-            return test_func_ref(*args, **kwargs)
+            return obj(*args, **kwargs)
 
         return wrapper
 
@@ -663,7 +727,7 @@ def run_test_in_subprocess(test_case, target_func, inputs=None, timeout=None):
     process.join(timeout=timeout)
 
     if results["error"] is not None:
-        test_case.fail(f'{results["error"]}')
+        test_case.fail(f"{results['error']}")
 
 
 class CaptureLogger:
@@ -715,3 +779,33 @@ def enable_full_determinism():
 
 def disable_full_determinism():
     ms.set_context(deterministic="OFF", pynative_synchronize=False)
+
+
+def load_numpy_from_local_file(repo_id, filename, subfolder=None):
+    file_path = os.path.join(".", repo_id, subfolder, filename)
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Test result not found: {file_path}")
+
+    ndarray = np.load(file_path)
+    return ndarray
+
+
+def load_image_from_local_file(repo_id, filename, subfolder=None):
+    file_path = os.path.join(".", repo_id, subfolder, filename)
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Test result not found: {file_path}")
+
+    img = load_image(file_path)
+    return img
+
+
+def load_video_from_local_file(repo_id, filename, subfolder=None):
+    file_path = os.path.join(".", repo_id, subfolder, filename)
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Test result not found: {file_path}")
+
+    video = load_video(file_path)
+    return video

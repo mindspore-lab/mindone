@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from functools import partial
 from typing import Optional, Tuple, Union
 
 import numpy as np
@@ -1071,9 +1072,12 @@ class AutoencoderKLCogVideoX_SP(ModelMixin, ConfigMixin, FromOriginalModelMixin)
         self.tile_overlap_factor_height = 1 / 6
         self.tile_overlap_factor_width = 1 / 5
 
-    def _set_gradient_checkpointing(self, module, value=False):
+    def _set_gradient_checkpointing_cogvideox(self, module, enable=False):
         if isinstance(module, (CogVideoXEncoder3D_SP, CogVideoXDecoder3D_SP)):
-            module.gradient_checkpointing = value
+            module.gradient_checkpointing = enable
+
+    def _set_gradient_checkpointing(self, enable=False):
+        self.apply(partial(self._set_gradient_checkpointing_cogvideox, enable=enable))
 
     def enable_tiling(
         self,

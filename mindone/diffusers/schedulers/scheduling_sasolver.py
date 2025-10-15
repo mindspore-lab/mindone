@@ -1,4 +1,7 @@
-# Copyright 2024 Shuchen Xue, etc. in University of Chinese Academy of Sciences Team and The HuggingFace Team. All rights reserved.
+# Copyright 2025 Shuchen Xue, etc. in University of Chinese Academy of Sciences Team and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# DISCLAIMER: check https://arxiv.org/abs/2309.05019
+# DISCLAIMER: check https://huggingface.co/papers/2309.05019
 # The codebase is modified based on https://github.com/huggingface/diffusers/blob/main/src/diffusers/schedulers/scheduling_dpmsolver_multistep.py
 
 import math
@@ -21,7 +24,7 @@ from typing import Callable, List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import deprecate, is_scipy_available
@@ -110,7 +113,7 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
             Stochasticity during the sampling. Default in init is `lambda t: 1 if t >= 200 and t <= 800 else 0`.
             SA-Solver will sample from vanilla diffusion ODE if tau_func is set to `lambda t: 0`. SA-Solver will sample
             from vanilla diffusion SDE if tau_func is set to `lambda t: 1`. For more details, please check
-            https://arxiv.org/abs/2309.05019
+            https://huggingface.co/papers/2309.05019
         thresholding (`bool`, defaults to `False`):
             Whether to use the "dynamic thresholding" method. This is unsuitable for latent-space diffusion models such
             as Stable Diffusion.
@@ -168,6 +171,8 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
         use_karras_sigmas: Optional[bool] = False,
         use_exponential_sigmas: Optional[bool] = False,
         use_beta_sigmas: Optional[bool] = False,
+        use_flow_sigmas: Optional[bool] = False,
+        flow_shift: Optional[float] = 1.0,
         lambda_min_clipped: float = -float("inf"),
         variance_type: Optional[str] = None,
         timestep_spacing: str = "linspace",
@@ -199,11 +204,11 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
             raise NotImplementedError(f"{beta_schedule} is not implemented for {self.__class__}")
 
         self.alphas = 1.0 - self.betas
-        self.alphas_cumprod = ops.cumprod(self.alphas, dim=0)
+        self.alphas_cumprod = mint.cumprod(self.alphas, dim=0)
         # Currently we only support VP-type noise schedule
-        self.alpha_t = ops.sqrt(self.alphas_cumprod)
-        self.sigma_t = ops.sqrt(1 - self.alphas_cumprod)
-        self.lambda_t = ops.log(self.alpha_t) - ops.log(self.sigma_t)
+        self.alpha_t = mint.sqrt(self.alphas_cumprod)
+        self.sigma_t = mint.sqrt(1 - self.alphas_cumprod)
+        self.lambda_t = mint.log(self.alpha_t) - mint.log(self.sigma_t)
         self.sigmas = ((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5
 
         # standard deviation of the initial noise distribution
@@ -264,10 +269,12 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
         """
         # Clipping the minimum of all lambda(t) for numerical stability.
         # This is critical for cosine (squaredcos_cap_v2) noise schedule.
-        clipped_idx = ms.tensor(np.searchsorted(ops.flip(self.lambda_t, [0]).asnumpy(), self.config.lambda_min_clipped))
+        clipped_idx = ms.tensor(
+            np.searchsorted(mint.flip(self.lambda_t, [0]).asnumpy(), self.config.lambda_min_clipped)
+        )
         last_timestep = ((self.config.num_train_timesteps - clipped_idx).asnumpy()).item()
 
-        # "linspace", "leading", "trailing" corresponds to annotation of Table 2. of https://arxiv.org/abs/2305.08891
+        # "linspace", "leading", "trailing" corresponds to annotation of Table 2. of https://huggingface.co/papers/2305.08891
         if self.config.timestep_spacing == "linspace":
             timesteps = (
                 np.linspace(0, last_timestep - 1, num_inference_steps + 1).round()[::-1][:-1].copy().astype(np.int64)
@@ -291,18 +298,28 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
             )
 
         sigmas = (((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5).asnumpy()
+        log_sigmas = np.log(sigmas)
         if self.config.use_karras_sigmas:
-            log_sigmas = np.log(sigmas)
             sigmas = np.flip(sigmas).copy()
             sigmas = self._convert_to_karras(in_sigmas=sigmas, num_inference_steps=num_inference_steps)
             timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas]).round()
             sigmas = np.concatenate([sigmas, sigmas[-1:]]).astype(np.float32)
         elif self.config.use_exponential_sigmas:
-            sigmas = self._convert_to_exponential(in_sigmas=sigmas, num_inference_steps=self.num_inference_steps)
+            sigmas = np.flip(sigmas).copy()
+            sigmas = self._convert_to_exponential(in_sigmas=sigmas, num_inference_steps=num_inference_steps)
             timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas])
+            sigmas = np.concatenate([sigmas, sigmas[-1:]]).astype(np.float32)
         elif self.config.use_beta_sigmas:
-            sigmas = self._convert_to_beta(in_sigmas=sigmas, num_inference_steps=self.num_inference_steps)
+            sigmas = np.flip(sigmas).copy()
+            sigmas = self._convert_to_beta(in_sigmas=sigmas, num_inference_steps=num_inference_steps)
             timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas])
+            sigmas = np.concatenate([sigmas, sigmas[-1:]]).astype(np.float32)
+        elif self.config.use_flow_sigmas:
+            alphas = np.linspace(1, 1 / self.config.num_train_timesteps, num_inference_steps + 1)
+            sigmas = 1.0 - alphas
+            sigmas = np.flip(self.config.flow_shift * sigmas / (1 + (self.config.flow_shift - 1) * sigmas))[:-1].copy()
+            timesteps = (sigmas * self.config.num_train_timesteps).copy()
+            sigmas = np.concatenate([sigmas, sigmas[-1:]]).astype(np.float32)
         else:
             sigmas = np.interp(timesteps, np.arange(0, len(sigmas)), sigmas)
             sigma_last = ((1 - self.alphas_cumprod[0]) / self.alphas_cumprod[0]) ** 0.5
@@ -331,7 +348,7 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
         pixels from saturation at each step. We find that dynamic thresholding results in significantly better
         photorealism as well as better image-text alignment, especially when using very large guidance weights."
 
-        https://arxiv.org/abs/2205.11487
+        https://huggingface.co/papers/2205.11487
         """
         dtype = sample.dtype
         batch_size, channels, *remaining_dims = sample.shape
@@ -345,11 +362,11 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
         abs_sample = sample.abs()  # "a certain percentile absolute pixel value"
 
         s = ms.Tensor.from_numpy(np.quantile(abs_sample.asnumpy(), self.config.dynamic_thresholding_ratio, axis=1))
-        s = ops.clamp(
+        s = mint.clamp(
             s, min=1, max=self.config.sample_max_value
         )  # When clamped to min=1, equivalent to standard clipping to [-1, 1]
         s = s.unsqueeze(1)  # (batch_size, 1) because clamp will broadcast along dim=0
-        sample = ops.clamp(sample, -s, s) / s  # "we threshold xt0 to the range [-s, s] and then divide by s"
+        sample = mint.clamp(sample, -s, s) / s  # "we threshold xt0 to the range [-s, s] and then divide by s"
 
         sample = sample.reshape(batch_size, channels, *remaining_dims)
         sample = sample.to(dtype)
@@ -382,8 +399,12 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
 
     # Copied from diffusers.schedulers.scheduling_dpmsolver_multistep.DPMSolverMultistepScheduler._sigma_to_alpha_sigma_t
     def _sigma_to_alpha_sigma_t(self, sigma):
-        alpha_t = 1 / ((sigma**2 + 1) ** 0.5)
-        sigma_t = sigma * alpha_t
+        if self.config.use_flow_sigmas:
+            alpha_t = 1 - sigma
+            sigma_t = sigma
+        else:
+            alpha_t = 1 / ((sigma**2 + 1) ** 0.5)
+            sigma_t = sigma * alpha_t
 
         return alpha_t, sigma_t
 
@@ -432,7 +453,7 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
         sigma_min = sigma_min if sigma_min is not None else in_sigmas[-1].item()
         sigma_max = sigma_max if sigma_max is not None else in_sigmas[0].item()
 
-        sigmas = ops.linspace(math.log(sigma_max), math.log(sigma_min), num_inference_steps).exp()
+        sigmas = np.exp(np.linspace(math.log(sigma_max), math.log(sigma_min), num_inference_steps))
         return sigmas
 
     # Copied from diffusers.schedulers.scheduling_euler_discrete.EulerDiscreteScheduler._convert_to_beta
@@ -456,7 +477,7 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
         sigma_min = sigma_min if sigma_min is not None else in_sigmas[-1].item()
         sigma_max = sigma_max if sigma_max is not None else in_sigmas[0].item()
 
-        sigmas = ms.Tensor(
+        sigmas = np.array(
             [
                 sigma_min + (ppf * (sigma_max - sigma_min))
                 for ppf in [
@@ -501,7 +522,7 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 1:
                 sample = args[1]
             else:
-                raise ValueError("missing `sample` as a required keyward argument")
+                raise ValueError("missing `sample` as a required keyword argument")
         if timestep is not None:
             deprecate(
                 "timesteps",
@@ -522,10 +543,13 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
                 x0_pred = model_output
             elif self.config.prediction_type == "v_prediction":
                 x0_pred = alpha_t * sample - sigma_t * model_output
+            elif self.config.prediction_type == "flow_prediction":
+                sigma_t = self.sigmas[self.step_index]
+                x0_pred = sample - sigma_t * model_output
             else:
                 raise ValueError(
-                    f"prediction_type given as {self.config.prediction_type} must be one of `epsilon`, `sample`, or"
-                    " `v_prediction` for the SASolverScheduler."
+                    f"prediction_type given as {self.config.prediction_type} must be one of `epsilon`, `sample`, "
+                    "`v_prediction`, or `flow_prediction` for the SASolverScheduler."
                 )
 
             if self.config.thresholding:
@@ -566,20 +590,20 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
         assert order in [0, 1, 2, 3], "order is only supported for 0, 1, 2 and 3"
 
         if order == 0:
-            return ops.exp(-interval_end) * (ops.exp(interval_end - interval_start) - 1)
+            return mint.exp(-interval_end) * (mint.exp(interval_end - interval_start) - 1)
         elif order == 1:
-            return ops.exp(-interval_end) * (
-                (interval_start + 1) * ops.exp(interval_end - interval_start) - (interval_end + 1)
+            return mint.exp(-interval_end) * (
+                (interval_start + 1) * mint.exp(interval_end - interval_start) - (interval_end + 1)
             )
         elif order == 2:
-            return ops.exp(-interval_end) * (
-                (interval_start**2 + 2 * interval_start + 2) * ops.exp(interval_end - interval_start)
+            return mint.exp(-interval_end) * (
+                (interval_start**2 + 2 * interval_start + 2) * mint.exp(interval_end - interval_start)
                 - (interval_end**2 + 2 * interval_end + 2)
             )
         elif order == 3:
-            return ops.exp(-interval_end) * (
+            return mint.exp(-interval_end) * (
                 (interval_start**3 + 3 * interval_start**2 + 6 * interval_start + 6)
-                * ops.exp(interval_end - interval_start)
+                * mint.exp(interval_end - interval_start)
                 - (interval_end**3 + 3 * interval_end**2 + 6 * interval_end + 6)
             )
 
@@ -594,33 +618,35 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
         interval_start_cov = (1 + tau**2) * interval_start
 
         if order == 0:
-            return ops.exp(interval_end_cov) * (1 - ops.exp(-(interval_end_cov - interval_start_cov))) / (1 + tau**2)
+            return (
+                mint.exp(interval_end_cov) * (1 - mint.exp(-(interval_end_cov - interval_start_cov))) / (1 + tau**2)
+            )
         elif order == 1:
             return (
-                ops.exp(interval_end_cov)
+                mint.exp(interval_end_cov)
                 * (
                     (interval_end_cov - 1)
-                    - (interval_start_cov - 1) * ops.exp(-(interval_end_cov - interval_start_cov))
+                    - (interval_start_cov - 1) * mint.exp(-(interval_end_cov - interval_start_cov))
                 )
                 / ((1 + tau**2) ** 2)
             )
         elif order == 2:
             return (
-                ops.exp(interval_end_cov)
+                mint.exp(interval_end_cov)
                 * (
                     (interval_end_cov**2 - 2 * interval_end_cov + 2)
                     - (interval_start_cov**2 - 2 * interval_start_cov + 2)
-                    * ops.exp(-(interval_end_cov - interval_start_cov))
+                    * mint.exp(-(interval_end_cov - interval_start_cov))
                 )
                 / ((1 + tau**2) ** 3)
             )
         elif order == 3:
             return (
-                ops.exp(interval_end_cov)
+                mint.exp(interval_end_cov)
                 * (
                     (interval_end_cov**3 - 3 * interval_end_cov**2 + 6 * interval_end_cov - 6)
                     - (interval_start_cov**3 - 3 * interval_start_cov**2 + 6 * interval_start_cov - 6)
-                    * ops.exp(-(interval_end_cov - interval_start_cov))
+                    * mint.exp(-(interval_end_cov - interval_start_cov))
                 )
                 / ((1 + tau**2) ** 4)
             )
@@ -786,22 +812,22 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 1:
                 sample = args[1]
             else:
-                raise ValueError(" missing `sample` as a required keyward argument")
+                raise ValueError("missing `sample` as a required keyword argument")
         if noise is None:
             if len(args) > 2:
                 noise = args[2]
             else:
-                raise ValueError(" missing `noise` as a required keyward argument")
+                raise ValueError("missing `noise` as a required keyword argument")
         if order is None:
             if len(args) > 3:
                 order = args[3]
             else:
-                raise ValueError(" missing `order` as a required keyward argument")
+                raise ValueError("missing `order` as a required keyword argument")
         if tau is None:
             if len(args) > 4:
                 tau = args[4]
             else:
-                raise ValueError(" missing `tau` as a required keyward argument")
+                raise ValueError("missing `tau` as a required keyword argument")
         if prev_timestep is not None:
             deprecate(
                 "prev_timestep",
@@ -815,17 +841,17 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
         )
         alpha_t, sigma_t = self._sigma_to_alpha_sigma_t(sigma_t)
         alpha_s0, sigma_s0 = self._sigma_to_alpha_sigma_t(sigma_s0)
-        lambda_t = ops.log(alpha_t) - ops.log(sigma_t)
-        lambda_s0 = ops.log(alpha_s0) - ops.log(sigma_s0)
+        lambda_t = mint.log(alpha_t) - mint.log(sigma_t)
+        lambda_s0 = mint.log(alpha_s0) - mint.log(sigma_s0)
 
-        gradient_part = ops.zeros_like(sample)
+        gradient_part = mint.zeros_like(sample)
         h = lambda_t - lambda_s0
         lambda_list = []
 
         for i in range(order):
             si = self.step_index - i
             alpha_si, sigma_si = self._sigma_to_alpha_sigma_t(self.sigmas[si])
-            lambda_si = ops.log(alpha_si) - ops.log(sigma_si)
+            lambda_si = mint.log(alpha_si) - mint.log(sigma_si)
             lambda_list.append(lambda_si)
 
         gradient_coefficients = self.get_coefficients_fn(order, lambda_s0, lambda_t, lambda_list, tau)
@@ -851,17 +877,17 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
                 # )
                 temp_sigma = self.sigmas[self.step_index - 1]
                 temp_alpha_s, temp_sigma_s = self._sigma_to_alpha_sigma_t(temp_sigma)
-                temp_lambda_s = ops.log(temp_alpha_s) - ops.log(temp_sigma_s)
+                temp_lambda_s = mint.log(temp_alpha_s) - mint.log(temp_sigma_s)
                 gradient_coefficients[0] += (
                     1.0
-                    * ops.exp((1 + tau**2) * lambda_t)
-                    * (h**2 / 2 - (h * (1 + tau**2) - 1 + ops.exp((1 + tau**2) * (-h))) / ((1 + tau**2) ** 2))
+                    * mint.exp((1 + tau**2) * lambda_t)
+                    * (h**2 / 2 - (h * (1 + tau**2) - 1 + mint.exp((1 + tau**2) * (-h))) / ((1 + tau**2) ** 2))
                     / (lambda_s0 - temp_lambda_s)
                 )
                 gradient_coefficients[1] -= (
                     1.0
-                    * ops.exp((1 + tau**2) * lambda_t)
-                    * (h**2 / 2 - (h * (1 + tau**2) - 1 + ops.exp((1 + tau**2) * (-h))) / ((1 + tau**2) ** 2))
+                    * mint.exp((1 + tau**2) * lambda_t)
+                    * (h**2 / 2 - (h * (1 + tau**2) - 1 + mint.exp((1 + tau**2) * (-h))) / ((1 + tau**2) ** 2))
                     / (lambda_s0 - temp_lambda_s)
                 )
 
@@ -870,7 +896,7 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
                 gradient_part += (
                     (1 + tau**2)
                     * sigma_t
-                    * ops.exp(-(tau**2) * lambda_t)
+                    * mint.exp(-(tau**2) * lambda_t)
                     * gradient_coefficients[i]
                     * model_output_list[-(i + 1)]
                 )
@@ -878,12 +904,12 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
                 gradient_part += -(1 + tau**2) * alpha_t * gradient_coefficients[i] * model_output_list[-(i + 1)]
 
         if self.predict_x0:
-            noise_part = sigma_t * ops.sqrt(1 - ops.exp(-2 * tau**2 * h)) * noise
+            noise_part = sigma_t * mint.sqrt(1 - mint.exp(-2 * tau**2 * h)) * noise
         else:
-            noise_part = tau * sigma_t * ops.sqrt(ops.exp(2 * h) - 1) * noise
+            noise_part = tau * sigma_t * mint.sqrt(mint.exp(2 * h) - 1) * noise
 
         if self.predict_x0:
-            x_t = ops.exp(-(tau**2) * h) * (sigma_t / sigma_s0) * x + gradient_part + noise_part
+            x_t = mint.exp(-(tau**2) * h) * (sigma_t / sigma_s0) * x + gradient_part + noise_part
         else:
             x_t = (alpha_t / alpha_s0) * x + gradient_part + noise_part
 
@@ -926,27 +952,27 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 1:
                 last_sample = args[1]
             else:
-                raise ValueError(" missing`last_sample` as a required keyward argument")
+                raise ValueError("missing `last_sample` as a required keyword argument")
         if last_noise is None:
             if len(args) > 2:
                 last_noise = args[2]
             else:
-                raise ValueError(" missing`last_noise` as a required keyward argument")
+                raise ValueError("missing `last_noise` as a required keyword argument")
         if this_sample is None:
             if len(args) > 3:
                 this_sample = args[3]
             else:
-                raise ValueError(" missing`this_sample` as a required keyward argument")
+                raise ValueError("missing `this_sample` as a required keyword argument")
         if order is None:
             if len(args) > 4:
                 order = args[4]
             else:
-                raise ValueError(" missing`order` as a required keyward argument")
+                raise ValueError("missing `order` as a required keyword argument")
         if tau is None:
             if len(args) > 5:
                 tau = args[5]
             else:
-                raise ValueError(" missing`tau` as a required keyward argument")
+                raise ValueError("missing `tau` as a required keyword argument")
         if this_timestep is not None:
             deprecate(
                 "this_timestep",
@@ -962,15 +988,15 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
         alpha_t, sigma_t = self._sigma_to_alpha_sigma_t(sigma_t)
         alpha_s0, sigma_s0 = self._sigma_to_alpha_sigma_t(sigma_s0)
 
-        lambda_t = ops.log(alpha_t) - ops.log(sigma_t)
-        lambda_s0 = ops.log(alpha_s0) - ops.log(sigma_s0)
-        gradient_part = ops.zeros_like(this_sample)
+        lambda_t = mint.log(alpha_t) - mint.log(sigma_t)
+        lambda_s0 = mint.log(alpha_s0) - mint.log(sigma_s0)
+        gradient_part = mint.zeros_like(this_sample)
         h = lambda_t - lambda_s0
         lambda_list = []
         for i in range(order):
             si = self.step_index - i
             alpha_si, sigma_si = self._sigma_to_alpha_sigma_t(self.sigmas[si])
-            lambda_si = ops.log(alpha_si) - ops.log(sigma_si)
+            lambda_si = mint.log(alpha_si) - mint.log(sigma_si)
             lambda_list.append(lambda_si)
 
         model_prev_list = model_output_list + [this_model_output]
@@ -990,13 +1016,13 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
                 # gradient_coefficients[1] -= 1.0 * ops.exp(lambda_t) * (h / 2 - (h - 1 + ops.exp(-h)) / h)
                 gradient_coefficients[0] += (
                     1.0
-                    * ops.exp((1 + tau**2) * lambda_t)
-                    * (h / 2 - (h * (1 + tau**2) - 1 + ops.exp((1 + tau**2) * (-h))) / ((1 + tau**2) ** 2 * h))
+                    * mint.exp((1 + tau**2) * lambda_t)
+                    * (h / 2 - (h * (1 + tau**2) - 1 + mint.exp((1 + tau**2) * (-h))) / ((1 + tau**2) ** 2 * h))
                 )
                 gradient_coefficients[1] -= (
                     1.0
-                    * ops.exp((1 + tau**2) * lambda_t)
-                    * (h / 2 - (h * (1 + tau**2) - 1 + ops.exp((1 + tau**2) * (-h))) / ((1 + tau**2) ** 2 * h))
+                    * mint.exp((1 + tau**2) * lambda_t)
+                    * (h / 2 - (h * (1 + tau**2) - 1 + mint.exp((1 + tau**2) * (-h))) / ((1 + tau**2) ** 2 * h))
                 )
 
         for i in range(order):
@@ -1004,7 +1030,7 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
                 gradient_part += (
                     (1 + tau**2)
                     * sigma_t
-                    * ops.exp(-(tau**2) * lambda_t)
+                    * mint.exp(-(tau**2) * lambda_t)
                     * gradient_coefficients[i]
                     * model_prev_list[-(i + 1)]
                 )
@@ -1012,12 +1038,12 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
                 gradient_part += -(1 + tau**2) * alpha_t * gradient_coefficients[i] * model_prev_list[-(i + 1)]
 
         if self.predict_x0:
-            noise_part = sigma_t * ops.sqrt(1 - ops.exp(-2 * tau**2 * h)) * last_noise
+            noise_part = sigma_t * mint.sqrt(1 - mint.exp(-2 * tau**2 * h)) * last_noise
         else:
-            noise_part = tau * sigma_t * ops.sqrt(ops.exp(2 * h) - 1) * last_noise
+            noise_part = tau * sigma_t * mint.sqrt(mint.exp(2 * h) - 1) * last_noise
 
         if self.predict_x0:
-            x_t = ops.exp(-(tau**2) * h) * (sigma_t / sigma_s0) * x + gradient_part + noise_part
+            x_t = mint.exp(-(tau**2) * h) * (sigma_t / sigma_s0) * x + gradient_part + noise_part
         else:
             x_t = (alpha_t / alpha_s0) * x + gradient_part + noise_part
 
@@ -1190,13 +1216,13 @@ class SASolverScheduler(SchedulerMixin, ConfigMixin):
         sqrt_alpha_prod = sqrt_alpha_prod.flatten()
         # while len(sqrt_alpha_prod.shape) < len(original_samples.shape):
         #     sqrt_alpha_prod = sqrt_alpha_prod.unsqueeze(-1)
-        sqrt_alpha_prod = ops.reshape(sqrt_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sqrt_alpha_prod = mint.reshape(sqrt_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         sqrt_one_minus_alpha_prod = (1 - alphas_cumprod[timesteps]) ** 0.5
         sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.flatten()
         # while len(sqrt_one_minus_alpha_prod.shape) < len(original_samples.shape):
         #     sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
-        sqrt_one_minus_alpha_prod = ops.reshape(
+        sqrt_one_minus_alpha_prod = mint.reshape(
             sqrt_one_minus_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1)
         )
 

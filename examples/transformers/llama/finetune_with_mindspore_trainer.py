@@ -21,7 +21,7 @@ from mindone.transformers.training_args import TrainingArguments
 
 @dataclass
 class MyArguments(MindSporeArguments, TrainingArguments):
-    model_path: str = field(default="meta-llama/Meta-Llama-3-8B")
+    model_path: str = field(default="meta-llama/Llama-3.2-1B")
     dataset_path: str = field(default="Yelp/yelp_review_full")
     output_dir: str = field(default="./outputs")
     enable_flash_attention: bool = field(default=True)

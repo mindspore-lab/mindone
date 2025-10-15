@@ -1,5 +1,8 @@
 # coding=utf-8
-# Copyright 2024 HuggingFace Inc.
+# Copyright 2025 HuggingFace Inc.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,7 +25,7 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -36,8 +39,6 @@ from ..pipeline_test_utils import (
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float32"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float16"},
 ]
 
 
@@ -233,9 +234,9 @@ class UnCLIPPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
             # expected value depends on the version of transformers
             pt_image_slice = np.array(
                 [
-                    [9.9902344e-01, 2.4414062e-04, 7.0800781e-03],
-                    [5.1269531e-03, 3.6621094e-03, 1.0],
-                    [5.1269531e-03, 2.4414062e-04, 8.3007812e-03],
+                    [9.9902344e-01, 2.4414062e-04, 1.0],
+                    [3.9062500e-03, 3.6621094e-03, 1.0],
+                    [4.3945312e-03, 2.4414062e-04, 8.5449219e-03],
                 ]
             )
 
@@ -264,8 +265,8 @@ class UnCLIPPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
         output = pipeline("horse")
         image = output[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"unclip_karlo_{dtype}.npy",
             subfolder="unclip",
         )

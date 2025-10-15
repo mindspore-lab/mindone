@@ -1,8 +1,12 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/flux/pipeline_output.py."""
+
 from dataclasses import dataclass
 from typing import List, Union
 
 import numpy as np
 import PIL.Image
+
+import mindspore as ms
 
 from ...utils import BaseOutput
 
@@ -10,7 +14,23 @@ from ...utils import BaseOutput
 @dataclass
 class FluxPipelineOutput(BaseOutput):
     """
-    Output class for Stable Diffusion pipelines.
+    Output class for Flux image generation pipelines.
+
+    Args:
+        images (`List[PIL.Image.Image]` or `ms.Tensor` or `np.ndarray`)
+            List of denoised PIL images of length `batch_size` or numpy array or mindspore tensor of shape `(batch_size,
+            height, width, num_channels)`. PIL images or numpy array present the denoised images of the diffusion
+            pipeline. Mindspore tensors can represent either the denoised images or the intermediate latents ready to be
+            passed to the decoder.
+    """
+
+    images: Union[List[PIL.Image.Image], np.ndarray]
+
+
+@dataclass
+class FluxPriorReduxPipelineOutput(BaseOutput):
+    """
+    Output class for Flux Prior Redux pipelines.
 
     Args:
         images (`List[PIL.Image.Image]` or `np.ndarray`)
@@ -18,4 +38,5 @@ class FluxPipelineOutput(BaseOutput):
             num_channels)`. PIL images or numpy array present the denoised images of the diffusion pipeline.
     """
 
-    images: Union[List[PIL.Image.Image], np.ndarray]
+    prompt_embeds: ms.Tensor
+    pooled_prompt_embeds: ms.Tensor

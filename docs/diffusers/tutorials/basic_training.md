@@ -1,4 +1,4 @@
-<!--Copyright 2024 The HuggingFace Team. All rights reserved.
+<!--Copyright 2025 The HuggingFace Team. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may obtain a copy of the License at
@@ -39,7 +39,7 @@ notebook_login()
 Or login in from the terminal:
 
 ```bash
-huggingface-cli login
+hf auth login
 ```
 
 Since the model checkpoints are quite large, install [Git-LFS](https://git-lfs.com/) to version these large files:
@@ -254,7 +254,7 @@ lr_scheduler = get_cosine_schedule_with_warmup(
 optimizer = nn.AdamWeightDecay(model.trainable_params(), learning_rate=lr_scheduler)
 ```
 
-Then, you'll need a way to evaluate the model. For evaluation, you can use the [`DDPMPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/models/unet2d/#mindone.diffusers.DDPMPipeline) to generate a batch of sample images and save it as a grid:
+Then, you'll need a way to evaluate the model. For evaluation, you can use the [`DDPMPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/ddpm/#mindone.diffusers.DDPMPipeline) to generate a batch of sample images and save it as a grid:
 
 ```python
 import numpy as np

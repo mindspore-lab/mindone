@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Inc. team. All rights reserved.
+# Copyright 2025 The HuggingFace Inc. team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,10 +16,13 @@
 # limitations under the License.
 
 from .constants import (
+    CKPT_FILE_EXTENSION,
     CONFIG_NAME,
+    DEFAULT_HF_PARALLEL_LOADING_WORKERS,
     DEPRECATED_REVISION_ARGS,
     DIFFUSERS_DYNAMIC_MODULE_NAME,
     FLAX_WEIGHTS_NAME,
+    HF_ENABLE_PARALLEL_LOADING,
     HF_MODULES_CACHE,
     HUGGINGFACE_CO_RESOLVE_ENDPOINT,
     ONNX_EXTERNAL_WEIGHTS_NAME,
@@ -43,7 +49,9 @@ from .import_utils import (
     _LazyModule,
     is_bs4_available,
     is_ftfy_available,
+    is_hf_hub_version,
     is_invisible_watermark_available,
+    is_kernels_available,
     is_matplotlib_available,
     is_mindspore_version,
     is_opencv_available,
@@ -53,7 +61,7 @@ from .import_utils import (
     is_transformers_available,
     maybe_import_module_in_mindone,
 )
-from .loading_utils import get_module_from_name, load_image, load_video
+from .loading_utils import get_module_from_name, get_submodule_by_name, load_image, load_video
 from .logging import get_logger
 from .mindspore_utils import pynative_context
 from .outputs import BaseOutput
@@ -68,9 +76,14 @@ from .peft_utils import (
     unscale_lora_layers,
 )
 from .pil_utils import PIL_INTERPOLATION, make_image_grid, ms_to_pil, numpy_to_pil
+from .remote_utils import remote_decode
 from .state_dict_utils import (
     convert_all_state_dict_to_peft,
     convert_state_dict_to_diffusers,
     convert_state_dict_to_peft,
     convert_unet_state_dict_to_peft,
+    state_dict_all_zero,
 )
+from .typing_utils import _get_detailed_type, _is_valid_type
+
+logger = get_logger(__name__)

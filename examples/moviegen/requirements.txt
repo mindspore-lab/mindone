@@ -1,1 +1,9 @@
-jsonargparse[signatures,omegaconf,urls]>=4.33.0
+jsonargparse[signatures,omegaconf,urls]~=4.35.0
+opencv-contrib-python-headless
+mindcv
+pandas
+matplotlib
+imageio
+av
+transformers
+plotly[express]

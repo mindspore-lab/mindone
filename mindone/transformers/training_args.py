@@ -1,3 +1,20 @@
+# Copyright 2020 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import json
 import math
 import os
@@ -13,7 +30,6 @@ from transformers.utils.generic import ExplicitEnum, cached_property
 import mindspore as ms
 from mindspore.communication.management import get_group_size, get_rank
 
-from .debug_utils import DebugOption
 from .mindspore_adapter.utils import _is_parallel
 
 logger = logging.get_logger(__name__)
@@ -47,6 +63,7 @@ class OptimizerNames(ExplicitEnum):
     RMSPROP = "rmsprop"
     LOMO = "lomo"
     ADALOMO = "adalomo"
+    BF16ADAMW = "bf16_adamw"
 
 
 # Sometimes users will pass in a `str` repr of a dict in the CLI
@@ -728,8 +745,8 @@ class TrainingArguments:
             "choices": ["nccl", "gloo", "mpi", "ccl", "hccl", "cncl"],
         },
     )
-    debug: Union[str, List[DebugOption]] = field(
-        default="",
+    debug: Optional[str] = field(
+        default=None,
         metadata={
             "help": (
                 "Whether or not to enable debug mode. Current options: "
@@ -811,7 +828,15 @@ class TrainingArguments:
             )
         },
     )
-
+    deepspeed: Optional[Union[dict, str]] = field(
+        default=None,
+        metadata={
+            "help": (
+                "Enable deepspeed and pass the path to deepspeed json config file (e.g. `ds_config.json`) or an already"
+                " loaded json file as a dict"
+            )
+        },
+    )
     label_smoothing_factor: float = field(
         default=0.0, metadata={"help": "The label smoothing epsilon to apply (zero means no label smoothing)."}
     )
@@ -1046,6 +1071,8 @@ class TrainingArguments:
         # see https://github.com/huggingface/transformers/issues/10628
         if self.output_dir is not None:
             self.output_dir = os.path.expanduser(self.output_dir)
+            if self.deepspeed:
+                self.output_dir = os.path.join(self.output_dir, f"rank_{self.local_process_index}")
         if self.logging_dir is None and self.output_dir is not None:
             self.logging_dir = os.path.join(self.output_dir, default_logdir())
         if self.logging_dir is not None:
@@ -1221,10 +1248,8 @@ class TrainingArguments:
         if not isinstance(self.warmup_steps, int) or self.warmup_steps < 0 or 0 < self.warmup_steps <= 1:
             raise ValueError("warmup_steps must be either 0 or > 1")
 
-        if isinstance(self.debug, str):
-            self.debug = [DebugOption(s) for s in self.debug.split()]
-        elif self.debug is None:
-            self.debug = []
+        if self.debug is not None:
+            raise NotImplementedError
 
         if self.push_to_hub_token is not None:
             raise NotImplementedError
@@ -1350,6 +1375,10 @@ class TrainingArguments:
         """
         Whether or not the current process should write to disk, e.g., to save models and checkpoints.
         """
+        # for ZeRO3, save shard for each rank
+        if self.deepspeed:
+            return True
+
         if self.save_on_each_node:
             return self.local_process_index == 0
         else:

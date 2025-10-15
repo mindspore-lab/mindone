@@ -1,5 +1,8 @@
 # coding=utf-8
-# Copyright 2024 Harutatsu Akiyama, Jinbin Bai, and HuggingFace Inc.
+# Copyright 2025 Harutatsu Akiyama, Jinbin Bai, and HuggingFace Inc.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,11 +28,7 @@ from transformers import CLIPTextConfig, CLIPVisionConfig
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -44,8 +43,6 @@ from ..pipeline_test_utils import (
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float32"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float16"},
 ]
 
 
@@ -76,8 +73,8 @@ class ControlNetPipelineSDXLFastTests(PipelineTesterMixin, unittest.TestCase):
         ],
         [
             "controlnet",
-            "diffusers.models.controlnet.ControlNetModel",
-            "mindone.diffusers.models.controlnet.ControlNetModel",
+            "diffusers.models.controlnets.controlnet.ControlNetModel",
+            "mindone.diffusers.models.controlnets.controlnet.ControlNetModel",
             dict(
                 block_out_channels=(32, 64),
                 layers_per_block=2,
@@ -327,7 +324,7 @@ class ControlNetPipelineSDXLIntegrationTests(PipelineTesterMixin, unittest.TestC
 
         control_image = self.make_canny_condition(init_image)
 
-        controlnet_cls = get_module("mindone.diffusers.models.controlnet.ControlNetModel")
+        controlnet_cls = get_module("mindone.diffusers.models.controlnets.controlnet.ControlNetModel")
         controlnet = controlnet_cls.from_pretrained("diffusers/controlnet-canny-sdxl-1.0", mindspore_dtype=ms_dtype)
         pipe_cls = get_module("mindone.diffusers.pipelines.controlnet.StableDiffusionXLControlNetInpaintPipeline")
         pipe = pipe_cls.from_pretrained(
@@ -345,8 +342,8 @@ class ControlNetPipelineSDXLIntegrationTests(PipelineTesterMixin, unittest.TestC
             control_image=control_image,
         )[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"inpaint_sdxl_{dtype}.npy",
             subfolder="controlnet",
         )

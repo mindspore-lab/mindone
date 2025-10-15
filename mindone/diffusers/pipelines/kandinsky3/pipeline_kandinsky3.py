@@ -1,10 +1,12 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/kandinsky3/pipeline_kandinsky3.py."""
+
 from typing import Callable, Dict, List, Optional, Union
 
 import numpy as np
 from transformers import T5Tokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import T5EncoderModel
 
@@ -15,7 +17,10 @@ from ...utils import deprecate, logging
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -70,8 +75,8 @@ class Kandinsky3Pipeline(DiffusionPipeline, LoraLoaderMixin):
 
     def process_embeds(self, embeddings, attention_mask, cut_context):
         if cut_context:
-            embeddings[attention_mask == 0] = ops.zeros_like(embeddings[attention_mask == 0])
-            max_seq_length = attention_mask.sum(axis=-1).max() + 1
+            embeddings[attention_mask == 0] = mint.zeros_like(embeddings[attention_mask == 0])
+            max_seq_length = attention_mask.sum(dim=-1).max() + 1
             embeddings = embeddings[:, :max_seq_length]
             attention_mask = attention_mask[:, :max_seq_length]
         return embeddings, attention_mask
@@ -198,8 +203,8 @@ class Kandinsky3Pipeline(DiffusionPipeline, LoraLoaderMixin):
                 negative_prompt_embeds = negative_prompt_embeds * negative_attention_mask.unsqueeze(2)
 
             else:
-                negative_prompt_embeds = ops.zeros_like(prompt_embeds)
-                negative_attention_mask = ops.zeros_like(attention_mask)
+                negative_prompt_embeds = mint.zeros_like(prompt_embeds)
+                negative_attention_mask = mint.zeros_like(attention_mask)
 
         if do_classifier_free_guidance:
             # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
@@ -347,11 +352,11 @@ class Kandinsky3Pipeline(DiffusionPipeline, LoraLoaderMixin):
                 Custom timesteps to use for the denoising process. If not defined, equal spaced `num_inference_steps`
                 timesteps are used. Must be in descending order.
             guidance_scale (`float`, *optional*, defaults to 3.0):
-                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).
-                `guidance_scale` is defined as `w` of equation 2. of [Imagen
-                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale >
-                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,
-                usually at the expense of lower image quality.
+                Guidance scale as defined in [Classifier-Free Diffusion
+                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.
+                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting
+                `guidance_scale > 1`. Higher guidance scale encourages to generate images that are closely linked to
+                the text `prompt`, usually at the expense of lower image quality.
             negative_prompt (`str` or `List[str]`, *optional*):
                 The prompt or prompts not to guide the image generation. If not defined, one has to pass
                 `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is
@@ -363,8 +368,8 @@ class Kandinsky3Pipeline(DiffusionPipeline, LoraLoaderMixin):
             width (`int`, *optional*, defaults to self.unet.config.sample_size):
                 The width in pixels of the generated image.
             eta (`float`, *optional*, defaults to 0.0):
-                Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to
-                [`schedulers.DDIMScheduler`], will be ignored for others.
+                Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only
+                applies to [`schedulers.DDIMScheduler`], will be ignored for others.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
                 One or a list of [np.random.Generator(s)](https://numpy.org/doc/stable/reference/random/generator.html)
                 to make generation deterministic.
@@ -467,8 +472,8 @@ class Kandinsky3Pipeline(DiffusionPipeline, LoraLoaderMixin):
         )
 
         if self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
-            attention_mask = ops.cat([negative_attention_mask, attention_mask])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
+            attention_mask = mint.cat([negative_attention_mask, attention_mask])
         # 4. Prepare timesteps
         self.scheduler.set_timesteps(num_inference_steps)
         timesteps = self.scheduler.timesteps
@@ -489,7 +494,7 @@ class Kandinsky3Pipeline(DiffusionPipeline, LoraLoaderMixin):
         self._num_timesteps = len(timesteps)
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
-                latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
 
                 # predict the noise residual
                 noise_pred = self.unet(

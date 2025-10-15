@@ -24,7 +24,7 @@ from mg.models.tae import TemporalAutoencoder
 from mg.pipelines import InferPipeline
 from mg.utils import init_model, to_numpy
 
-from mindone.utils import init_train_env, set_logger
+from mindone.utils import init_env, set_logger
 from mindone.visualize import save_videos
 
 logger = logging.getLogger(__name__)
@@ -63,7 +63,7 @@ def load_embeddings(selected_prompts: List[str], args) -> Tuple[ms.Tensor, ms.Te
     byt5_emb = byt5_emb.unsqueeze(0)
 
     # Create placeholder metaclip embedding matching batch size
-    metaclip_emb = ms.Tensor(np.ones((ul2_emb.shape[0], 300, 1280)), dtype=ms.float32)
+    metaclip_emb = ms.Tensor(np.ones((ul2_emb.shape[0], 256, 1280)), dtype=ms.float32)
     return ul2_emb, metaclip_emb, byt5_emb
 
 
@@ -191,7 +191,7 @@ if __name__ == "__main__":
     )
 
     # Add all necessary arguments
-    parser.add_function_arguments(init_train_env, "env")
+    parser.add_function_arguments(init_env, "env")
     parser.add_function_arguments(init_model, "model", skip={"in_channels"})
 
     # TAE parameters

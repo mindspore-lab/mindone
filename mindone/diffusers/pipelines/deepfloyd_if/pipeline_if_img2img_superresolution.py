@@ -1,3 +1,8 @@
+"""
+Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/
+pipelines/deepfloyd_if/pipeline_if_img2img_superresolution.py.
+"""
+
 import html
 import inspect
 import re
@@ -9,10 +14,12 @@ import PIL.Image
 from transformers import CLIPImageProcessor, T5Tokenizer
 
 import mindspore as ms
-from mindspore import ops
+import mindspore.mint.nn.functional as F
+from mindspore import mint
 
-from ....transformers import T5EncoderModel
-from ...loaders import LoraLoaderMixin
+from mindone.transformers import T5EncoderModel
+
+from ...loaders import StableDiffusionLoraLoaderMixin
 from ...models import UNet2DConditionModel
 from ...schedulers import DDPMScheduler
 from ...utils import (
@@ -36,6 +43,8 @@ if is_bs4_available():
 if is_ftfy_available():
     import ftfy
 
+
+XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -75,7 +84,7 @@ EXAMPLE_DOC_STRING = """
 
         >>> pipe = IFImg2ImgPipeline.from_pretrained(
         ...     "DeepFloyd/IF-I-XL-v1.0",
-        ...     use_safetensors=True,
+        ...     variant="fp16",
         ...     mindspore_dtype=mindspore.float16,
         ... )
 
@@ -96,7 +105,7 @@ EXAMPLE_DOC_STRING = """
         >>> super_res_1_pipe = IFImg2ImgSuperResolutionPipeline.from_pretrained(
         ...     "DeepFloyd/IF-II-L-v1.0",
         ...     text_encoder=None,
-        ...     use_safetensors=True,
+        ...     variant="fp16",
         ...     mindspore_dtype=mindspore.float16,
         ... )
 
@@ -111,7 +120,7 @@ EXAMPLE_DOC_STRING = """
 """
 
 
-class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
+class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, StableDiffusionLoraLoaderMixin):
     tokenizer: T5Tokenizer
     text_encoder: T5EncoderModel
 
@@ -142,6 +151,7 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
 
     _optional_components = ["tokenizer", "text_encoder", "safety_checker", "feature_extractor"]
     model_cpu_offload_seq = "text_encoder->unet"
+    _exclude_from_cpu_offload = ["watermarker"]
 
     def __init__(
         self,
@@ -173,7 +183,7 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
                 " checker. If you do not want to use the safety checker, you can pass `'safety_checker=None'` instead."
             )
 
-        if unet.config.in_channels != 6:
+        if unet is not None and unet.config.in_channels != 6:
             logger.warning(
                 f"It seems like you have loaded a checkpoint that shall not be used for super resolution from {unet.config._name_or_path} as it accepts {unet.config.in_channels} input channels instead of 6. Please make sure to pass a super resolution checkpoint as the `'unet'`: IFSuperResolutionPipeline.from_pretrained(unet=super_resolution_unet, ...)`."  # noqa E501
             )
@@ -270,7 +280,7 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
         # &amp
         caption = re.sub(r"&amp", "", caption)
 
-        # ip adresses:
+        # ip addresses:
         caption = re.sub(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", " ", caption)
 
         # article ids:
@@ -404,7 +414,7 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
                     f" {max_length} tokens: {removed_text}"
                 )
 
-            attention_mask = ms.Tensor.from_numpy(text_inputs.attention_mask)
+            attention_mask = ms.tensor(text_inputs.attention_mask)
 
             prompt_embeds = self.text_encoder(
                 ms.tensor(text_input_ids),
@@ -453,10 +463,10 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
                 add_special_tokens=True,
                 return_tensors="np",
             )
-            attention_mask = ms.Tensor.from_numpy(uncond_input.attention_mask)
+            attention_mask = ms.tensor(uncond_input.attention_mask)
 
             negative_prompt_embeds = self.text_encoder(
-                ms.Tensor.from_numpy(uncond_input.input_ids),
+                ms.tensor(uncond_input.input_ids),
                 attention_mask=attention_mask,
             )
             negative_prompt_embeds = negative_prompt_embeds[0]
@@ -481,16 +491,11 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
     # Copied from diffusers.pipelines.deepfloyd_if.pipeline_if.IFPipeline.run_safety_checker
     def run_safety_checker(self, image, dtype):
         if self.safety_checker is not None:
-            safety_checker_input = self.feature_extractor(self.numpy_to_pil(image.numpy()), return_tensors="np")
+            safety_checker_input = self.feature_extractor(self.numpy_to_pil(image), return_tensors="np")
             image, nsfw_detected, watermark_detected = self.safety_checker(
                 images=image,
-                clip_input=ms.Tensor.from_numpy(safety_checker_input.pixel_values).to(dtype=dtype),
+                clip_input=ms.tensor(safety_checker_input.pixel_values).to(dtype=dtype),
             )
-            if ops.any(ops.cat([nsfw_detected[..., None].int(), watermark_detected[..., None].int()], axis=1), axis=1):
-                logger.warning(
-                    "Potential NSFW or watermarked content was detected in one or more images. A black image will be returned instead."
-                    " Try again with a different prompt and/or seed."
-                )
         else:
             nsfw_detected = None
             watermark_detected = None
@@ -501,7 +506,7 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
     def prepare_extra_step_kwargs(self, generator, eta):
         # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
         # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
-        # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
+        # eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502
         # and should be between [0, 1]
 
         accepts_eta = "eta" in set(inspect.signature(self.scheduler.step).parameters.keys())
@@ -633,7 +638,7 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
             if images.ndim == 3:
                 images = images[..., None]
 
-            images = ms.Tensor.from_numpy(images.transpose(0, 3, 1, 2))
+            images = ms.tensor(images.transpose(0, 3, 1, 2))
             return images
 
         if isinstance(image[0], PIL.Image.Image):
@@ -657,12 +662,12 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
             image = numpy_to_ms(image)
 
         elif isinstance(image[0], ms.Tensor):
-            image = ops.cat(image, axis=0) if image[0].ndim == 4 else ops.stack(image, axis=0)
+            image = mint.cat(image, dim=0) if image[0].ndim == 4 else mint.stack(image, dim=0)
 
         return image
 
     # Copied from diffusers.pipelines.deepfloyd_if.pipeline_if_superresolution.IFSuperResolutionPipeline.preprocess_image
-    def preprocess_image(self, image, num_images_per_prompt):
+    def preprocess_image(self, image: PIL.Image.Image, num_images_per_prompt):
         if not isinstance(image, ms.Tensor) and not isinstance(image, list):
             image = [image]
 
@@ -670,20 +675,20 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
             image = [np.array(i).astype(np.float32) / 127.5 - 1.0 for i in image]
 
             image = np.stack(image, axis=0)  # to np
-            image = ms.Tensor.from_numpy(image.transpose(0, 3, 1, 2))
+            image = ms.tensor(image.transpose(0, 3, 1, 2))
         elif isinstance(image[0], np.ndarray):
             image = np.stack(image, axis=0)  # to np
             if image.ndim == 5:
                 image = image[0]
 
-            image = ms.Tensor.from_numpy(image.transpose(0, 3, 1, 2))
+            image = ms.tensor(image.transpose(0, 3, 1, 2))
         elif isinstance(image, list) and isinstance(image[0], ms.Tensor):
             dims = image[0].ndim
 
             if dims == 3:
-                image = ops.stack(image, axis=0)
+                image = mint.stack(image, dim=0)
             elif dims == 4:
-                image = ops.concat(image, axis=0)
+                image = mint.concat(image, dim=0)
             else:
                 raise ValueError(f"Image must have 3 or 4 dimensions, instead got {dims}")
 
@@ -776,11 +781,11 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
                 Custom timesteps to use for the denoising process. If not defined, equal spaced `num_inference_steps`
                 timesteps are used. Must be in descending order.
             guidance_scale (`float`, *optional*, defaults to 4.0):
-                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).
-                `guidance_scale` is defined as `w` of equation 2. of [Imagen
-                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale >
-                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,
-                usually at the expense of lower image quality.
+                Guidance scale as defined in [Classifier-Free Diffusion
+                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.
+                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting
+                `guidance_scale > 1`. Higher guidance scale encourages to generate images that are closely linked to
+                the text `prompt`, usually at the expense of lower image quality.
             negative_prompt (`str` or `List[str]`, *optional*):
                 The prompt or prompts not to guide the image generation. If not defined, one has to pass
                 `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is
@@ -788,8 +793,8 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
             num_images_per_prompt (`int`, *optional*, defaults to 1):
                 The number of images to generate per prompt.
             eta (`float`, *optional*, defaults to 0.0):
-                Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to
-                [`schedulers.DDIMScheduler`], will be ignored for others.
+                Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only
+                applies to [`schedulers.DDIMScheduler`], will be ignored for others.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
                 One or a list of [torch generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)
                 to make generation deterministic.
@@ -853,7 +858,7 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
         # 2. Define call parameters
 
         # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-        # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
+        # of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`
         # corresponds to doing no classifier free guidance.
         do_classifier_free_guidance = guidance_scale > 1.0
 
@@ -869,7 +874,7 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
         )
 
         if do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
 
         dtype = prompt_embeds.dtype
 
@@ -906,14 +911,14 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
 
         image = self.preprocess_image(image, num_images_per_prompt)
 
-        upscaled = ops.interpolate(image, (height, width), mode="bilinear", align_corners=True)
+        upscaled = F.interpolate(image, (height, width), mode="bilinear", align_corners=True)
 
-        noise_level = ms.Tensor([noise_level] * upscaled.shape[0])
+        noise_level = ms.tensor([noise_level] * upscaled.shape[0])
         noise = randn_tensor(upscaled.shape, generator=generator, dtype=upscaled.dtype)
         upscaled = self.image_noising_scheduler.add_noise(upscaled, noise, timesteps=noise_level)
 
         if do_classifier_free_guidance:
-            noise_level = ops.cat([noise_level] * 2)
+            noise_level = mint.cat([noise_level] * 2)
 
         # 8. Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
@@ -929,14 +934,10 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
-                model_input = ops.cat([intermediate_images, upscaled], axis=1)
+                model_input = mint.cat([intermediate_images, upscaled], dim=1)
 
-                model_input = ops.cat([model_input] * 2) if do_classifier_free_guidance else model_input
-                # TODO: method of scheduler should not change the dtype of input.
-                #  Remove the casting after cuiyushi confirm that.
-                tmp_dtype = model_input.dtype
+                model_input = mint.cat([model_input] * 2) if do_classifier_free_guidance else model_input
                 model_input = self.scheduler.scale_model_input(model_input, t)
-                model_input = model_input.to(tmp_dtype)
 
                 # predict the noise residual
                 noise_pred = self.unet(
@@ -951,22 +952,18 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
                 # perform guidance
                 if do_classifier_free_guidance:
                     noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-                    noise_pred_uncond, _ = noise_pred_uncond.split(model_input.shape[1] // 2, axis=1)
-                    noise_pred_text, predicted_variance = noise_pred_text.split(model_input.shape[1] // 2, axis=1)
+                    noise_pred_uncond, _ = noise_pred_uncond.split(model_input.shape[1] // 2, dim=1)
+                    noise_pred_text, predicted_variance = noise_pred_text.split(model_input.shape[1] // 2, dim=1)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
-                    noise_pred = ops.cat([noise_pred, predicted_variance], axis=1)
+                    noise_pred = mint.cat([noise_pred, predicted_variance], dim=1)
 
                 if self.scheduler.config.variance_type not in ["learned", "learned_range"]:
-                    noise_pred, _ = noise_pred.split(intermediate_images.shape[1], axis=1)
+                    noise_pred, _ = noise_pred.split(intermediate_images.shape[1], dim=1)
 
                 # compute the previous noisy sample x_t -> x_t-1
-                # TODO: method of scheduler should not change the dtype of input.
-                #  Remove the casting after cuiyushi confirm that.
-                tmp_dtype = intermediate_images.dtype
                 intermediate_images = self.scheduler.step(
                     noise_pred, t, intermediate_images, **extra_step_kwargs, return_dict=False
                 )[0]
-                intermediate_images = intermediate_images.to(tmp_dtype)
 
                 # call the callback, if provided
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
@@ -977,19 +974,20 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
         if lora_scale is not None:
             # remove `lora_scale` from each PEFT layer
             unscale_lora_layers(self.unet, lora_scale)
+            cross_attention_kwargs["scale"] = lora_scale
 
         image = intermediate_images
 
         if output_type == "pil":
             # 10. Post-processing
             image = (image / 2 + 0.5).clamp(0, 1)
-            image = image.permute(0, 2, 3, 1).float()
+            image = image.permute(0, 2, 3, 1).float().numpy()
 
             # 11. Run safety checker
             image, nsfw_detected, watermark_detected = self.run_safety_checker(image, prompt_embeds.dtype)
 
             # 12. Convert to PIL
-            image = self.numpy_to_pil(image.numpy())
+            image = self.numpy_to_pil(image)
 
             # 13. Apply watermark
             if self.watermarker is not None:
@@ -997,14 +995,14 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
         elif output_type == "ms":
             nsfw_detected = None
             watermark_detected = None
+
         else:
             # 10. Post-processing
             image = (image / 2 + 0.5).clamp(0, 1)
-            image = image.permute(0, 2, 3, 1).float()
+            image = image.permute(0, 2, 3, 1).float().numpy()
 
             # 11. Run safety checker
             image, nsfw_detected, watermark_detected = self.run_safety_checker(image, prompt_embeds.dtype)
-            image = image.numpy()
 
         if not return_dict:
             return (image, nsfw_detected, watermark_detected)

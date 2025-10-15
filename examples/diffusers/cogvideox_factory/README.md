@@ -2,7 +2,7 @@
 
 在 Ascend 硬件下对 Cog 系列视频模型进行微调以实现自定义视频生成 ⚡️📼
 
-> 我们的开发和验证基于Ascend 910*硬件，相关环境如下：
+> 我们的开发和验证基于Ascend Atlas 800T A2硬件，相关环境如下：
 > | mindspore  | ascend driver  |  firmware   | cann toolkit/kernel |
 > |:----------:|:--------------:|:-----------:|:------------------:|
 > |    2.5     |    24.1.RC2    | 7.5.0.1.129 |      8.0.0.beta1       |
@@ -60,10 +60,16 @@ huggingface-cli download   --repo-type dataset Wild-Heart/Disney-VideoGeneration
 
 ```
 # 对 CogVideoX 模型进行文本到视频的 LoRA 微调
-./train_text_to_video_lora.sh
+./scripts/train_text_to_video_lora.sh
 
 # 对 CogVideoX 模型进行文本到视频的完整微调
-./train_text_to_video_sft.sh
+./scripts/train_text_to_video_sft.sh
+
+# 对 CogVideoX 模型进行图像到视频的 LoRA 微调
+./scripts/train_image_to_video_lora.sh
+
+# 对 CogVideoX 模型进行图像到视频的完整微调
+./scripts/train_image_to_video_sft.sh
 ```
 
 假设您的 LoRA 已保存到本地，并且路径为 `/path/to/my-awesome-lora`，现在我们可以使用微调模型进行推理：
@@ -87,7 +93,9 @@ export_to_video(video, "output.mp4", fps=8)
 
 ## 推理
 
-我们提供了脚本[`run_infer.sh`](./run_infer.sh)用以执行单卡、多卡并行推理。
+我们提供了脚本[`run_infer_text_to_video.sh`](./run_infer_text_to_video.sh)和[`run_infer_image_to_video.sh`](./run_infer_image_to_video.sh)用以执行单卡、多卡并行推理。
+
+以`run_infer_text_to_video.sh`为例，
 
 - 执行卡数及并行配置。注意当`SP=True`时，`MAX_SEQUENCE_LENGTH`必须是`SP_SIZE`的倍数，`SP_SIZE`不能是1：
 
@@ -123,11 +131,11 @@ MAX_SEQUENCE_LENGTH=224
 > H, W, F配置最好和训练保持一致；
 > 开SP时，MAX_SEQUENCE_LENGTH必须是SP的倍数。
 
-然后正式运行`run_infer.sh`，输出结果至`OUTPUT_DIR`。
+然后正式运行`run_infer_text_to_video.sh`，输出结果至`OUTPUT_DIR`。
 
 ## 训练
 
-在开始训练之前，请你检查是否按照[数据集规范](./assets/dataset_zh.md)准备好了数据集。 我们提供了适用于文本到视频 (text-to-video) 生成的训练脚本，兼容 [CogVideoX 模型家族](https://huggingface.co/collections/THUDM/cogvideo-66c08e62f1685a3ade464cce)。正式训练可以通过 `train*.sh` 脚本启动，具体取决于你想要训练的任务。让我们以文本到视频的 SFT 微调为例。
+在开始训练之前，请你检查是否按照[数据集规范](./assets/dataset_zh.md)准备好了数据集。 我们提供了适用于文本到视频 (text-to-video) 生成和图像到视频 (image-to-video) 生成的训练脚本，兼容 [CogVideoX 模型家族](https://huggingface.co/collections/THUDM/cogvideo-66c08e62f1685a3ade464cce)。正式训练可以通过 `train*.sh` 脚本启动，具体取决于你想要训练的任务。让我们以文本到视频的 SFT 微调为例。
 
 > [!TIP]
 > 由于模型的特点：文本编码器及视频编码器只需要推理且文本编码器参数量较大，对于固定shape的训练我们推荐分阶段的训练流程，即先进行[预处理数据](#预处理数据)缓存数据，然后读取缓存通过`train*.sh`进行正式训练。
@@ -157,6 +165,12 @@ NUM_NPUS=8
 ```shell
 VAE_CACHE=1
 EMBEDDINGS_CACHE=1
+```
+
+- 当执行图像到视频的生成训练时，当`VAE_CACHE=1`时需要配置额外缓存图片数据
+
+```shell
+SAVE_IMAGE_LATENTS=1
 ```
 
 - 配置待处理数据集读取配置和输出路径, `CAPTION_COLUMN`，`VIDEO_COLUMN`需要是`DATA_ROOT`实际prompt和video的文件路径，具体要求见[数据集规范](./assets/dataset_zh.md)：
@@ -342,8 +356,38 @@ NODE_RANK="0"
   done
   ```
 
-要了解不同参数的含义，你可以查看 [args](./scripts/args.py) 文件，或者使用 `--help` 运行训练脚本。
+> [!TIP]
+> 如果想修改transformer的模型结构，可以设置`--transformer_config`。比如修改成30B的模型，可以设置`--transformer_config=configs/cogvideox1.5_30B.yaml`；
+> 当配置了`transformer_config`，可以配置`--transformer_ckpt_path`加载checkpoint权重。
 
+要了解更多参数的含义，你可以查看 [args](./scripts/args.py) 文件，或者使用 `--help` 运行训练脚本。
+
+## 性能数据
+
+### 训练
+
+|       model       | cards | DP | SP | zero  | vae cache | video shape | precision | jit level | s/step | memory usage |
+|:-----------------:|:-----:|:--:|:--:|:-----:|:---------:|:-----------:|:---------:|:---------:|:------:|:------------:|
+| CogvideoX 1.5 T2V 5B  |   8   | 8  | 1  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     | 39.23  |   35.6 GB    |
+| CogvideoX 1.5 T2V 5B  |   8   | 4  | 2  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  20.9  |   19.9 GB    |
+| CogvideoX 1.5 T2V 5B  |   8   | 2  | 4  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  10.1  |   14.6 GB    |
+| CogvideoX 1.5 T2V 5B  |   8   | 1  | 8  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  5.16  |    8.2 GB    |
+| CogvideoX 1.5 T2V 5B  |  16   | 2  | 8  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  5.24  |    6.3 GB    |
+| CogvideoX 1.5 T2V 5B  |   8   | 8  | 1  | zero3 |    OFF    | 1x77x768x1360 |   bf16    |    O1     |   49   |    40 GB     |
+| CogvideoX 1.5 T2V 5B  |   8   | 1  | 8  | zero3 |    OFF    | 1x77x768x1360 |   bf16    |    O1     | 10.58  |    9.3 GB    |
+| CogvideoX 1.5 T2V 10B |   8   | 2  | 4  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  15.2  |   25.6 GB    |
+| CogvideoX 1.5 T2V 20B |   8   | 2  | 4  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  20.1  |   35.7 GB    |
+| CogvideoX 1.5 T2V 30B |   8   | 2  | 4  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  26.5  |   47.3 GB    |
+
+以上数据在Disney数据集，Ascend Atlas 800T A2训练服务器上获得。
+
+### 推理
+
+|       model       | cards | DP | SP | zero  |  video shape  | precision | jit level | s/step | total cost |
+|:-----------------:|:-----:|:--:|:--:|:-----:|:-------------:|:---------:|:---------:|:------:|:----------:|
+| CogvideoX 1.5 T2V 5B  |   8   | 1  | 8  | zero3 | 1x77x768x1360 |   bf16    |    O1     |  3.21  |   ~ 5min   |
+
+以上数据在Ascend Atlas 800T A2训练服务器上获得。
 
 ## 与原仓的差异&功能限制
 

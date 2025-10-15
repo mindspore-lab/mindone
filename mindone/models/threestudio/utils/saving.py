@@ -15,11 +15,16 @@ from matplotlib import cm
 from matplotlib.colors import LinearSegmentedColormap
 from omegaconf import DictConfig
 from PIL import Image, ImageDraw
-from threestudio.models.mesh import Mesh
 
 from mindspore import Tensor
 
-sys.path.insert(0, "../..")  # relative to the run path of `launch.py`, to include sv3d path for the DumperGif
+from mindone.models.threestudio.models.mesh import Mesh
+
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+sv3d_path = os.path.abspath(
+    os.path.join(__dir__, "../../../../examples/sv3d")
+)  # ensure sv3d is in sys.path for model loading
+sys.path.insert(0, sv3d_path)
 from sv3d.tools.vid2gif import DumperGif
 
 gif_dumper = DumperGif(30)

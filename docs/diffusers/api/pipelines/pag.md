@@ -1,4 +1,4 @@
-<!--Copyright 2024 The HuggingFace Team. All rights reserved.
+<!--Copyright 2025 The HuggingFace Team. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may obtain a copy of the License at
@@ -11,6 +11,10 @@ specific language governing permissions and limitations under the License.
 -->
 
 # Perturbed-Attention Guidance
+
+<div class="flex flex-wrap space-x-1">
+  <img alt="LoRA" src="https://img.shields.io/badge/LoRA-d8b4fe?style=flat"/>
+</div>
 
 [Perturbed-Attention Guidance (PAG)](https://ku-cvlab.github.io/Perturbed-Attention-Guidance/) is a new diffusion sampling guidance that improves sample quality across both unconditional and conditional settings, achieving this without requiring further training or the integration of external modules.
 
@@ -37,6 +41,8 @@ PAG can be used by specifying the `pag_applied_layers` as a parameter when insta
 
 ::: mindone.diffusers.KolorsPAGPipeline
 
+::: mindone.diffusers.StableDiffusionPAGInpaintPipeline
+
 ::: mindone.diffusers.StableDiffusionPAGPipeline
 
 ::: mindone.diffusers.StableDiffusionPAGImg2ImgPipeline
@@ -56,5 +62,7 @@ PAG can be used by specifying the `pag_applied_layers` as a parameter when insta
 ::: mindone.diffusers.StableDiffusionXLControlNetPAGImg2ImgPipeline
 
 ::: mindone.diffusers.StableDiffusion3PAGPipeline
+
+::: mindone.diffusers.StableDiffusion3PAGImg2ImgPipeline
 
 ::: mindone.diffusers.PixArtSigmaPAGPipeline

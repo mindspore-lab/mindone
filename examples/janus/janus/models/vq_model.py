@@ -16,6 +16,8 @@
 # COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
+# This code is adapted from https://github.com/deepseek-ai/Janus to work with MindSpore.
 
 
 from dataclasses import dataclass, field
@@ -248,6 +250,7 @@ class VectorQuantizer(nn.Cell):
 
         # compute loss for embedding
         if self.training:
+            raise NotImplementedError
             vq_loss = ops.mean((z_q - ops.stop_gradient(z)) ** 2)
             commit_loss = self.beta * ops.mean((ops.stop_gradient(z_q) - z) ** 2)
             entropy_loss = self.entropy_loss_ratio * compute_entropy_loss(-d)

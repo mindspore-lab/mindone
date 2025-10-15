@@ -1,6 +1,6 @@
 env:
   mode: 0
-  jit_level: O0
+  jit_level: O1
   seed: 42
   distributed: False
   debug: False
@@ -11,7 +11,7 @@ model:
   pretrained_model_path: # use random initialization
   text_states_dim: 4096
   text_states_dim_2: 768
-  enable_ms_amp: True
+  enable_ms_amp: False
   amp_level: O2
   factor_kwargs:
     dtype: bf16
@@ -65,7 +65,7 @@ train:
     min_lr: 1.0e-6
 
   optimizer:
-    name: adamw_re
+    name: adamw_bf16
     eps: 1e-15
     betas: [ 0.9, 0.999 ]
     weight_decay: 0.0001
@@ -73,8 +73,9 @@ train:
   loss_scaler:
     class_path: mindspore.nn.FixedLossScaleUpdateCell   # or DynamicLossScaleUpdateCell in FP16
     init_args:
-      loss_scale_value: 1
-
+      loss_scale_value: 65536
+      scale_factor: 2
+      scale_window: 1000
   settings:
     zero_stage: 0
     gradient_accumulation_steps: 1
@@ -99,6 +100,7 @@ valid:
     video_folder: VIDEO_FOLDER
     text_emb_folder: TEXT_EMB_FOLDER
     target_size: [ 256, 256 ]
+    sample_n_frames: 29
     vae_scale_factor: 0.476986  # must be the same to vae scaling_factor
     output_columns:  [ "video", "prompt_embeds", "prompt_mask", "prompt_embeds_2", "freqs_cos", "freqs_sin"]
 

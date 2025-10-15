@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,18 +19,21 @@ from typing import Callable, Dict, List, Optional, Union
 
 import numpy as np
 import PIL.Image
-from PIL import Image
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
+from ...image_processor import VaeImageProcessor
 from ...models import UNet2DConditionModel, VQModel
 from ...schedulers import DDPMScheduler
 from ...utils import deprecate, logging
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -67,27 +73,6 @@ EXAMPLE_DOC_STRING = """
 """
 
 
-# Copied from diffusers.pipelines.kandinsky2_2.pipeline_kandinsky2_2.downscale_height_and_width
-def downscale_height_and_width(height, width, scale_factor=8):
-    new_height = height // scale_factor**2
-    if height % scale_factor**2 != 0:
-        new_height += 1
-    new_width = width // scale_factor**2
-    if width % scale_factor**2 != 0:
-        new_width += 1
-    return new_height * scale_factor, new_width * scale_factor
-
-
-# Copied from diffusers.pipelines.kandinsky.pipeline_kandinsky_img2img.prepare_image
-def prepare_image(pil_image, w=512, h=512):
-    pil_image = pil_image.resize((w, h), resample=Image.BICUBIC, reducing_gap=1)
-    arr = np.array(pil_image.convert("RGB"))
-    arr = arr.astype(np.float32) / 127.5 - 1
-    arr = np.transpose(arr, [2, 0, 1])
-    image = ms.Tensor.from_numpy(arr).unsqueeze(0)
-    return image
-
-
 class KandinskyV22Img2ImgPipeline(DiffusionPipeline):
     """
     Pipeline for image-to-image generation using Kandinsky
@@ -120,7 +105,14 @@ class KandinskyV22Img2ImgPipeline(DiffusionPipeline):
             scheduler=scheduler,
             movq=movq,
         )
-        self.movq_scale_factor = 2 ** (len(self.movq.config.block_out_channels) - 1)
+        movq_scale_factor = 2 ** (len(self.movq.config.block_out_channels) - 1) if getattr(self, "movq", None) else 8
+        movq_latent_channels = self.movq.config.latent_channels if getattr(self, "movq", None) else 4
+        self.image_processor = VaeImageProcessor(
+            vae_scale_factor=movq_scale_factor,
+            vae_latent_channels=movq_latent_channels,
+            resample="bicubic",
+            reducing_gap=1,
+        )
 
     # Copied from diffusers.pipelines.kandinsky.pipeline_kandinsky_img2img.KandinskyImg2ImgPipeline.get_timesteps
     def get_timesteps(self, num_inference_steps, strength):
@@ -154,13 +146,13 @@ class KandinskyV22Img2ImgPipeline(DiffusionPipeline):
                 init_latents = [
                     self.movq.diag_gauss_dist.sample(self.movq.encode(image[i : i + 1])[0]) for i in range(batch_size)
                 ]
-                init_latents = ops.cat(init_latents, axis=0)
+                init_latents = mint.cat(init_latents, dim=0)
             else:
                 init_latents = self.movq.diag_gauss_dist.sample(self.movq.encode(image)[0])
 
             init_latents = self.movq.config.scaling_factor * init_latents
 
-        init_latents = ops.cat([init_latents], axis=0)
+        init_latents = mint.cat([init_latents], dim=0)
 
         shape = init_latents.shape
         noise = randn_tensor(shape, generator=generator, dtype=dtype)
@@ -228,11 +220,11 @@ class KandinskyV22Img2ImgPipeline(DiffusionPipeline):
                 The number of denoising steps. More denoising steps usually lead to a higher quality image at the
                 expense of slower inference.
             guidance_scale (`float`, *optional*, defaults to 4.0):
-                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).
-                `guidance_scale` is defined as `w` of equation 2. of [Imagen
-                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale >
-                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,
-                usually at the expense of lower image quality.
+                Guidance scale as defined in [Classifier-Free Diffusion
+                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.
+                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting
+                `guidance_scale > 1`. Higher guidance scale encourages to generate images that are closely linked to
+                the text `prompt`, usually at the expense of lower image quality.
             num_images_per_prompt (`int`, *optional*, defaults to 1):
                 The number of images to generate per prompt.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
@@ -286,16 +278,16 @@ class KandinskyV22Img2ImgPipeline(DiffusionPipeline):
         self._guidance_scale = guidance_scale
 
         if isinstance(image_embeds, list):
-            image_embeds = ops.cat(image_embeds, axis=0)
+            image_embeds = mint.cat(image_embeds, dim=0)
         batch_size = image_embeds.shape[0]
         if isinstance(negative_image_embeds, list):
-            negative_image_embeds = ops.cat(negative_image_embeds, axis=0)
+            negative_image_embeds = mint.cat(negative_image_embeds, dim=0)
 
         if self.do_classifier_free_guidance:
             image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
             negative_image_embeds = negative_image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
 
-            image_embeds = ops.cat([negative_image_embeds, image_embeds], axis=0).to(dtype=self.unet.dtype)
+            image_embeds = mint.cat([negative_image_embeds, image_embeds], dim=0).to(dtype=self.unet.dtype)
 
         if not isinstance(image, list):
             image = [image]
@@ -304,7 +296,7 @@ class KandinskyV22Img2ImgPipeline(DiffusionPipeline):
                 f"Input is in incorrect format: {[type(i) for i in image]}. Currently, we only support  PIL image and mindspore tensor"
             )
 
-        image = ops.cat([prepare_image(i, width, height) for i in image], axis=0)
+        image = mint.cat([self.image_processor.preprocess(i, width, height) for i in image], dim=0)
         image = image.to(dtype=image_embeds.dtype)
 
         latents = self.movq.encode(image)[0]
@@ -312,14 +304,13 @@ class KandinskyV22Img2ImgPipeline(DiffusionPipeline):
         self.scheduler.set_timesteps(num_inference_steps)
         timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, strength)
         latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt,))
-        height, width = downscale_height_and_width(height, width, self.movq_scale_factor)
         latents = self.prepare_latents(
             latents, latent_timestep, batch_size, num_images_per_prompt, image_embeds.dtype, generator
         )
         self._num_timesteps = len(timesteps)
         for i, t in enumerate(self.progress_bar(timesteps)):
             # expand the latents if we are doing classifier free guidance
-            latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+            latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
 
             added_cond_kwargs = {"image_embeds": image_embeds}
             noise_pred = self.unet(
@@ -331,17 +322,17 @@ class KandinskyV22Img2ImgPipeline(DiffusionPipeline):
             )[0]
 
             if self.do_classifier_free_guidance:
-                noise_pred, variance_pred = noise_pred.split(latents.shape[1], axis=1)
+                noise_pred, variance_pred = noise_pred.split(latents.shape[1], dim=1)
                 noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                 _, variance_pred_text = variance_pred.chunk(2)
                 noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
-                noise_pred = ops.cat([noise_pred, variance_pred_text], axis=1)
+                noise_pred = mint.cat([noise_pred, variance_pred_text], dim=1)
 
             if not (
                 hasattr(self.scheduler.config, "variance_type")
                 and self.scheduler.config.variance_type in ["learned", "learned_range"]
             ):
-                noise_pred, _ = noise_pred.split(latents.shape[1], axis=1)
+                noise_pred, _ = noise_pred.split(latents.shape[1], dim=1)
 
             # compute the previous noisy sample x_t -> x_t-1
             latents = self.scheduler.step(
@@ -365,21 +356,9 @@ class KandinskyV22Img2ImgPipeline(DiffusionPipeline):
                 step_idx = i // getattr(self.scheduler, "order", 1)
                 callback(step_idx, t, latents)
 
-        if output_type not in ["ms", "np", "pil", "latent"]:
-            raise ValueError(
-                f"Only the output types `ms`, `pil` ,`np` and `latent` are supported not output_type={output_type}"
-            )
-
         if not output_type == "latent":
-            # post-processing
             image = self.movq.decode(latents, force_not_quantize=True)[0]
-            if output_type in ["np", "pil"]:
-                image = image * 0.5 + 0.5
-                image = image.clamp(0, 1)
-                image = image.permute(0, 2, 3, 1).float().numpy()
-
-            if output_type == "pil":
-                image = self.numpy_to_pil(image)
+            image = self.image_processor.postprocess(image, output_type)
         else:
             image = latents
 

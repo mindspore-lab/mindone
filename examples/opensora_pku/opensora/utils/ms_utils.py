@@ -41,7 +41,7 @@ def init_env(
         distributed (bool, False): Whether to enable distributed training. Default is False.
         device_id (int, default None): If distributed is False (single-device), and if device_id is provided, \
             use the device_id to set the device index; if not provided, wil get os.environ["DEVICE_ID"]
-        max_device_memory (str, default None): the maximum available device memory, e.g., "30GB" for Ascend 910A or "59GB" for Ascend 910B.
+        max_device_memory (str, default None): the maximum available device memory, e.g., "30GB" for Ascend 910 or "59GB" for Ascend Atlas 800T A2 machines.
         device_target (str, default "Ascend"): the target device type, supporting "Ascend" or "GPU"
         parallel_mode (str, default "data"): if `distributed` is True, `parallel_mode` will be one of ["data", "optim"]
         mempool_block_size (str, default "9GB"): Set the size of the memory pool block in PyNative mode for devices. \

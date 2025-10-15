@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/loaders/__init__.py."""
+
 from typing import TYPE_CHECKING
 
 from ..utils import _LazyModule, deprecate
@@ -50,15 +52,32 @@ def text_encoder_attn_modules(text_encoder):
 
 _import_structure = {
     "single_file_model": ["FromOriginalModelMixin"],
-    "ip_adapter": ["IPAdapterMixin"],
+    "transformer_flux": ["FluxTransformer2DLoadersMixin"],
+    "transformer_sd3": ["SD3Transformer2DLoadersMixin"],
+    "ip_adapter": [
+        "IPAdapterMixin",
+        "FluxIPAdapterMixin",
+        "SD3IPAdapterMixin",
+        "ModularIPAdapterMixin",
+    ],
     "lora_pipeline": [
         "AmusedLoraLoaderMixin",
         "StableDiffusionLoraLoaderMixin",
         "SD3LoraLoaderMixin",
+        "AuraFlowLoraLoaderMixin",
         "StableDiffusionXLLoraLoaderMixin",
+        "LTXVideoLoraLoaderMixin",
         "LoraLoaderMixin",
         "FluxLoraLoaderMixin",
         "CogVideoXLoraLoaderMixin",
+        "CogView4LoraLoaderMixin",
+        "Mochi1LoraLoaderMixin",
+        "HunyuanVideoLoraLoaderMixin",
+        "SanaLoraLoaderMixin",
+        "Lumina2LoraLoaderMixin",
+        "WanLoraLoaderMixin",
+        "HiDreamImageLoraLoaderMixin",
+        "SkyReelsV2LoraLoaderMixin",
     ],
     "peft": ["PeftAdapterMixin"],
     "single_file": ["FromSingleFileMixin"],
@@ -68,20 +87,32 @@ _import_structure = {
 
 
 if TYPE_CHECKING:
-    from .ip_adapter import IPAdapterMixin
+    from .ip_adapter import FluxIPAdapterMixin, IPAdapterMixin, ModularIPAdapterMixin, SD3IPAdapterMixin
     from .lora_pipeline import (
         AmusedLoraLoaderMixin,
+        AuraFlowLoraLoaderMixin,
         CogVideoXLoraLoaderMixin,
+        CogView4LoraLoaderMixin,
         FluxLoraLoaderMixin,
+        HiDreamImageLoraLoaderMixin,
+        HunyuanVideoLoraLoaderMixin,
         LoraLoaderMixin,
+        LTXVideoLoraLoaderMixin,
+        Lumina2LoraLoaderMixin,
+        Mochi1LoraLoaderMixin,
+        SanaLoraLoaderMixin,
         SD3LoraLoaderMixin,
+        SkyReelsV2LoraLoaderMixin,
         StableDiffusionLoraLoaderMixin,
         StableDiffusionXLLoraLoaderMixin,
+        WanLoraLoaderMixin,
     )
     from .peft import PeftAdapterMixin
     from .single_file import FromSingleFileMixin
     from .single_file_model import FromOriginalModelMixin
     from .textual_inversion import TextualInversionLoaderMixin
+    from .transformer_flux import FluxTransformer2DLoadersMixin
+    from .transformer_sd3 import SD3Transformer2DLoadersMixin
     from .unet import UNet2DConditionLoadersMixin
 else:
     import sys

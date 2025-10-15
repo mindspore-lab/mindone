@@ -1,0 +1,167 @@
+# This config file is used for
+# (1) convert the dataset to a CSV file
+# (2) split videos into (semantically consistent) clips, and save the clips info to a CSV file
+
+# TODO: please set the root paths to your designated folders
+paths:
+  ROOT_VIDEO: "/path/to/video/folder"
+  ROOT_CLIPS: "/path/to/video/clips/folder"
+  ROOT_META: "/path/to/meta/folder"
+  PYTHONPATH: "$(pwd)"
+
+# You may use the parameters below as the default setting. You may also customize as needed.
+meta_steps:
+  # if set to false, none of the below will be run
+  run: true # may set to false if you already have the CSV ready for later steps (deduplication/scoring/captioning)
+  convert_dataset:
+    run: true
+    # the input video path is ${paths.ROOT_VIDEO}
+    output_meta_csv: "${paths.ROOT_META}/meta.csv"
+
+  remove_broken_videos:
+    run: true
+    # by default, input meta csv is the same as output_meta_csv above
+    # you may use your own csv file instead (in this case `run` can be False under `convert_dataset`)
+    input_meta_csv: "${paths.ROOT_META}/meta.csv"
+    fmin: 1 # only keep videos with no less than 1 frame
+
+  split_video:
+    # if set to false, none of the below will be run
+    run: false # TODO: may set to true if the input videos are too long or not semantically consistent
+    scene_detection:
+      run: true
+      detector: adaptive # option: adaptive / content
+      max_cutscene_len: null # null or integer values
+      input_meta_csv: "${paths.ROOT_META}/meta_info_fmin${meta_steps.remove_broken_videos.fmin}.csv"
+    cut_videos:
+      run: true
+      min_seconds: 2 # if not null, clip shorter than min_seconds is ignored
+      max_seconds: 20 # if not null, clip longer than max_seconds is truncated
+      target_fps: null # target fps of clips
+      shorter_size: null # resize the shorter size by keeping ratio; will not do upscale
+      drop_invalid_timestamps: null # drop rows with invalid timestamps
+      # we assume that the input meta csv file name can be dynamically inferred by adding `_timestamp`
+      # after the `input_meta_csv` from scene_detection
+      # save directory is "${paths.ROOT_CLIPS}"
+    create_clips_meta:
+      run: true
+      # input clip path is ${paths.ROOT_CLIPS}
+      output_meta_csv: "${paths.ROOT_META}/meta_clips.csv"
+    remove_broken_clips:
+      run: true
+      fmin: 1
+
+pipeline_steps:
+  # if set to false, none of the below will be run
+  run: true
+  # default path, you may modify as needed
+  input_meta_csv: "${paths.ROOT_META}/meta_clips_info_fmin${meta_steps.split_video.remove_broken_clips.fmin}.csv"
+
+  deduplication:
+    run: true
+    hash: phash # option: phash / ahash / dhash / whash
+    threshold: 15 # between 1 and 64. Larger value means more lenient criteria (i.e., keep less videos)
+
+  scoring_filtering:
+    run: true # if set to false, none of the below will be run.
+    option_matching: # if you only want to keep a specific type
+      run: false # TODO: false by default, set to `true` if needed
+      num_frames: 1 # number of frames to extract for scoring, support 1, 2, 3
+      batch_size: 64
+      option: "animal" # TODO: modify to your desired option
+      use_ascend: true # if set to false, use CPU instead
+      worker_num: 2 # total # of available chips you wish to use; not needed if use CPU
+
+    option_filtering:
+      run: true # this will only be run if `run` in `option_matching` is also true
+      matchmin: 20.0
+
+    ocr_scoring:
+      run: true
+      num_boxes: false # compute and store the total number of boxes
+      max_single_percentage: false # compute and store the maximum single text box area percentage
+      total_text_percentage: true # compute and store the total text area percentage
+      worker_num: 2
+
+    ocr_filtering:
+      run: true # this will only be run if `run` in `ocr_scoring` is also true
+      ocr_box_max: null # filter out videos with too many text boxes
+      ocr_single_max: null # filter out videos with large single text box (max single box percentage)
+      ocr_total_max: 0.15 # filter out videos with large total text boxes (total area of all text boxes)
+
+    lpips_scoring:
+      run: true
+      seconds: 1 # interval in seconds to sample frames
+      target_height: 224
+      target_width: 224
+      use_ascend: true
+      worker_num: 2
+
+    lpips_filtering:
+      run: true   # this will only be run if `run` in `lpips_scoring` is also true
+      lpipsmin: 0.2
+
+    aesthetic_scoring:
+      run: true
+      num_frames: 1 # number of frames to extract for scoring, support 1, 2, 3
+      batch_size: 64
+      use_ascend: true
+      worker_num: 2
+
+    aesthetic_filtering:
+      run: true # this will only be run if `run` in `aesthetic_scoring` is also true
+      aesmin: 4.5 # empirically, video with score above 4.5 is good enough
+
+    nsfw_scoring:
+      run: true
+      num_frames: 1 # number of frames to extract for scoring, support 1, 2, 3
+      threshold: 0.2 # threshold above which a frame is flagged as NSFW
+      batch_size: 64
+      use_ascend: true
+      worker_num: 2
+
+    nsfw_filtering:
+      run: true # this will only be run if `run` in `nsfw_scoring` is also true
+
+  captioning:
+    run: true # use ONLY ONE of the following captioning models
+
+    qwen2vl_caption: # use ascend by default
+      run: true
+      question: "Describe the video in details."
+      height: 448 # resized video height
+      width: 672 # resized video width
+      fps: 4 # fps to sample from video
+      batch_size: 1
+      max_new_tokens: 200
+      worker_num: 2
+
+    llava_caption:
+      run: false
+      question: "Describe the video in details."
+      max_new_tokens: 200
+      worker_num: 2
+
+    pllava_caption:
+      run: false
+      question: "Describe the video in details."
+      num_frames: 4
+      max_new_tokens: 200
+      worker_num: 2
+
+    clean_caption: # T5 style, lower case etc.
+      run: true
+      clean_caption: true
+      refine_llm_caption: true
+      remove_empty_caption: true
+
+    matching_with_captions:
+      run: false # qwen2-vl caption is usually good enough
+      num_frames: 3 # number of frames to extract for scoring, support 1, 2, 3
+      batch_size: 64
+      use_ascend: true
+      worker_num: 2
+
+    caption_filtering:
+      run: true # this will only be run if `run` in `matching_with_captions` is also true
+      matchmin: 20.0

@@ -1,11 +1,12 @@
 from typing import Callable, Optional, Tuple
 
 import numpy as np
-import threestudio
-from threestudio.models.mesh import Mesh
 
 import mindspore as ms
 from mindspore import Tensor, mint, nn, ops
+
+import mindone.models.threestudio as threestudio
+from mindone.models.threestudio.models.mesh import Mesh
 
 
 class IsosurfaceHelper(nn.Cell):

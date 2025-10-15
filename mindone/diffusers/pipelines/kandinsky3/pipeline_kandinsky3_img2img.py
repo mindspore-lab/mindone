@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/kandinsky3/pipeline_kandinsky3_img2img.py."""
+
 import inspect
 from typing import Callable, Dict, List, Optional, Union
 
@@ -7,18 +9,22 @@ import PIL.Image
 from transformers import T5Tokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import T5EncoderModel
 
-from ...loaders import LoraLoaderMixin
+from ...image_processor import VaeImageProcessor
+from ...loaders import StableDiffusionLoraLoaderMixin
 from ...models import Kandinsky3UNet, VQModel
 from ...schedulers import DDPMScheduler
 from ...utils import deprecate, logging
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -39,25 +45,7 @@ EXAMPLE_DOC_STRING = """
 """
 
 
-def downscale_height_and_width(height, width, scale_factor=8):
-    new_height = height // scale_factor**2
-    if height % scale_factor**2 != 0:
-        new_height += 1
-    new_width = width // scale_factor**2
-    if width % scale_factor**2 != 0:
-        new_width += 1
-    return new_height * scale_factor, new_width * scale_factor
-
-
-def prepare_image(pil_image):
-    arr = np.array(pil_image.convert("RGB"))
-    arr = arr.astype(np.float32) / 127.5 - 1
-    arr = np.transpose(arr, [2, 0, 1])
-    image = ms.Tensor.from_numpy(arr).unsqueeze(0)
-    return image
-
-
-class Kandinsky3Img2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
+class Kandinsky3Img2ImgPipeline(DiffusionPipeline, StableDiffusionLoraLoaderMixin):
     model_cpu_offload_seq = "text_encoder->movq->unet->movq"
     _callback_tensor_inputs = [
         "latents",
@@ -78,6 +66,14 @@ class Kandinsky3Img2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
         super().__init__()
 
         self.register_modules(tokenizer=tokenizer, text_encoder=text_encoder, unet=unet, scheduler=scheduler, movq=movq)
+        movq_scale_factor = 2 ** (len(self.movq.config.block_out_channels) - 1) if getattr(self, "movq", None) else 8
+        movq_latent_channels = self.movq.config.latent_channels if getattr(self, "movq", None) else 4
+        self.image_processor = VaeImageProcessor(
+            vae_scale_factor=movq_scale_factor,
+            vae_latent_channels=movq_latent_channels,
+            resample="bicubic",
+            reducing_gap=1,
+        )
 
     def get_timesteps(self, num_inference_steps, strength):
         # get the original timestep using init_timestep
@@ -91,8 +87,8 @@ class Kandinsky3Img2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
     def _process_embeds(self, embeddings, attention_mask, cut_context):
         # return embeddings, attention_mask
         if cut_context:
-            embeddings[attention_mask == 0] = ops.zeros_like(embeddings[attention_mask == 0])
-            max_seq_length = attention_mask.sum(axis=-1).max() + 1
+            embeddings[attention_mask == 0] = mint.zeros_like(embeddings[attention_mask == 0])
+            max_seq_length = attention_mask.sum(dim=-1).max() + 1
             embeddings = embeddings[:, :max_seq_length]
             attention_mask = attention_mask[:, :max_seq_length]
         return embeddings, attention_mask
@@ -219,8 +215,8 @@ class Kandinsky3Img2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
                 negative_prompt_embeds = negative_prompt_embeds * negative_attention_mask.unsqueeze(2)
 
             else:
-                negative_prompt_embeds = ops.zeros_like(prompt_embeds)
-                negative_attention_mask = ops.zeros_like(attention_mask)
+                negative_prompt_embeds = mint.zeros_like(prompt_embeds)
+                negative_attention_mask = mint.zeros_like(attention_mask)
 
         if do_classifier_free_guidance:
             # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
@@ -262,13 +258,13 @@ class Kandinsky3Img2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
                 init_latents = [
                     self.movq.diag_gauss_dist.sample(self.movq.encode(image[i : i + 1])[0]) for i in range(batch_size)
                 ]
-                init_latents = ops.cat(init_latents, axis=0)
+                init_latents = mint.cat(init_latents, dim=0)
             else:
                 init_latents = self.movq.diag_gauss_dist.sample(self.movq.encode(image)[0])
 
             init_latents = self.movq.config.scaling_factor * init_latents
 
-        init_latents = ops.cat([init_latents], axis=0)
+        init_latents = mint.cat([init_latents], dim=0)
 
         shape = init_latents.shape
         noise = randn_tensor(shape, generator=generator, dtype=dtype)
@@ -284,7 +280,7 @@ class Kandinsky3Img2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
     def prepare_extra_step_kwargs(self, generator, eta):
         # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
         # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
-        # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
+        # eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502
         # and should be between [0, 1]
 
         accepts_eta = "eta" in set(inspect.signature(self.scheduler.step).parameters.keys())
@@ -423,11 +419,11 @@ class Kandinsky3Img2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
                 The number of denoising steps. More denoising steps usually lead to a higher quality image at the
                 expense of slower inference.
             guidance_scale (`float`, *optional*, defaults to 3.0):
-                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).
-                `guidance_scale` is defined as `w` of equation 2. of [Imagen
-                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale >
-                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,
-                usually at the expense of lower image quality.
+                Guidance scale as defined in [Classifier-Free Diffusion
+                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.
+                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting
+                `guidance_scale > 1`. Higher guidance scale encourages to generate images that are closely linked to
+                the text `prompt`, usually at the expense of lower image quality.
             negative_prompt (`str` or `List[str]`, *optional*):
                 The prompt or prompts not to guide the image generation. If not defined, one has to pass
                 `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is
@@ -529,8 +525,8 @@ class Kandinsky3Img2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
         )
 
         if self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
-            attention_mask = ops.cat([negative_attention_mask, attention_mask])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
+            attention_mask = mint.cat([negative_attention_mask, attention_mask])
         if not isinstance(image, list):
             image = [image]
         if not all(isinstance(i, (PIL.Image.Image, ms.Tensor)) for i in image):
@@ -538,7 +534,7 @@ class Kandinsky3Img2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
                 f"Input is in incorrect format: {[type(i) for i in image]}. Currently, we only support  PIL image and mindspore tensor"
             )
 
-        image = ops.cat([prepare_image(i) for i in image], axis=0)
+        image = mint.cat([self.image_processor.preprocess(i) for i in image], dim=0)
         image = image.to(dtype=prompt_embeds.dtype)
         # 4. Prepare timesteps
         self.scheduler.set_timesteps(num_inference_steps)
@@ -556,7 +552,7 @@ class Kandinsky3Img2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
         self._num_timesteps = len(timesteps)
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
-                latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
 
                 # predict the noise residual
                 noise_pred = self.unet(
@@ -597,20 +593,9 @@ class Kandinsky3Img2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
                         callback(step_idx, t, latents)
 
             # post-processing
-            if output_type not in ["ms", "np", "pil", "latent"]:
-                raise ValueError(
-                    f"Only the output types `ms`, `pil`, `np` and `latent` are supported not output_type={output_type}"
-                )
             if not output_type == "latent":
                 image = self.movq.decode(latents, force_not_quantize=True)[0]
-
-                if output_type in ["np", "pil"]:
-                    image = image * 0.5 + 0.5
-                    image = image.clamp(0, 1)
-                    image = image.permute(0, 2, 3, 1).float().numpy()
-
-                if output_type == "pil":
-                    image = self.numpy_to_pil(image)
+                image = self.image_processor.postprocess(image, output_type)
             else:
                 image = latents
 

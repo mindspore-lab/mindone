@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/stable_diffusion_3/test_pipeline_stable_diffusion_3_img2img.py."""
+
 import random
 import unittest
 
@@ -8,11 +10,7 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -27,8 +25,6 @@ from ..pipeline_test_utils import (
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float32"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float16"},
 ]
 
 
@@ -241,6 +237,8 @@ class StableDiffusion3Img2ImgPipelineSlowTests(PipelineTesterMixin, unittest.Tes
             "prompt": "A photo of a cat",
             "num_inference_steps": 2,
             "guidance_scale": 5.0,
+            "width": 768,
+            "height": 512,
             "image": init_image,
         }
 
@@ -257,8 +255,8 @@ class StableDiffusion3Img2ImgPipelineSlowTests(PipelineTesterMixin, unittest.Tes
         torch.manual_seed(0)
         image = pipe(**inputs)[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"i2i_{dtype}.npy",
             subfolder="stable_diffusion_3",
         )

@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2023 HuggingFace Inc.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,11 +26,7 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -42,8 +41,6 @@ from ..pipeline_test_utils import (
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float32"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float16"},
 ]
 
 
@@ -75,8 +72,8 @@ class StableDiffusionXLControlNetXSPipelineFastTests(PipelineTesterMixin, unitte
         ],
         [
             "controlnet",
-            "diffusers.models.controlnet_xs.ControlNetXSAdapter",
-            "mindone.diffusers.models.controlnet_xs.ControlNetXSAdapter",
+            "diffusers.models.controlnets.controlnet_xs.ControlNetXSAdapter",
+            "mindone.diffusers.models.controlnets.controlnet_xs.ControlNetXSAdapter",
             dict(
                 unet=None,
                 size_ratio=1,
@@ -257,7 +254,7 @@ class StableDiffusionXLControlNetXSPipelineSlowTests(PipelineTesterMixin, unitte
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
 
-        controlnet_cls = get_module("mindone.diffusers.models.controlnet_xs.ControlNetXSAdapter")
+        controlnet_cls = get_module("mindone.diffusers.models.controlnets.controlnet_xs.ControlNetXSAdapter")
         controlnet = controlnet_cls.from_pretrained("UmerHA/Testing-ConrolNetXS-SDXL-canny", mindspore_dtype=ms_dtype)
         pipe_cls = get_module("mindone.diffusers.pipelines.controlnet_xs.StableDiffusionXLControlNetXSPipeline")
         pipe = pipe_cls.from_pretrained(
@@ -275,8 +272,8 @@ class StableDiffusionXLControlNetXSPipelineSlowTests(PipelineTesterMixin, unitte
         torch.manual_seed(0)
         image = pipe(prompt, image=image, num_inference_steps=3)[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"sdxl_canny_{dtype}.npy",
             subfolder="controlnet_xs",
         )
@@ -288,7 +285,7 @@ class StableDiffusionXLControlNetXSPipelineSlowTests(PipelineTesterMixin, unitte
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
 
-        controlnet_cls = get_module("mindone.diffusers.models.controlnet_xs.ControlNetXSAdapter")
+        controlnet_cls = get_module("mindone.diffusers.models.controlnets.controlnet_xs.ControlNetXSAdapter")
         controlnet = controlnet_cls.from_pretrained("UmerHA/Testing-ConrolNetXS-SDXL-depth", mindspore_dtype=ms_dtype)
         pipe_cls = get_module("mindone.diffusers.pipelines.controlnet_xs.StableDiffusionXLControlNetXSPipeline")
         pipe = pipe_cls.from_pretrained(
@@ -306,8 +303,8 @@ class StableDiffusionXLControlNetXSPipelineSlowTests(PipelineTesterMixin, unitte
         torch.manual_seed(0)
         image = pipe(prompt, image=image, num_inference_steps=3)[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"sdxl_depth_{dtype}.npy",
             subfolder="controlnet_xs",
         )

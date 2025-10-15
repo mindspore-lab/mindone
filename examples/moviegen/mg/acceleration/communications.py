@@ -5,7 +5,7 @@ import mindspore.ops as ops
 from mindspore import Tensor
 from mindspore.communication import GlobalComm, get_group_size, get_rank
 
-__all__ = ["SplitFowardGatherBackward", "GatherFowardSplitBackward"]
+__all__ = ["SplitForwardGatherBackward", "GatherForwardSplitBackward"]
 
 
 def _split(x: Tensor, dim: int, rank: int, world_size: int) -> Tensor:
@@ -22,7 +22,7 @@ def _communicate_along_dim(x: Tensor, dim: int, func: Callable[[Tensor], Tensor]
     return x
 
 
-class SplitFowardGatherBackward(nn.Cell):
+class SplitForwardGatherBackward(nn.Cell):
     def __init__(
         self, dim: int = 0, grad_scale: Literal["up", "down"] = "down", group: str = GlobalComm.WORLD_COMM_GROUP
     ) -> None:
@@ -46,7 +46,7 @@ class SplitFowardGatherBackward(nn.Cell):
         return (dout,)
 
 
-class GatherFowardSplitBackward(nn.Cell):
+class GatherForwardSplitBackward(nn.Cell):
     def __init__(
         self, dim: int = 0, grad_scale: Literal["up", "down"] = "up", group: str = GlobalComm.WORLD_COMM_GROUP
     ) -> None:

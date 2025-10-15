@@ -1,3 +1,5 @@
+# Adapted from https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/utils/ema.py
+
 from typing import Union
 
 from mindspore.ops import composite as C

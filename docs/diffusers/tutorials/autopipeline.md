@@ -1,4 +1,4 @@
-<!--Copyright 2024 The HuggingFace Team. All rights reserved.
+<!--Copyright 2025 The HuggingFace Team. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may obtain a copy of the License at
@@ -72,6 +72,8 @@ Under the hood, [AutoPipeline](../api/pipelines/auto_pipeline.md):
     image = pipeline(prompt, image=init_image, generator=generator)[0][0]
     image
     ```
+
+    You can learn more about the [`from_pipe`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pipe) method in the [Reuse a pipeline](../using-diffusers/loading.md#reuse-a-pipeline) guide.
 
     <div style="display: flex; justify-content: center; align-items: flex-start; text-align: center; max-width: 98%; margin: 0 auto; gap: 1vw;">
         <img src="https://github.com/user-attachments/assets/de3baa9e-b95f-462a-b2a0-5dc2f63cabb5"/>

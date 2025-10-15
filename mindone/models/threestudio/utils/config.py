@@ -3,8 +3,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Optional, Union
 
-import threestudio
 from omegaconf import DictConfig, OmegaConf
+
+import mindone.models.threestudio as threestudio
 
 # Register OmegaConf Recolvers
 OmegaConf.register_new_resolver("calc_exp_lr_decay_rate", lambda factor, n: factor ** (1.0 / n))

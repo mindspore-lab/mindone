@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from typing import Any, Dict
 
-from threestudio.utils.base import BaseModule
-
 from mindspore import Tensor
+
+from mindone.models.threestudio.utils.base import BaseModule
 
 
 class BaseMaterial(BaseModule):
