@@ -771,9 +771,9 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         if not getattr(config, "_attn_implementation_autoset", False):
             # config usually has a `mindspore_dtype` but we need the next line for the `no_super_init` tests
             # TODO mindspore does not have get_default_dtype api
-            dtype = (
-                TORCH_TO_MINDSPORE_DTYPE_MAP[str(config.torch_dtype)] if hasattr(config, "torch_dtype") else ms.float32
-            )
+            dtype = ms.float32
+            if hasattr(config, "torch_dtype") and config.torch_dtype is not None:
+                dtype = TORCH_TO_MINDSPORE_DTYPE_MAP[str(config.torch_dtype)]
             config = self._autoset_attn_implementation(config, mindspore_dtype=dtype)
         # Save config and origin of the pretrained weights if given in model
         self.config = config
