@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Union
 
 from PIL import Image
-from transformers import AutoProcessor, AutoTokenizer
+from transformers import AutoTokenizer
 
 import mindspore as ms
 from mindspore import Tensor
@@ -18,6 +18,7 @@ from mindspore.communication import GlobalComm
 from mindspore.nn.utils import no_init_parameters
 
 from mindone.trainers.zero import prepare_network
+from mindone.transformers import AutoProcessor
 from mindone.transformers.models.qwen2 import Qwen2ForCausalLM
 from mindone.transformers.models.qwen2_5_vl import Qwen2_5_VLForConditionalGeneration
 from mindone.transformers.models.qwen2_vl.qwen_vl_utils import process_vision_info
@@ -179,7 +180,7 @@ class QwenPromptExpander(PromptExpander):
             min_pixels = 256 * 28 * 28
             max_pixels = 1280 * 28 * 28
             self.processor = AutoProcessor.from_pretrained(
-                self.model_name, min_pixels=min_pixels, max_pixels=max_pixels, use_fast=True
+                self.model_name, min_pixels=min_pixels, max_pixels=max_pixels, use_fast=False
             )
             with no_init_parameters():
                 self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
@@ -248,15 +249,8 @@ class QwenPromptExpander(PromptExpander):
         text = self.processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         image_inputs, video_inputs = self.process_vision_info(messages)
         inputs = self.processor(
-            text=[text],
-            images=image_inputs,
-            videos=video_inputs,
-            padding=True,
-            return_tensors="pt",
+            text=[text], images=image_inputs, videos=video_inputs, padding=True, return_tensors="ms"
         )
-
-        for k, v in inputs.items():
-            inputs[k] = ms.tensor(v)
 
         # Inference: Generation of the output
         generated_ids = self.model.generate(**inputs, max_new_tokens=512, do_sample=False).asnumpy()
