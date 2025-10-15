@@ -20,6 +20,7 @@ from huggingface_hub.constants import HF_HOME
 
 from .import_utils import ENV_VARS_TRUE_VALUES
 
+CKPT_FILE_EXTENSION = "ckpt"
 CONFIG_NAME = "config.json"
 WEIGHTS_NAME = "diffusion_pytorch_model.bin"
 WEIGHTS_INDEX_NAME = "diffusion_pytorch_model.bin.index.json"

@@ -893,14 +893,16 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         # 6. Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
 
-        # 7.0 lora_scale outside transformer
-        if lora_scale is not None:
-            # weight the lora layers by setting `lora_scale` for each PEFT layer
-            scale_lora_layers(self.transformer, lora_scale)
-
         # 7. Denoising loop
         num_warmup_steps = max(len(timesteps) - num_inference_steps * self.scheduler.order, 0)
         self._num_timesteps = len(timesteps)
+
+        # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
+        # to the transformer and will raise RuntimeError.
+        lora_scale = self.attention_kwargs.pop("scale", None) if self.attention_kwargs is not None else None
+        if lora_scale is not None:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer
+            scale_lora_layers(self.transformer, lora_scale)
 
         transformer_dtype = self.transformer.dtype
         with self.progress_bar(total=num_inference_steps) as progress_bar:
@@ -954,6 +956,7 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         if lora_scale is not None:
             # remove `lora_scale` from each PEFT layer
             unscale_lora_layers(self.transformer, lora_scale)
+            self.attention_kwargs["scale"] = lora_scale
 
         if output_type == "latent":
             image = latents
