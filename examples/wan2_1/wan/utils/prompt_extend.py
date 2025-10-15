@@ -215,7 +215,7 @@ class QwenPromptExpander(PromptExpander):
         for k, v in model_inputs.items():
             model_inputs[k] = ms.tensor(v)
 
-        generated_ids = self.model.generate(**model_inputs, max_new_tokens=512).asnumpy()
+        generated_ids = self.model.generate(**model_inputs, max_new_tokens=512, do_sample=False).asnumpy()
         generated_ids = [
             output_ids[len(input_ids) :] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
         ]
@@ -259,7 +259,7 @@ class QwenPromptExpander(PromptExpander):
             inputs[k] = ms.tensor(v)
 
         # Inference: Generation of the output
-        generated_ids = self.model.generate(**inputs, max_new_tokens=512).asnumpy()
+        generated_ids = self.model.generate(**inputs, max_new_tokens=512, do_sample=False).asnumpy()
         generated_ids_trimmed = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs["input_ids"], generated_ids)]
         expanded_prompt = self.processor.batch_decode(
             generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
