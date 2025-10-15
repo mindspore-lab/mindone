@@ -17,6 +17,7 @@
 # limitations under the License.
 
 import os
+from time import time
 
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
 os.environ["SAFETENSORS_WEIGHTS_NAME"] = "pytorch_model.safetensors"  # vq_model
@@ -122,6 +123,8 @@ if __name__ == "__main__":
     responses = ["" for i in range(len(file_list))]
     images = []
     config.question = config.question.split(" *** ")
+
+    throughputs = []
     for i, file_name in enumerate(tqdm(file_list)):
         image_path = os.path.join(config.mmu_image_root, file_name)
         image_ori = Image.open(image_path).convert("RGB")
@@ -152,10 +155,12 @@ if __name__ == "__main__":
                 ],
                 dim=1,
             )
+            infer_start = time()
             output_ids = model.mmu_generate(input_ids, max_new_tokens=1024, steps=512, block_length=1024)
             text = uni_prompting.text_tokenizer.batch_decode(
                 output_ids[:, input_ids.shape[1] :], skip_special_tokens=True
             )
+            throughputs.append(output_ids.shape[1] / (time() - infer_start))
             print(text[0])
             responses[i] += text[0]
 
@@ -169,3 +174,4 @@ if __name__ == "__main__":
     draw_caption_on_image(pil_images, responses, output_dir, file_list=file_list)
 
     print("Generated captions are saved in", output_dir)
+    print(f"Average throughput: {np.mean(throughputs):.3f} token/s")
