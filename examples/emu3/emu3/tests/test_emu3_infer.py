@@ -8,7 +8,7 @@ from emu3.mllm.configuration_emu3 import Emu3Config
 from PIL import Image
 
 import mindspore as ms
-from mindspore import nn
+from mindspore import mint
 
 ms.set_context(mode=ms.PYNATIVE_MODE, pynative_synchronize=True)
 # ms.set_context(mode = ms.GRAPH_MODE) # NOT SUPPORTED YET
@@ -81,7 +81,7 @@ try:
         VQ_HUB, use_safetensors=True, mindspore_dtype=VQ_DTYPE
     ).set_train(False)
     image_tokenizer = auto_mixed_precision(
-        image_tokenizer, amp_level="O2", dtype=VQ_DTYPE, custom_fp32_cells=[nn.BatchNorm3d]
+        image_tokenizer, amp_level="O2", dtype=VQ_DTYPE, custom_fp32_cells=[mint.nn.BatchNorm3d]
     )
     processor = Emu3Processor(image_processor, image_tokenizer, tokenizer)
     print("*" * 100)
