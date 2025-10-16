@@ -210,13 +210,13 @@ We evaluated the training performance on Ascend NPUs. All experiments are runnin
 - mindspore2.6.0
 
 | model name | cards | batch size | jit level | kv cache | attn type | step time | token/s |
-|:-----------|:------|:-----------|:---------:|:--------:|:---------:|:---------:|:-------:|
+|:----------:|:-----:|:----------:|:---------:|:--------:|:---------:|:---------:|:-------:|
 | sparktts   |  1    |  1         | O0        |     OFF  |   eager   | 0.198s     |  5.25  |
 
 - mindspore2.7.0
 
 | model name | cards | batch size | jit level | kv cache | attn type | step time | token/s |
-|:-----------|:------|:-----------|:---------:|:--------:|:---------:|:---------:|:-------:|
+|:----------:|:-----:|:----------:|:---------:|:--------:|:---------:|:---------:|:-------:|
 | sparktts   |  1    |  1         | O0        |     OFF  |   eager   | 0.173s    |   5.38  |
 
 
