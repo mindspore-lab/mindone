@@ -142,7 +142,7 @@ if __name__ == "__main__":
     # ms context
     ms.set_context(mode=args.ms_mode)
     if args.ms_mode == 0:
-        ms.set_context(jit_config={"jit_level": "O0"}, enable_compile_cache=True)
+        ms.set_context(jit_config={"jit_level": "O0"})
 
     # specify the path to the model
     vl_chat_processor: VLChatProcessor = VLChatProcessor.from_pretrained(
