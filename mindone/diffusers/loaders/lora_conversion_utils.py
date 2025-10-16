@@ -689,6 +689,9 @@ def _convert_kohya_flux_lora_to_diffusers(state_dict):
             te_state_dict = {f"text_encoder.{module_name}": params for module_name, params in te_state_dict.items()}
 
         new_state_dict = {**ait_sd, **te_state_dict}
+        # FIXME: convert tensor to parameter in MindSpore
+        for k, v in new_state_dict.items():
+            new_state_dict[k] = ms.Parameter(v, name=k)
         return new_state_dict
 
     def _convert_mixture_state_dict_to_diffusers(state_dict):
@@ -821,7 +824,12 @@ def _convert_kohya_flux_lora_to_diffusers(state_dict):
             f"transformer.{k}": v for k, v in new_state_dict.items() if not k.startswith("text_model.")
         }
         te_state_dict = {f"text_encoder.{k}": v for k, v in new_state_dict.items() if k.startswith("text_model.")}
-        return {**transformer_state_dict, **te_state_dict}
+        # return {**transformer_state_dict, **te_state_dict}
+        new_state_dict = {**transformer_state_dict, **te_state_dict}
+        # FIXME: convert tensor to parameter in MindSpore
+        for k, v in new_state_dict.items():
+            new_state_dict[k] = ms.Parameter(v, name=k)
+        return new_state_dict
 
     # This is  weird.
     # https://huggingface.co/sayakpaul/different-lora-from-civitai/tree/main?show_file_info=sharp_detailed_foot.safetensors
@@ -958,7 +966,9 @@ def _convert_xlabs_flux_lora_to_diffusers(old_state_dict):
         ait_sd.update(dict.fromkeys(ait_down_keys, down_weight))
 
         # up_weight is split to each split
-        ait_sd.update({k: v for k, v in zip(ait_up_keys, mint.split(up_weight, dims, dim=0))})  # noqa: C416
+        ait_sd.update(
+            {k: ms.Parameter(v, name=k) for k, v in zip(ait_up_keys, mint.split(up_weight, dims, dim=0))}
+        )  # noqa: C416
 
     for old_key in orig_keys:
         # Handle double_blocks
@@ -1712,7 +1722,9 @@ def _convert_hunyuan_video_lora_to_diffusers(original_state_dict):
         weight = state_dict.pop(key)
         shift, scale = weight.chunk(2, dim=0)
         new_weight = mint.cat([scale, shift], dim=0)
-        state_dict[key.replace("final_layer.adaLN_modulation.1", "norm_out.linear")] = new_weight
+        state_dict[key.replace("final_layer.adaLN_modulation.1", "norm_out.linear")] = ms.Parameter(
+            new_weight, name=key.replace("final_layer.adaLN_modulation.1", "norm_out.linear")
+        )
 
     def remap_txt_in_(key, state_dict):
         def rename_key(key):
@@ -1728,9 +1740,15 @@ def _convert_hunyuan_video_lora_to_diffusers(original_state_dict):
         if "self_attn_qkv" in key:
             weight = state_dict.pop(key)
             to_q, to_k, to_v = weight.chunk(3, dim=0)
-            state_dict[rename_key(key.replace("self_attn_qkv", "attn.to_q"))] = to_q
-            state_dict[rename_key(key.replace("self_attn_qkv", "attn.to_k"))] = to_k
-            state_dict[rename_key(key.replace("self_attn_qkv", "attn.to_v"))] = to_v
+            state_dict[rename_key(key.replace("self_attn_qkv", "attn.to_q"))] = ms.Parameter(
+                to_q, name=rename_key(key.replace("self_attn_qkv", "attn.to_q"))
+            )
+            state_dict[rename_key(key.replace("self_attn_qkv", "attn.to_k"))] = ms.Parameter(
+                to_k, name=rename_key(key.replace("self_attn_qkv", "attn.to_k"))
+            )
+            state_dict[rename_key(key.replace("self_attn_qkv", "attn.to_v"))] = ms.Parameter(
+                to_v, name=rename_key(key.replace("self_attn_qkv", "attn.to_v"))
+            )
         else:
             state_dict[rename_key(key)] = state_dict.pop(key)
 
@@ -1742,9 +1760,15 @@ def _convert_hunyuan_video_lora_to_diffusers(original_state_dict):
             state_dict[key.replace("img_attn_qkv", "attn.to_v")] = weight
         else:
             to_q, to_k, to_v = weight.chunk(3, dim=0)
-            state_dict[key.replace("img_attn_qkv", "attn.to_q")] = to_q
-            state_dict[key.replace("img_attn_qkv", "attn.to_k")] = to_k
-            state_dict[key.replace("img_attn_qkv", "attn.to_v")] = to_v
+            state_dict[key.replace("img_attn_qkv", "attn.to_q")] = ms.Parameter(
+                to_q, name=key.replace("img_attn_qkv", "attn.to_q")
+            )
+            state_dict[key.replace("img_attn_qkv", "attn.to_k")] = ms.Parameter(
+                to_k, name=key.replace("img_attn_qkv", "attn.to_k")
+            )
+            state_dict[key.replace("img_attn_qkv", "attn.to_v")] = ms.Parameter(
+                to_v, name=key.replace("img_attn_qkv", "attn.to_v")
+            )
 
     def remap_txt_attn_qkv_(key, state_dict):
         weight = state_dict.pop(key)
@@ -1754,9 +1778,15 @@ def _convert_hunyuan_video_lora_to_diffusers(original_state_dict):
             state_dict[key.replace("txt_attn_qkv", "attn.add_v_proj")] = weight
         else:
             to_q, to_k, to_v = weight.chunk(3, dim=0)
-            state_dict[key.replace("txt_attn_qkv", "attn.add_q_proj")] = to_q
-            state_dict[key.replace("txt_attn_qkv", "attn.add_k_proj")] = to_k
-            state_dict[key.replace("txt_attn_qkv", "attn.add_v_proj")] = to_v
+            state_dict[key.replace("txt_attn_qkv", "attn.add_q_proj")] = ms.Parameter(
+                to_q, name=key.replace("txt_attn_qkv", "attn.add_q_proj")
+            )
+            state_dict[key.replace("txt_attn_qkv", "attn.add_k_proj")] = ms.Parameter(
+                to_k, name=key.replace("txt_attn_qkv", "attn.add_k_proj")
+            )
+            state_dict[key.replace("txt_attn_qkv", "attn.add_v_proj")] = ms.Parameter(
+                to_v, name=key.replace("txt_attn_qkv", "attn.add_v_proj")
+            )
 
     def remap_single_transformer_blocks_(key, state_dict):
         hidden_size = 3072
@@ -1777,10 +1807,18 @@ def _convert_hunyuan_video_lora_to_diffusers(original_state_dict):
                 new_key = key.replace("single_blocks", "single_transformer_blocks").removesuffix(
                     ".linear1.lora_B.weight"
                 )
-                state_dict[f"{new_key}.attn.to_q.lora_B.weight"] = q
-                state_dict[f"{new_key}.attn.to_k.lora_B.weight"] = k
-                state_dict[f"{new_key}.attn.to_v.lora_B.weight"] = v
-                state_dict[f"{new_key}.proj_mlp.lora_B.weight"] = mlp
+                state_dict[f"{new_key}.attn.to_q.lora_B.weight"] = ms.Parameter(
+                    q, name=f"{new_key}.attn.to_q.lora_B.weight"
+                )
+                state_dict[f"{new_key}.attn.to_k.lora_B.weight"] = ms.Parameter(
+                    k, name=f"{new_key}.attn.to_k.lora_B.weight"
+                )
+                state_dict[f"{new_key}.attn.to_v.lora_B.weight"] = ms.Parameter(
+                    v, name=f"{new_key}.attn.to_v.lora_B.weight"
+                )
+                state_dict[f"{new_key}.proj_mlp.lora_B.weight"] = ms.Parameter(
+                    mlp, name=f"{new_key}.proj_mlp.lora_B.weight"
+                )
 
         elif "linear1.lora_A.bias" in key or "linear1.lora_B.bias" in key:
             linear1_bias = state_dict.pop(key)
@@ -1794,10 +1832,18 @@ def _convert_hunyuan_video_lora_to_diffusers(original_state_dict):
                 split_size = (hidden_size, hidden_size, hidden_size, linear1_bias.shape[0] - 3 * hidden_size)
                 q_bias, k_bias, v_bias, mlp_bias = mint.split(linear1_bias, split_size, dim=0)
                 new_key = key.replace("single_blocks", "single_transformer_blocks").removesuffix(".linear1.lora_B.bias")
-                state_dict[f"{new_key}.attn.to_q.lora_B.bias"] = q_bias
-                state_dict[f"{new_key}.attn.to_k.lora_B.bias"] = k_bias
-                state_dict[f"{new_key}.attn.to_v.lora_B.bias"] = v_bias
-                state_dict[f"{new_key}.proj_mlp.lora_B.bias"] = mlp_bias
+                state_dict[f"{new_key}.attn.to_q.lora_B.bias"] = ms.Parameter(
+                    q_bias, name=f"{new_key}.attn.to_q.lora_B.bias"
+                )
+                state_dict[f"{new_key}.attn.to_k.lora_B.bias"] = ms.Parameter(
+                    k_bias, name=f"{new_key}.attn.to_k.lora_B.bias"
+                )
+                state_dict[f"{new_key}.attn.to_v.lora_B.bias"] = ms.Parameter(
+                    v_bias, name=f"{new_key}.attn.to_v.lora_B.bias"
+                )
+                state_dict[f"{new_key}.proj_mlp.lora_B.bias"] = ms.Parameter(
+                    mlp_bias, name=f"{new_key}.proj_mlp.lora_B.bias"
+                )
 
         else:
             new_key = key.replace("single_blocks", "single_transformer_blocks")
