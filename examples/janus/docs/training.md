@@ -102,13 +102,13 @@ We also implemented **a stage-3 SFT for medical data aiming for building a radio
 
 ## Performance
 
-Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 pynative mode:
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.7.0 pynative mode:
 
 | model | task | # card(s) | image size | max_length | batch size | step time (s/step)|
 |:-:|:--:| :-:|:-:|:-:|:-:|:-:|
-| Janus-Pro-1B | T2I | 1 | 384x384 | 1024   | 8 | 0.66 |
-| Janus-Pro-1B | VQA | 1 | 384x384 | 1024   | 4 | 0.59 |
-| Janus-Pro-1B | Text | 1 | n.a. | 512   | 8 | 0.50 |
+| Janus-Pro-1B | T2I | 1 | 384x384 | 1024   | 8 | 0.60 |
+| Janus-Pro-1B | VQA | 1 | 384x384 | 1024   | 4 | 0.42 |
+| Janus-Pro-1B | Text | 1 | n.a. | 512   | 8 | 0.46 |
 | Janus-Pro-7B | T2I | 1 | 384x384 | 1024   | 1 | 0.49 |
 | Janus-Pro-7B | VQA | 1 | 384x384 | 1024   | 1 |  0.66 |
 | Janus-Pro-7B | Text | 1 | n.a. | 512   | 1 | 0.53 |

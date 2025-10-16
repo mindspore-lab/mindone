@@ -8,7 +8,6 @@ dataset_meta_path=YOUR_DATA_PATH
 pretrained_ckpt_path=YOUR_DOWNLOADED_JANUS_CKPT_PATH
 
 python train.py \
-    --ms_mode 0 \
     --model_path ${pretrained_ckpt_path} \
     --load_weight True \
     --task 'text' \
