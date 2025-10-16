@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import random
+
 import numpy as np
 import pytest
 import requests
@@ -27,6 +29,10 @@ from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy, random_attention_mask
 
 DTYPE_AND_THRESHOLDS = {"fp32": 1e-3, "fp16": 2e-3, "bf16": 2e-2}
+
+
+def get_rng():
+    return random.Random(9)
 
 
 class OwlViTVisionModelTester:
@@ -67,7 +73,9 @@ class OwlViTVisionModelTester:
         self.seq_length = num_patches + 1
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_numpy([self.batch_size, self.num_channels, self.image_size, self.image_size])
+        pixel_values = floats_numpy(
+            [self.batch_size, self.num_channels, self.image_size, self.image_size], rng=get_rng()
+        )
         config = self.get_config()
 
         return config, pixel_values
@@ -133,7 +141,7 @@ class OwlViTTextModelTester:
         self.scope = scope
 
     def prepare_config_and_inputs(self):
-        input_ids = ids_numpy([self.batch_size * self.num_queries, self.seq_length], self.vocab_size)
+        input_ids = ids_numpy([self.batch_size * self.num_queries, self.seq_length], self.vocab_size, rng=get_rng())
         input_mask = None
 
         if self.use_input_mask:

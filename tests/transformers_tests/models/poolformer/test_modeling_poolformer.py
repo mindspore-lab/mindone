@@ -18,6 +18,7 @@
 """Testing suite for the PyTorch PoolFormer model."""
 
 import inspect
+import random
 
 import numpy as np
 import pytest
@@ -37,6 +38,10 @@ from tests.transformers_tests.models.modeling_common import floats_numpy, ids_nu
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1, 0]
+
+
+def get_rng():
+    return random.Random(9)
 
 
 class PoolFormerModelTester:
@@ -75,11 +80,13 @@ class PoolFormerModelTester:
         self.scope = scope
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_numpy([self.batch_size, self.num_channels, self.image_size, self.image_size])
+        pixel_values = floats_numpy(
+            [self.batch_size, self.num_channels, self.image_size, self.image_size], rng=get_rng()
+        )
 
         labels = None
         if self.use_labels:
-            labels = ids_numpy([self.batch_size, self.image_size, self.image_size], self.num_labels)
+            labels = ids_numpy([self.batch_size, self.image_size, self.image_size], self.num_labels, rng=get_rng())
 
         config = PoolFormerConfig(
             image_size=self.image_size,
