@@ -43,7 +43,8 @@ Spark-TTS is an advanced text-to-speech system that uses the power of large lang
 
 | mindspore  | ascend driver  |  firmware   |cann toolkit/kernel |
 |:----------:|:--------------:|:-----------:|:------------------:|
-|   2.5.0    |    24.1.RC2    | 7.3.0.1.231 |   8.0.0.beta1    |
+|   2.6.0    |    24.1.RC3    | 7.5.T11.0.B088 |   8.1.RC1     |
+|   2.7.0    |    24.1.RC3    | 7.5.T11.0.B088 |   8.2.RC1     |
 
 To install other dependent packages:
 ```bash
@@ -200,6 +201,24 @@ python -m cli.inference \
 </td>
 </tr>
 </table>
+
+
+## Performance
+
+We evaluated the training performance on Ascend NPUs. All experiments are running in PYNATIVE mode with MindSpore. The results are as follows.
+
+- mindspore2.6.0
+
+| model name | cards | batch size | jit level | kv cache | attn type | step time | token/s |
+|:-----------|:------|:-----------|:---------:|:--------:|:---------:|:---------:|:-------:|
+| sparktts   |  1    |  1         | O0        |     OFF  |   eager   | 0.198s     |  5.25  |
+
+- mindspore2.7.0
+
+| model name | cards | batch size | jit level | kv cache | attn type | step time | token/s |
+|:-----------|:------|:-----------|:---------:|:--------:|:---------:|:---------:|:-------:|
+| sparktts   |  1    |  1         | O0        |     OFF  |   eager   | 0.173s    |   5.38  |
+
 
 
 ## Citation
