@@ -20,16 +20,14 @@
 # limitations under the License.
 from typing import Callable, Optional, Union
 
-import torch
-from transformers.configuration_dots1 import Dots1Config
+from transformers import Dots1Config
 
-import mindspore as ms
+import mindspore
 from mindspore import mint
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
 from ...generation import GenerationMixin
-from ...integrations import use_kernel_forward_from_hub
 from ...masking_utils import create_causal_mask, create_sliding_window_causal_mask
 from ...modeling_flash_attention_utils import FlashAttentionKwargs
 from ...modeling_layers import GradientCheckpointingLayer
@@ -37,23 +35,21 @@ from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
-from ...utils import TransformersKwargs, auto_docstring, can_return_tuple
-from ...utils.generic import check_model_inputs
+from ...utils import TransformersKwargs
 
 
-@use_kernel_forward_from_hub("RMSNorm")
-class Dots1RMSNorm(ms.nn.Cell):
+class Dots1RMSNorm(mindspore.nn.Cell):
     def __init__(self, hidden_size, eps=1e-6):
         """
         Dots1RMSNorm is equivalent to T5LayerNorm
         """
         super().__init__()
-        self.weight = ms.Parameter(mint.ones(hidden_size))
+        self.weight = mindspore.Parameter(mint.ones(hidden_size))
         self.variance_epsilon = eps
 
     def construct(self, hidden_states):
         input_dtype = hidden_states.dtype
-        hidden_states = hidden_states.to(ms.float32)
+        hidden_states = hidden_states.to(mindspore.float32)
         variance = hidden_states.pow(2).mean(-1, keepdim=True)
         hidden_states = hidden_states * mint.rsqrt(variance + self.variance_epsilon)
         return self.weight * hidden_states.to(input_dtype)
@@ -62,7 +58,7 @@ class Dots1RMSNorm(ms.nn.Cell):
         return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
 
 
-class Dots1RotaryEmbedding(ms.nn.Cell):
+class Dots1RotaryEmbedding(mindspore.nn.Cell):
     def __init__(self, config: Dots1Config, device=None):
         super().__init__()
         # BC: "rope_type" was originally "type"
@@ -84,12 +80,10 @@ class Dots1RotaryEmbedding(ms.nn.Cell):
         inv_freq_expanded = self.inv_freq[None, :, None].float().expand(position_ids.shape[0], -1, 1)
         position_ids_expanded = position_ids[:, None, :].float()
 
-        device_type = x.device.type if isinstance(x.device.type, str) and x.device.type != "mps" else "cpu"
-        with torch.autocast(device_type=device_type, enabled=False):  # Force float32
-            freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).transpose(1, 2)
-            emb = mint.cat((freqs, freqs), dim=-1)
-            cos = emb.cos() * self.attention_scaling
-            sin = emb.sin() * self.attention_scaling
+        freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).transpose(1, 2)
+        emb = mint.cat((freqs, freqs), dim=-1)
+        cos = emb.cos() * self.attention_scaling
+        sin = emb.sin() * self.attention_scaling
 
         return cos.to(dtype=x.dtype), sin.to(dtype=x.dtype)
 
@@ -105,11 +99,11 @@ def apply_rotary_pos_emb(q, k, cos, sin, position_ids=None, unsqueeze_dim=1):
     """Applies Rotary Position Embedding to the query and key tensors.
 
     Args:
-        q (`torch.Tensor`): The query tensor.
-        k (`torch.Tensor`): The key tensor.
-        cos (`torch.Tensor`): The cosine part of the rotary embedding.
-        sin (`torch.Tensor`): The sine part of the rotary embedding.
-        position_ids (`torch.Tensor`, *optional*):
+        q (`mindspore.Tensor`): The query tensor.
+        k (`mindspore.Tensor`): The key tensor.
+        cos (`mindspore.Tensor`): The cosine part of the rotary embedding.
+        sin (`mindspore.Tensor`): The sine part of the rotary embedding.
+        position_ids (`mindspore.Tensor`, *optional*):
             Deprecated and unused.
         unsqueeze_dim (`int`, *optional*, defaults to 1):
             The 'unsqueeze_dim' argument specifies the dimension along which to unsqueeze cos[position_ids] and
@@ -119,7 +113,7 @@ def apply_rotary_pos_emb(q, k, cos, sin, position_ids=None, unsqueeze_dim=1):
             cos[position_ids] and sin[position_ids] broadcastable to the shapes of q and k. Similarly, if q and k have
             the shape [batch_size, seq_len, heads, head_dim], then set unsqueeze_dim=2.
     Returns:
-        `tuple(torch.Tensor)` comprising of the query and key tensors rotated using the Rotary Position Embedding.
+        `tuple(mindspore.Tensor)` comprising of the query and key tensors rotated using the Rotary Position Embedding.
     """
     cos = cos.unsqueeze(unsqueeze_dim)
     sin = sin.unsqueeze(unsqueeze_dim)
@@ -128,9 +122,9 @@ def apply_rotary_pos_emb(q, k, cos, sin, position_ids=None, unsqueeze_dim=1):
     return q_embed, k_embed
 
 
-def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
+def repeat_kv(hidden_states: mindspore.Tensor, n_rep: int) -> mindspore.Tensor:
     """
-    This is the equivalent of torch.repeat_interleave(x, dim=1, repeats=n_rep). The hidden states go from (batch,
+    This is the equivalent of mindspore.repeat_interleave(x, dim=1, repeats=n_rep). The hidden states go from (batch,
     num_key_value_heads, seqlen, head_dim) to (batch, num_attention_heads, seqlen, head_dim)
     """
     batch, num_key_value_heads, slen, head_dim = hidden_states.shape
@@ -141,11 +135,11 @@ def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
 
 
 def eager_attention_forward(
-    module: ms.nn.Cell,
-    query: ms.Tensor,
-    key: ms.Tensor,
-    value: ms.Tensor,
-    attention_mask: Optional[ms.Tensor],
+    module: mindspore.nn.Cell,
+    query: mindspore.Tensor,
+    key: mindspore.Tensor,
+    value: mindspore.Tensor,
+    attention_mask: Optional[mindspore.Tensor],
     scaling: float,
     dropout: float = 0.0,
     **kwargs: Unpack[TransformersKwargs],
@@ -158,15 +152,15 @@ def eager_attention_forward(
         causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
         attn_weights = attn_weights + causal_mask
 
-    attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query.dtype)
+    attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1, dtype=mindspore.float32).to(query.dtype)
     attn_weights = mint.nn.functional.dropout(attn_weights, p=dropout, training=module.training)
     attn_output = mint.matmul(attn_weights, value_states)
-    attn_output = attn_output.transpose(1, 2).contiguous()
+    attn_output = attn_output.transpose(1, 2)
 
     return attn_output, attn_weights
 
 
-class Dots1Attention(ms.nn.Cell):
+class Dots1Attention(mindspore.nn.Cell):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
 
     def __init__(self, config: Dots1Config, layer_idx: int):
@@ -197,13 +191,13 @@ class Dots1Attention(ms.nn.Cell):
 
     def construct(
         self,
-        hidden_states: ms.Tensor,
-        position_embeddings: tuple[ms.Tensor, ms.Tensor],
-        attention_mask: Optional[ms.Tensor],
+        hidden_states: mindspore.Tensor,
+        position_embeddings: tuple[mindspore.Tensor, mindspore.Tensor],
+        attention_mask: Optional[mindspore.Tensor],
         past_key_value: Optional[Cache] = None,
-        cache_position: Optional[ms.Tensor] = None,
+        cache_position: Optional[mindspore.Tensor] = None,
         **kwargs: Unpack[FlashAttentionKwargs],
-    ) -> tuple[ms.Tensor, Optional[ms.Tensor], Optional[tuple[ms.Tensor]]]:
+    ) -> tuple[mindspore.Tensor, Optional[mindspore.Tensor], Optional[tuple[mindspore.Tensor]]]:
         input_shape = hidden_states.shape[:-1]
         hidden_shape = (*input_shape, -1, self.head_dim)
 
@@ -240,7 +234,7 @@ class Dots1Attention(ms.nn.Cell):
         return attn_output, attn_weights
 
 
-class Dots1MLP(ms.nn.Cell):
+class Dots1MLP(mindspore.nn.Cell):
     def __init__(self, config, hidden_size=None, intermediate_size=None):
         super().__init__()
         self.config = config
@@ -257,7 +251,7 @@ class Dots1MLP(ms.nn.Cell):
         return down_proj
 
 
-class Dots1MoE(ms.nn.Cell):
+class Dots1MoE(mindspore.nn.Cell):
     """
     A mixed expert module containing shared experts.
     """
@@ -265,7 +259,7 @@ class Dots1MoE(ms.nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.experts = ms.nn.CellList(
+        self.experts = mindspore.nn.CellList(
             [Dots1MLP(config, intermediate_size=config.moe_intermediate_size) for _ in range(config.n_routed_experts)]
         )
         self.gate = Dots1TopkRouter(config)
@@ -273,7 +267,7 @@ class Dots1MoE(ms.nn.Cell):
             config=config, intermediate_size=config.moe_intermediate_size * config.n_shared_experts
         )
 
-    def moe(self, hidden_states: ms.Tensor, topk_indices: ms.Tensor, topk_weights: ms.Tensor):
+    def moe(self, hidden_states: mindspore.Tensor, topk_indices: mindspore.Tensor, topk_weights: mindspore.Tensor):
         r"""
         CALL FOR CONTRIBUTION! I don't have time to optimise this right now, but expert weights need to be fused
         to not have to do a loop here (deepseek has 256 experts soooo yeah).
@@ -292,7 +286,7 @@ class Dots1MoE(ms.nn.Cell):
                 expert_input = hidden_states[token_indices]
                 expert_output = expert(expert_input)
                 weighted_output = expert_output * expert_weights.unsqueeze(-1)
-                final_hidden_states.index_add_(0, token_indices, weighted_output)
+                final_hidden_states = final_hidden_states.index_add(0, token_indices, weighted_output)
 
         # in original deepseek, the output of the experts are gathered once we leave this module
         # thus the moe module is itelsf an IsolatedParallel module
@@ -309,7 +303,7 @@ class Dots1MoE(ms.nn.Cell):
         return hidden_states
 
 
-class Dots1TopkRouter(ms.nn.Cell):
+class Dots1TopkRouter(mindspore.nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.config = config
@@ -320,10 +314,9 @@ class Dots1TopkRouter(ms.nn.Cell):
         self.topk_group = config.topk_group
         self.norm_topk_prob = config.norm_topk_prob
 
-        self.weight = ms.Parameter(mint.empty((self.n_routed_experts, config.hidden_size)))
+        self.weight = mindspore.Parameter(mint.zeros((self.n_routed_experts, config.hidden_size)))
         self.register_buffer("e_score_correction_bias", mint.zeros(self.n_routed_experts))
 
-    @ms._no_grad()
     def get_topk_indices(self, scores):
         scores_for_choice = scores.view(-1, self.n_routed_experts) + self.e_score_correction_bias.unsqueeze(0)
         group_scores = (
@@ -332,7 +325,7 @@ class Dots1TopkRouter(ms.nn.Cell):
             .sum(dim=-1)
         )
         group_idx = mint.topk(group_scores, k=self.topk_group, dim=-1, sorted=False)[1]
-        group_mask = mint.zeros_like(group_scores)
+        group_mask = mint.nn.zeros(group_scores.shape)
         group_mask.scatter_(1, group_idx, 1)
         score_mask = (
             group_mask.unsqueeze(-1)
@@ -345,7 +338,9 @@ class Dots1TopkRouter(ms.nn.Cell):
 
     def construct(self, hidden_states):
         hidden_states = hidden_states.view(-1, self.config.hidden_size)
-        router_logits = mint.nn.functional.linear(hidden_states.type(ms.float32), self.weight.type(ms.float32))
+        router_logits = mint.nn.functional.linear(
+            hidden_states.type(mindspore.float32), self.weight.type(mindspore.float32)
+        )
         scores = router_logits.sigmoid()
         topk_indices = self.get_topk_indices(scores)
         topk_weights = scores.gather(1, topk_indices)
@@ -374,15 +369,17 @@ class Dots1DecoderLayer(GradientCheckpointingLayer):
 
     def construct(
         self,
-        hidden_states: ms.Tensor,
-        attention_mask: Optional[ms.Tensor] = None,
-        position_ids: Optional[ms.Tensor] = None,
+        hidden_states: mindspore.Tensor,
+        attention_mask: Optional[mindspore.Tensor] = None,
+        position_ids: Optional[mindspore.Tensor] = None,
         past_key_value: Optional[Cache] = None,
         use_cache: Optional[bool] = False,
-        cache_position: Optional[ms.Tensor] = None,
-        position_embeddings: Optional[tuple[ms.Tensor, ms.Tensor]] = None,  # necessary, but kept here for BC
+        cache_position: Optional[mindspore.Tensor] = None,
+        position_embeddings: Optional[
+            tuple[mindspore.Tensor, mindspore.Tensor]
+        ] = None,  # necessary, but kept here for BC
         **kwargs: Unpack[TransformersKwargs],
-    ) -> tuple[ms.Tensor]:
+    ) -> tuple[mindspore.Tensor]:
         residual = hidden_states
         hidden_states = self.input_layernorm(hidden_states)
         # Self Attention
@@ -406,7 +403,6 @@ class Dots1DecoderLayer(GradientCheckpointingLayer):
         return hidden_states
 
 
-@auto_docstring
 class Dots1PreTrainedModel(PreTrainedModel):
     config: Dots1Config
     base_model_prefix = "model"
@@ -427,10 +423,11 @@ class Dots1PreTrainedModel(PreTrainedModel):
     def _init_weights(self, module):
         super()._init_weights(module)
         if isinstance(module, Dots1TopkRouter):
-            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+            module.weight.set_data(
+                mint.nn.normal(shape=module.weight.shape, mean=0.0, stddev=self.config.initializer_range)
+            )
 
 
-@auto_docstring
 class Dots1Model(Dots1PreTrainedModel):
     def __init__(self, config: Dots1Config):
         super().__init__(config)
@@ -438,7 +435,7 @@ class Dots1Model(Dots1PreTrainedModel):
         self.vocab_size = config.vocab_size
 
         self.embed_tokens = mint.nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)
-        self.layers = ms.nn.CellList(
+        self.layers = mindspore.nn.CellList(
             [Dots1DecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]
         )
         self.norm = Dots1RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
@@ -449,17 +446,15 @@ class Dots1Model(Dots1PreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @check_model_inputs
-    @auto_docstring
     def construct(
         self,
-        input_ids: Optional[ms.Tensor] = None,
-        attention_mask: Optional[ms.Tensor] = None,
-        position_ids: Optional[ms.Tensor] = None,
+        input_ids: Optional[mindspore.Tensor] = None,
+        attention_mask: Optional[mindspore.Tensor] = None,
+        position_ids: Optional[mindspore.Tensor] = None,
         past_key_values: Optional[Cache] = None,
-        inputs_embeds: Optional[ms.Tensor] = None,
+        inputs_embeds: Optional[mindspore.Tensor] = None,
         use_cache: Optional[bool] = None,
-        cache_position: Optional[ms.Tensor] = None,
+        cache_position: Optional[mindspore.Tensor] = None,
         **kwargs: Unpack[TransformersKwargs],
     ) -> BaseModelOutputWithPast:
         if (input_ids is None) ^ (inputs_embeds is not None):
@@ -524,7 +519,6 @@ class Dots1Model(Dots1PreTrainedModel):
         )
 
 
-@auto_docstring
 class Dots1ForCausalLM(Dots1PreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
     _tp_plan = {"lm_head": "colwise_rep"}
@@ -545,23 +539,21 @@ class Dots1ForCausalLM(Dots1PreTrainedModel, GenerationMixin):
     def get_decoder(self):
         return self.model
 
-    @can_return_tuple
-    @auto_docstring
     def construct(
         self,
-        input_ids: Optional[ms.Tensor] = None,
-        attention_mask: Optional[ms.Tensor] = None,
-        position_ids: Optional[ms.Tensor] = None,
+        input_ids: Optional[mindspore.Tensor] = None,
+        attention_mask: Optional[mindspore.Tensor] = None,
+        position_ids: Optional[mindspore.Tensor] = None,
         past_key_values: Optional[Cache] = None,
-        inputs_embeds: Optional[ms.Tensor] = None,
-        labels: Optional[ms.Tensor] = None,
+        inputs_embeds: Optional[mindspore.Tensor] = None,
+        labels: Optional[mindspore.Tensor] = None,
         use_cache: Optional[bool] = None,
-        cache_position: Optional[ms.Tensor] = None,
-        logits_to_keep: Union[int, ms.Tensor] = 0,
+        cache_position: Optional[mindspore.Tensor] = None,
+        logits_to_keep: Union[int, mindspore.Tensor] = 0,
         **kwargs: Unpack[TransformersKwargs],
     ) -> CausalLMOutputWithPast:
         r"""
-        labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+        labels (`mindspore.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,
             config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored
             (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`.
@@ -569,7 +561,7 @@ class Dots1ForCausalLM(Dots1PreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, Dots1ForCausalLM
+        >>> from mindone.transformers import AutoTokenizer, Dots1ForCausalLM
 
         >>> model = Dots1ForCausalLM.from_pretrained("rednote-hilab/dots1.llm1.inst")
         >>> tokenizer = AutoTokenizer.from_pretrained("rednote-hilab/dots1.llm1.inst")
