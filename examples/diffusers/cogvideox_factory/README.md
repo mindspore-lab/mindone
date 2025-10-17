@@ -410,3 +410,7 @@ NODE_RANK="0"
 当前训练脚本并不完全支持原仓代码的所有训练参数，详情参见[`args.py`](./scripts/args.py)中的`check_args()`。
 
 其中一个主要的限制来自于CogVideoX模型中的[3D Causual VAE不支持静态图](https://gist.github.com/townwish4git/b6cd0d213b396eaedfb69b3abcd742da)，这导致我们**不支持静态图模式下VAE参与训练**，因此在静态图模式下必须提前进行数据预处理以获取VAE-latents/text-encoder-embeddings cache。
+
+
+### 注意
+训练结束后若出现 `Exception ignored: OSError [Errno 9] Bad file descriptor`，仅为 Python 关闭时的提示，不影响训练结果；使用 Python 3.11，该提示不再出现。

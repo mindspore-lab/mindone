@@ -67,7 +67,7 @@ from .integrations import PeftAdapterMixin
 from .integrations.flash_attention import flash_attention_forward
 from .integrations.sdpa_attention import sdpa_attention_forward
 from .loss.loss_utils import LOSS_MAPPING
-from .mindspore_adapter import dtype_to_str
+from .mindspore_adapter import TORCH_TO_MINDSPORE_DTYPE_MAP, dtype_to_str
 from .mindspore_utils import (  # noqa: F401
     Conv1D,
     apply_chunking_to_forward,
@@ -771,7 +771,12 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         if not getattr(config, "_attn_implementation_autoset", False):
             # config usually has a `mindspore_dtype` but we need the next line for the `no_super_init` tests
             # TODO mindspore does not have get_default_dtype api
-            dtype = config.mindspore_dtype if hasattr(config, "mindspore_dtype") else ms.float32
+            dtype = ms.float32
+            if hasattr(config, "torch_dtype") and config.torch_dtype is not None:
+                if isinstance(config.torch_dtype, str):
+                    dtype = getattr(ms, config.torch_dtype)
+                else:
+                    dtype = TORCH_TO_MINDSPORE_DTYPE_MAP[str(config.torch_dtype)]
             config = self._autoset_attn_implementation(config, mindspore_dtype=dtype)
         # Save config and origin of the pretrained weights if given in model
         self.config = config
@@ -1038,11 +1043,6 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         if isinstance(mindspore_dtype, str):
             mindspore_dtype = getattr(ms, mindspore_dtype)
         elif mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
-            TORCH_TO_MINDSPORE_DTYPE_MAP = {
-                "torch.float32": ms.float32,
-                "torch.bfloat16": ms.bfloat16,
-                "torch.float16": ms.float16,
-            }
             mindspore_dtype = str(mindspore_dtype)
             mindspore_dtype = TORCH_TO_MINDSPORE_DTYPE_MAP[mindspore_dtype]
 
@@ -2652,9 +2652,13 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         loading_task_model_from_base_state_dict = not has_prefix_module and expects_prefix_module
         loading_base_model_from_task_state_dict = has_prefix_module and not expects_prefix_module
 
+        # Mapping loaded_keys from pt to ms
+        pt2ms_mappings = _get_pt2ms_mappings(model)
+        loaded_keys = _get_pt2ms_mapped_k(pt2ms_mappings, has_prefix_module, expects_prefix_module, loaded_keys, prefix)
+
         # Find the key names that the model expects from the serialized keys
         key_renaming_mapping = model._get_key_renaming_mapping(
-            original_checkpoint_keys,
+            loaded_keys,
             key_mapping,
             loading_base_model_from_task_state_dict,
             loading_task_model_from_base_state_dict,

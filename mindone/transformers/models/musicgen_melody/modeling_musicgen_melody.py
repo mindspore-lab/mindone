@@ -21,7 +21,7 @@ import random
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
-from transformers.generation import GenerationConfig, GenerationMode, LogitsProcessorList, StoppingCriteriaList
+from transformers.generation import GenerationConfig, GenerationMode
 from transformers.models.musicgen_melody.configuration_musicgen_melody import (
     MusicgenMelodyConfig,
     MusicgenMelodyDecoderConfig,
@@ -33,7 +33,12 @@ import mindspore.mint.nn as nn
 from mindspore.mint.nn import CrossEntropyLoss
 
 from ...activations import ACT2FN
-from ...generation import ClassifierFreeGuidanceLogitsProcessor, GenerationMixin
+from ...generation import (
+    ClassifierFreeGuidanceLogitsProcessor,
+    GenerationMixin,
+    LogitsProcessorList,
+    StoppingCriteriaList,
+)
 from ...modeling_attn_mask_utils import _prepare_4d_causal_attention_mask, _prepare_4d_causal_attention_mask_for_sdpa
 from ...modeling_outputs import BaseModelOutputWithPast
 from ...modeling_utils import MSPreTrainedModel

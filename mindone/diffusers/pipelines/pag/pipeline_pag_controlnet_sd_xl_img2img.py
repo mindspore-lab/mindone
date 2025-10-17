@@ -1483,6 +1483,13 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
                 do_classifier_free_guidance=self.do_classifier_free_guidance,
             )
 
+        # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
+        # to the unet and will raise RuntimeError.
+        lora_scale = self.cross_attention_kwargs.pop("scale", None) if self.cross_attention_kwargs is not None else None
+        if lora_scale is not None:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer
+            scale_lora_layers(self.unet, lora_scale)
+
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 # expand the latents if we are doing classifier free guidance
@@ -1556,6 +1563,11 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
                 # call the callback, if provided
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
+
+        if lora_scale is not None:
+            # remove `lora_scale` from each PEFT layer
+            unscale_lora_layers(self.unet, lora_scale)
+            self.cross_attention_kwargs["scale"] = lora_scale
 
         # If we do sequential model offloading, let's offload unet and controlnet
         # manually for max memory savings

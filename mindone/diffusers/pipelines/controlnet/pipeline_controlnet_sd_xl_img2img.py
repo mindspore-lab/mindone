@@ -1558,6 +1558,7 @@ class StableDiffusionXLControlNetImg2ImgPipeline(
         if lora_scale is not None:
             # remove `lora_scale` from each PEFT layer
             unscale_lora_layers(self.unet, lora_scale)
+            self.cross_attention_kwargs["scale"] = lora_scale
 
         if not output_type == "latent":
             # make sure the VAE is in float32 mode, as it overflows in float16

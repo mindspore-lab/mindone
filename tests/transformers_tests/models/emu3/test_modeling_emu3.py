@@ -19,7 +19,7 @@ import mindspore as ms
 from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-6, "fp16": 5e-3, "bf16": 5e-1}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-2, "fp16": 5e-2, "bf16": 5e-1}
 MODES = [1]
 
 

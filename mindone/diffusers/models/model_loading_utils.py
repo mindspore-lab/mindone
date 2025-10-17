@@ -39,6 +39,7 @@ from mindspore import nn, ops
 from ...safetensors.mindspore import load as safe_load
 from ...safetensors.mindspore import load_file as safe_load_file
 from ..utils import (
+    CKPT_FILE_EXTENSION,
     DEFAULT_HF_PARALLEL_LOADING_WORKERS,
     SAFE_WEIGHTS_INDEX_NAME,
     SAFETENSORS_FILE_EXTENSION,
@@ -101,6 +102,9 @@ def load_state_dict(
                 return safe_load(open(checkpoint_file, "rb").read())
             else:
                 return safe_load_file(checkpoint_file)
+        # support loading checkpoint file in mindspore format
+        elif file_extension == CKPT_FILE_EXTENSION:
+            return ms.load_checkpoint(checkpoint_file)
         else:
             raise NotImplementedError(
                 f"Only supports deserialization of weights file in safetensors format, but got {checkpoint_file}"
