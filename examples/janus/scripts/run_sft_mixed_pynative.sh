@@ -29,4 +29,5 @@ python train.py \
     --warmup_steps 50 \
     --ckpt_save_steps 1000 \
     --ckpt_max_keep 1 \
-    --output_path outputs/stage${stage}_mixed_lr${lr}_wd${wd}_bs${bs}_npp${npp}_mode${ms_mode} \    --mixed_task_rand_samp \
+    --output_path outputs/stage${stage}_mixed_lr${lr}_wd${wd}_bs${bs}_npp${npp}_mode${ms_mode} \
+    --mixed_task_rand_samp

@@ -109,9 +109,9 @@ Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.7.0 pyn
 | Janus-Pro-1B | T2I | 1 | 384x384 | 1024   | 8 | 0.60 |
 | Janus-Pro-1B | VQA | 1 | 384x384 | 1024   | 4 | 0.42 |
 | Janus-Pro-1B | Text | 1 | n.a. | 512   | 8 | 0.46 |
-| Janus-Pro-7B | T2I | 1 | 384x384 | 1024   | 1 | 0.49 |
-| Janus-Pro-7B | VQA | 1 | 384x384 | 1024   | 1 |  0.66 |
-| Janus-Pro-7B | Text | 1 | n.a. | 512   | 1 | 0.53 |
+| Janus-Pro-7B | T2I | 1 | 384x384 | 1024   | 1 | 0.51 |
+| Janus-Pro-7B | VQA | 1 | 384x384 | 1024   | 1 |  0.46 |
+| Janus-Pro-7B | Text | 1 | n.a. | 512   | 1 | 0.57 |
 
 For mixed-SFT:
 
