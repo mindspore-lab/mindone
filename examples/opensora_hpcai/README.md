@@ -27,6 +27,8 @@ This repository is built on the models and code released by HPC-AI Tech. We are 
 | mindspore | ascend driver |  firmware   | cann toolkit/kernel |
 |:---------:|:-------------:|:-----------:|:-------------------:|
 |   2.5.0   |    24.0.0     | 7.5.0.3.220 |     8.0.0.beta1     |
+|   2.6.0   |   24.1.rc3    | 7.7.0.1.238 |       8.1.RC1       |
+|   2.7.0   |   24.1.rc3    | 7.7.0.1.238 |       8.2.RC1       |
 
 
 
@@ -413,7 +415,7 @@ Experiments are conducted on Ascend Atlas 800T A2 machines with MindSpore 2.5.0 
 
 ```shell
 # OSv1.2
-python scripts/inference.py --config configs/opensora-v1-2/inference/sample_iv2v.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
+python scripts/inference.py --config configs/opensora-v1-2/inference/sample_iv2v.yaml --ckpt_path /path/to/your/opensora-v1-2.ckpt
 # OSv1.1
 python scripts/inference.py --config configs/opensora-v1-1/inference/sample_iv2v.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
 ```
@@ -438,13 +440,13 @@ python scripts/inference.py --config configs/opensora-v1-1/inference/sample_t2v.
 
 We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step and the total sampling time of a video.
 
-All experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3.1 graph mode.
+All experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.7.0 graph mode.
 
 | model name  | cards | batch size |  resolution  | jit level | precision | scheduler | step | graph compile | s/step | s/video |                         recipe                          |
 |:-----------:|:-----:|:----------:|:------------:|:---------:|:---------:|:---------:|:----:|:-------------:|:------:|:-------:|:-------------------------------------------------------:|
-| STDiT2-XL/2 |   1   |     1      |  16x640x360  |    O0     |   bf16    |   DDPM    | 100  |   1~2 mins    |  1.56  | 156.00  | [yaml](configs/opensora-v1-1/inference/sample_t2v.yaml) |
-| STDiT3-XL/2 |   1   |     1      | 51x720x1280  |    O0     |   bf16    |   RFlow   |  30  |   1~2 mins    |  5.88  | 176.40  | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) |
-| STDiT3-XL/2 |   1   |     1      | 102x720x1280 |    O0     |   bf16    |   RFlow   |  30  |    1~2 min    | 13.71  | 411.30  | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) |
+| STDiT2-XL/2 |   1   |     1      |  16x640x360  |    O0     |   bf16    |   DDPM    | 100  |   1~2 mins    |  1.56  |  156.0  | [yaml](configs/opensora-v1-1/inference/sample_t2v.yaml) |
+| STDiT3-XL/2 |   1   |     1      | 51x720x1280  |    O0     |   bf16    |   RFlow   |  30  |   1~2 mins    |  4.83  |  155.4  | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) |
+| STDiT3-XL/2 |   1   |     1      | 102x720x1280 |    O0     |   bf16    |   RFlow   |  30  |   1~2 mins    |  8.81  |  286.9  | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) |
 
 </details>
 
@@ -778,13 +780,14 @@ Here ✅ means that the data is seen during training, and 🆗 means although no
 
 We evaluate the training performance of Open-Sora v1.2 on the MixKit dataset with high-resolution videos (1080P, duration 12s to 100s).
 
-All experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3.1 graph mode.
-| model name   | cards  | batch size | resolution | precision  | sink      | jit level | graph compile |  s/step | recipe |
-| :--:         | :--:   | :--:       | :--:       | :--:       | :--:      | :--:      |:--:          | :--:       | :--:   |
-| STDiT3-XL/2  |  8     | 1          | 51x720x1280| bf16       | ON      | O1        |    12 mins   | 14.23   | [yaml](configs/opensora-v1-2/train/train_720x1280x51.yaml)
-| STDiT3-XL/2  |  8     | dynamic    | stage 1 | bf16       |   OFF    | O1        |      22 mins   | 13.17   | [yaml](configs/opensora-v1-2/train/train_stage1_ms.yaml)
-| STDiT3-XL/2  |  8     | dynamic    | stage 2 | bf16       |   OFF    | O1        |     22 mins     | 31.04   | [yaml](configs/opensora-v1-2/train/train_stage2_ms.yaml)
-| STDiT3-XL/2  |  8     | dynamic    | stage 3 | bf16       |   OFF    | O1        |     22 mins     | 31.17   | [yaml](configs/opensora-v1-2/train/train_stage3_ms.yaml)
+All experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.7.0 graph mode.
+
+| model name  | cards | batch size | resolution  | precision | jit level | graph compile | s/step |                           recipe                           |
+|:-----------:|:-----:|:----------:|:-----------:|:---------:|:---------:|:-------------:|:------:|:----------------------------------------------------------:|
+| STDiT3-XL/2 |   8   |     1      | 51x720x1280 |   bf16    |    O1     |     100 s     | 11.24  | [yaml](configs/opensora-v1-2/train/train_720x1280x51.yaml) |
+| STDiT3-XL/2 |   8   |  dynamic   |   stage 1   |   bf16    |    O1     |    14 mins    | 13.17  |  [yaml](configs/opensora-v1-2/train/train_stage1_ms.yaml)  |
+| STDiT3-XL/2 |   8   |  dynamic   |   stage 2   |   bf16    |    O1     |    14 mins    | 26.04  |  [yaml](configs/opensora-v1-2/train/train_stage2_ms.yaml)  |
+| STDiT3-XL/2 |   8   |  dynamic   |   stage 3   |   bf16    |    O1     |    14 mins    | 27.83  |  [yaml](configs/opensora-v1-2/train/train_stage3_ms.yaml)  |
 
 Note that the step time of dynamic training can be influenced by the resolution and duration distribution of the source videos.
 
