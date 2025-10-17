@@ -31,6 +31,7 @@ competitive performance across four primary capabilities:
 | MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
 |:---------:|:-------------:|:-----------:|:-------------------:|
 |   2.6.0   |   24.1.rc3    | 7.7.0.1.238 |       8.1.RC1       |
+|   2.7.0   |   24.1.rc3    | 7.7.0.1.238 |       8.2.RC1       |
 
 1) Install MindSpore and Ascend software per the official docs:
 
