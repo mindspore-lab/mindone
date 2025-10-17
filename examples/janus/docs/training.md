@@ -40,11 +40,11 @@ bash scripts/run_sft_text.sh  # if no manual patching, by default it should be c
 
 Patching `janus/models/modeling_vlm.py`: **Single task for pure text**
 ```diff
-# @ L428
+# @ L431
 -- def construct(
 ++ # def construct( # just comment the whole function out
 
-# @ L476
+# @ L479
 -- def construct_graph_single_task(
 ++ def construct(
 ```
@@ -77,25 +77,26 @@ We also implemented **a stage-3 SFT for medical data aiming for building a radio
 
 > [!NOTE]
 > We achieve higher training throughput by enabling graph mode compute. However, to do that we need to predefine a compute graph for the vlm for each of the task out of three in total, as for each task, the vlm takes different types of input arg pairs.
+> This feature is for MindSpore 2.5.0 only. It is no longer supported in Mindspore 2.7.0
 >
 > To run `scripts/run_sft_mixed_graph.sh`, simply go into `janus/models/modeling_vlm.py`, and patch `construct_*()` into `construct()` as follows.
 ```diff
-# @ L428
+# @ L431
 -- def construct(
 ++ # def construct( # just comment the whole function out
 
-# @ L570
+# @ L573
 -- def construct_graph_mixed_task(
 ++ def construct(
 ```
 
 #### Pynative Mode SFT Training for Mixed Tasks
 ```diff
-# @ L428
+# @ L431
 -- def construct(
 ++ # def construct( # just comment the whole function out
 
-# @ L516
+# @ L519
 -- def construct_pynative_mixed_task(
 ++ def construct(
 ```
@@ -117,5 +118,4 @@ For mixed-SFT:
 
 | model | task | ms_mode | # card(s) | image size | max_length | batch size | step time (s/step)|
 |:-:|:--:| :-:|:-:|:-:|:-:|:-:|:-:|
-| Janus-Pro-1B | mixed | pynative | 1 | 384x384 | 1024   | 6 | 3.05 |
-| Janus-Pro-1B | mixed | graph | 1 | 384x384 | 1024   | 6 | 2.36 |
+| Janus-Pro-1B | mixed | pynative | 1 | 384x384 | 1024   | 6 | 2.30 |
