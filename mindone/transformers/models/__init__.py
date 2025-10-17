@@ -221,6 +221,7 @@ from . import (
     swinv2,
     switch_transformers,
     t5,
+    t5gemma,
     table_transformer,
     tapas,
     textnet,
