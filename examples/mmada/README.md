@@ -40,12 +40,12 @@ Here is the development plan of the project:
 
 | MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
 |:---------:|:-------------:|:-----------:|:-------------------:|
-|   2.6.0   |  24.1.RC3     | 7.6.0.1.220 |  8.0.RC3.beta1     |
+| 2.6.0/2.7.0 | 24.1.RC3.b080  |   7.5.T11.0.B088   | 8.1.RC1    |
 
 </div>
 
 1. Install
-   [CANN 8.0.RC3.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC3.beta1)
+   [CANN 8.1.RC1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.1.RC1)
    and MindSpore according to the [official instructions](https://www.mindspore.cn/install).
 2. Install requirements
     ```shell
@@ -98,7 +98,7 @@ python generate.py
 
 ### 2. MultiModal Generation
 
-For multiModal generation, please run:
+For multimodal generation, please run:
 ```
 python3 inference_mmu.py config=configs/mmada_demo.yaml mmu_image_root=./mmu_validation question='Please describe this image in detail.'
 ```
@@ -109,9 +109,27 @@ The outputs are stored locally.
 For text-to-image generation, please run:
 ```
 python3 inference_t2i.py config=configs/mmada_demo.yaml batch_size=1 validation_prompts_file=validation_prompts/text2image_prompts.txt guidance_scale=3.5 generation_timesteps=15
-mode='t2i'
 ```
 The outputs are stored locally.
+
+### Performance
+
+The following experiments are tested on Ascend Atlas 800T A2 machines with mindspore **2.7.0** under **pynative** mode:
+
+| model | # card(s) | batch size | task | throughput (token/s) |
+|:-:|:-:|:-:|:-:|:-:|
+|  MMaDA-8B-Base | 1 | 1  | text generation |  12.56 |
+|  MMaDA-8B-Base | 1 | 1  | mmu generation  |  13.48  |
+|  MMaDA-8B-Base | 1 | 1  | text-to-image generation| 167.50 |
+
+The following experiments are tested on Ascend Atlas 800T A2 machines with mindspore **2.6.0** under **pynative** mode:
+
+| model | # card(s) | batch size | task | throughput (token/s) |
+|:-:|:-:|:-:|:-:|:-:|
+|  MMaDA-8B-Base | 1 | 1  | text generation |  12.53 |
+|  MMaDA-8B-Base | 1 | 1  | mmu generation  |  13.50  |
+|  MMaDA-8B-Base | 1 | 1  | text-to-image generation| 168.60 |
+
 
 ## 🔧 Training
 
@@ -163,6 +181,21 @@ export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir=./parallel_logs \
 python training/train_mmada_stage2.py config=configs/mmada_finetune_artwork.yaml
 ```
+
+### Performance
+
+The following experiments are tested on Ascend Atlas 800T A2 machines with mindspore **2.7.0** under **pynative** mode:
+
+| model | # card(s) | batch size | parallelism |task | per batch time (seconds) |
+|:-:|:-:|:-:|:-:|:-:|:-:|
+| MMaDA-8B-Base  | 8 |  4 | zero2  | finetune  | 1.29 |
+
+The following experiments are tested on Ascend Atlas 800T A2 machines with mindspore **2.6.0** under **pynative** mode:
+
+| model | # card(s) | batch size | parallelism | task | per batch time (seconds) |
+|:-:|:-:|:-:|:-:|:-:|:-:|
+| MMaDA-8B-Base  | 8 |  4 | zero2  | finetune  | 1.30 |
+
 
 
 ## 🤝 Acknowledgments
