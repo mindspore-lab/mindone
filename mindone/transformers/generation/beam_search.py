@@ -347,7 +347,7 @@ class BeamSearchScorer(BeamScorer):
                 beam_hyp.add(final_tokens, final_score, beam_indices=beam_index, generated_len=generated_len)
 
         # select the best hypotheses
-        sent_lengths = input_ids.new(batch_size * self.num_beam_hyps_to_keep)
+        sent_lengths = mint.empty(batch_size * self.num_beam_hyps_to_keep)
         best = []
         best_indices = []
         best_scores = mint.zeros(batch_size * self.num_beam_hyps_to_keep, dtype=ms.float32)
@@ -375,10 +375,10 @@ class BeamSearchScorer(BeamScorer):
         # prepare for adding eos
         sent_lengths_max = sent_lengths.max().item() + 1
         sent_max_len = min(sent_lengths_max, max_length) if max_length is not None else sent_lengths_max
-        decoded: ms.Tensor = input_ids.new(batch_size * self.num_beam_hyps_to_keep, sent_max_len)
+        decoded: ms.Tensor = mint.empty((batch_size * self.num_beam_hyps_to_keep, sent_max_len))
 
         if len(best_indices) > 0 and best_indices[0] is not None:
-            indices: ms.Tensor = input_ids.new(batch_size * self.num_beam_hyps_to_keep, sent_max_len)
+            indices: ms.Tensor = mint.empty((batch_size * self.num_beam_hyps_to_keep, sent_max_len))
         else:
             indices = None
 
@@ -853,7 +853,7 @@ class ConstrainedBeamSearchScorer(BeamScorer):
                         break
 
         # select the best hypotheses
-        sent_lengths = input_ids.new(batch_size * self.num_beam_hyps_to_keep)
+        sent_lengths = mint.empty(batch_size * self.num_beam_hyps_to_keep)
         best = []
         best_indices = []
         best_scores = mint.zeros(batch_size * self.num_beam_hyps_to_keep, dtype=ms.float32)
@@ -880,10 +880,10 @@ class ConstrainedBeamSearchScorer(BeamScorer):
         sent_lengths_max = sent_lengths.max().item() + 1
 
         sent_max_len = min(sent_lengths_max, max_length) if max_length is not None else sent_lengths_max
-        decoded: ms.Tensor = input_ids.new(batch_size * self.num_beam_hyps_to_keep, sent_max_len)
+        decoded: ms.Tensor = mint.empty((batch_size * self.num_beam_hyps_to_keep, sent_max_len))
 
         if len(best_indices) > 0 and best_indices[0] is not None:
-            indices: ms.Tensor = input_ids.new(batch_size * self.num_beam_hyps_to_keep, sent_max_len)
+            indices: ms.Tensor = mint.empty((batch_size * self.num_beam_hyps_to_keep, sent_max_len))
         else:
             indices = None
 

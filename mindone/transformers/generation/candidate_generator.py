@@ -26,6 +26,7 @@ from transformers import is_sklearn_available
 import mindspore as ms
 from mindspore import mint
 from mindspore import numpy as mnp
+from mindspore import ops
 
 from ..cache_utils import DynamicCache
 
@@ -450,7 +451,7 @@ class AssistedCandidateGeneratorDifferentTokenizers(AssistedCandidateGenerator):
         if not isinstance(compare_mat, ms.Tensor):
             compare_mat = ms.Tensor(compare_mat)
 
-        compare_mat_int = compare_mat.to(int)
+        compare_mat_int = compare_mat.to(ms.int32)
 
         if not compare_mat_int.any().item():
             # empty intersection between prompt and prompt_plus_new_tokens
@@ -482,7 +483,7 @@ class AssistedCandidateGeneratorDifferentTokenizers(AssistedCandidateGenerator):
             The converted token IDs.
         """
         text = source_tokenizer.batch_decode(input_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True)
-        dest_ids = destination_tokenizer(text, add_special_tokens=True, return_tensors="pt")["input_ids"]
+        dest_ids = ms.tensor(destination_tokenizer(text, add_special_tokens=True, return_tensors="np")["input_ids"])
         return dest_ids
 
     def get_candidates(self, input_ids: ms.Tensor) -> tuple[ms.Tensor, Optional[ms.Tensor]]:
@@ -671,14 +672,14 @@ class AssistantToTargetTranslator:
                     }
 
         max_assistant_index = max(assistant_vocab.values())
-        assistant_to_target_input_ids = mint.full((max_assistant_index + 1,), self.SUPPRESS_TOKEN_ID, dtype=int)
+        assistant_to_target_input_ids = ops.full((max_assistant_index + 1,), self.SUPPRESS_TOKEN_ID, dtype=ms.int32)
         target_to_assistant_input_ids: dict[int, int] = {}
         for tok, assistant_id in assistant_vocab.items():
             target_id = target_vocab.get(tok)
             if target_id is not None:
                 assistant_to_target_input_ids[assistant_id] = target_id
                 target_to_assistant_input_ids[target_id] = assistant_id
-        return assistant_to_target_input_ids.to(self._assistant_model_device), target_to_assistant_input_ids
+        return assistant_to_target_input_ids, target_to_assistant_input_ids
 
     def _get_suppress_input_ids(self) -> list[int]:
         """
@@ -706,7 +707,7 @@ class AssistantToTargetTranslator:
         """
 
         target_shape: tuple[int, ...] = (*assistant_logits.shape[:-1], self.target_vocab_size)
-        target_logits: ms.Tensor = mint.full(target_shape, self.FILTER_VALUE)
+        target_logits: ms.Tensor = ops.full(target_shape, self.FILTER_VALUE)
         # Mask for valid indices
         assistant_indices_mask = self._assistant_to_target_input_ids != self.SUPPRESS_TOKEN_ID
         # Exclude invalid indices
@@ -732,7 +733,6 @@ class AssistantVocabTranslatorCache:
         target_tokenizer: "PreTrainedTokenizerBase",
         assistant_tokenizer: "PreTrainedTokenizerBase",
         target_vocab_size: int,
-        assistant_model_device: str = "cpu",
     ) -> AssistantToTargetTranslator:
         assistant_dict = cls._cache.get(target_tokenizer)
         if assistant_dict is None:
@@ -742,7 +742,9 @@ class AssistantVocabTranslatorCache:
         mapping = assistant_dict.get(assistant_tokenizer)
         if mapping is None:
             mapping = AssistantToTargetTranslator(
-                target_tokenizer, assistant_tokenizer, target_vocab_size, assistant_model_device
+                target_tokenizer,
+                assistant_tokenizer,
+                target_vocab_size,
             )
             assistant_dict[assistant_tokenizer] = mapping
 
@@ -863,9 +865,9 @@ class UniversalSpeculativeDecodingGenerator(AssistedCandidateGeneratorDifferentT
             target_new_text = self.target_tokenizer.batch_decode(
                 target_new_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
             )
-            assistant_new_ids = self.assistant_tokenizer(
-                target_new_text, add_special_tokens=False, return_tensors="pt"
-            )["input_ids"]
+            assistant_new_ids = ms.tensor(
+                self.assistant_tokenizer(target_new_text, add_special_tokens=False, return_tensors="np")["input_ids"]
+            )
         else:
             assistant_new_ids = ms.Tensor([[assistant_new_ids]])
 
