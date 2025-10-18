@@ -233,6 +233,8 @@
         title: ControlNetUnionModel
       - local: api/models/controlnet_flux
         title: FluxControlNetModel
+      - local: api/models/hidream_image_transformer
+        title: HiDreamImageTransformer2DModel
       - local: api/models/controlnet_hunyuandit
         title: HunyuanDiT2DControlNetModel
       - local: api/models/controlnet_sana
@@ -285,6 +287,8 @@
         title: PixArtTransformer2DModel
       - local: api/models/prior_transformer
         title: PriorTransformer
+      - local: api/models/qwenimage_transformer2d
+        title: QwenImageTransformer2DModel
       - local: api/models/sana_transformer2d
         title: SanaTransformer2DModel
       - local: api/models/sd3_transformer2d
@@ -337,6 +341,8 @@
         title: AutoencoderKLMagvit
       - local: api/models/autoencoderkl_mochi
         title: AutoencoderKLMochi
+      - local: api/models/autoencoderkl_qwenimage
+        title: AutoencoderKLQwenImage
       - local: api/models/autoencoder_kl_wan
         title: AutoencoderKLWan
       - local: api/models/consistency_decoder_vae
@@ -419,6 +425,8 @@
       title: Flux
     - local: api/pipelines/control_flux_inpaint
       title: FluxControlInpaint
+    - local: api/pipelines/hidream
+      title: HiDream-I1
     - local: api/pipelines/framepack
       title: Framepack
     - local: api/pipelines/hunyuandit
@@ -471,6 +479,8 @@
       title: PixArt-α
     - local: api/pipelines/pixart_sigma
       title: PixArt-Σ
+    - local: api/pipelines/qwenimage
+      title: QwenImage
     - local: api/pipelines/sana
       title: Sana
     - local: api/pipelines/sana_sprint
