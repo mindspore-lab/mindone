@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Image Segmentation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .upload-section, .drawing-section, .result-section {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .canvas-container {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            background-color: #fff;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        input[type="file"] {
+            margin-bottom: 10px;
+        }
+        .message {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        .success {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+        .warning {
+            background-color: #fff3e0;
+            color: #ef6c00;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Interactive Image Segmentation</h1>
+
+        <div class="upload-section">
+            <h2>1. Upload Image</h2>
+            <input type="file" id="imageUpload" accept="image/*">
+            <button id="uploadBtn" onclick="uploadImage()">Upload</button>
+            <div id="uploadMessage" class="message"></div>
+        </div>
+
+        <div class="drawing-section">
+            <h2>2. Draw on Image</h2>
+            <p>Click and drag on the image to mark the area you want to segment.</p>
+            <div class="canvas-container">
+                <div>
+                    <h3>Original Image</h3>
+                    <canvas id="imageCanvas"></canvas>
+                </div>
+            </div>
+            <div style="margin-top: 20px;">
+                <button id="processEllipseBtn" onclick="processImage('ellipse')" disabled>Generate Ellipse Mask</button>
+                <button id="processSAMBtn" onclick="processImage('sam')" disabled>Generate SAM Mask</button>
+                <button id="clearBtn" onclick="clearDrawing()" disabled>Clear Drawing</button>
+            </div>
+            <div id="processMessage" class="message"></div>
+        </div>
+
+        <div class="result-section">
+            <h2>3. Result</h2>
+            <div class="canvas-container">
+                <div id="resultContainer" style="display: none;">
+                    <h3>Generated Mask</h3>
+                    <img id="maskResult" style="max-width: 500px; border: 1px solid #ccc;">
+                    <div style="margin-top: 10px;">
+                        <button id="downloadBtn" onclick="downloadMask()">Download Mask</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentImage = null;
+        let originalImage = null;
+        let drawing = false;
+        let points = [];
+        let filename = '';
+        let filepath = '';
+        let maskpath = '';
+
+        const imageUpload = document.getElementById('imageUpload');
+        const imageCanvas = document.getElementById('imageCanvas');
+        const ctx = imageCanvas.getContext('2d');
+        const uploadMessage = document.getElementById('uploadMessage');
+        const processMessage = document.getElementById('processMessage');
+        const resultContainer = document.getElementById('resultContainer');
+        const maskResult = document.getElementById('maskResult');
+        const processEllipseBtn = document.getElementById('processEllipseBtn');
+        const processSAMBtn = document.getElementById('processSAMBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        // check the availability of SAM
+        const samAvailable = {{ sam_available|tojson }};
+        if (!samAvailable) {
+            processSAMBtn.disabled = true;
+            processSAMBtn.title = "SAM2.1 is not available. Please install the required packages and model.";
+        }
+
+        imageUpload.addEventListener('change', function(e) {
+            if (e.target.files && e.target.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    originalImage = new Image();
+                    originalImage.onload = function() {
+                        // Change the size of canvas to fit image
+                        const maxWidth = 600;
+                        const scale = Math.min(1, maxWidth / originalImage.width);
+
+                        imageCanvas.width = originalImage.width * scale;
+                        imageCanvas.height = originalImage.height * scale;
+
+                        ctx.drawImage(originalImage, 0, 0, imageCanvas.width, imageCanvas.height);
+                        currentImage = originalImage;
+                    };
+                    originalImage.src = event.target.result;
+                };
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        });
+
+        function uploadImage() {
+            if (!imageUpload.files[0]) {
+                showMessage(uploadMessage, 'Please select an image first.', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image', imageUpload.files[0]);
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showMessage(uploadMessage, data.error, 'error');
+                } else {
+                    filename = data.filename;
+                    filepath = data.filepath;
+                    showMessage(uploadMessage, 'Image uploaded successfully in: ' + filepath, 'success');
+                    processEllipseBtn.disabled = false;
+                    if (samAvailable) processSAMBtn.disabled = false;
+                    clearBtn.disabled = false;
+
+                    // 启用绘图事件
+                    imageCanvas.addEventListener('mousedown', startDrawing);
+                    imageCanvas.addEventListener('mousemove', draw);
+                    imageCanvas.addEventListener('mouseup', stopDrawing);
+                    imageCanvas.addEventListener('mouseleave', stopDrawing);
+                }
+            })
+            .catch(error => {
+                showMessage(uploadMessage, 'Upload failed: ' + error, 'error');
+            });
+        }
+
+        function startDrawing(e) {
+            drawing = true;
+            const rect = imageCanvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (imageCanvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (imageCanvas.height / rect.height);
+            points.push([x, y]);
+            drawPoint(x, y);
+        }
+
+        function draw(e) {
+            if (!drawing) return;
+            const rect = imageCanvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (imageCanvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (imageCanvas.height / rect.height);
+            points.push([x, y]);
+            drawPoint(x, y);
+        }
+
+        function stopDrawing() {
+            drawing = false;
+        }
+
+        function drawPoint(x, y) {
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, Math.PI * 2);
+            ctx.fillStyle = 'red';
+            ctx.fill();
+        }
+
+        function clearDrawing() {
+            points = [];
+            ctx.clearRect(0, 0, imageCanvas.width, imageCanvas.height);
+            ctx.drawImage(originalImage, 0, 0, imageCanvas.width, imageCanvas.height);
+        }
+
+        function processImage(method) {
+            if (points.length === 0) {
+                showMessage(processMessage, 'Please draw on the image first.', 'error');
+                return;
+            }
+
+            showMessage(processMessage, 'Processing...', 'warning');
+
+            // Change coordinates of points into the original size of the image
+            const scaleX = originalImage.width / imageCanvas.width;
+            const scaleY = originalImage.height / imageCanvas.height;
+            const scaledPoints = points.map(p => [p[0] * scaleX, p[1] * scaleY]);
+
+            fetch('/process', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    filename: filename,
+                    points: scaledPoints,
+                    method: method
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showMessage(processMessage, data.error, 'error');
+                } else {
+                    maskpath = data.mask_path;
+                    showMessage(processMessage, 'Processing completed successfully in: ' + maskpath, 'success');
+                    maskResult.src = data.mask_data;
+                    resultContainer.style.display = 'block';
+                    downloadBtn.disabled = false;
+                    window.maskFilename = data.mask_filename;
+                }
+            })
+            .catch(error => {
+                showMessage(processMessage, 'Processing failed: ' + error, 'error');
+            });
+        }
+
+        function downloadMask() {
+            if (window.maskFilename) {
+                window.open('/download/' + window.maskFilename, '_blank');
+            }
+        }
+
+        function showMessage(element, message, type) {
+            element.textContent = message;
+            element.className = 'message ' + type;
+        }
+    </script>
+</body>
+</html>
