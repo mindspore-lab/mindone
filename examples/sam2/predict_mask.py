@@ -71,6 +71,6 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--image_path", type=str, default="./images/cars.jpg")
+    parser.add_argument("--image_path", type=str, default="images/cars.jpg")
     args = parser.parse_args()
     main(args)
