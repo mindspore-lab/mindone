@@ -100,6 +100,7 @@ _import_structure = {
         "FluxKontextPipeline",
         "FluxKontextInpaintPipeline",
     ],
+    "hidream_image": ["HiDreamImagePipeline"],
     "hunyuandit": ["HunyuanDiTPipeline"],
     "hunyuan_video": [
         "HunyuanVideoPipeline",
@@ -343,6 +344,7 @@ if TYPE_CHECKING:
         FluxPriorReduxPipeline,
         ReduxImageEncoder,
     )
+    from .hidream_image import HiDreamImagePipeline
     from .hunyuan_video import (
         HunyuanSkyreelsImageToVideoPipeline,
         HunyuanVideoFramepackPipeline,

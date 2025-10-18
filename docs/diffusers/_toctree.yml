@@ -233,6 +233,8 @@
         title: ControlNetUnionModel
       - local: api/models/controlnet_flux
         title: FluxControlNetModel
+      - local: api/models/hidream_image_transformer
+        title: HiDreamImageTransformer2DModel
       - local: api/models/controlnet_hunyuandit
         title: HunyuanDiT2DControlNetModel
       - local: api/models/controlnet_sana
@@ -419,6 +421,8 @@
       title: Flux
     - local: api/pipelines/control_flux_inpaint
       title: FluxControlInpaint
+    - local: api/pipelines/hidream
+      title: HiDream-I1
     - local: api/pipelines/framepack
       title: Framepack
     - local: api/pipelines/hunyuandit
