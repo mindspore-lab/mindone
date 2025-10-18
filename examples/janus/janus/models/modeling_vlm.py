@@ -412,7 +412,8 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
 
         # FIXME same workaround as above, for the ms2.5.0 graph mode constraint
         image_seq_mask = image_seq_mask.nonzero().squeeze()
-        inputs_embeds[image_seq_mask] = image_embeds
+        if image_seq_mask.numel() > 0:
+            inputs_embeds[image_seq_mask] = image_embeds
 
         inputs_embeds = inputs_embeds.reshape(B, S, D)
 
