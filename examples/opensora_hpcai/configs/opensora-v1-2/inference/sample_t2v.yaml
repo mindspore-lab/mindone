@@ -28,7 +28,7 @@ loop: 1
 condition_frame_length: 5
 
 # ms
-jit_level: O0
+jit_level: O1
 
 captions:
   - "Snow falling over multiple houses and trees on winter landscape against night sky. christmas festivity and celebration concept"

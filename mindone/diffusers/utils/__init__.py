@@ -16,6 +16,7 @@
 # limitations under the License.
 
 from .constants import (
+    CKPT_FILE_EXTENSION,
     CONFIG_NAME,
     DEFAULT_HF_PARALLEL_LOADING_WORKERS,
     DEPRECATED_REVISION_ARGS,

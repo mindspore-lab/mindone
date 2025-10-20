@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .image_processing_glm4v import Glm4vImageProcessor
 from .modeling_glm4v import (
     Glm4vForConditionalGeneration,
     Glm4vModel,
@@ -22,3 +23,4 @@ from .modeling_glm4v import (
     Glm4vTextModel,
     Glm4vVisionModel,
 )
+from .processing_glm4v import Glm4vProcessor

@@ -15,9 +15,9 @@ Provides an open-source version supporting both Chinese and English bilingual us
 # Get Started
 
 ## Requirements:
-| mindspore   | 	ascend driver | firmware       | cann tookit/kernel|
-|-------------|----------------|----------------| --- |
-| 2.5.0/2.6.0 | 24.1.RC3.b080  | 7.5.T11.0.B088 | 8.0.RC3.beta1|
+| mindspore   | 	ascend driver | firmware       | cann tookit/kernel |
+|-------------|----------------|----------------|--------------------|
+| 2.6.0/2.7.0 | 24.1.RC3.b080  | 7.5.T11.0.B088 | 8.1.RC1            |
 
 ### Installation:
 ```
@@ -45,5 +45,5 @@ python generate.py
 ## Inference Speed
 |      model name	      | mindspore version |   precision*   | cards | flash attn | 	tokens/s	 |
 |:---------------------:|:-----------------:|:--------------:|:---:  |:----------:|:----------:|
-| THUDM/GLM-4.1V-9B-Thinking |       2.5.0       |   bf16 | 1 |     ✅      |    1.38    |
 | THUDM/GLM-4.1V-9B-Thinking |       2.6.0       |   bf16 | 1 |     ✅      |    1.63    |
+| THUDM/GLM-4.1V-9B-Thinking |       2.7.0       |   bf16 | 1 |     ✅      |    1.66     |

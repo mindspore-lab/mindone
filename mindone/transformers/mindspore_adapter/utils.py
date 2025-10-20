@@ -54,6 +54,12 @@ _DTYPE_2_MAX = {
     ms.bfloat16: _MAX_BF16,
 }
 
+TORCH_TO_MINDSPORE_DTYPE_MAP = {
+    "torch.float32": ms.float32,
+    "torch.bfloat16": ms.bfloat16,
+    "torch.float16": ms.float16,
+}
+
 
 def dtype_to_min(dtype):
     return _DTYPE_2_MIN.get(dtype, "others dtype")

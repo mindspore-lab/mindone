@@ -17,6 +17,7 @@
 # limitations under the License.
 
 import inspect
+import random
 
 import numpy as np
 import pytest
@@ -36,6 +37,10 @@ from tests.transformers_tests.models.modeling_common import floats_numpy, ids_nu
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
+
+
+def get_rng():
+    return random.Random(9)
 
 
 # Copied from tests.models.owlvit.test_modeling_owlvit.OwlViTVisionModelTester with OwlViT->Owlv2
@@ -75,7 +80,9 @@ class Owlv2VisionModelTester:
         self.seq_length = num_patches + 1
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_numpy([self.batch_size, self.num_channels, self.image_size, self.image_size])
+        pixel_values = floats_numpy(
+            [self.batch_size, self.num_channels, self.image_size, self.image_size], rng=get_rng()
+        )
         config = self.get_config()
 
         return config, pixel_values
@@ -140,11 +147,11 @@ class Owlv2TextModelTester:
         self.scope = scope
 
     def prepare_config_and_inputs(self):
-        input_ids = ids_numpy([self.batch_size * self.num_queries, self.seq_length], self.vocab_size)
+        input_ids = ids_numpy([self.batch_size * self.num_queries, self.seq_length], self.vocab_size, rng=get_rng())
         input_mask = None
 
         if self.use_input_mask:
-            input_mask = random_attention_mask([self.batch_size * self.num_queries, self.seq_length])
+            input_mask = random_attention_mask([self.batch_size * self.num_queries, self.seq_length], rng=get_rng())
 
         if input_mask is not None:
             num_text, seq_length = input_mask.shape

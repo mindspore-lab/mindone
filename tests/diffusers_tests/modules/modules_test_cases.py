@@ -1012,6 +1012,41 @@ DIT_TRANSFORMER2D_CASES = [
 ]
 
 
+HIDREAM_IMAGE_TRANSFORMER2D_CASES = [
+    [
+        "HiDreamImageTransformer2DModel",
+        "diffusers.models.transformers.transformer_hidream_image.HiDreamImageTransformer2DModel",
+        "mindone.diffusers.models.transformers.transformer_hidream_image.HiDreamImageTransformer2DModel",
+        (),
+        {
+            "patch_size": 2,
+            "in_channels": 4,
+            "out_channels": 4,
+            "num_layers": 1,
+            "num_single_layers": 1,
+            "attention_head_dim": 8,
+            "num_attention_heads": 4,
+            "caption_channels": [8, 4],
+            "text_emb_dim": 8,
+            "num_routed_experts": 2,
+            "num_activated_experts": 2,
+            "axes_dims_rope": (4, 2, 2),
+            "max_resolution": (32, 32),
+            "llama_layers": (0, 1),
+            "force_inference_output": True,
+        },
+        (),
+        {
+            "hidden_states": np.random.default_rng(42).standard_normal((2, 4, 32, 32)),
+            "encoder_hidden_states_t5": np.random.default_rng(42).standard_normal((2, 8, 8)),
+            "encoder_hidden_states_llama3": np.random.default_rng(42).standard_normal((2, 2, 8, 4)),
+            "pooled_embeds": np.random.default_rng(42).standard_normal((2, 8)),
+            "timesteps": np.random.default_rng(42).integers(0, 1000, size=(2,)),
+        },
+    ],
+]
+
+
 HUNYUAN_VIDEO_TRANSFORMER3D_CASES = [
     [
         "HunyuanVideoTransformer3DModel",
@@ -1126,6 +1161,37 @@ LTX_VIDEO_TRANSFORMER3D_CASES = [
     ],
 ]
 
+QWENIMAGE_TRANSFORMER2D_CASES = [
+    [
+        "QwenImageTransformer2DModel",
+        "diffusers.models.transformers.transformer_qwenimage.QwenImageTransformer2DModel",
+        "mindone.diffusers.models.transformers.transformer_qwenimage.QwenImageTransformer2DModel",
+        (),
+        {
+            "patch_size": 2,
+            "in_channels": 16,
+            "out_channels": 4,
+            "num_layers": 2,
+            "attention_head_dim": 16,
+            "num_attention_heads": 3,
+            "joint_attention_dim": 16,
+            "guidance_embeds": False,
+            "axes_dims_rope": (8, 4, 4),
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(1, 16, 16),
+            "encoder_hidden_states": np.random.randn(1, 7, 16),
+            "encoder_hidden_states_mask": np.ones((1, 7)).astype(bool),
+            "timestep": np.ones(1),
+            "img_shapes": (1, 4, 4),
+            "txt_seq_lens": (7,),
+            "return_dict": False,
+        },
+        ("fp32", "bf16"),
+        (0, 1),
+    ],
+]
 
 SKYREELS_V2_TRANSFORMER3D_CASES = [
     [
@@ -1522,7 +1588,6 @@ CHROMA_TRANSFORMER2D_CASES = [
     ]
 ]
 
-
 TRANSFORMERS_CASES = (
     ALLEGRO_TRANSFORMER3D_CASES
     + AURAFLOW_TRANSFORMER2D_CASES
@@ -1531,12 +1596,14 @@ TRANSFORMERS_CASES = (
     + COGVIEW3PLUS_TRANSFORMER2D_CASES
     + CONSISID_TRANSFORMER3D_CASES
     + DIT_TRANSFORMER2D_CASES
+    + HIDREAM_IMAGE_TRANSFORMER2D_CASES
     + HUNYUAN_VIDEO_TRANSFORMER3D_CASES
     + HUNYUAN_VIDEO_FRAMEPACK_TRANSFORMER3D_CASES
     + LTX_VIDEO_TRANSFORMER3D_CASES
     + OMNIGEN_TRANSFORMER2D_CASES
     + PIXART_TRANSFORMER2D_CASES
     + PRIOR_TRANSFORMER_CASES
+    + QWENIMAGE_TRANSFORMER2D_CASES
     + SANA_TRANSFORMER2D_CASES
     + SD3_TRANSFORMER2D_CASES
     + SD35_TRANSFORMER2D_CASES

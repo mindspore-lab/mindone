@@ -1294,9 +1294,10 @@ class Gemma3ForConditionalGeneration(Gemma3PreTrainedModel, GenerationMixin):
                     f"Got {image_tokens_in_text} image tokens in the text but {image_features.shape[0] * image_features.shape[1]} "
                     "tokens from image embeddings."
                 )
-            image_features = image_features.to(inputs_embeds.dtype)
-            inputs_embeds = inputs_embeds.masked_scatter(special_image_mask, image_features)
 
+            inputs_embeds = (
+                inputs_embeds.float().masked_scatter(special_image_mask, image_features.float()).to(inputs_embeds.dtype)
+            )  # FIXME: ms 2.6.0 does not support masked_scatter under bf16. Problem was fixed in ms 2.7.0
         # mask out pad-token-ids in labels for BC
         if labels is not None and self.pad_token_id in labels:
             logger.warning_once(

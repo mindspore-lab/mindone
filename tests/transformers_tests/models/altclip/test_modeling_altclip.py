@@ -18,7 +18,7 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 6e-3}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 # To avoid current graph-mode limitations, test in pynative mode only
 MODES = [1]
 

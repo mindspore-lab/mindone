@@ -168,6 +168,7 @@ def main():
         remasking="low_confidence",
     )
     print(f"Inference time: {time() - infer_start:.3f}s")
+    print(f"Throughput: {out.shape[1] / (time() - infer_start):.3f} token/s")
     print(tokenizer.batch_decode(out[:, input_ids.shape[1] :], skip_special_tokens=True))
 
 

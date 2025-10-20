@@ -136,7 +136,7 @@ if __name__ == "__main__":
     # ms context
     ms.set_context(mode=args.ms_mode)
     if args.ms_mode == 0:
-        ms.set_context(jit_config={"jit_level": "O0"}, enable_compile_cache=True)
+        ms.set_context(jit_config={"jit_level": "O0"})
 
     # specify the path to the model
     vl_chat_processor: VLChatProcessor = VLChatProcessor.from_pretrained(args.model_path)
@@ -162,6 +162,10 @@ if __name__ == "__main__":
         vl_gpt = set_model_param_dtype(vl_gpt, dtype)
 
     vl_gpt.set_train(False)
+
+    if args.ms_mode == 0:
+        # in graph mode, cache class is not supported yet
+        vl_gpt.language_model._supports_cache_class = False
 
     # infer
     answer, prepare_inputs = multimodal_understanding(

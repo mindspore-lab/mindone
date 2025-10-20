@@ -91,6 +91,7 @@ def main(args):
             "images/groceries.jpg",
         ], "Please provide x and y coordinates for the point"
         input_point = [500, 375] if args.image_path == "images/truck.jpg" else [600, 250]
+        input_point = np.array([input_point])
 
     input_label = np.array([1])
     # show image with point
@@ -122,7 +123,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--image_path", type=str, default="./images/truck.jpg")
+    parser.add_argument("--image_path", type=str, default="images/truck.jpg")
     parser.add_argument("--x", type=int, default=None)
     parser.add_argument("--y", type=int, default=None)
     args = parser.parse_args()

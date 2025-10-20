@@ -104,6 +104,7 @@ class SelfAttention(nn.Cell):
             value=v,
             head_num=self.num_heads,
             keep_prob=1.0 - p,
+            scalar_value=1 / math.sqrt(q.shape[-1]),
             input_layout="BSND",
         )
         x = x.reshape(b, s, c)
@@ -228,6 +229,7 @@ class AttentionPool(nn.Cell):
             key=k,
             value=v,
             head_num=self.num_heads,
+            scalar_value=1 / math.sqrt(q.shape[-1]),
             input_layout="BSND",
         )
         x = x.reshape(b, 1, c)

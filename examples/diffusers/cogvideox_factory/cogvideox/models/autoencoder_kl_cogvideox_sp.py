@@ -31,7 +31,6 @@ from mindone.diffusers.models.downsampling import CogVideoXDownsample3D
 from mindone.diffusers.models.layers_compat import pad
 from mindone.diffusers.models.modeling_outputs import AutoencoderKLOutput
 from mindone.diffusers.models.modeling_utils import ModelMixin
-from mindone.diffusers.models.normalization import GroupNorm
 from mindone.diffusers.models.upsampling import CogVideoXUpsample3D
 from mindone.diffusers.utils import logging
 
@@ -40,7 +39,7 @@ from ..acceleration import get_sequence_parallel_group
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
-class GroupNorm_SP(GroupNorm):
+class GroupNorm_SP(mint.nn.GroupNorm):
     def set_frame_group_size(self, frame_group_size):
         self.frame_group_size = frame_group_size
 

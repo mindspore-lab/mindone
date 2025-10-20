@@ -153,7 +153,7 @@ def main(args):
             # print(captions)
 
             text_tokens, mask = text_encoder.get_text_tokens_and_mask(captions, return_tensor=True)
-            text_emb = text_encoder(text_tokens, mask)
+            text_emb = text_encoder(text_tokens, mask).last_hidden_state
 
             end_time = time.time()
             time_cost = end_time - start_time
@@ -197,7 +197,7 @@ def main(args):
             ns = len(batch_prompts)
 
             batch_text_tokens, batch_mask = text_encoder.get_text_tokens_and_mask(batch_prompts, return_tensor=True)
-            batch_text_emb = text_encoder(batch_text_tokens, batch_mask)
+            batch_text_emb = text_encoder(batch_text_tokens, batch_mask).last_hidden_state
 
             # save result
             batch_mask = batch_mask.asnumpy().astype(np.uint8)

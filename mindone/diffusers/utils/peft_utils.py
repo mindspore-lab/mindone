@@ -297,7 +297,12 @@ def _maybe_warn_for_unhandled_keys(incompatible_keys, adapter_name):
     warn_msg = ""
     if incompatible_keys is not None:
         # Check only for unexpected keys.
-        unexpected_keys = getattr(incompatible_keys, "unexpected_keys", None)
+        # FIXME: incompatible_keys is a dict because of `_load_state_dict_into_model`
+        # unexpected_keys = getattr(incompatible_keys, "unexpected_keys", None)
+        if isinstance(incompatible_keys, dict):
+            unexpected_keys = incompatible_keys.get("unexpected_keys", None)
+        else:
+            unexpected_keys = getattr(incompatible_keys, "unexpected_keys", None)
         if unexpected_keys:
             lora_unexpected_keys = [k for k in unexpected_keys if "lora_" in k and adapter_name in k]
             if lora_unexpected_keys:
@@ -307,7 +312,12 @@ def _maybe_warn_for_unhandled_keys(incompatible_keys, adapter_name):
                 )
 
         # Filter missing keys specific to the current adapter.
-        missing_keys = getattr(incompatible_keys, "missing_keys", None)
+        # FIXME: incompatible_keys is a dict because of `_load_state_dict_into_model`
+        # missing_keys = getattr(incompatible_keys, "missing_keys", None)
+        if isinstance(incompatible_keys, dict):
+            missing_keys = incompatible_keys.get("missing_keys", None)
+        else:
+            missing_keys = getattr(incompatible_keys, "missing_keys", None)
         if missing_keys:
             lora_missing_keys = [k for k in missing_keys if "lora_" in k and adapter_name in k]
             if lora_missing_keys:

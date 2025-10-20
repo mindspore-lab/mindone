@@ -16,12 +16,12 @@ Language SAM is built on Meta model, Segment Anything Model 2, and the Grounding
 
 | MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
 |:---------:|:-------------:|:-----------:|:-------------------:|
-|   2.6.0   |  24.1.RC3     | 7.6.0.1.220 |  8.0.RC3.beta1     |
+| 2.6.0/2.7.0 | 24.1.RC3.b080  | 7.5.T11.0.B088 | 8.1.RC1 |
 
 </div>
 
 1. Install
-   [CANN 8.0.RC3.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC3.beta1)
+   [CANN 8.1.RC1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.1.RC1)
    and MindSpore according to the [official instructions](https://www.mindspore.cn/install).
 2. Install requirements
     ```shell
@@ -40,9 +40,6 @@ Language SAM is built on Meta model, Segment Anything Model 2, and the Grounding
     - ✅ Prediction of masks given a static image and a textual prompt.
 
 
-### TODO
-* [ ] Batch inference script **[WIP]**.
-* [ ] Gradio demo **[WIP]**.
 
 You contributions are welcome.
 

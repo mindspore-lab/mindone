@@ -5,7 +5,9 @@ import torch
 
 import mindspore as ms
 
-global_rng = random.Random(42)  # fix seed for reproducibility
+
+def get_rng():
+    return random.Random(42)
 
 
 # Adapted from
@@ -13,7 +15,7 @@ global_rng = random.Random(42)  # fix seed for reproducibility
 def ids_numpy(shape, vocab_size, rng=None, name=None) -> np.ndarray:
     #  Creates a random int32 numpy array of the shape within the vocab size
     if rng is None:
-        rng = global_rng
+        rng = get_rng()
 
     total_dims = 1
     for dim in shape:
@@ -39,7 +41,7 @@ def random_attention_mask(shape, rng=None, name=None):
 def floats_numpy(shape, scale=1.0, rng=None, name=None) -> np.ndarray:
     """Creates a random float32 numpy"""
     if rng is None:
-        rng = global_rng
+        rng = get_rng()
 
     total_dims = 1
     for dim in shape:

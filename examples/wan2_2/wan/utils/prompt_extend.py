@@ -143,7 +143,7 @@ class QwenPromptExpander(PromptExpander):
 
             with nn.no_init_parameters():
                 self.model = AutoModelForCausalLM.from_pretrained(
-                    self.model_name, mindspore_dtype=ms.bfloat16, attn_implementation="eager"
+                    self.model_name, mindspore_dtype=ms.bfloat16, attn_implementation="flash_attention_2"
                 )
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
 

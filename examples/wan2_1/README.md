@@ -82,10 +82,10 @@ prompt: Summer beach vacation style, a white cat wearing sunglasses sits on a su
 
 The code is tested in the following environments
 
-| mindspore | ascend driver | firmware | cann tookit/kernel |
-| :---:     |   :---:       | :---:    | :---:              |
-| 2.5.0     |  24.1.0     |7.35.23    |   8.0.RC3.beta1   |
-
+| mindspore | ascend driver | firmware    | cann tookit/kernel |
+| :-------: | :-----------: | :---------: | :----------------: |
+| 2.6.0     |  25.0.RC1.1   | 7.7.0.1.231 | 8.1.RC1            |
+| 2.7.0     |  25.2.0       | 7.7.0.6.236 | 8.2.RC1            |
 
 ### Installation
 Clone the repo:
