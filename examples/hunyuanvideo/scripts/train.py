@@ -399,18 +399,18 @@ if __name__ == "__main__":
     # validation
     val_group = parser.add_argument_group("Validation")
     val_group.add_argument(
-        "valid.sampling_steps", type=int, default=10, help="Number of sampling steps for validation."
+        "--valid.sampling_steps", type=int, default=10, help="Number of sampling steps for validation."
     )
-    val_group.add_argument("valid.frequency", type=int, default=1, help="Frequency of validation in steps.")
+    val_group.add_argument("--valid.frequency", type=int, default=1, help="Frequency of validation in steps.")
     val_group.add_subclass_arguments(
         ImageVideoDataset,
-        "valid.dataset",
+        "--valid.dataset",
         skip={"frames_mask_generator", "t_compress_func"},
         instantiate=False,
         required=False,
     )
     val_group.add_function_arguments(
-        create_dataloader, "valid.dataloader", skip={"dataset", "transforms", "device_num", "rank_id"}
+        create_dataloader, "--valid.dataloader", skip={"dataset", "transforms", "device_num", "rank_id"}
     )
     parser.link_arguments("env.debug", "valid.dataloader.debug", apply_on="parse")
 
