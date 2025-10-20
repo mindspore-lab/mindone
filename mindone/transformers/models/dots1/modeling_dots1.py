@@ -24,6 +24,7 @@ from transformers import Dots1Config
 
 import mindspore
 from mindspore import mint
+from mindspore.common.initializer import Normal, initializer
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
@@ -77,7 +78,9 @@ class Dots1RotaryEmbedding(mindspore.nn.Cell):
         self.original_inv_freq = self.inv_freq
 
     def construct(self, x, position_ids):
-        inv_freq_expanded = self.inv_freq[None, :, None].float().expand(position_ids.shape[0], -1, 1)
+        inv_freq_expanded = mint.broadcast_to(
+            self.inv_freq[None, :, None].float(), [position_ids.shape[0], -1, position_ids.shape[0]]
+        )
         position_ids_expanded = position_ids[:, None, :].float()
 
         freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).transpose(1, 2)
@@ -130,7 +133,9 @@ def repeat_kv(hidden_states: mindspore.Tensor, n_rep: int) -> mindspore.Tensor:
     batch, num_key_value_heads, slen, head_dim = hidden_states.shape
     if n_rep == 1:
         return hidden_states
-    hidden_states = hidden_states[:, :, None, :, :].expand(batch, num_key_value_heads, n_rep, slen, head_dim)
+    hidden_states = mint.broadcast_to(
+        hidden_states[:, :, None, :, :], [batch, num_key_value_heads, n_rep, slen, head_dim]
+    )
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 
@@ -229,7 +234,7 @@ class Dots1Attention(mindspore.nn.Cell):
             **kwargs,
         )
 
-        attn_output = attn_output.reshape(*input_shape, -1).contiguous()
+        attn_output = attn_output.reshape(*input_shape, -1)
         attn_output = self.o_proj(attn_output)
         return attn_output, attn_weights
 
@@ -325,11 +330,11 @@ class Dots1TopkRouter(mindspore.nn.Cell):
             .sum(dim=-1)
         )
         group_idx = mint.topk(group_scores, k=self.topk_group, dim=-1, sorted=False)[1]
-        group_mask = mint.nn.zeros(group_scores.shape)
+        group_mask = mint.zeros(group_scores.shape)
         group_mask.scatter_(1, group_idx, 1)
         score_mask = (
             group_mask.unsqueeze(-1)
-            .expand(-1, self.n_group, self.n_routed_experts // self.n_group)
+            .broadcast_to([-1, self.n_group, self.n_routed_experts // self.n_group])
             .reshape(-1, self.n_routed_experts)
         )
         scores_for_choice = scores_for_choice.masked_fill(~score_mask.bool(), 0.0)
@@ -424,7 +429,7 @@ class Dots1PreTrainedModel(PreTrainedModel):
         super()._init_weights(module)
         if isinstance(module, Dots1TopkRouter):
             module.weight.set_data(
-                mint.nn.normal(shape=module.weight.shape, mean=0.0, stddev=self.config.initializer_range)
+                initializer(Normal(self.config.initializer_range, 0.0), module.weight.shape, module.weight.dtype)
             )
 
 
