@@ -25,24 +25,22 @@
 # limitations under the License.
 
 from typing import Any, Callable, Optional, Union
-import numpy as np
 
 from transformers.models.falcon_h1.configuration_falcon_h1 import FalconH1Config
 
 import mindspore
+from mindspore.common.initializer import Normal, initializer
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
-
 from ...generation import GenerationMixin
-from ...modeling_attn_mask_utils import AttentionMaskConverter
+from ...modeling_attn_mask_utils import AttentionMaskConverter, dtype_to_min
 from ...modeling_flash_attention_utils import FlashAttentionKwargs
 from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
-from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update
+from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
 from ...utils import logging
-from ...modeling_attn_mask_utils import dtype_to_min
 
 logger = logging.get_logger(__name__)
 
@@ -80,19 +78,18 @@ class FalconHybridMambaAttentionDynamicCache(DynamicCache):
 
         self.conv_states = {
             i: mindspore.mint.zeros(
-                [batch_size,
-                self.intermediate_size + 2 * config.mamba_n_groups * config.mamba_d_state,
-                self.conv_kernel_size],
+                [
+                    batch_size,
+                    self.intermediate_size + 2 * config.mamba_n_groups * config.mamba_d_state,
+                    self.conv_kernel_size,
+                ],
                 dtype=dtype,
             )
             for i in range(config.num_hidden_layers)
         }
         self.ssm_states = {
             i: mindspore.mint.zeros(
-                [batch_size,
-                config.mamba_n_heads,
-                config.mamba_d_head,
-                config.mamba_d_state],
+                [batch_size, config.mamba_n_heads, config.mamba_d_head, config.mamba_d_state],
                 dtype=dtype,
             )
             for i in range(config.num_hidden_layers)
@@ -435,9 +432,7 @@ def reshape_into_chunks(input_tensor, pad_size, chunk_size):
         return input_tensor.reshape(input_tensor.shape[0], -1, chunk_size, input_tensor.shape[2])
     else:
         # [bsz, seq_len multiple of chunk_size, num_heads, head_dim or state_size] -> [bsz, -1, chunk_size, num_heads, head_dim or state_size]
-        return input_tensor.reshape(
-            input_tensor.shape[0], -1, chunk_size, input_tensor.shape[2], input_tensor.shape[3]
-        )
+        return input_tensor.reshape(input_tensor.shape[0], -1, chunk_size, input_tensor.shape[2], input_tensor.shape[3])
 
 
 def segment_sum(input_tensor):
@@ -507,11 +502,11 @@ class FalconH1Mixer(mindspore.nn.Cell):
         self.time_step_max = 0.1
 
         self.conv_dim = self.intermediate_size + 2 * self.n_groups * self.ssm_state_size
-        self.conv1d = nn.Conv1d(
+        self.conv1d = mindspore.nn.Conv1d(
             in_channels=self.conv_dim,
             out_channels=self.conv_dim,
             has_bias=True,
-            bias=config.mamba_conv_bias,
+            bias_init=config.mamba_conv_bias,
             kernel_size=self.conv_kernel_size,
             group=self.conv_dim,
             pad_mode="pad",
@@ -548,11 +543,12 @@ class FalconH1Mixer(mindspore.nn.Cell):
         self.D = mindspore.Parameter(mindspore.mint.ones(self.num_heads))
         self.D._no_weight_decay = True
 
-        self.out_proj = mindspore.mint.nn.Linear(self.intermediate_size, config.hidden_size, bias=config.projectors_bias)
+        self.out_proj = mindspore.mint.nn.Linear(
+            self.intermediate_size, config.hidden_size, bias=config.projectors_bias
+        )
 
         self.zxbcdt_multipliers = config.ssm_multipliers
         self.ssm_in_multiplier = config.ssm_in_multiplier
-
 
     # fmt: off
     def torch_forward(
@@ -570,7 +566,7 @@ class FalconH1Mixer(mindspore.nn.Cell):
         # Add Multipliers
         input_states = input_states * self.ssm_in_multiplier
         projected_states = self.in_proj(input_states)
-        projected_states = projected_states * self.mup_vector  # ADD Mup Multipliers
+        projected_states = projected_states * self.mup_vector.to(projected_states.dtype)  # ADD Mup Multipliers
         gate, hidden_states_B_C, dt = projected_states.split([
                 self.intermediate_size, self.conv_dim, self.num_heads
             ], dim=-1)
@@ -849,7 +845,9 @@ class FalconH1DecoderLayer(mindspore.nn.Cell):
         output_attentions: Optional[bool] = False,
         use_cache: Optional[bool] = False,
         cache_position: Optional[mindspore.Tensor] = None,
-        position_embeddings: Optional[tuple[mindspore.Tensor, mindspore.Tensor]] = None,  # necessary, but kept here for BC
+        position_embeddings: Optional[
+            tuple[mindspore.Tensor, mindspore.Tensor]
+        ] = None,  # necessary, but kept here for BC
         **kwargs,
     ) -> tuple[mindspore.Tensor, Optional[tuple[mindspore.Tensor, mindspore.Tensor]]]:
         """
@@ -929,20 +927,19 @@ class FalconH1PreTrainedModel(PreTrainedModel):
     _is_stateful = True
 
     def _init_weights(self, module):
-        std = self.config.initializer_range
-        for name, param in module.named_parameters(recurse=True):
-            if not param.requires_grad:
-                continue
-            if "layernorm" in name.lower() and "weight" in name:
-                # LayerNorm weights usually initialized to 1
-                param.data.fill_(1.0)
-            elif "bias" in name:
-                param.data.zero_()
-            else:
-                try:
-                    param.data.normal_(mean=0.0, std=std)
-                except Exception as e:
-                    print(f"Skipping init for {name} due to error: {e}")
+        std = self.config.initializer_range if hasattr(self.config, "initializer_range") else 0.02
+
+        if isinstance(module, (mindspore.mint.nn.Linear, mindspore.nn.Conv1d)):
+            weight = initializer(Normal(sigma=std, mean=0.0), shape=module.weight.shape)
+            module.weight.set_data(weight)
+            if module.bias is not None:
+                bias_weight = initializer("zeros", module.bias.shape)
+                module.bias.set_data(bias_weight)
+            elif isinstance(module, mindspore.mint.nn.Embedding):
+                weight = initializer(Normal(sigma=std, mean=0.0), shape=module.weight.shape)
+                module.weight.set_data(weight)
+                if module.padding_idx is not None:
+                    module.weight[module.padding_idx] = 0
 
 
 def compute_mup_vector(config):
@@ -1045,14 +1042,6 @@ class FalconH1Model(FalconH1PreTrainedModel):
             )
             use_cache = False
 
-        if use_cache and past_key_values is None:
-            past_key_values = FalconHybridMambaAttentionDynamicCache()
-        elif use_cache and not isinstance(past_key_values, FalconHybridMambaAttentionDynamicCache):
-            raise ValueError(
-                f"falcon h1 uses cache of its own and is not compatible with `past_key_values` of "
-                f"type {type(past_key_values)}"
-            )
-
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids) * self.embedding_multiplier
         hidden_states = inputs_embeds
@@ -1064,7 +1053,9 @@ class FalconH1Model(FalconH1PreTrainedModel):
             )
 
         if cache_position is None:
-            cache_position = mindspore.mint.arange(hidden_states.shape[1], )
+            cache_position = mindspore.mint.arange(
+                hidden_states.shape[1],
+            )
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
 
@@ -1213,12 +1204,17 @@ class FalconH1Model(FalconH1PreTrainedModel):
             # In this case we assume that the mask comes already in inverted form and requires no inversion or slicing.
             causal_mask = attention_mask
         else:
-            min_dtype = torch.finfo(dtype).min
-            causal_mask = mindspore.ops.full(
-                (sequence_length, target_length), fill_value=min_dtype, dtype=dtype, )
+            min_dtype = dtype_to_min(dtype)
+            causal_mask = mindspore.mint.full(
+                (sequence_length, target_length),
+                fill_value=min_dtype,
+                dtype=dtype,
+            )
             if sequence_length != 1:
                 causal_mask = mindspore.mint.triu(causal_mask, diagonal=1)
-            causal_mask *= mindspore.mint.arange(target_length, ) > cache_position.reshape(-1, 1)
+            causal_mask *= mindspore.mint.arange(
+                target_length,
+            ) > cache_position.reshape(-1, 1)
             causal_mask = causal_mask[None, None, :, :].broadcast_to([batch_size, 1, -1, -1])
             if attention_mask is not None:
                 causal_mask = causal_mask.clone()  # copy to contiguous memory for in-place edit
@@ -1373,10 +1369,10 @@ class FalconH1ForCausalLM(FalconH1PreTrainedModel, GenerationMixin):
             )
 
             # Copy existing key/value cache if available
-            if hasattr(past_key_values, 'key_cache') and hasattr(past_key_values, 'value_cache'):
+            if hasattr(past_key_values, "key_cache") and hasattr(past_key_values, "value_cache"):
                 new_cache.key_cache = past_key_values.key_cache.copy()
                 new_cache.value_cache = past_key_values.value_cache.copy()
-                new_cache._seen_tokens = past_key_values._seen_tokens if hasattr(past_key_values, '_seen_tokens') else 0
+                new_cache._seen_tokens = past_key_values._seen_tokens if hasattr(past_key_values, "_seen_tokens") else 0
 
             past_key_values = new_cache
 
@@ -1386,9 +1382,7 @@ class FalconH1ForCausalLM(FalconH1PreTrainedModel, GenerationMixin):
         # Exception 3: with synced GPUs cache_position may go out of bounds, but we only want dummy token in that case.
         #              (we can't check exception 3 while compiling)
         if not empty_past_kv:
-            if (
-                inputs_embeds is not None or cache_position[-1] >= input_ids.shape[1]
-            ):
+            if inputs_embeds is not None or cache_position[-1] >= input_ids.shape[1]:
                 input_ids = input_ids[:, -cache_position.shape[0] :]
             elif input_ids.shape[1] != cache_position.shape[0]:  # Default case (the "else", a no op, is Exception 2)
                 input_ids = input_ids[:, cache_position]
@@ -1403,7 +1397,7 @@ class FalconH1ForCausalLM(FalconH1PreTrainedModel, GenerationMixin):
             # create position_ids on the fly for batch generation
             position_ids = attention_mask.long().cumsum(-1) - 1
             position_ids = position_ids.masked_fill_(attention_mask == 0, 1)
-            if not empty_past_kv:
+            if past_key_values is not None:
                 position_ids = position_ids[:, -input_ids.shape[1] :]
 
         # if `inputs_embeds` are passed, we only want to use them in the 1st generation step
