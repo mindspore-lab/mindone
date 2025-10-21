@@ -325,7 +325,7 @@ class FluxAttention(nn.Cell, AttentionModuleMixin):
         # a 0/1 float mask instead of a boolean mask.
         # While this behavior is consistent with HF Diffusers for now,
         # it may still be a potential bug source worth validating.
-        if attn_mask is not None and 1.0 in attn_mask:
+        if attn_mask is not None and attn_mask.dtype != ms.bool_ and 1.0 in attn_mask:
             L, S = query.shape[-2], key.shape[-2]
             scale_factor = 1 / math.sqrt(query.shape[-1]) if scale is None else scale
             attn_bias = mint.zeros((L, S), dtype=query.dtype)
