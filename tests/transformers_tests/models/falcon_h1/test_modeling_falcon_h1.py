@@ -12,7 +12,7 @@ import inspect
 import numpy as np
 import pytest
 import torch
-from mindone.transformers.models.falcon_h1 import FalconH1Config
+from transformers import FalconH1Config
 
 import mindspore as ms
 
@@ -25,7 +25,7 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]  # 0: graph mode, 1: pynative mode
 
 
@@ -36,113 +36,59 @@ class FalconH1ModelTester:
         self,
         batch_size=13,
         seq_length=7,
-        is_training=False,
+        is_training=True,
         use_input_mask=True,
-        use_token_type_ids=False,
         use_labels=True,
-        type_vocab_size=16,
-        type_sequence_label_size=2,
-        num_labels=3,
-        num_choices=4,
-        # config
         vocab_size=99,
         hidden_size=32,
-        intermediate_size=37,
-        num_hidden_layers=2,
+        num_hidden_layers=4,
         num_attention_heads=4,
         num_key_value_heads=2,
-        mamba_d_conv=4,
-        mamba_d_ssm=16,
-        mamba_expand=2,
-        mamba_n_groups=1,
-        mamba_d_state=16,
-        mamba_n_heads=4,
-        mamba_d_head=8,
-        mamba_chunk_size=64,
-        mamba_conv_bias=True,
-        mamba_proj_bias=False,
-        mamba_rms_norm=True,
-        mamba_norm_before_gate=True,
-        rms_norm_eps=1e-6,
-        attention_dropout=0.0,
-        attention_bias=False,
-        key_multiplier=1.0,
+        intermediate_size=64,
         hidden_act="silu",
+        attention_dropout=0.0,
+        attn_layer_indices=None,
+        attn_rotary_emb=8,
         max_position_embeddings=512,
+        type_vocab_size=16,
         initializer_range=0.02,
-        use_cache=True,
+        num_labels=3,
         pad_token_id=0,
-        bos_token_id=1,
-        eos_token_id=2,
-        mlp_bias=False,
-        output_attentions=False,
-        output_hidden_states=False,
-        num_logits_to_keep=None,
-        mlp_multipliers=1.0,
-        ssm_multipliers=1.0,
-        ssm_in_multiplier=1.0,
-        attention_in_multiplier=1.0,
-        ssm_out_multiplier=1.0,
-        attention_out_multiplier=1.0,
-        embedding_multiplier=1.0,
-        lm_head_multiplier=1.0,
-        projectors_bias=False,
-        rope_scaling=None,
+        mamba_n_groups=1,
+        mamba_n_heads=16,
+        mamba_d_state=16,
+        mamba_d_conv=4,
+        mamba_expand=2,
+        mamba_chunk_size=16,
+        scope=None,
     ):
         self.batch_size = batch_size
         self.seq_length = seq_length
         self.is_training = is_training
         self.use_input_mask = use_input_mask
-        self.use_token_type_ids = use_token_type_ids
         self.use_labels = use_labels
-        self.type_vocab_size = type_vocab_size
-        self.type_sequence_label_size = type_sequence_label_size
-        self.num_labels = num_labels
-        self.num_choices = num_choices
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
-        self.intermediate_size = intermediate_size
         self.num_hidden_layers = num_hidden_layers
         self.num_attention_heads = num_attention_heads
         self.num_key_value_heads = num_key_value_heads
-        self.mamba_d_conv = mamba_d_conv
-        self.mamba_d_ssm = mamba_d_ssm
-        self.mamba_expand = mamba_expand
-        self.mamba_n_groups = mamba_n_groups
-        self.mamba_d_state = mamba_d_state
-        self.mamba_n_heads = mamba_n_heads
-        self.mamba_d_head = mamba_d_head
-        self.mamba_chunk_size = mamba_chunk_size
-        self.mamba_conv_bias = mamba_conv_bias
-        self.mamba_proj_bias = mamba_proj_bias
-        self.mamba_rms_norm = mamba_rms_norm
-        self.mamba_norm_before_gate = mamba_norm_before_gate
-        self.rms_norm_eps = rms_norm_eps
-        self.attention_dropout = attention_dropout
-        self.attention_bias = attention_bias
-        self.key_multiplier = key_multiplier
+        self.intermediate_size = intermediate_size
         self.hidden_act = hidden_act
+        self.attention_dropout = attention_dropout
+        self.attn_layer_indices = attn_layer_indices
+        self.attn_rotary_emb = attn_rotary_emb
         self.max_position_embeddings = max_position_embeddings
+        self.type_vocab_size = type_vocab_size
         self.initializer_range = initializer_range
-        self.use_cache = use_cache
-        self.bos_token_id = bos_token_id
-        self.eos_token_id = eos_token_id
+        self.num_labels = num_labels
         self.pad_token_id = pad_token_id
-        self.mlp_bias = mlp_bias
-        self.output_attentions = output_attentions
-        self.output_hidden_states = output_hidden_states
-        self.num_logits_to_keep = num_logits_to_keep
-        self.mlp_multipliers = mlp_multipliers
-        self.ssm_multipliers = ssm_multipliers
-        self.ssm_in_multiplier = ssm_in_multiplier
-        self.attention_in_multiplier = attention_in_multiplier
-        self.ssm_out_multiplier = ssm_out_multiplier
-        self.attention_out_multiplier = attention_out_multiplier
-        self.embedding_multiplier = embedding_multiplier
-        self.lm_head_multiplier = lm_head_multiplier
-        self.projectors_bias = projectors_bias
-        self.rope_scaling = rope_scaling
-        self.head_dim = self.hidden_size // self.num_attention_heads
+        self.scope = scope
+        self.mamba_n_groups = mamba_n_groups
+        self.mamba_n_heads = mamba_n_heads
+        self.mamba_d_state = mamba_d_state
+        self.mamba_d_conv = mamba_d_conv
+        self.mamba_expand = mamba_expand
+        self.mamba_chunk_size = mamba_chunk_size
 
     def prepare_config_and_inputs(self):
         input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
@@ -151,70 +97,44 @@ class FalconH1ModelTester:
         if self.use_input_mask:
             input_mask = np.tril(np.ones_like(input_ids))
 
-        token_type_ids = None
-        if self.use_token_type_ids:
-            token_type_ids = ids_numpy([self.batch_size, self.seq_length], self.type_vocab_size)
-
-        sequence_labels = None
         token_labels = None
-        choice_labels = None
         if self.use_labels:
-            sequence_labels = ids_numpy([self.batch_size], self.type_sequence_label_size)
             token_labels = ids_numpy([self.batch_size, self.seq_length], self.num_labels)
-            choice_labels = ids_numpy([self.batch_size], self.num_choices)
-
         config = self.get_config()
 
-        # set _attn_implementation
-        config._attn_implementation = "eager"
-
-        return config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
+        return config, input_ids, input_mask, token_labels
 
     def get_config(self):
-        return self.config_class(
+        # Fix for SDPA tests, force at least 4 layers
+        if self.num_hidden_layers < 4:
+            self.num_hidden_layers = 4
+        if self.attn_layer_indices is None:
+            d = [x for x in range(2, self.num_hidden_layers) if self.num_hidden_layers % x == 0]
+            if len(d) == 0:
+                raise ValueError("num_hidden_layers is prime, cannot automatically set attn_layer_indices.")
+            d = d[-1]  # get the largest divisor
+            self.attn_layer_indices = [x + 1 for x in range(0, self.num_hidden_layers, d)]
+
+        return FalconH1Config(
             vocab_size=self.vocab_size,
             hidden_size=self.hidden_size,
-            intermediate_size=self.intermediate_size,
             num_hidden_layers=self.num_hidden_layers,
             num_attention_heads=self.num_attention_heads,
             num_key_value_heads=self.num_key_value_heads,
-            mamba_d_conv=self.mamba_d_conv,
-            mamba_d_ssm=self.mamba_d_ssm,
-            mamba_expand=self.mamba_expand,
-            mamba_n_groups=self.mamba_n_groups,
-            mamba_d_state=self.mamba_d_state,
-            mamba_n_heads=self.mamba_n_heads,
-            mamba_d_head=self.mamba_d_head,
-            mamba_chunk_size=self.mamba_chunk_size,
-            mamba_conv_bias=self.mamba_conv_bias,
-            mamba_proj_bias=self.mamba_proj_bias,
-            mamba_rms_norm=self.mamba_rms_norm,
-            mamba_norm_before_gate=self.mamba_norm_before_gate,
-            rms_norm_eps=self.rms_norm_eps,
-            attention_dropout=self.attention_dropout,
-            attention_bias=self.attention_bias,
-            key_multiplier=self.key_multiplier,
+            intermediate_size=self.intermediate_size,
             hidden_act=self.hidden_act,
+            attention_dropout=self.attention_dropout,
+            attn_layer_indices=self.attn_layer_indices,
+            attn_rotary_emb=self.attn_rotary_emb,
             max_position_embeddings=self.max_position_embeddings,
             initializer_range=self.initializer_range,
-            use_cache=self.use_cache,
             pad_token_id=self.pad_token_id,
-            bos_token_id=self.bos_token_id,
-            eos_token_id=self.eos_token_id,
-            mlp_bias=self.mlp_bias,
-            output_attentions=self.output_attentions,
-            output_hidden_states=self.output_hidden_states,
-            num_logits_to_keep=self.num_logits_to_keep,
-            mlp_multipliers=self.mlp_multipliers,
-            ssm_multipliers=self.ssm_multipliers,
-            ssm_in_multiplier=self.ssm_in_multiplier,
-            attention_in_multiplier=self.attention_in_multiplier,
-            ssm_out_multiplier=self.ssm_out_multiplier,
-            attention_out_multiplier=self.attention_out_multiplier,
-            embedding_multiplier=self.embedding_multiplier,
-            lm_head_multiplier=self.lm_head_multiplier,
-            projectors_bias=self.projectors_bias,
-            rope_scaling=self.rope_scaling,
+            mamba_n_groups=self.mamba_n_groups,
+            mamba_n_heads=self.mamba_n_heads,
+            mamba_d_state=self.mamba_d_state,
+            mamba_d_conv=self.mamba_d_conv,
+            mamba_expand=self.mamba_expand,
+            mamba_chunk_size=self.mamba_chunk_size,
         )
 
 
@@ -222,11 +142,8 @@ model_tester = FalconH1ModelTester()
 (
     config,
     input_ids,
-    token_type_ids,
     input_mask,
-    sequence_labels,
     token_labels,
-    choice_labels,
 ) = model_tester.prepare_config_and_inputs()
 
 

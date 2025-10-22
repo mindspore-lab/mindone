@@ -12,5 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .configuration_falcon_h1 import FalconH1Config
 from .modeling_falcon_h1 import *
