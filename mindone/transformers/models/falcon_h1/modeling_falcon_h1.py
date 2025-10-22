@@ -40,12 +40,12 @@ from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
-from ...utils import logging
+from ...utils import TransformersKwargs, logging
 
 logger = logging.get_logger(__name__)
 
 
-class FalconHybridMambaAttentionDynamicCache(DynamicCache):
+class FalconHybridMambaAttentionDynamicCache(Cache):
     """
     A dynamic cache that can handle both the attention cache (which has a seq_len dimension) and the mamba cache
     (which has a constant shape regardless of seq_len).
@@ -59,6 +59,10 @@ class FalconHybridMambaAttentionDynamicCache(DynamicCache):
     and `ssm_states` represents the ssm state and has a shape of `(batch_size, d_inner, d_state)`.
     """
 
+    key_cache = None
+    value_cache = None
+    is_compileable = False
+
     def __init__(
         self,
         config: FalconH1Config,
@@ -69,8 +73,6 @@ class FalconHybridMambaAttentionDynamicCache(DynamicCache):
         self.dtype = dtype
         self.has_previous_state = False
         self.conv_kernel_size = config.mamba_d_conv
-
-        self._seen_tokens = 0
 
         self.intermediate_size = (
             config.mamba_d_ssm if config.mamba_d_ssm is not None else int(config.mamba_expand * config.hidden_size)
@@ -125,10 +127,6 @@ class FalconHybridMambaAttentionDynamicCache(DynamicCache):
         Return:
             A tuple containing the updated key and value states.
         """
-        # Update the number of seen tokens
-        if layer_idx == 0:
-            self._seen_tokens += key_states.shape[-2]
-
         # Update the cache
         if len(self.key_cache) <= layer_idx:
             # There may be skipped layers, fill them with empty lists
@@ -277,7 +275,7 @@ def eager_attention_forward(
     attention_mask: Optional[mindspore.Tensor],
     scaling: float,
     dropout: float = 0.0,
-    **kwargs,
+    **kwargs: Unpack[TransformersKwargs],
 ):
     key_states = repeat_kv(key, module.num_key_value_groups)
     value_states = repeat_kv(value, module.num_key_value_groups)
@@ -551,7 +549,7 @@ class FalconH1Mixer(mindspore.nn.Cell):
         self.ssm_in_multiplier = config.ssm_in_multiplier
 
     # fmt: off
-    def torch_forward(
+    def forward(
         self,
         input_states,
         cache_params: Optional[FalconHybridMambaAttentionDynamicCache] = None,
@@ -775,7 +773,7 @@ class FalconH1Mixer(mindspore.nn.Cell):
             # tune out hidden states for pad tokens, see https://github.com/state-spaces/mamba/issues/66
             hidden_states = (hidden_states * attention_mask[:, :, None]).to(dtype)
 
-        return self.torch_forward(hidden_states, cache_params, cache_position, attention_mask)
+        return self.forward(hidden_states, cache_params, cache_position, attention_mask)
 
 
 class FalconH1MLP(mindspore.nn.Cell):
@@ -845,9 +843,7 @@ class FalconH1DecoderLayer(mindspore.nn.Cell):
         output_attentions: Optional[bool] = False,
         use_cache: Optional[bool] = False,
         cache_position: Optional[mindspore.Tensor] = None,
-        position_embeddings: Optional[
-            tuple[mindspore.Tensor, mindspore.Tensor]
-        ] = None,  # necessary, but kept here for BC
+        position_embeddings: Optional[tuple[mindspore.Tensor, mindspore.Tensor]] = None,
         **kwargs,
     ) -> tuple[mindspore.Tensor, Optional[tuple[mindspore.Tensor, mindspore.Tensor]]]:
         """
@@ -916,14 +912,13 @@ class FalconH1DecoderLayer(mindspore.nn.Cell):
 
 
 class FalconH1PreTrainedModel(PreTrainedModel):
-    config_class = FalconH1Config
+    config: FalconH1Config
     base_model_prefix = "model"
     supports_gradient_checkpointing = True
     _no_split_modules = ["FalconH1DecoderLayer"]
     _skip_keys_device_placement = "past_key_values"
-    _supports_flash_attn_2 = True
+    _supports_flash_attn = True
     _supports_sdpa = True
-    _supports_cache_class = True  # Note: only supports FalconHybridMambaAttentionDynamicCache
     _is_stateful = True
 
     def _init_weights(self, module):
@@ -935,11 +930,11 @@ class FalconH1PreTrainedModel(PreTrainedModel):
             if module.bias is not None:
                 bias_weight = initializer("zeros", module.bias.shape)
                 module.bias.set_data(bias_weight)
-            elif isinstance(module, mindspore.mint.nn.Embedding):
-                weight = initializer(Normal(sigma=std, mean=0.0), shape=module.weight.shape)
-                module.weight.set_data(weight)
-                if module.padding_idx is not None:
-                    module.weight[module.padding_idx] = 0
+        elif isinstance(module, mindspore.mint.nn.Embedding):
+            weight = initializer(Normal(sigma=std, mean=0.0), shape=module.weight.shape)
+            module.weight.set_data(weight)
+            if module.padding_idx is not None:
+                module.weight[module.padding_idx] = 0
 
 
 def compute_mup_vector(config):
@@ -979,7 +974,6 @@ def compute_mup_vector(config):
     return mup_vector
 
 
-# Adapted from transformers.models.jamba.modeling_jamba.JambaModel
 class FalconH1Model(FalconH1PreTrainedModel):
     def __init__(self, config: FalconH1Config):
         super().__init__(config)
@@ -1007,12 +1001,6 @@ class FalconH1Model(FalconH1PreTrainedModel):
 
         # Initialize weights and apply final processing
         self.post_init()
-
-    def get_input_embeddings(self):
-        return self.embed_tokens
-
-    def set_input_embeddings(self, value):
-        self.embed_tokens = value
 
     def construct(
         self,
@@ -1167,6 +1155,9 @@ class FalconH1Model(FalconH1PreTrainedModel):
             cache_position=cache_position,
             batch_size=input_tensor.shape[0],
         )
+        if self.config._attn_implementation == "sdpa" and attention_mask is not None and not output_attentions:
+            min_dtype = float(mindspore.finfo(dtype).min)
+            causal_mask = AttentionMaskConverter._unmask_unattended(causal_mask, min_dtype)
 
         return causal_mask
 
@@ -1245,18 +1236,6 @@ class FalconH1ForCausalLM(FalconH1PreTrainedModel, GenerationMixin):
         # Initialize weights and apply final processing
         self.post_init()
 
-    def get_input_embeddings(self):
-        return self.model.embed_tokens
-
-    def set_input_embeddings(self, value):
-        self.model.embed_tokens = value
-
-    def get_output_embeddings(self):
-        return self.lm_head
-
-    def set_output_embeddings(self, new_embeddings):
-        self.lm_head = new_embeddings
-
     def set_decoder(self, decoder):
         self.model = decoder
 
@@ -1287,7 +1266,7 @@ class FalconH1ForCausalLM(FalconH1PreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, FalconH1ForCausalLM
+        >>> from mindone.transformers import AutoTokenizer, FalconH1ForCausalLM
 
         >>> model = FalconH1ForCausalLM.from_pretrained("...")
         >>> tokenizer = AutoTokenizer.from_pretrained("...")
