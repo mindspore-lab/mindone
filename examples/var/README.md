@@ -14,9 +14,11 @@ VAR, a new generation paradigm that redefines the autoregressive learning on ima
 
 ## Requirements
 
-| mindspore | ascend driver | firmware    | cann toolkit/kernel |
-|:---------:|:-------------:|:-----------:|:-------------------:|
-| 2.5.0     | 24.1.RC3    | 7.3.0.1.231 | 8.0.RC3.beta1       |
+| mindspore | ascend driver  | firmware    | cann toolkit/kernel |
+|:---------:|:--------------:|:-----------:|:-------------------:|
+|   2.5.0   |    24.1.RC3    | 7.3.0.1.231 | 8.0.RC3.beta1       |
+|   2.6.0   |    24.1.RC3    | 7.5.T11.0.B088 |   8.1.RC1        |
+|   2.7.0   |    24.1.RC3    | 7.5.T11.0.B088 |   8.2.RC1        |
 
 ```shell
 cd mindone
@@ -74,7 +76,6 @@ Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 pyn
 
 | model name    |  cards          | batch size      | resolution   |  FA   |  precision |  jit level | graph compile |s/step     | img/s |
 |:-------------:|:------------:|:------------:|:-----------------------:|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|
-| VAR-d16 |  1               | 96               | 256x256  | ON | fp16 | / | / |  1.70 | 56.47 |
 | VAR-d16 |  2               | 32               | 256x256  | ON | fp16 | / | / |  0.71 | 90.14 |
 | VAR-d16 |  2               | 96               | 256x256  | ON | fp16 | / | / |  1.75 | 109.71 |
 
@@ -84,12 +85,25 @@ Experiments are tested on ascend 910* with mindspore 2.5.0 Graph mode.
 |:-------------:|:------------:|:------------:|:-----------------------:|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|
 | VAR-d16 |  2               | 96               | 256x256  | ON | fp16 | O1 | 2min |  1.80 | 106.67 |
 
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.6.0 pynative mode.
+| model name    |  cards          | batch size      | resolution   |  FA   |  precision |  jit level | graph compile |s/step     | img/s |
+|:-------------:|:------------:|:------------:|:-----------------------:|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|
+| VAR-d16 |  2               | 32               | 256x256  | ON | fp16 | / | / |  0.84 | 76.38 |
+| VAR-d16 |  2               | 96               | 256x256  | ON | fp16 | / | / |  2.04 | 93.56 |
+
+
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.7.0 pynative mode.
+| model name    |  cards          | batch size      | resolution   |  FA   |  precision |  jit level | graph compile |s/step     | img/s |
+|:-------------:|:------------:|:------------:|:-----------------------:|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|
+| VAR-d16 |  2               | 32               | 256x256  | ON | fp16 | / | / |  0.70 | 91.81 |
+| VAR-d16 |  2               | 96               | 256x256  | ON | fp16 | / | / |  1.71 | 112.32 |
+
 
 ## Inference
 
 Here are a inference demo.
 ```shell
-python inference_demo.py --var_ckpt path/to/var-d16.ckpt
+python inference_demo.py --var_checkpoint path/to/var-d16.ckpt
 ```
 
 ### Performance
@@ -99,6 +113,18 @@ Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 pyn
 | model name    |  cards          | batch size      | resolution   |  FA   |  precision |  jit level | graph compile | s/img |
 |:-------------:|:------------:|:------------:|:-----------------------:|:------------:|:------------------:|:------------------------:|:----------------:|:----------------:|
 | VAR-d16 |  1              | 8               | 256x256  | ON | fp16 | / | / | 0.32 |
+
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.6.0 pynative mode.
+
+| model name    |  cards          | batch size      | resolution   |  FA   |  precision |  jit level | graph compile | s/img |
+|:-------------:|:------------:|:------------:|:-----------------------:|:------------:|:------------------:|:------------------------:|:----------------:|:----------------:|
+| VAR-d16 |  1              | 8               | 256x256  | ON | fp16 | / | / | 0.28 |
+
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.7.0 pynative mode.
+
+| model name    |  cards          | batch size      | resolution   |  FA   |  precision |  jit level | graph compile | s/img |
+|:-------------:|:------------:|:------------:|:-----------------------:|:------------:|:------------------:|:------------------------:|:----------------:|:----------------:|
+| VAR-d16 |  1              | 8               | 256x256  | ON | fp16 | / | / | 0.21 |
 
 Here are some inference results
 

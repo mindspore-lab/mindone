@@ -79,9 +79,10 @@ huggingface-cli download deepseek-ai/Janus-Pro-7B --revision refs/pr/110 --local
 
 The code is tested in the following environments
 
-| mindspore | ascend driver | firmware | cann tookit/kernel |
-| :---:     |   :---:       | :---:    | :---:              |
-| 2.5.0     |  24.1.0     |7.35.23    |   8.0.RC3.beta1   |
+| mindspore | ascend driver | firmware    | cann tookit/kernel |
+| :-------: | :-----------: | :---------: | :----------------: |
+| 2.6.0     |  25.0.RC1.1   | 7.7.0.1.231 | 8.1.RC1            |
+| 2.7.0     |  25.2.0       | 7.7.0.6.236 | 8.2.RC1            |
 
 
 ### Installation
@@ -138,36 +139,36 @@ Please refer to [training.md](docs/training.md)
 
 ### Multimodal Understanding
 
-Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 **graph** mode:
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.7.0 **graph** mode:
 
 | model | # card(s) | image size | attn. type | throughput (token/s)|
 |:-:|:-:|:-:|:-:|:-:|
-| Janus-Pro-1B | 1 | 384x384 | Eager | 16.6|
-| Janus-Pro-7B | 1 | 384x384 | Eager | 12.2|
+| Janus-Pro-1B | 1 | 384x384 | Eager | 17.5 |
+| Janus-Pro-7B | 1 | 384x384 | Eager | 13.6 |
 
 
-Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 **pynative** mode:
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.7.0 **pynative** mode:
 
 | model | # card(s) | image size | attn. type | throughput (token/s)|
 |:-:|:-:|:-:|:-:|:-:|
-| Janus-Pro-1B | 1 | 384x384 | Eager | 5.88 |
-| Janus-Pro-7B | 1 | 384x384 | Eager | 3.30|
+| Janus-Pro-1B | 1 | 384x384 | Eager | 7.55 |
+| Janus-Pro-7B | 1 | 384x384 | Eager | 6.39 |
 
 ### Visual Generation
 
-Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 **graph** mode:
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.7.0 **graph** mode:
 
 | model | # card(s) | batch Size | image size | attn. type | throughput (token/s)| s/img |
 |:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| Janus-Pro-1B | 1 | 1 | 384x384 | Eager | 16.2 | ~ 40 |
-| Janus-Pro-7B | 1 | 1 | 384x384 | Eager | 11.9 | ~ 52 |
+| Janus-Pro-1B | 1 | 1 | 384x384 | Eager | 14.6 | ~ 44 |
+| Janus-Pro-7B | 1 | 1 | 384x384 | Eager | 12.2 | ~ 51 |
 
-Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 **pynative** mode:
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.7.0 **pynative** mode:
 
 | model | # card(s) | batch size| image size | attn. type | throughput (token/s)| s/img |
 |:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| Janus-Pro-1B | 1 | 1 | 384x384 | Eager | 4.52 | ~ 127|
-| Janus-Pro-7B | 1 | 1 | 384x384 | Eager | 3.56 | ~ 162|
+| Janus-Pro-1B | 1 | 1 | 384x384 | Eager | 7.08 | ~ 81 |
+| Janus-Pro-7B | 1 | 1 | 384x384 | Eager | 5.81 | ~ 99 |
 
 * All the performances are tested with KV-Cache enabled.
 

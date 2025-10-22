@@ -26,10 +26,11 @@ from ...loaders import PeftAdapterMixin
 from ...utils import logging
 from ..attention import FeedForward
 from ..attention_processor import Attention
+from ..cache_utils import CacheMixin
 from ..embeddings import CogView3CombinedTimestepSizeEmbeddings
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
-from ..normalization import AdaLayerNormContinuous
+from ..normalization import LayerNorm, RMSNorm
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -625,7 +626,39 @@ class CogView4RotaryPosEmbed(nn.Cell):
         return (freqs.cos(), freqs.sin())
 
 
-class CogView4Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
+class CogView4AdaLayerNormContinuous(nn.Cell):
+    """
+    CogView4-only final AdaLN: LN(x) -> Linear(cond) -> chunk -> affine. Matches Megatron: **no activation** before the
+    Linear on conditioning embedding.
+    """
+
+    def __init__(
+        self,
+        embedding_dim: int,
+        conditioning_embedding_dim: int,
+        elementwise_affine: bool = True,
+        eps: float = 1e-5,
+        bias: bool = True,
+        norm_type: str = "layer_norm",
+    ):
+        super().__init__()
+        self.linear = mint.nn.Linear(conditioning_embedding_dim, embedding_dim * 2, bias=bias)
+        if norm_type == "layer_norm":
+            self.norm = LayerNorm(embedding_dim, eps, elementwise_affine, bias)
+        elif norm_type == "rms_norm":
+            self.norm = RMSNorm(embedding_dim, eps, elementwise_affine)
+        else:
+            raise ValueError(f"unknown norm_type {norm_type}")
+
+    def construct(self, x: ms.Tensor, conditioning_embedding: ms.Tensor) -> ms.Tensor:
+        # *** NO SiLU here ***
+        emb = self.linear(conditioning_embedding.to(x.dtype))
+        scale, shift = mint.chunk(emb, 2, dim=1)
+        x = self.norm(x) * (1 + scale)[:, None, :] + shift[:, None, :]
+        return x
+
+
+class CogView4Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, CacheMixin):
     r"""
     Args:
         patch_size (`int`, defaults to `2`):
@@ -707,7 +740,7 @@ class CogView4Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         )
 
         # 4. Output projection
-        self.norm_out = AdaLayerNormContinuous(inner_dim, time_embed_dim, elementwise_affine=False)
+        self.norm_out = CogView4AdaLayerNormContinuous(inner_dim, time_embed_dim, elementwise_affine=False)
         self.proj_out = mint.nn.Linear(inner_dim, patch_size * patch_size * out_channels, bias=True)
 
         self.gradient_checkpointing = False
@@ -727,6 +760,17 @@ class CogView4Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         attention_mask: Optional[ms.Tensor] = None,
         image_rotary_emb: Optional[Union[Tuple[ms.Tensor, ms.Tensor], List[Tuple[ms.Tensor, ms.Tensor]]]] = None,
     ) -> Union[ms.Tensor, Transformer2DModelOutput]:
+        if attention_kwargs is not None and "scale" in attention_kwargs:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer here
+            # and remove `lora_scale` from each PEFT layer at the end.
+            # scale_lora_layers & unscale_lora_layers maybe contains some operation forbidden in graph mode
+            raise RuntimeError(
+                f"You are trying to set scaling of lora layer by passing {attention_kwargs['scale']=}. "
+                f"However it's not allowed in on-the-fly model forwarding. "
+                f"Please manually call `scale_lora_layers(model, lora_scale)` before model forwarding and "
+                f"`unscale_lora_layers(model, lora_scale)` after model forwarding. "
+                f"For example, it can be done in a pipeline call like `StableDiffusionPipeline.__call__`."
+            )
         batch_size, num_channels, height, width = hidden_states.shape
 
         # 1. RoPE

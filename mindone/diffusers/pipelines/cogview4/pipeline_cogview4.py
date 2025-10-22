@@ -33,7 +33,7 @@ from ...loaders import CogView4LoraLoaderMixin
 from ...models import AutoencoderKL, CogView4Transformer2DModel
 from ...pipelines.pipeline_utils import DiffusionPipeline
 from ...schedulers import FlowMatchEulerDiscreteScheduler
-from ...utils import logging
+from ...utils import logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from .pipeline_output import CogView4PipelineOutput
 
@@ -595,6 +595,13 @@ class CogView4Pipeline(DiffusionPipeline, CogView4LoraLoaderMixin):
         transformer_dtype = self.transformer.dtype
         num_warmup_steps = max(len(timesteps) - num_inference_steps * self.scheduler.order, 0)
 
+        # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
+        # to the transformer and will raise RuntimeError.
+        lora_scale = attention_kwargs.pop("scale", None) if attention_kwargs is not None else None
+        if lora_scale is not None:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer
+            scale_lora_layers(self.transformer, lora_scale)
+
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 if self.interrupt:
@@ -605,22 +612,10 @@ class CogView4Pipeline(DiffusionPipeline, CogView4LoraLoaderMixin):
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
                 timestep = t.broadcast_to((latents.shape[0],))
 
-                noise_pred_cond = self.transformer(
-                    hidden_states=latent_model_input,
-                    encoder_hidden_states=prompt_embeds,
-                    timestep=timestep,
-                    original_size=original_size,
-                    target_size=target_size,
-                    crop_coords=crops_coords_top_left,
-                    attention_kwargs=attention_kwargs,
-                    return_dict=False,
-                )[0]
-
-                # perform guidance
-                if self.do_classifier_free_guidance:
-                    noise_pred_uncond = self.transformer(
+                with self.transformer.cache_context("cond"):
+                    noise_pred_cond = self.transformer(
                         hidden_states=latent_model_input,
-                        encoder_hidden_states=negative_prompt_embeds,
+                        encoder_hidden_states=prompt_embeds,
                         timestep=timestep,
                         original_size=original_size,
                         target_size=target_size,
@@ -629,6 +624,19 @@ class CogView4Pipeline(DiffusionPipeline, CogView4LoraLoaderMixin):
                         return_dict=False,
                     )[0]
 
+                # perform guidance
+                if self.do_classifier_free_guidance:
+                    with self.transformer.cache_context("uncond"):
+                        noise_pred_uncond = self.transformer(
+                            hidden_states=latent_model_input,
+                            encoder_hidden_states=negative_prompt_embeds,
+                            timestep=timestep,
+                            original_size=original_size,
+                            target_size=target_size,
+                            crop_coords=crops_coords_top_left,
+                            attention_kwargs=attention_kwargs,
+                            return_dict=False,
+                        )[0]
                     noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_cond - noise_pred_uncond)
                 else:
                     noise_pred = noise_pred_cond
@@ -647,6 +655,11 @@ class CogView4Pipeline(DiffusionPipeline, CogView4LoraLoaderMixin):
 
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
+
+        if lora_scale is not None:
+            # remove `lora_scale` from each PEFT layer
+            unscale_lora_layers(self.transformer, lora_scale)
+            attention_kwargs["scale"] = lora_scale
 
         self._current_timestep = None
 

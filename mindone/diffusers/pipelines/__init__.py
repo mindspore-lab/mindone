@@ -29,6 +29,7 @@ _import_structure = {
         "AutoPipelineForText2Image",
     ],
     "blip_diffusion": ["BlipDiffusionPipeline"],
+    "chroma": ["ChromaPipeline", "ChromaImg2ImgPipeline"],
     "cogvideo": [
         "CogVideoXPipeline",
         "CogVideoXImageToVideoPipeline",
@@ -96,7 +97,10 @@ _import_structure = {
         "FluxPipeline",
         "FluxPriorReduxPipeline",
         "ReduxImageEncoder",
+        "FluxKontextPipeline",
+        "FluxKontextInpaintPipeline",
     ],
+    "hidream_image": ["HiDreamImagePipeline"],
     "hunyuandit": ["HunyuanDiTPipeline"],
     "hunyuan_video": [
         "HunyuanVideoPipeline",
@@ -178,6 +182,13 @@ _import_structure = {
         "PixArtAlphaPipeline",
         "PixArtSigmaPipeline",
     ],
+    "qwenimage": [
+        "QwenImageEditPipeline",
+        "QwenImageEditInpaintPipeline",
+        "QwenImageImg2ImgPipeline",
+        "QwenImageInpaintPipeline",
+        "QwenImagePipeline",
+    ],
     "sana": ["SanaPipeline", "SanaSprintPipeline", "SanaControlNetPipeline", "SanaSprintImg2ImgPipeline"],
     "semantic_stable_diffusion": ["SemanticStableDiffusionPipeline"],
     "shap_e": ["ShapEImg2ImgPipeline", "ShapEPipeline"],
@@ -248,7 +259,14 @@ _import_structure = {
         "WuerstchenDecoderPipeline",
         "WuerstchenPriorPipeline",
     ],
-    "wan": ["WanPipeline", "WanImageToVideoPipeline", "WanVideoToVideoPipeline"],
+    "wan": ["WanPipeline", "WanImageToVideoPipeline", "WanVideoToVideoPipeline", "WanVACEPipeline"],
+    "skyreels_v2": [
+        "SkyReelsV2DiffusionForcingPipeline",
+        "SkyReelsV2DiffusionForcingImageToVideoPipeline",
+        "SkyReelsV2DiffusionForcingVideoToVideoPipeline",
+        "SkyReelsV2ImageToVideoPipeline",
+        "SkyReelsV2Pipeline",
+    ],
     "pipeline_utils": [
         "AudioPipelineOutput",
         "DiffusionPipeline",
@@ -273,6 +291,7 @@ if TYPE_CHECKING:
     from .aura_flow import AuraFlowPipeline
     from .auto_pipeline import AutoPipelineForImage2Image, AutoPipelineForInpainting, AutoPipelineForText2Image
     from .blip_diffusion import BlipDiffusionPipeline
+    from .chroma import ChromaImg2ImgPipeline, ChromaPipeline
     from .cogvideo import (
         CogVideoXFunControlPipeline,
         CogVideoXImageToVideoPipeline,
@@ -326,10 +345,13 @@ if TYPE_CHECKING:
         FluxFillPipeline,
         FluxImg2ImgPipeline,
         FluxInpaintPipeline,
+        FluxKontextInpaintPipeline,
+        FluxKontextPipeline,
         FluxPipeline,
         FluxPriorReduxPipeline,
         ReduxImageEncoder,
     )
+    from .hidream_image import HiDreamImagePipeline
     from .hunyuan_video import (
         HunyuanSkyreelsImageToVideoPipeline,
         HunyuanVideoFramepackPipeline,
@@ -400,9 +422,23 @@ if TYPE_CHECKING:
     from .pia import PIAPipeline
     from .pipeline_utils import AudioPipelineOutput, DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
     from .pixart_alpha import PixArtAlphaPipeline, PixArtSigmaPipeline
+    from .qwenimage import (
+        QwenImageEditInpaintPipeline,
+        QwenImageEditPipeline,
+        QwenImageImg2ImgPipeline,
+        QwenImageInpaintPipeline,
+        QwenImagePipeline,
+    )
     from .sana import SanaControlNetPipeline, SanaPipeline, SanaSprintImg2ImgPipeline, SanaSprintPipeline
     from .semantic_stable_diffusion import SemanticStableDiffusionPipeline
     from .shap_e import ShapEImg2ImgPipeline, ShapEPipeline
+    from .skyreels_v2 import (
+        SkyReelsV2DiffusionForcingImageToVideoPipeline,
+        SkyReelsV2DiffusionForcingPipeline,
+        SkyReelsV2DiffusionForcingVideoToVideoPipeline,
+        SkyReelsV2ImageToVideoPipeline,
+        SkyReelsV2Pipeline,
+    )
     from .stable_audio import StableAudioPipeline, StableAudioProjectionModel
     from .stable_cascade import StableCascadeCombinedPipeline, StableCascadeDecoderPipeline, StableCascadePriorPipeline
     from .stable_diffusion import (
@@ -448,7 +484,7 @@ if TYPE_CHECKING:
     from .unclip import UnCLIPImageVariationPipeline, UnCLIPPipeline
     from .unidiffuser import ImageTextPipelineOutput, UniDiffuserModel, UniDiffuserPipeline, UniDiffuserTextDecoder
     from .visualcloze import VisualClozeGenerationPipeline, VisualClozePipeline
-    from .wan import WanImageToVideoPipeline, WanPipeline, WanVideoToVideoPipeline
+    from .wan import WanImageToVideoPipeline, WanPipeline, WanVACEPipeline, WanVideoToVideoPipeline
     from .wuerstchen import WuerstchenCombinedPipeline, WuerstchenDecoderPipeline, WuerstchenPriorPipeline
 else:
     import sys

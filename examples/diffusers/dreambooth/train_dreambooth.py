@@ -1057,8 +1057,8 @@ def main():
             if is_master(args):
                 logger.info(f"Resuming from checkpoint {path}")
             # TODO: load optimizer & grad scaler etc. like accelerator.load_state
-            input_model_file = os.path.join(args.output_dir, path, "pytorch_model.ckpt")
-            ms.load_param_into_net(unet, ms.load_checkpoint(input_model_file), strict_load=True)
+            input_model_file = os.path.join(args.output_dir, path, "unet/diffusion_pytorch_model.safetensors")
+            ms.load_param_into_net(unet, ms.load_checkpoint(input_model_file, format="safetensors"), strict_load=True)
             global_step = int(path.split("-")[1])
 
             initial_global_step = global_step
@@ -1119,8 +1119,7 @@ def main():
                         save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}")
                         # TODO: save optimizer & grad scaler etc. like accelerator.save_state
                         os.makedirs(save_path, exist_ok=True)
-                        output_model_file = os.path.join(save_path, "pytorch_model.ckpt")
-                        ms.save_checkpoint(unet, output_model_file)
+                        unet.save_pretrained(os.path.join(save_path, "unet"))
                         logger.info(f"Saved state to {save_path}")
 
                 if args.validation_prompt is not None and global_step % args.validation_steps == 0:

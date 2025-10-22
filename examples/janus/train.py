@@ -228,7 +228,7 @@ def main(args):
             dataloader = create_unified_dataloader_weightrandsamp(
                 vl_chat_processor,
                 t2i_csv_path=args.t2i_csv_path,
-                t2i_data_path=args.t2i_data_path,
+                t2i_data_dir=args.t2i_data_dir,
                 t2i_parquet_dir=args.t2i_parquet_dir,
                 text_data_dir=args.text_qa_data_dir,
                 vqa_data_dir=args.vqa_data_dir,
@@ -243,7 +243,7 @@ def main(args):
             dataloader = create_dataloader_unified(
                 vl_chat_processor,
                 t2i_csv_path=args.t2i_csv_path,
-                t2i_data_path=args.t2i_data_path,
+                t2i_data_path=args.t2i_data_dir,
                 vqa_data_dir=args.vqa_data_dir,
                 text_qa_data_dir=args.text_qa_data_dir,
                 num_samples_vqa=100,

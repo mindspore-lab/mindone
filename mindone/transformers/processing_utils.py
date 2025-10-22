@@ -76,6 +76,37 @@ logger = logging.get_logger(__name__)
 transformers_module = transformers
 
 
+def _resolve_class_from_mindone_or_hf(class_name: str):
+    """
+    try to import a class with name `class_name` from `mindone.transformers`.
+    if not found, fall back to huggingface `transformers`
+    """
+    if class_name is None:
+        return None
+    try:
+        sub_path = os.path.abspath(os.path.dirname(__file__))
+        sub_path = str(Path(sub_path).parent)
+        if sub_path not in sys.path:
+            sys.path.insert(0, sub_path)
+        module_name = importlib.import_module("mindone.transformers")
+        return getattr(module_name, class_name)
+    except AttributeError:
+        logger.warning(
+            f"Falling back to 🤗 Transformers `{class_name}`. Note that "
+            f"fast vision/image processors and feature extractors often assume PyTorch backends and "
+            f"this may lead to a mismatch. If issues arise, use or implement a MindOne-native processor instead."
+        )
+
+        return getattr(transformers_module, class_name)
+
+
+def _resolve_classes_tuple(class_name_tuple):
+    """
+    resolve a tuple of class names with fallback
+    """
+    return tuple(_resolve_class_from_mindone_or_hf(n) if n is not None else None for n in class_name_tuple)
+
+
 AUTO_TO_BASE_CLASS_MAPPING = {
     "AutoTokenizer": "PreTrainedTokenizerBase",
     "AutoFeatureExtractor": "FeatureExtractionMixin",
@@ -471,22 +502,9 @@ class ProcessorMixin(PushToHubMixin):
             # Nothing is ever going to be an instance of "AutoXxx", in that case we check the base class.
             class_name = AUTO_TO_BASE_CLASS_MAPPING.get(class_name, class_name)
             if isinstance(class_name, tuple):
-                if "ImageProcess" in class_name[0]:
-                    sub_path = os.path.abspath(os.path.dirname(__file__))
-                    sub_path = str(Path(sub_path).parent)
-                    sys.path.insert(0, sub_path)
-                    module_name = importlib.import_module("mindone.transformers")
-                    proper_class = tuple(getattr(module_name, n) for n in class_name if n is not None)
-                else:
-                    proper_class = tuple(getattr(transformers_module, n) for n in class_name if n is not None)
-            elif "ImageProcess" in class_name:
-                sub_path = os.path.abspath(os.path.dirname(__file__))
-                sub_path = str(Path(sub_path).parent)
-                sys.path.insert(0, sub_path)
-                module_name = importlib.import_module("mindone.transformers")
-                proper_class = getattr(module_name, class_name)
+                proper_class = tuple(c for c in _resolve_classes_tuple(class_name) if c is not None)
             else:
-                proper_class = getattr(transformers_module, class_name)
+                proper_class = _resolve_class_from_mindone_or_hf(class_name)
 
             if not isinstance(arg, proper_class):
                 raise TypeError(
@@ -706,21 +724,23 @@ class ProcessorMixin(PushToHubMixin):
         is_local = os.path.isdir(pretrained_model_name_or_path)
         if os.path.isdir(pretrained_model_name_or_path):
             processor_file = os.path.join(pretrained_model_name_or_path, PROCESSOR_NAME)
-            chat_template_file = os.path.join(pretrained_model_name_or_path, "chat_template.json")
 
         if os.path.isfile(pretrained_model_name_or_path):
             resolved_processor_file = pretrained_model_name_or_path
             # cant't load chat-template when given a file as pretrained_model_name_or_path
             resolved_chat_template_file = None
+            resolved_raw_chat_template_file = None
             is_local = True
         elif is_remote_url(pretrained_model_name_or_path):
             processor_file = pretrained_model_name_or_path
             resolved_processor_file = download_url(pretrained_model_name_or_path)
             # can't load chat-template when given a file url as pretrained_model_name_or_path
             resolved_chat_template_file = None
+            resolved_raw_chat_template_file = None
         else:
             processor_file = PROCESSOR_NAME
-            chat_template_file = CHAT_TEMPLATE_NAME
+            chat_template_file = "chat_template.json"
+            raw_chat_template_file = "chat_template.jinja"
             try:
                 # Load from local folder or from cache or download from model Hub and cache
                 resolved_processor_file = cached_file(
@@ -755,6 +775,21 @@ class ProcessorMixin(PushToHubMixin):
                     subfolder=subfolder,
                     _raise_exceptions_for_missing_entries=False,
                 )
+
+                resolved_raw_chat_template_file = cached_file(
+                    pretrained_model_name_or_path,
+                    raw_chat_template_file,
+                    cache_dir=cache_dir,
+                    force_download=force_download,
+                    proxies=proxies,
+                    resume_download=resume_download,
+                    local_files_only=local_files_only,
+                    token=token,
+                    user_agent=user_agent,
+                    revision=revision,
+                    subfolder=subfolder,
+                    _raise_exceptions_for_missing_entries=False,
+                )
             except EnvironmentError:
                 # Raise any environment error raise by `cached_file`. It will have a helpful error message adapted to
                 # the original exception.
@@ -769,8 +804,11 @@ class ProcessorMixin(PushToHubMixin):
                 )
 
         # Add chat template as kwarg before returning because most models don't have processor config
-        chat_template = None
-        if resolved_chat_template_file is not None:
+        if resolved_raw_chat_template_file is not None:
+            with open(resolved_raw_chat_template_file, "r", encoding="utf-8") as reader:
+                chat_template = reader.read()
+            kwargs["chat_template"] = chat_template
+        elif resolved_chat_template_file is not None:
             with open(resolved_chat_template_file, "r", encoding="utf-8") as reader:
                 text = reader.read()
             chat_template = json.loads(text)["chat_template"]
@@ -781,7 +819,11 @@ class ProcessorMixin(PushToHubMixin):
         # (`cached_file` called using `_raise_exceptions_for_missing_entries=False` to avoid exception)
         # However, for models added in the future, we won't get the expected error if this file is missing.
         if resolved_processor_file is None:
-            return {}, kwargs
+            # In any case we need to pass `chat_template` if it is available
+            processor_dict = {}
+            if "chat_template" in kwargs:
+                processor_dict = {"chat_template": kwargs.pop("chat_template")}
+            return processor_dict, kwargs
 
         try:
             # Load processor dict
@@ -801,9 +843,12 @@ class ProcessorMixin(PushToHubMixin):
 
         if "chat_template" in processor_dict and processor_dict["chat_template"] is not None:
             logger.warning_once(
-                "Chat templates should be in a 'chat_template.json' file but found key='chat_template' "
+                "Chat templates should be in a 'chat_template.jinja' file but found key='chat_template' "
                 "in the processor's config. Make sure to move your template to its own file."
             )
+
+        if "chat_template" in kwargs:
+            processor_dict["chat_template"] = kwargs.pop("chat_template")
 
         if not is_local:
             if "auto_map" in processor_dict:
@@ -1083,27 +1128,14 @@ class ProcessorMixin(PushToHubMixin):
         for attribute_name in cls.attributes:
             class_name = getattr(cls, f"{attribute_name}_class")
             if isinstance(class_name, tuple):
-                if "ImageProcess" in class_name[0]:
-                    sub_path = os.path.abspath(os.path.dirname(__file__))
-                    sub_path = str(Path(sub_path).parent)
-                    sys.path.insert(0, sub_path)
-                    module_name = importlib.import_module("mindone.transformers")
-                    classes = tuple(getattr(module_name, n) if n is not None else None for n in class_name)
-                else:
-                    classes = tuple(getattr(transformers_module, n) if n is not None else None for n in class_name)
+                classes_names = class_name
                 use_fast = kwargs.get("use_fast", True)
-                if use_fast and classes[1] is not None:
-                    attribute_class = classes[1]
-                else:
-                    attribute_class = classes[0]
-            elif "ImageProcess" in class_name:
-                sub_path = os.path.abspath(os.path.dirname(__file__))
-                sub_path = str(Path(sub_path).parent)
-                sys.path.insert(0, sub_path)
-                module_name = importlib.import_module("mindone.transformers")
-                attribute_class = getattr(module_name, class_name)
+                classes = _resolve_classes_tuple(classes_names)
+                attribute_class = (
+                    classes[1] if (use_fast and len(classes) > 1 and classes[1] is not None) else classes[0]
+                )
             else:
-                attribute_class = getattr(transformers_module, class_name)
+                attribute_class = _resolve_class_from_mindone_or_hf(class_name)
 
             args.append(attribute_class.from_pretrained(pretrained_model_name_or_path, **kwargs))
         return args

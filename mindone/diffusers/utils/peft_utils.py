@@ -34,7 +34,7 @@ def recurse_remove_peft_layers(model):
     r"""
     Recursively replace all instances of `LoraLayer` with corresponding new layers in `model`.
     """
-    from mindone.diffusers._peft.utils import _get_submodules
+    from mindone.peft.utils import _get_submodules
 
     key_list = [key for key, _ in model.cells_and_names() if "lora" not in key]
     for key in key_list:
@@ -57,7 +57,7 @@ def scale_lora_layers(model, weight):
         weight (`float`):
             The weight to be given to the LoRA layers.
     """
-    from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+    from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
     if weight == 1.0:
         return
@@ -79,7 +79,7 @@ def unscale_lora_layers(model, weight: Optional[float] = None):
             re-initialized to the correct value. If 0.0 is passed, we will re-initialize the scale with the correct
             value.
     """
-    from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+    from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
     if weight is None or weight == 1.0:
         return
@@ -94,7 +94,9 @@ def unscale_lora_layers(model, weight: Optional[float] = None):
                     module.set_scale(adapter_name, 1.0)
 
 
-def get_peft_kwargs(rank_dict, network_alpha_dict, peft_state_dict, is_unet=True):
+def get_peft_kwargs(
+    rank_dict, network_alpha_dict, peft_state_dict, is_unet=True, model_state_dict=None, adapter_name=None
+):
     rank_pattern = {}
     alpha_pattern = {}
     r = lora_alpha = list(rank_dict.values())[0]
@@ -124,7 +126,6 @@ def get_peft_kwargs(rank_dict, network_alpha_dict, peft_state_dict, is_unet=True
         else:
             lora_alpha = set(network_alpha_dict.values()).pop()
 
-    # layer names without the Diffusers specific
     target_modules = list({name.split(".lora")[0] for name in peft_state_dict.keys()})
     use_dora = any("lora_magnitude_vector" in k for k in peft_state_dict)
     # for now we know that the "bias" keys are only associated with `lora_B`.
@@ -139,11 +140,12 @@ def get_peft_kwargs(rank_dict, network_alpha_dict, peft_state_dict, is_unet=True
         "use_dora": use_dora,
         "lora_bias": lora_bias,
     }
+
     return lora_config_kwargs
 
 
 def get_adapter_name(model):
-    from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+    from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
     for _, module in model.cells_and_names():
         if isinstance(module, BaseTunerLayer):
@@ -152,7 +154,7 @@ def get_adapter_name(model):
 
 
 def set_adapter_layers(model, enabled=True):
-    from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+    from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
     for _, module in model.cells_and_names():
         if isinstance(module, BaseTunerLayer):
@@ -164,7 +166,7 @@ def set_adapter_layers(model, enabled=True):
 
 
 def delete_adapter_layers(model, adapter_name):
-    from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+    from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
     for _, module in model.cells_and_names():
         if isinstance(module, BaseTunerLayer):
@@ -184,7 +186,7 @@ def delete_adapter_layers(model, adapter_name):
 
 
 def set_weights_and_activate_adapters(model, adapter_names, weights):
-    from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+    from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
     def get_module_weight(weight_for_adapter, module_name):
         if not isinstance(weight_for_adapter, dict):
@@ -223,9 +225,7 @@ def check_peft_version(min_version: str) -> None:
         version (`str`):
             The version of PEFT to check against.
     """
-    is_peft_version_compatible = version.parse(importlib.metadata.version("mindone.diffusers._peft")) > version.parse(
-        min_version
-    )
+    is_peft_version_compatible = version.parse(importlib.metadata.version("mindone.peft")) > version.parse(min_version)
 
     if not is_peft_version_compatible:
         raise ValueError(
@@ -235,19 +235,20 @@ def check_peft_version(min_version: str) -> None:
 
 
 def _create_lora_config(
-    state_dict,
-    network_alphas,
-    metadata,
-    rank_pattern_dict,
-    is_unet: bool = True,
+    state_dict, network_alphas, metadata, rank_pattern_dict, is_unet=True, model_state_dict=None, adapter_name=None
 ):
-    from mindone.diffusers._peft import LoraConfig
+    from mindone.peft import LoraConfig
 
     if metadata is not None:
         lora_config_kwargs = metadata
     else:
         lora_config_kwargs = get_peft_kwargs(
-            rank_pattern_dict, network_alpha_dict=network_alphas, peft_state_dict=state_dict, is_unet=is_unet
+            rank_pattern_dict,
+            network_alpha_dict=network_alphas,
+            peft_state_dict=state_dict,
+            is_unet=is_unet,
+            model_state_dict=model_state_dict,
+            adapter_name=adapter_name,
         )
 
     _maybe_raise_error_for_ambiguous_keys(lora_config_kwargs)
@@ -296,7 +297,12 @@ def _maybe_warn_for_unhandled_keys(incompatible_keys, adapter_name):
     warn_msg = ""
     if incompatible_keys is not None:
         # Check only for unexpected keys.
-        unexpected_keys = getattr(incompatible_keys, "unexpected_keys", None)
+        # FIXME: incompatible_keys is a dict because of `_load_state_dict_into_model`
+        # unexpected_keys = getattr(incompatible_keys, "unexpected_keys", None)
+        if isinstance(incompatible_keys, dict):
+            unexpected_keys = incompatible_keys.get("unexpected_keys", None)
+        else:
+            unexpected_keys = getattr(incompatible_keys, "unexpected_keys", None)
         if unexpected_keys:
             lora_unexpected_keys = [k for k in unexpected_keys if "lora_" in k and adapter_name in k]
             if lora_unexpected_keys:
@@ -306,7 +312,12 @@ def _maybe_warn_for_unhandled_keys(incompatible_keys, adapter_name):
                 )
 
         # Filter missing keys specific to the current adapter.
-        missing_keys = getattr(incompatible_keys, "missing_keys", None)
+        # FIXME: incompatible_keys is a dict because of `_load_state_dict_into_model`
+        # missing_keys = getattr(incompatible_keys, "missing_keys", None)
+        if isinstance(incompatible_keys, dict):
+            missing_keys = incompatible_keys.get("missing_keys", None)
+        else:
+            missing_keys = getattr(incompatible_keys, "missing_keys", None)
         if missing_keys:
             lora_missing_keys = [k for k in missing_keys if "lora_" in k and adapter_name in k]
             if lora_missing_keys:

@@ -3,7 +3,6 @@ export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export MS_ENABLE_NUMA=0
 # plot memory usage, feature/model: 1
 export MS_MEMORY_STATISTIC=0
-export MS_DATASET_SINK_QUEUE=4
 
 # operation/graph fusion for dynamic shape
 export MS_DEV_ENABLE_KERNEL_PACKET=on
@@ -13,7 +12,7 @@ export GLOG_v=2
 
 output_dir=outputs/OSv1.2_720p_51
 
-msrun --bind_core=True --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
+msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
 	python scripts/train.py \
 	--mode=0 \
     --jit_level O1 \
@@ -22,7 +21,6 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --log_dir=$output_dir
     --video_folder datasets/mixkit-100videos/mixkit \
     --text_embed_folder  datasets/mixkit-100videos/t5_emb_300 \
   --use_parallel True \
-  --dataset_sink_mode=True \
   --num_parallel_workers=4 \
   --prefetch_size=4 \
   --enable_flash_attention=True \

@@ -58,6 +58,7 @@ _import_structure = {
         "IPAdapterMixin",
         "FluxIPAdapterMixin",
         "SD3IPAdapterMixin",
+        "ModularIPAdapterMixin",
     ],
     "lora_pipeline": [
         "AmusedLoraLoaderMixin",
@@ -72,10 +73,12 @@ _import_structure = {
         "CogView4LoraLoaderMixin",
         "Mochi1LoraLoaderMixin",
         "HunyuanVideoLoraLoaderMixin",
+        "QwenImageLoraLoaderMixin",
         "SanaLoraLoaderMixin",
         "Lumina2LoraLoaderMixin",
         "WanLoraLoaderMixin",
         "HiDreamImageLoraLoaderMixin",
+        "SkyReelsV2LoraLoaderMixin",
     ],
     "peft": ["PeftAdapterMixin"],
     "single_file": ["FromSingleFileMixin"],
@@ -85,7 +88,7 @@ _import_structure = {
 
 
 if TYPE_CHECKING:
-    from .ip_adapter import FluxIPAdapterMixin, IPAdapterMixin, SD3IPAdapterMixin
+    from .ip_adapter import FluxIPAdapterMixin, IPAdapterMixin, ModularIPAdapterMixin, SD3IPAdapterMixin
     from .lora_pipeline import (
         AmusedLoraLoaderMixin,
         AuraFlowLoraLoaderMixin,
@@ -98,8 +101,10 @@ if TYPE_CHECKING:
         LTXVideoLoraLoaderMixin,
         Lumina2LoraLoaderMixin,
         Mochi1LoraLoaderMixin,
+        QwenImageLoraLoaderMixin,
         SanaLoraLoaderMixin,
         SD3LoraLoaderMixin,
+        SkyReelsV2LoraLoaderMixin,
         StableDiffusionLoraLoaderMixin,
         StableDiffusionXLLoraLoaderMixin,
         WanLoraLoaderMixin,

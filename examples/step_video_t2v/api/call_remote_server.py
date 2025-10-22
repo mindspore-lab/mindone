@@ -7,7 +7,7 @@ import ast
 import os
 import threading
 
-from flask import Blueprint, Flask, Response, request
+from flask import Blueprint, Flask
 from flask_restful import Api, Resource
 
 import mindspore as ms
@@ -84,27 +84,26 @@ class VAEapi(Resource):
 
     def get(self):
         with lock:
-            #     try:
+            # ==================== We comment the follow code, because security risks.  ======================
+            # ===========           You need to manually decomment it before running.            =============
+            # ========                              The first place.                                ==========
+            # ================================================================================================
             #
-            #     except Exception as e:
-            #         print("Caught Exception: ", e)
-            #         return Response(e)
-
-            print(
-                "Using pickle to transfer data may bring security risks. "
-                "Please confirm the security risks before using this API."
-                "You can remove the comment markers of L99 ~ L104 and "
-                "add a comment marker at L105 ~ L106 to re-enable the code."
-            )
             # import pickle
+            # from flask import Response, request
             # feature = pickle.loads(request.get_data())
             # feature["api"] = "vae"
             # feature = {k: v for k, v in feature.items() if v is not None}
             # video_latents = self.vae_pipeline.decode(**feature)
             # response = pickle.dumps(video_latents)
-            feature = request.get_data()
-            response = feature
-            return Response(response)
+            # return Response(response)
+            #
+            # ================================================================================================
+
+            raise NotImplementedError(
+                "There are some security risks from pickle here. \n"
+                "You need to confirm it and manually decomment the code above before running them."
+            )
 
 
 class CaptionPipeline(Resource):
@@ -164,26 +163,26 @@ class Captionapi(Resource):
 
     def get(self):
         with lock:
-            # try:
-            # except Exception as e:
-            #     print("Caught Exception: ", e)
-            #     return Response(e)
-
-            print(
-                "Using pickle to transfer data may bring security risks. "
-                "Please confirm the security risks before using this API."
-                "You can remove the comment markers of L178 ~ L183 and "
-                "add a comment marker at L184 ~ L185 to re-enable the code."
-            )
+            # ==================== We comment the follow code, because security risks.  ======================
+            # ===========           You need to manually decomment it before running.            =============
+            # ========                              The first place.                                ==========
+            # ================================================================================================
+            #
             # import pickle
+            # from flask import Response, request
             # feature = pickle.loads(request.get_data())
             # feature["api"] = "caption"
             # feature = {k: v for k, v in feature.items() if v is not None}
             # embeddings = self.caption_pipeline.embedding(**feature)
             # response = pickle.dumps(embeddings)
-            feature = request.get_data()
-            response = feature
-            return Response(response)
+            # return Response(response)
+            #
+            # ================================================================================================
+
+            raise NotImplementedError(
+                "There are some security risks from pickle here. \n"
+                "You need to confirm it and manually decomment the code above before running them."
+            )
 
 
 class RemoteServer(object):

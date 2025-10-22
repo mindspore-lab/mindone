@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import random
+
 import numpy as np
 import pytest
 import requests
@@ -27,6 +29,10 @@ from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy, random_attention_mask
 
 DTYPE_AND_THRESHOLDS = {"fp32": 1e-3, "fp16": 2e-3, "bf16": 2e-2}
+
+
+def get_rng():
+    return random.Random(9)
 
 
 class OwlViTVisionModelTester:
@@ -67,7 +73,9 @@ class OwlViTVisionModelTester:
         self.seq_length = num_patches + 1
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_numpy([self.batch_size, self.num_channels, self.image_size, self.image_size])
+        pixel_values = floats_numpy(
+            [self.batch_size, self.num_channels, self.image_size, self.image_size], rng=get_rng()
+        )
         config = self.get_config()
 
         return config, pixel_values
@@ -133,7 +141,7 @@ class OwlViTTextModelTester:
         self.scope = scope
 
     def prepare_config_and_inputs(self):
-        input_ids = ids_numpy([self.batch_size * self.num_queries, self.seq_length], self.vocab_size)
+        input_ids = ids_numpy([self.batch_size * self.num_queries, self.seq_length], self.vocab_size, rng=get_rng())
         input_mask = None
 
         if self.use_input_mask:
@@ -269,8 +277,8 @@ _CASES = [
 ]
 
 _CASES = [
-    [module, tf_module, ms_module, (config,), {}, (), inputs_dict, outputs]
-    for module, tf_module, ms_module, (config, inputs_dict), outputs in _CASES
+    [module, pt_module, ms_module, (config,), {}, (), inputs_dict, outputs]
+    for module, pt_module, ms_module, (config, inputs_dict), outputs in _CASES
 ]
 
 
@@ -316,6 +324,7 @@ def prepare_img():
     return Image.open(requests.get(url, stream=True).raw)
 
 
+@pytest.mark.slow
 def test_inference():
     THRESHOLD = DTYPE_AND_THRESHOLDS["fp32"]
 
@@ -344,6 +353,7 @@ def test_inference():
     assert (np.array(diffs) < THRESHOLD).all(), f"Output difference exceeds the threshold: {diffs} > {THRESHOLD}"
 
 
+@pytest.mark.slow
 def test_inference_interpolate_pos_encoding():
     THRESHOLD = DTYPE_AND_THRESHOLDS["fp32"]
 
@@ -466,6 +476,7 @@ def test_inference_interpolate_pos_encoding():
     assert outputs.target_pred_boxes.shape == (1, num_queries, 4)
 
 
+@pytest.mark.slow
 def test_inference_object_detection():
     THRESHOLD = DTYPE_AND_THRESHOLDS["fp32"]
 
@@ -504,6 +515,7 @@ def test_inference_object_detection():
     assert objects_text_labels == ["a photo of a cat", "a photo of a cat"]
 
 
+@pytest.mark.slow
 def test_inference_one_shot_object_detection():
     THRESHOLD = DTYPE_AND_THRESHOLDS["fp32"]
 
@@ -527,6 +539,7 @@ def test_inference_one_shot_object_detection():
     assert (np.array(diffs) < THRESHOLD).all(), f"Output difference exceeds the threshold: {diffs} > {THRESHOLD}"
 
 
+@pytest.mark.slow
 def test_inference_one_shot_object_detection_fp16():
     model_name = "google/owlvit-base-patch32"
     model = OwlViTForObjectDetection.from_pretrained(model_name, mindspore_dtype=ms.float16)

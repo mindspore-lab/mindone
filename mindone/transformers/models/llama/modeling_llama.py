@@ -277,8 +277,6 @@ class LlamaAttention(nn.Cell):
                 )
             else:
                 attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
-                key_states = repeat_kv(key_states, self.num_key_value_groups)
-                value_states = repeat_kv(value_states, self.num_key_value_groups)
 
         attn_output, attn_weights = attention_interface(
             self,
@@ -385,7 +383,7 @@ class LlamaPreTrainedModel(PreTrainedModel):
     _supports_flash_attn_2 = True
     _supports_sdpa = False  # SDPA, not support yet
     _supports_flex_attn = False  # FlexAttention, not support yet
-    _supports_cache_class = False  # set it True if use DynamicCache
+    _supports_cache_class = True  # set it True if use DynamicCache
     _supports_quantized_cache = False
     _supports_static_cache = False  # StaticCache, not used
     _supports_attention_backend = True
@@ -592,7 +590,7 @@ class LlamaModel(LlamaPreTrainedModel):
             inputs_embeds = self.embed_tokens(input_ids)
 
         if cache_position is None:
-            past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0
+            past_seen_tokens = get_seq_length(past_key_values).item() if past_key_values is not None else 0
             cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1], dtype=ms.int32)
 
         if position_ids is None:
@@ -831,14 +829,15 @@ class LlamaForCausalLM(LlamaPreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, LlamaForCausalLM
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import LlamaForCausalLM
         >>> from mindspore import Tensor
 
         >>> model = LlamaForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf")
         >>> tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf")
 
         >>> prompt = "Hey, are you conscious? Can you talk to me?"
-        >>> inputs = tokenizer(prompt, return_tensors="pt")
+        >>> inputs = tokenizer(prompt, return_tensors="np")
 
         >>> # Generate
         >>> generate_ids = model.generate(Tensor(inputs.input_ids), max_length=30)
@@ -895,7 +894,13 @@ class LlamaForCausalLM(LlamaPreTrainedModel, GenerationMixin):
 
     @staticmethod
     def _reorder_cache(past_key_values, beam_idx):
-        raise NotImplementedError
+        reordered_past = ()
+        for layer_past in past_key_values:
+            # cached cross_attention states don't have to be reordered -> they are always the same
+            reordered_past += (
+                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past[:2]) + layer_past[2:],
+            )
+        return reordered_past
 
 
 @add_start_docstrings(

@@ -67,7 +67,7 @@ def encode(args, tae: TemporalAutoencoder, save_dir: Path, rank_id: int, device_
         mean = np.transpose(mean, (0, 2, 1, 3, 4))
         std = np.transpose(std, (0, 2, 1, 3, 4))
 
-        for m, s, path in zip(mean, std, samples[1].tolist()):
+        for m, s, path in zip(mean, std, samples[1].asnumpy().tolist()):
             out_path = save_dir / path
             out_path.parent.mkdir(parents=True, exist_ok=True)
             np.savez(out_path.with_suffix(".npz"), latent_mean=m, latent_std=s)

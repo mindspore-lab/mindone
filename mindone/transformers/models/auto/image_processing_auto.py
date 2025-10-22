@@ -27,6 +27,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Optional, Tuple, Union
 
 # Build the list of all image processors
+import transformers
+from packaging import version
 from transformers import PretrainedConfig
 from transformers.dynamic_module_utils import get_class_from_dynamic_module, resolve_trust_remote_code
 from transformers.utils import CONFIG_NAME, cached_file
@@ -51,21 +53,37 @@ else:
             ("blip", ("BlipImageProcessor",)),
             ("blip-2", ("BlipImageProcessor",)),
             ("chameleon", ("ChameleonImageProcessor",)),
+            ("chinese_clip", ("ChineseCLIPImageProcessor",)),
             ("clip", ("CLIPImageProcessor",)),
             ("convnext", ("ConvNextImageProcessor",)),
             ("convnextv2", ("ConvNextImageProcessor",)),
+            ("cvt", ("ConvNextImageProcessor",)),
             ("depth_anything", ("DPTImageProcessor",)),
+            ("depth_pro", ("DepthProImageProcessor",)),
             ("dinov2", ("BitImageProcessor",)),
             ("dpt", ("DPTImageProcessor",)),
+            ("efficientnet", ("EfficientNetImageProcessor",)),
+            ("flava", ("FlavaImageProcessor",)),
             ("llava_next", ("LlavaNextImageProcessor",)),
             ("llava_next_video", ("LlavaNextVideoImageProcessor",)),
             ("llava_onevision", ("LlavaOnevisionImageProcessor",)),
+            ("maskformer", ("MaskFormerImageProcessor",)),
+            ("mllama", ("MllamaImageProcessor",)),
+            ("oneformer", ("OneFormerImageProcessor",)),
+            ("owlv2", ("Owlv2ImageProcessor",)),
             ("owlvit", ("OwlViTImageProcessor",)),
+            ("qwen2_5_vl", ("Qwen2VLImageProcessor",)),
+            ("sam", ("SamImageProcessor",)),
             ("segformer", ("SegformerImageProcessor",)),
             ("siglip", ("SiglipImageProcessor", "SiglipImageProcessorFast")),
+            ("videomae", ("VideoMAEImageProcessor",)),
             ("yolos", ("YolosImageProcessor",)),
         ]
     )
+
+
+if version.parse(transformers.__version__) >= version.parse("4.53.0"):
+    IMAGE_PROCESSOR_MAPPING_NAMES.update({"glm4v": ("Glm4vImageProcessor",)})
 
 for model_type, image_processors in IMAGE_PROCESSOR_MAPPING_NAMES.items():
     slow_image_processor_class, *fast_image_processor_class = image_processors

@@ -63,9 +63,9 @@ this project!
 
 <div align="center">
 
-| MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
-|:---------:|:-------------:|:-----------:|:-------------------:|
-|   2.5.0   |    24.0.0     | 7.5.0.3.220 |     8.0.0.beta1     |
+|    MindSpore     | Ascend Driver |  Firmware   | CANN toolkit/kernel |
+|:----------------:|:-------------:|:-----------:|:-------------------:|
+| 2.5.0 and higher |    24.0.0     | 7.5.0.3.220 |     8.0.0.beta1     |
 
 </div>
 
@@ -256,7 +256,7 @@ For more details, check `scripts/tae/encode_tae.sh` or run `scripts/inference_ta
 
 ### Performance
 
-Experiments were conducted on Ascend Atlas 800T A2 machines using MindSpore 2.3.1 in Graph mode.
+Experiments were conducted on Ascend Atlas 800T A2 machines using MindSpore 2.7.0 in Graph mode.
 
 > [!NOTE]
 > We trained all the models using BF16 precision and JIT level `O1`.  
@@ -264,15 +264,15 @@ Experiments were conducted on Ascend Atlas 800T A2 machines using MindSpore 2.3.
 
 | Model | Cards |   Stage   |      Batch size       |      Resolution      | Compile time |        Recompute         | Gradient Acc | ZeRO | Sequence Parallel | TAE Cache | Time (s/step) |                             Config                             |
 |:-----:|:-----:|:---------:|:---------------------:|:--------------------:|:------------:|:------------------------:|:------------:|:----:|:-----------------:|:---------:|:-------------:|:--------------------------------------------------------------:|
-|  30B  |   8   |  1 (T2I)  |          10           |       256x455        |    4m 40s    |            ON            |      1       |  3   |        No         |    Yes    |     3.37      |  [stage1_t2i_256px.yaml](configs/train/stage1_t2i_256px.yaml)  |
-|  30B  |   8   |  2 (T2V)  |       Video: 1        |     256x256x455      |    7m 40s    |            ON            |      1       |  3   |     8 shards      |    Yes    |     2.58      | [stage2_t2iv_256px.yaml](configs/train/stage2_t2iv_256px.yaml) |
-|  30B  |   8   |  3 (T2V)  |       Video: 1        |     256x576x1024     |    7m 40s    |            ON            |      1       |  3   |     8 shards      |    Yes    |     31.9      | [stage3_t2iv_768px.yaml](configs/train/stage3_t2iv_768px.yaml) |
-|  5B   |   8   |  1 (T2I)  |          10           |        256px         |    2m 30s    |           OFF            |      1       |  3   |        No         |    Yes    |     0.64      |  [stage1_t2i_256px.yaml](configs/train/stage1_t2i_256px.yaml)  |
-|  5B   |   8   | 2 (T2I/V) | Image: 1<br/>Video: 1 | 256px<br/>256 frames |    2m 40s    |           OFF            |      5       |  2   |        No         |    Yes    |     1.54      | [stage2_t2iv_256px.yaml](configs/train/stage2_t2iv_256px.yaml) |
-|  5B   |   8   | 3 (T2I/V) | Image: 1<br/>Video: 1 | 768px<br/>256 frames |      4m      |            ON            |      5       |  2   |        No         |    Yes    |     82.8      | [stage3_t2iv_768px.yaml](configs/train/stage3_t2iv_768px.yaml) |
-|  1B   |   8   |  1 (T2I)  |          10           |        256px         |    1m 40s    |           OFF            |      1       |  No  |        No         |    Yes    |     0.34      |  [stage1_t2i_256px.yaml](configs/train/stage1_t2i_256px.yaml)  |
-|  1B   |   8   | 2 (T2I/V) | Image: 1<br/>Video: 1 | 256px<br/>256 frames |    1m 40s    |           OFF            |      5       |  No  |        No         |    Yes    |     0.55      | [stage2_t2iv_256px.yaml](configs/train/stage2_t2iv_256px.yaml) |
-|  1B   |   8   | 3 (T2I/V) | Image: 1<br/>Video: 1 | 768px<br/>256 frames |      2m      | ON<br/>(No FA recompute) |      5       |  No  |        No         |    Yes    |     22.1      | [stage3_t2iv_768px.yaml](configs/train/stage3_t2iv_768px.yaml) |
+|  30B  |   8   |  1 (T2I)  |          10           |       256x455        |    3m 10s    |            ON            |      1       |  3   |        No         |    Yes    |     3.62      |  [stage1_t2i_256px.yaml](configs/train/stage1_t2i_256px.yaml)  |
+|  30B  |   8   |  2 (T2V)  |       Video: 1        |     256x256x455      |    4m 10s    |            ON            |      1       |  3   |     8 shards      |    Yes    |     2.57      | [stage2_t2iv_256px.yaml](configs/train/stage2_t2iv_256px.yaml) |
+|  30B  |   8   |  3 (T2V)  |       Video: 1        |     256x576x1024     |    4m 50s    |            ON            |      1       |  3   |     8 shards      |    Yes    |     29.7      | [stage3_t2iv_768px.yaml](configs/train/stage3_t2iv_768px.yaml) |
+|  5B   |   8   |  1 (T2I)  |          10           |        256px         |    2m 30s    |           OFF            |      1       |  3   |        No         |    Yes    |     0.65      |  [stage1_t2i_256px.yaml](configs/train/stage1_t2i_256px.yaml)  |
+|  5B   |   8   | 2 (T2I/V) | Image: 1<br/>Video: 1 | 256px<br/>256 frames |    1m 30s    | ON<br/>(No FA recompute) |      5       |  2   |        No         |    Yes    |     1.76      | [stage2_t2iv_256px.yaml](configs/train/stage2_t2iv_256px.yaml) |
+|  5B   |   8   | 3 (T2I/V) | Image: 1<br/>Video: 1 | 768px<br/>256 frames |    2m 30s    |            ON            |      5       |  2   |        No         |    Yes    |     66.2      | [stage3_t2iv_768px.yaml](configs/train/stage3_t2iv_768px.yaml) |
+|  1B   |   8   |  1 (T2I)  |          10           |        256px         |    1m 15s    |           OFF            |      1       |  No  |        No         |    Yes    |     0.33      |  [stage1_t2i_256px.yaml](configs/train/stage1_t2i_256px.yaml)  |
+|  1B   |   8   | 2 (T2I/V) | Image: 1<br/>Video: 1 | 256px<br/>256 frames |    1m 20s    |           OFF            |      5       |  No  |        No         |    Yes    |     0.56      | [stage2_t2iv_256px.yaml](configs/train/stage2_t2iv_256px.yaml) |
+|  1B   |   8   | 3 (T2I/V) | Image: 1<br/>Video: 1 | 768px<br/>256 frames |    1m 40s    | ON<br/>(No FA recompute) |      5       |  No  |        No         |    Yes    |     22.1      | [stage3_t2iv_768px.yaml](configs/train/stage3_t2iv_768px.yaml) |
 
 ### Validation During Training
 
