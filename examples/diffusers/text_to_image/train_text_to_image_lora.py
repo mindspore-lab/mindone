@@ -37,9 +37,6 @@ from mindspore.amp import StaticLossScaler
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
 from mindone.diffusers import AutoencoderKL, DDPMScheduler, StableDiffusionPipeline, UNet2DConditionModel
-from mindone.diffusers._peft import LoraConfig
-from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
-from mindone.diffusers._peft.utils import get_peft_model_state_dict
 from mindone.diffusers.optimization import get_scheduler
 from mindone.diffusers.training_utils import (
     AttrJitWrapper,
@@ -51,6 +48,9 @@ from mindone.diffusers.training_utils import (
     set_seed,
 )
 from mindone.diffusers.utils import convert_state_dict_to_diffusers
+from mindone.peft import LoraConfig
+from mindone.peft.tuners.tuners_utils import BaseTunerLayer
+from mindone.peft.utils import get_peft_model_state_dict
 from mindone.transformers import CLIPTextModel
 
 logger = logging.getLogger(__name__)
@@ -748,8 +748,8 @@ def main():
             if is_master(args):
                 logger.info(f"Resuming from checkpoint {path}")
             # TODO: load optimizer & grad scaler etc. like accelerator.load_state
-            input_model_file = os.path.join(args.output_dir, path, "pytorch_model.ckpt")
-            ms.load_param_into_net(unet, ms.load_checkpoint(input_model_file), strict_load=True)
+            input_model_file = os.path.join(args.output_dir, path, "unet/diffusion_pytorch_model.safetensors")
+            ms.load_param_into_net(unet, ms.load_checkpoint(input_model_file, format="safetensors"), strict_load=True)
             global_step = int(path.split("-")[1])
 
             initial_global_step = global_step
@@ -817,8 +817,7 @@ def main():
                         save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}")
                         # TODO: save optimizer & grad scaler etc. like accelerator.save_state
                         os.makedirs(save_path, exist_ok=True)
-                        output_model_file = os.path.join(save_path, "pytorch_model.ckpt")
-                        ms.save_checkpoint(unet, output_model_file)
+                        unet.save_pretrained(os.path.join(save_path, "unet"))
 
                         unet_lora_state_dict = convert_state_dict_to_diffusers(get_peft_model_state_dict(unet))
                         StableDiffusionPipeline.save_lora_weights(

@@ -785,7 +785,7 @@ class CogVideoXImageToVideoPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin)
 
         # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
         # to the transformer and will raise RuntimeError.
-        lora_scale = self.attention_kwargs.pop("scale", None) if self.attention_kwargs is not None else None
+        lora_scale = attention_kwargs.pop("scale", None) if attention_kwargs is not None else None
         if lora_scale is not None:
             # weight the lora layers by setting `lora_scale` for each PEFT layer
             scale_lora_layers(self.transformer, lora_scale)
@@ -811,15 +811,16 @@ class CogVideoXImageToVideoPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin)
                 timestep = t.broadcast_to((latent_model_input.shape[0],))
 
                 # predict noise model_output
-                noise_pred = self.transformer(
-                    hidden_states=latent_model_input,
-                    encoder_hidden_states=prompt_embeds,
-                    timestep=timestep,
-                    ofs=ofs_emb,
-                    image_rotary_emb=image_rotary_emb,
-                    attention_kwargs=attention_kwargs,
-                    return_dict=False,
-                )[0]
+                with self.transformer.cache_context("cond_uncond"):
+                    noise_pred = self.transformer(
+                        hidden_states=latent_model_input,
+                        encoder_hidden_states=prompt_embeds,
+                        timestep=timestep,
+                        ofs=ofs_emb,
+                        image_rotary_emb=image_rotary_emb,
+                        attention_kwargs=attention_kwargs,
+                        return_dict=False,
+                    )[0]
                 noise_pred = noise_pred.float()
 
                 # perform guidance
@@ -863,6 +864,7 @@ class CogVideoXImageToVideoPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin)
         if lora_scale is not None:
             # remove `lora_scale` from each PEFT layer
             unscale_lora_layers(self.transformer, lora_scale)
+            attention_kwargs["scale"] = lora_scale
 
         self._current_timestep = None
 

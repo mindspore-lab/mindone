@@ -3,6 +3,8 @@
 
 # Modified from transformers.models.xlm_roberta.modeling_xlm_roberta
 # Copyright 2024-2025 The Alibaba Wan Team Authors. All rights reserved.
+import math
+
 import mindspore as ms
 import mindspore.mint as mint
 import mindspore.nn as nn
@@ -46,7 +48,16 @@ class SelfAttention(nn.Cell):
         # compute attention
         p = self.dropout.p if self.training else 0.0
         # TODO: check mask
-        x = ops.flash_attention_score(q, k, v, self.num_heads, attn_mask=mask, keep_prob=1 - p)
+        x = ops.flash_attention_score(
+            q,
+            k,
+            v,
+            self.num_heads,
+            attn_mask=mask,
+            scalar_value=1 / math.sqrt(q.shape[-1]),
+            keep_prob=1 - p,
+            input_layout="BNSD",
+        )
         x = x.permute(0, 2, 1, 3).reshape(b, s, c)
 
         # output

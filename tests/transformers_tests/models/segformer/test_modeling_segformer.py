@@ -188,7 +188,7 @@ def test_named_modules(
     dtype,
     mode,
 ):
-    ms.set_context(mode=mode, jit_syntax_level=ms.STRICT)
+    ms.set_context(mode=mode)
 
     (
         pt_model,

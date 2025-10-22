@@ -1384,17 +1384,15 @@ class StableDiffusionXLControlNetUnionPipeline(
             num_inference_steps = len(list(filter(lambda ts: ts >= discrete_timestep_cutoff, timesteps)))
             timesteps = timesteps[:num_inference_steps]
 
+        control_type_repeat_factor = batch_size * num_images_per_prompt * (2 if self.do_classifier_free_guidance else 1)
+
         if isinstance(controlnet, ControlNetUnionModel):
             control_type = (
-                control_type.reshape(1, -1)
-                .to(dtype=prompt_embeds.dtype)
-                .tile((batch_size * num_images_per_prompt * 2, 1))
+                control_type.reshape(1, -1).to(dtype=prompt_embeds.dtype).tile((control_type_repeat_factor, 1))
             )
-        if isinstance(controlnet, MultiControlNetUnionModel):
+        elif isinstance(controlnet, MultiControlNetUnionModel):
             control_type = [
-                _control_type.reshape(1, -1)
-                .to(dtype=prompt_embeds.dtype)
-                .tile((batch_size * num_images_per_prompt * 2, 1))
+                _control_type.reshape(1, -1).to(dtype=prompt_embeds.dtype).tile((control_type_repeat_factor, 1))
                 for _control_type in control_type
             ]
 
@@ -1403,6 +1401,13 @@ class StableDiffusionXLControlNetUnionPipeline(
         # inconsistency errors within the operator.
         for transformer_layer in self.controlnet.transformer_layes:
             transformer_layer.attn.dtype = latents.dtype
+
+        # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
+        # to the unet and will raise RuntimeError.
+        lora_scale = self.cross_attention_kwargs.pop("scale", None) if self.cross_attention_kwargs is not None else None
+        if lora_scale is not None:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer
+            scale_lora_layers(self.unet, lora_scale)
 
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
@@ -1499,6 +1504,11 @@ class StableDiffusionXLControlNetUnionPipeline(
                 # call the callback, if provided
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
+
+        if lora_scale is not None:
+            # remove `lora_scale` from each PEFT layer
+            unscale_lora_layers(self.unet, lora_scale)
+            self.cross_attention_kwargs["scale"] = lora_scale
 
         if not output_type == "latent":
             # make sure the VAE is in float32 mode, as it overflows in float16

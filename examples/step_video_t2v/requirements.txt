@@ -7,3 +7,8 @@ flask
 flask_restful
 ffmpeg-python
 requests
+omegaconf
+huggingface_hub
+transformers==4.50.0
+imageio[ffmpeg]
+imageio[pyav]

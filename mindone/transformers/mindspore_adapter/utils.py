@@ -54,6 +54,12 @@ _DTYPE_2_MAX = {
     ms.bfloat16: _MAX_BF16,
 }
 
+TORCH_TO_MINDSPORE_DTYPE_MAP = {
+    "torch.float32": ms.float32,
+    "torch.bfloat16": ms.bfloat16,
+    "torch.float16": ms.float16,
+}
+
 
 def dtype_to_min(dtype):
     return _DTYPE_2_MIN.get(dtype, "others dtype")
@@ -87,3 +93,25 @@ def _is_ascend():
 # @ms.constexpr(reuse_result=False)
 # def _tensor_2_tuple(input):
 #     return tuple(input.asnumpy().tolist())
+
+
+# equivalent implementation of torch Tensor.unfold
+def unfold(tensor, dimension, size, step=1):
+    dimension = dimension if dimension >= 0 else tensor.ndim + dimension
+    target_dim_size = tensor.shape[dimension]
+    window_count = (target_dim_size - size) // step + 1
+    windows = []
+    for i in range(window_count):
+        start_idx = i * step
+        end_idx = start_idx + size
+
+        slices = [slice(None)] * tensor.ndim
+        slices[dimension] = slice(start_idx, end_idx)
+
+        window = tensor[tuple(slices)]
+        windows.append(window)
+
+    result = ms.mint.stack(windows, dim=dimension + 1)
+    result = result.movedim(dimension, -1)
+
+    return result

@@ -22,6 +22,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
 import itertools
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
@@ -883,8 +884,14 @@ class Glm4vTextModel(Glm4vPreTrainedModel):
         elif position_ids.dim() == 2:
             position_ids = position_ids[None, ...].broadcast_to((3, position_ids.shape[0], -1))
 
+        # TODO using attention mask for eager attention during fa usage,
+        # because there is mismatch for dealing with attention mask between mindspore and pytorch
+        config = copy.copy(self.config)
+        if config._attn_implementation == "flash_attention_2":
+            config._attn_implementation = "eager"
+
         causal_mask = create_causal_mask(
-            config=self.config,
+            config=config,
             input_embeds=inputs_embeds,
             attention_mask=attention_mask,
             cache_position=cache_position,

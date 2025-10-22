@@ -35,7 +35,7 @@ from mindspore import mint, nn, ops
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
 from mindone.diffusers import AutoencoderKL, FlowMatchEulerDiscreteScheduler, FluxTransformer2DModel
-from mindone.diffusers.models.controlnet_flux import FluxControlNetModel
+from mindone.diffusers.models.controlnets.controlnet_flux import FluxControlNetModel
 from mindone.diffusers.models.layers_compat import set_amp_strategy
 from mindone.diffusers.optimization import get_scheduler
 from mindone.diffusers.pipelines.flux.pipeline_flux_controlnet import FluxControlNetPipeline

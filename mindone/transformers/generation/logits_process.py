@@ -2278,7 +2278,7 @@ class ClassifierFreeGuidanceLogitsProcessor(LogitsProcessor):
     Examples:
 
     ```python
-    >>> from transformers import AutoProcessor, MusicgenForConditionalGeneration
+    >>> from mindone.transformers import AutoProcessor, MusicgenForConditionalGeneration
 
     >>> processor = AutoProcessor.from_pretrained("facebook/musicgen-small")
     >>> model = MusicgenForConditionalGeneration.from_pretrained("facebook/musicgen-small")
@@ -2286,8 +2286,9 @@ class ClassifierFreeGuidanceLogitsProcessor(LogitsProcessor):
     >>> inputs = processor(
     ...     text=["80s pop track with bassy drums and synth", "90s rock song with loud guitars and heavy drums"],
     ...     padding=True,
-    ...     return_tensors="pt",
+    ...     return_tensors="np",
     ... )
+    >>> inputs = {k: mindspore.tensor(v) for k, v in inputs.items()}
     >>> audio_values = model.generate(**inputs, do_sample=True, guidance_scale=3, max_new_tokens=256)
     ```
     """
@@ -2301,8 +2302,11 @@ class ClassifierFreeGuidanceLogitsProcessor(LogitsProcessor):
                 f"{guidance_scale}."
             )
 
-    @add_start_docstrings(LOGITS_PROCESSOR_INPUTS_DOCSTRING)
-    def __call__(self, input_ids: ms.Tensor, scores: ms.Tensor) -> ms.Tensor:
+    def __call__(
+        self,
+        input_ids: ms.tensor,
+        scores: ms.tensor,
+    ) -> ms.tensor:
         # simple check to make sure we have compatible batch sizes between our
         # logits scores (cond + uncond) and input ids (cond only)
         if scores.shape[0] != 2 * input_ids.shape[0]:
