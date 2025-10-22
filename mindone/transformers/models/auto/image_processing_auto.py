@@ -74,7 +74,6 @@ else:
             ("owlvit", ("OwlViTImageProcessor",)),
             ("qwen2_5_vl", ("Qwen2VLImageProcessor",)),
             ("sam", ("SamImageProcessor",)),
-            ("qwen3_vl", ("Qwen2VLImageProcessor",)),
             ("segformer", ("SegformerImageProcessor",)),
             ("siglip", ("SiglipImageProcessor", "SiglipImageProcessorFast")),
             ("videomae", ("VideoMAEImageProcessor",)),
@@ -85,6 +84,9 @@ else:
 
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     IMAGE_PROCESSOR_MAPPING_NAMES.update({"glm4v": ("Glm4vImageProcessor",)})
+
+if version.parse(transformers.__version__) >= version.parse("4.57.0"):
+    IMAGE_PROCESSOR_MAPPING_NAMES.update({"qwen3_vl", ("Qwen2VLImageProcessor",)})
 
 for model_type, image_processors in IMAGE_PROCESSOR_MAPPING_NAMES.items():
     slow_image_processor_class, *fast_image_processor_class = image_processors

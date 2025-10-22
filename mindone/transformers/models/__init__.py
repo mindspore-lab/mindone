@@ -274,5 +274,5 @@ if version.parse(transformers.__version__) >= version.parse("4.51.3"):
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     from . import glm4v, minimax, qwen2_5_omni, vjepa2
 
-if version.parse(transformers.__version__) > version.parse("4.56.1"):
+if version.parse(transformers.__version__) >= version.parse("4.57.0"):
     from . import qwen3_vl, qwen3_vl_moe

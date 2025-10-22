@@ -43,9 +43,8 @@ from .image_processing_base import ImageProcessingMixin
 from .image_processing_utils import BaseImageProcessor
 from .image_processing_utils_fast import BaseImageProcessorFast
 from .image_utils import ImageFeatureExtractionMixin
-from .modeling_utils import MSPreTrainedModel, PreTrainedModel
 from .masking_utils import AttentionMaskInterface
-from .modeling_utils import MSPreTrainedModel
+from .modeling_utils import MSPreTrainedModel, PreTrainedModel
 from .models.albert import (
     AlbertForMaskedLM,
     AlbertForMultipleChoice,
@@ -1110,12 +1109,6 @@ from .models.qwen2_5_vl import (
     Qwen2_5_VLProcessor,
 )
 from .models.qwen2_audio import Qwen2AudioEncoder, Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel
-from .models.qwen2_vl import (
-    Qwen2VLForConditionalGeneration,
-    Qwen2VLImageProcessor,
-    Qwen2VLModel,
-    Qwen2VLPreTrainedModel,
-)
 from .models.qwen2_moe import (
     Qwen2MoeForCausalLM,
     Qwen2MoeForQuestionAnswering,
@@ -1581,7 +1574,7 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     )
     from .models.vjepa2 import VJEPA2ForVideoClassification, VJEPA2Model, VJEPA2PreTrainedModel
 
-if version.parse(transformers.__version__) > version.parse("4.56.1"):
+if version.parse(transformers.__version__) >= version.parse("4.57.0"):
     from .models.qwen3_vl import (
         Qwen3VLForConditionalGeneration,
         Qwen3VLModel,
