@@ -568,8 +568,8 @@ class MLCDPreTrainedModel(PreTrainedModel):
                 initializer(Normal(pos_emb_std), module.class_pos_emb.shape, module.class_pos_emb.dtype)
             )
         elif isinstance(module, mint.nn.LayerNorm):
-            module.beta.set_data(initializer(Constant(0.0), module.beta.shape, module.beta.dtype))
-            module.gamma.set_data(initializer(Constant(1.0), module.gamma.shape, module.gamma.dtype))
+            module.bias.set_data(initializer(Constant(0.0), module.bias.shape, module.bias.dtype))
+            module.weight.set_data(initializer(Constant(1.0), module.weight.shape, module.weight.dtype))
         elif isinstance(module, mint.nn.Linear) and module.bias is not None:
             module.bias.set_data(initializer(Constant(0.0), module.bias.shape, module.bias.dtype))
 
