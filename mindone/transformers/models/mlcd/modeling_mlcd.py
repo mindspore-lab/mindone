@@ -20,10 +20,11 @@
 # limitations under the License.
 from typing import Callable, Optional, Union
 
-import torch
+from transformers import MLCDVisionConfig
 
-import mindspore as ms
-from mindspore import mint, nn
+import mindspore
+from mindspore import mint
+from mindspore.common.initializer import Constant, Normal, initializer
 
 from ...activations import ACT2FN
 from ...modeling_flash_attention_utils import FlashAttentionKwargs
@@ -31,11 +32,10 @@ from ...modeling_layers import GradientCheckpointingLayer
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
-from ...utils import TransformersKwargs, auto_docstring, torch_int
-from .configuration_mlcd import MLCDVisionConfig
+from ...utils import TransformersKwargs, mindspore_int
 
 
-class MLCDMLP(ms.nn.Cell):
+class MLCDMLP(mindspore.nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.config = config
@@ -43,20 +43,20 @@ class MLCDMLP(ms.nn.Cell):
         self.fc1 = mint.nn.Linear(config.hidden_size, config.intermediate_size)
         self.fc2 = mint.nn.Linear(config.intermediate_size, config.hidden_size)
 
-    def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
+    def construct(self, hidden_states: mindspore.Tensor) -> mindspore.Tensor:
         hidden_states = self.fc1(hidden_states)
         hidden_states = self.activation_fn(hidden_states)
         hidden_states = self.fc2(hidden_states)
         return hidden_states
 
 
-class MLCDRotaryEmbedding(ms.nn.Cell):
+class MLCDRotaryEmbedding(mindspore.nn.Cell):
     def __init__(self, dim: int, theta: float = 10000.0) -> None:
         super().__init__()
-        inv_freq = 1.0 / (theta ** (mint.arange(0, dim, 2, dtype=ms.float32) / dim))
+        inv_freq = 1.0 / (theta ** (mint.arange(0, dim, 2, dtype=mindspore.float32) / dim))
         self.register_buffer("inv_freq", inv_freq, persistent=False)
 
-    def construct(self, num_patches_height: int, num_patches_width: int) -> ms.Tensor:
+    def construct(self, num_patches_height: int, num_patches_width: int) -> mindspore.Tensor:
         """
         Calculate the Rotary Position Embedding (RoPE) for MLCDVisionModel based on the grid size.
 
@@ -65,7 +65,7 @@ class MLCDRotaryEmbedding(ms.nn.Cell):
             num_patches_width (int): Number of patches in the width dimension.
 
         Returns:
-            torch.Tensor: Rotary positional embeddings for the given grid size.
+            mindspore.Tensor: Rotary positional embeddings for the given grid size.
         """
         # Generate position IDs for height and width dimensions
         hpos_ids = (
@@ -73,14 +73,14 @@ class MLCDRotaryEmbedding(ms.nn.Cell):
                 num_patches_height,
             )
             .unsqueeze(1)
-            .expand(-1, num_patches_width)
+            .broadcast_to((num_patches_height, num_patches_width))
         )
         wpos_ids = (
             mint.arange(
                 num_patches_width,
             )
             .unsqueeze(0)
-            .expand(num_patches_height, -1)
+            .broadcast_to((num_patches_height, num_patches_width))
         )
 
         # Flatten and stack the position IDs
@@ -97,7 +97,7 @@ class MLCDRotaryEmbedding(ms.nn.Cell):
         return rotary_pos_emb
 
 
-class MLCDVisionEmbeddings(ms.nn.Cell):
+class MLCDVisionEmbeddings(mindspore.nn.Cell):
     def __init__(self, config: MLCDVisionConfig):
         super().__init__()
         self.config = config
@@ -105,7 +105,7 @@ class MLCDVisionEmbeddings(ms.nn.Cell):
         self.image_size = config.image_size
         self.patch_size = config.patch_size
 
-        self.class_embedding = ms.Parameter(mint.randn(self.embed_dim))
+        self.class_embedding = mindspore.Parameter(mint.randn(self.embed_dim))
 
         self.patch_embedding = mint.nn.Conv2d(
             in_channels=config.num_channels,
@@ -117,9 +117,9 @@ class MLCDVisionEmbeddings(ms.nn.Cell):
 
         self.num_patches = (self.image_size // self.patch_size) ** 2
         self.num_positions = self.num_patches + 1
-        self.register_buffer("position_ids", mint.arange(self.num_positions).expand((1, -1)), persistent=False)
+        self.position_ids = mindspore.Parameter(mint.arange(self.num_positions).broadcast_to((1, self.num_positions)))
 
-    def interpolate_pos_encoding(self, embeddings: ms.Tensor, height: int, width: int) -> ms.Tensor:
+    def interpolate_pos_encoding(self, embeddings: mindspore.Tensor, height: int, width: int) -> mindspore.Tensor:
         """
         This method allows to interpolate the pre-trained position encodings, to be able to use the model on higher resolution
         images. This method is also adapted to support torch.jit tracing.
@@ -134,7 +134,7 @@ class MLCDVisionEmbeddings(ms.nn.Cell):
         num_positions = position_embedding.shape[1] - 1
 
         # always interpolate when tracing to ensure the exported model works for dynamic input shapes
-        if not torch.jit.is_tracing() and num_patches == num_positions and height == width:
+        if num_patches == num_positions and height == width:
             return self.position_embedding(self.position_ids)
 
         class_pos_embed = position_embedding[:, :1]
@@ -145,7 +145,7 @@ class MLCDVisionEmbeddings(ms.nn.Cell):
         new_height = height // self.patch_size
         new_width = width // self.patch_size
 
-        sqrt_num_positions = torch_int(num_positions**0.5)
+        sqrt_num_positions = mindspore_int(num_positions**0.5)
         patch_pos_embed = patch_pos_embed.reshape(1, sqrt_num_positions, sqrt_num_positions, dim)
         patch_pos_embed = patch_pos_embed.permute(0, 3, 1, 2)
 
@@ -160,25 +160,25 @@ class MLCDVisionEmbeddings(ms.nn.Cell):
 
         return mint.cat((class_pos_embed, patch_pos_embed), dim=1)
 
-    def construct(self, pixel_values: ms.Tensor) -> ms.Tensor:
+    def construct(self, pixel_values: mindspore.Tensor) -> mindspore.Tensor:
         batch_size = pixel_values.shape[0]
         target_dtype = self.patch_embedding.weight.dtype
         # patch_embeds -> shape = [batch, width, grid, grid]
         patch_embeds = self.patch_embedding(pixel_values.to(dtype=target_dtype))
         patch_embeds = patch_embeds.flatten(2).transpose(1, 2)
 
-        class_embeds = self.class_embedding.expand(batch_size, 1, -1)
+        class_embeds = self.class_embedding.broadcast_to((batch_size, 1, -1))
         embeddings = mint.cat([class_embeds, patch_embeds], dim=1)
 
         return embeddings
 
 
 def eager_attention_forward(
-    module: ms.nn.Cell,
-    query: ms.Tensor,
-    key: ms.Tensor,
-    value: ms.Tensor,
-    attention_mask: Optional[ms.Tensor],
+    module: mindspore.nn.Cell,
+    query: mindspore.Tensor,
+    key: mindspore.Tensor,
+    value: mindspore.Tensor,
+    attention_mask: Optional[mindspore.Tensor],
     scaling: float,
     dropout: float = 0.0,
     **kwargs: Unpack[TransformersKwargs],
@@ -191,7 +191,7 @@ def eager_attention_forward(
         causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
         attn_weights = attn_weights + causal_mask
 
-    attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query.dtype)
+    attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1, dtype=mindspore.float32).to(query.dtype)
     attn_weights = mint.nn.functional.dropout(attn_weights, p=dropout, training=module.training)
     attn_output = mint.matmul(attn_weights, value_states)
     attn_output = attn_output.transpose(1, 2).contiguous()
@@ -206,7 +206,7 @@ def rotate_half(x):
     return mint.cat((-x2, x1), dim=-1)
 
 
-def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
+def repeat_kv(hidden_states: mindspore.Tensor, n_rep: int) -> mindspore.Tensor:
     """
     This is the equivalent of torch.repeat_interleave(x, dim=1, repeats=n_rep). The hidden states go from (batch,
     num_key_value_heads, seqlen, head_dim) to (batch, num_attention_heads, seqlen, head_dim)
@@ -214,13 +214,13 @@ def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
     batch, num_key_value_heads, slen, head_dim = hidden_states.shape
     if n_rep == 1:
         return hidden_states
-    hidden_states = hidden_states[:, :, None, :, :].expand(batch, num_key_value_heads, n_rep, slen, head_dim)
+    hidden_states = hidden_states[:, :, None, :, :].broadcast_to((batch, num_key_value_heads, n_rep, slen, head_dim))
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 
 def apply_rotary_pos_emb_vision(
-    q: ms.Tensor, k: ms.Tensor, cos: ms.Tensor, sin: ms.Tensor
-) -> tuple[ms.Tensor, ms.Tensor]:
+    q: mindspore.Tensor, k: mindspore.Tensor, cos: mindspore.Tensor, sin: mindspore.Tensor
+) -> tuple[mindspore.Tensor, mindspore.Tensor]:
     orig_q_dtype = q.dtype
     orig_k_dtype = k.dtype
     q, k = q.float(), k.float()
@@ -232,7 +232,7 @@ def apply_rotary_pos_emb_vision(
     return q_embed, k_embed
 
 
-class MLCDAttention(ms.nn.Cell):
+class MLCDAttention(mindspore.nn.Cell):
     """Multi-headed attention with RoPE. Refer to papers:
     - Attention is all you need:
         https://huggingface.co/papers/1706.03762
@@ -263,11 +263,11 @@ class MLCDAttention(ms.nn.Cell):
 
     def construct(
         self,
-        hidden_states: ms.Tensor,
-        position_embeddings: tuple[ms.Tensor, ms.Tensor],
-        attention_mask: Optional[ms.Tensor] = None,
+        hidden_states: mindspore.Tensor,
+        position_embeddings: tuple[mindspore.Tensor, mindspore.Tensor],
+        attention_mask: Optional[mindspore.Tensor] = None,
         **kwargs: Unpack[FlashAttentionKwargs],
-    ) -> tuple[ms.Tensor, Optional[ms.Tensor]]:
+    ) -> tuple[mindspore.Tensor, Optional[mindspore.Tensor]]:
         """Input shape: Batch x Time x Channel"""
         batch_size, seq_length = hidden_states.shape[:-1]
 
@@ -320,20 +320,20 @@ class MLCDEncoderLayer(GradientCheckpointingLayer):
 
     def construct(
         self,
-        hidden_states: ms.Tensor,
-        position_embeddings: tuple[ms.Tensor, ms.Tensor],
-        attention_mask: Optional[ms.Tensor] = None,
+        hidden_states: mindspore.Tensor,
+        position_embeddings: tuple[mindspore.Tensor, mindspore.Tensor],
+        attention_mask: Optional[mindspore.Tensor] = None,
         output_attentions: Optional[bool] = False,
-    ) -> tuple[ms.Tensor]:
+    ) -> tuple[mindspore.Tensor]:
         """
         Args:
-            hidden_states (`torch.FloatTensor`):
+            hidden_states (`mindspore.Tensor`):
                 Input to the layer of shape `(batch, seq_len, embed_dim)`.
                 Represents the hidden states from the previous layer or the input embeddings.
-            position_embeddings (`tuple[torch.Tensor, torch.Tensor]`):
+            position_embeddings (`tuple[mindspore.Tensor, mindspore.Tensor]`):
                 A tuple of two tensors, each of shape `(batch, seq_len, embed_dim)`.
                 Represents absolute positional embeddings for the query and key in the attention mechanism.
-            attention_mask (`torch.FloatTensor`):
+            attention_mask (`mindspore.Tensor`):
                 Attention mask of shape `(batch, 1, q_len, k_v_seq_len)` where padding elements are indicated by very large negative values.
             output_attentions (`bool`, *optional*, defaults to `False`):
                 Whether or not to return the attentions tensors of all attention layers. See `attentions` under
@@ -363,7 +363,7 @@ class MLCDEncoderLayer(GradientCheckpointingLayer):
         return outputs
 
 
-class MLCDEncoder(ms.nn.Cell):
+class MLCDEncoder(mindspore.nn.Cell):
     """
     Transformer encoder consisting of `config.num_hidden_layers` self attention layers. Each layer is a
     [`MLCDEncoderLayer`].
@@ -376,28 +376,28 @@ class MLCDEncoder(ms.nn.Cell):
         """Overwrite dummy `MLCDConfig` to `MLCDVisionConfig`."""
         super().__init__()
         self.config = config
-        self.layers = ms.nn.CellList([MLCDEncoderLayer(config) for _ in range(config.num_hidden_layers)])
+        self.layers = mindspore.nn.CellList([MLCDEncoderLayer(config) for _ in range(config.num_hidden_layers)])
         self.gradient_checkpointing = False
 
     def construct(
         self,
-        inputs_embeds: ms.Tensor,
-        position_embeddings: tuple[ms.Tensor, ms.Tensor],
-        attention_mask: Optional[ms.Tensor] = None,
+        inputs_embeds: mindspore.Tensor,
+        position_embeddings: tuple[mindspore.Tensor, mindspore.Tensor],
+        attention_mask: Optional[mindspore.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ) -> Union[tuple, BaseModelOutput]:
         r"""
         Args:
-            inputs_embeds (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`):
+            inputs_embeds (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
                 Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation.
                 This is useful if you want more control over how to convert `input_ids` indices into associated vectors
                 than the model's internal embedding lookup matrix.
-            position_embeddings (`tuple[torch.Tensor, torch.Tensor]`):
+            position_embeddings (`tuple[mindspore.Tensor, mindspore.Tensor]`):
                 A tuple of two tensors, each of shape `(batch, seq_len, embed_dim)`.
                 Represents absolute positional embeddings for the query and key in the attention mechanism.
-            attention_mask (`torch.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+            attention_mask (`mindspore.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
                 Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
                 - 1 for tokens that are **not masked**,
                 - 0 for tokens that are **masked**.
@@ -449,7 +449,7 @@ class MLCDEncoder(ms.nn.Cell):
         )
 
 
-class MLCDVisionTransformer(ms.nn.Cell):
+class MLCDVisionTransformer(mindspore.nn.Cell):
     def __init__(self, config: MLCDVisionConfig):
         super().__init__()
         self.config = config
@@ -460,12 +460,11 @@ class MLCDVisionTransformer(ms.nn.Cell):
         self.encoder = MLCDEncoder(config)
         self.post_layernorm = mint.nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)
         self.vision_rotary_embedding = MLCDRotaryEmbedding(config.hidden_size // config.num_attention_heads // 2)
-        self.class_pos_emb = ms.Parameter(mint.randn(1, config.hidden_size // config.num_attention_heads // 2))
+        self.class_pos_emb = mindspore.Parameter(mint.randn(1, config.hidden_size // config.num_attention_heads // 2))
 
-    @auto_docstring
     def construct(
         self,
-        pixel_values: Optional[ms.Tensor] = None,
+        pixel_values: Optional[mindspore.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
@@ -512,7 +511,6 @@ class MLCDVisionTransformer(ms.nn.Cell):
         )
 
 
-@auto_docstring
 class MLCDPreTrainedModel(PreTrainedModel):
     config: MLCDVisionConfig
     base_model_prefix = "mlcd"
@@ -525,38 +523,57 @@ class MLCDPreTrainedModel(PreTrainedModel):
         factor = self.config.initializer_factor
         if isinstance(module, MLCDVisionEmbeddings):
             factor = self.config.initializer_factor
-            nn.init.normal_(module.class_embedding, mean=0.0, std=module.embed_dim**-0.5 * factor)
-            nn.init.normal_(module.patch_embedding.weight, std=module.config.initializer_range * factor)
+            module.class_embedding.set_data(
+                initializer(
+                    Normal(module.embed_dim**-0.5 * factor),
+                    module.class_embedding.shape,
+                    module.class_embedding.dtype,
+                )
+            )
+            module.patch_embedding.weight.set_data(
+                initializer(
+                    Normal(module.config.initializer_range * factor),
+                    module.patch_embedding.weight.shape,
+                    module.patch_embedding.weight.dtype,
+                )
+            )
         elif isinstance(module, MLCDAttention):
             factor = self.config.initializer_factor
             in_proj_std = (module.embed_dim**-0.5) * ((2 * module.config.num_hidden_layers) ** -0.5) * factor
             out_proj_std = (module.embed_dim**-0.5) * factor
-            nn.init.normal_(module.q_proj.weight, std=in_proj_std)
-            nn.init.normal_(module.k_proj.weight, std=in_proj_std)
-            nn.init.normal_(module.v_proj.weight, std=in_proj_std)
-            nn.init.normal_(module.out_proj.weight, std=out_proj_std)
+            module.q_proj.weight.set_data(
+                initializer(Normal(in_proj_std), module.q_proj.weight.shape, module.q_proj.weight.dtype)
+            )
+            module.k_proj.weight.set_data(
+                initializer(Normal(in_proj_std), module.k_proj.weight.shape, module.k_proj.weight.dtype)
+            )
+            module.v_proj.weight.set_data(
+                initializer(Normal(in_proj_std), module.v_proj.weight.shape, module.v_proj.weight.dtype)
+            )
+            module.out_proj.weight.set_data(
+                initializer(Normal(out_proj_std), module.out_proj.weight.shape, module.out_proj.weight.dtype)
+            )
         elif isinstance(module, MLCDMLP):
             factor = self.config.initializer_factor
             in_proj_std = (module.config.hidden_size**-0.5) * ((2 * module.config.num_hidden_layers) ** -0.5) * factor
             fc_std = (2 * module.config.hidden_size) ** -0.5 * factor
-            nn.init.normal_(module.fc1.weight, std=fc_std)
-            nn.init.normal_(module.fc2.weight, std=in_proj_std)
+            module.fc1.weight.set_data(initializer(Normal(fc_std), module.fc1.weight.shape, module.fc1.weight.dtype))
+            module.fc2.weight.set_data(
+                initializer(Normal(in_proj_std), module.fc2.weight.shape, module.fc2.weight.dtype)
+            )
         elif isinstance(module, MLCDVisionTransformer):
             factor = self.config.initializer_factor
             pos_emb_std = (module.config.hidden_size // module.config.num_attention_heads // 2) ** -0.5 * factor
-            nn.init.normal_(module.class_pos_emb, mean=0.0, std=pos_emb_std)
+            module.class_pos_emb.set_data(
+                initializer(Normal(pos_emb_std), module.class_pos_emb.shape, module.class_pos_emb.dtype)
+            )
         elif isinstance(module, mint.nn.LayerNorm):
-            module.bias.data.zero_()
-            module.weight.data.fill_(1.0)
+            module.beta.set_data(initializer(Constant(0.0), module.beta.shape, module.beta.dtype))
+            module.gamma.set_data(initializer(Constant(1.0), module.gamma.shape, module.gamma.dtype))
         elif isinstance(module, mint.nn.Linear) and module.bias is not None:
-            module.bias.data.zero_()
+            module.bias.set_data(initializer(Constant(0.0), module.bias.shape, module.bias.dtype))
 
 
-@auto_docstring(
-    custom_intro="""
-    The vision model from M_L_C_D without any head or projection on top.
-    """
-)
 class MLCDVisionModel(MLCDPreTrainedModel):
     config: MLCDVisionConfig
     main_input_name = "pixel_values"
@@ -568,13 +585,12 @@ class MLCDVisionModel(MLCDPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    def get_input_embeddings(self) -> ms.nn.Cell:
+    def get_input_embeddings(self) -> mindspore.nn.Cell:
         return self.vision_model.embeddings.patch_embedding
 
-    @auto_docstring
     def construct(
         self,
-        pixel_values: Optional[ms.Tensor] = None,
+        pixel_values: Optional[mindspore.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
@@ -585,16 +601,15 @@ class MLCDVisionModel(MLCDPreTrainedModel):
         ```python
         >>> import requests
         >>> from PIL import Image
-        >>> from transformers import AutoProcessor, MLCDVisionModel
+        >>> from mindone.transformers import AutoProcessor, MLCDVisionModel
         >>> model = MLCDVisionModel.from_pretrained("DeepGlint-AI/mlcd-vit-bigG-patch14-448")
         >>> processor = AutoProcessor.from_pretrained("DeepGlint-AI/mlcd-vit-bigG-patch14-448")
 
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
-        >>> inputs = processor(images=image, return_tensors="pt")
+        >>> inputs = processor(images=image, return_tensors="np")
 
-        >>> with torch.no_grad():
-        ...     outputs = model(**inputs, output_attentions=True)
+        >>> outputs = model(**inputs, output_attentions=True)
 
         >>> features = outputs.last_hidden_state
         >>> print(f"Extracted features shape: {features.shape}")
