@@ -2955,7 +2955,7 @@ class PreTrainedModel(
 
         # Find the key names that the model expects from the serialized keys
         key_renaming_mapping = model._get_key_renaming_mapping(
-            original_checkpoint_keys,
+            loaded_keys,
             key_mapping,
             loading_base_model_from_task_state_dict,
             loading_task_model_from_base_state_dict,
@@ -2967,7 +2967,7 @@ class PreTrainedModel(
             cls,
             model,
             original_checkpoint_keys,
-            loaded_keys,
+            checkpoint_keys,
             loading_base_model_from_task_state_dict,
         )
 
