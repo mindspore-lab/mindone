@@ -752,7 +752,7 @@ class VaeImageProcessor(ConfigMixin):
             image (`ms.Tensor`):
                 The image input, should be a mindspore tensor with shape `B x C x H x W`.
             output_type (`str`, *optional*, defaults to `pil`):
-                The output type of the image, can be one of `pil`, `np`, `pt`, `latent`.
+                The output type of the image, can be one of `pil`, `np`, `ms`, `latent`.
             do_denormalize (`List[bool]`, *optional*, defaults to `None`):
                 Whether to denormalize the image to [0,1]. If `None`, will use the value of `do_normalize` in the
                 `VaeImageProcessor` config.
@@ -964,7 +964,7 @@ class VaeImageProcessorLDM3D(VaeImageProcessor):
             image (`ms.Tensor`):
                 The image input, should be a mindspore tensor with shape `B x C x H x W`.
             output_type (`str`, *optional*, defaults to `pil`):
-                The output type of the image, can be one of `pil`, `np`, `pt`, `latent`.
+                The output type of the image, can be one of `pil`, `np`, `ms`, `latent`.
             do_denormalize (`List[bool]`, *optional*, defaults to `None`):
                 Whether to denormalize the image to [0,1]. If `None`, will use the value of `do_normalize` in the
                 `VaeImageProcessor` config.
@@ -977,7 +977,7 @@ class VaeImageProcessorLDM3D(VaeImageProcessor):
             raise ValueError(
                 f"Input for postprocessing is in incorrect format: {type(image)}. We only support MindSpore tensor"
             )
-        if output_type not in ["latent", "pt", "np", "pil"]:
+        if output_type not in ["latent", "ms", "np", "pil"]:
             deprecation_message = (
                 f"the output_type {output_type} is outdated and has been set to `np`. Please make sure to set it to one of these instead: "
                 "`pil`, `np`, `pt`, `latent`"

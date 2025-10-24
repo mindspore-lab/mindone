@@ -28,6 +28,7 @@ from .transformer_ltx import LTXVideoTransformer3DModel
 from .transformer_lumina2 import Lumina2Transformer2DModel
 from .transformer_mochi import MochiTransformer3DModel
 from .transformer_omnigen import OmniGenTransformer2DModel
+from .transformer_prx import PRXTransformer2DModel
 from .transformer_qwenimage import QwenImageTransformer2DModel
 from .transformer_sd3 import SD3Transformer2DModel
 from .transformer_skyreels_v2 import SkyReelsV2Transformer3DModel
