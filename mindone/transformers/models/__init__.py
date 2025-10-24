@@ -233,6 +233,7 @@ from . import (
     unispeech_sat,
     univnet,
     upernet,
+    vaultgemma,
     video_llava,
     videomae,
     vilt,
