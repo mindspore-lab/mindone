@@ -189,7 +189,7 @@ ACT2CLS = {
     "gelu_pytorch_tanh": PytorchGELUTanh,
     "gelu_accurate": AccurateGELUActivation,
     "laplace": LaplaceActivation,
-    "leaky_relu": nn.LeakyReLU,
+    "leaky_relu": (nn.LeakyReLU, {"alpha": 0.01}),
     "linear": LinearActivation,
     "mish": MishActivation,
     "quick_gelu": QuickGELUActivation,

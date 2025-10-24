@@ -142,7 +142,7 @@ if transformers.__version__ >= "4.51.0":
         dtype,
         mode,
     ):
-        ms.set_context(mode=mode, jit_syntax_level=ms.STRICT)
+        ms.set_context(mode=mode)
 
         (
             pt_model,

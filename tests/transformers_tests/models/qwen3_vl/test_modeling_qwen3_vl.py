@@ -16,7 +16,6 @@ import numpy as np
 import pytest
 import torch
 import transformers
-from transformers import Qwen3VLConfig
 
 import mindspore as ms
 
@@ -32,10 +31,9 @@ from tests.transformers_tests.models.modeling_common import floats_numpy, ids_nu
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]  # not support graph mode yet
 
-ms.launch_blocking()
-
 
 if transformers.__version__ >= "4.57.0":
+    from transformers import Qwen3VLConfig
 
     class Qwen3VLModelTester:
         def __init__(

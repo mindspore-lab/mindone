@@ -14,7 +14,6 @@ import numpy as np
 import pytest
 import torch
 import transformers
-from transformers import Qwen3VLMoeConfig
 
 import mindspore as ms
 
@@ -26,6 +25,7 @@ MODES = [1]  # not support graph mode yet
 
 
 if transformers.__version__ >= "4.57.0":
+    from transformers import Qwen3VLMoeConfig
 
     class Qwen3VLMoeTester:
         def __init__(

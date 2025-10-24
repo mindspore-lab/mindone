@@ -283,7 +283,7 @@ class Qwen2Attention(nn.Cell):
         ):
             sliding_window = self.config.sliding_window
 
-        attn_output, attn_weights = attention_interface(
+        attn_output, attn_weights, qk_product = attention_interface(
             self,
             query_states,
             key_states,
@@ -301,7 +301,7 @@ class Qwen2Attention(nn.Cell):
         if not output_attentions:
             attn_weights = None
 
-        return attn_output, attn_weights, past_key_value
+        return attn_output, attn_weights, past_key_value, qk_product
 
 
 class Qwen2MLAAttention(nn.Cell):
@@ -602,6 +602,7 @@ class Qwen2DecoderLayer(nn.Cell):
                 batch_valid_length=batch_valid_length,
                 **kwargs,
             )
+            qk_product = None
         hidden_states = residual + hidden_states
 
         # Fully Connected
