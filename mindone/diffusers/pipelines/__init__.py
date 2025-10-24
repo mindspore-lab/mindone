@@ -182,6 +182,7 @@ _import_structure = {
         "PixArtAlphaPipeline",
         "PixArtSigmaPipeline",
     ],
+    "prx": ["PRXPipeline"],
     "qwenimage": [
         "QwenImageEditPipeline",
         "QwenImageEditInpaintPipeline",
@@ -422,6 +423,7 @@ if TYPE_CHECKING:
     from .pia import PIAPipeline
     from .pipeline_utils import AudioPipelineOutput, DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
     from .pixart_alpha import PixArtAlphaPipeline, PixArtSigmaPipeline
+    from .prx import PRXPipeline
     from .qwenimage import (
         QwenImageEditInpaintPipeline,
         QwenImageEditPipeline,
