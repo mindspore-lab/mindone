@@ -175,7 +175,7 @@ class GPTBigCodeAttention(nn.Cell):
         output_attentions: Optional[bool] = False,
         cache_position: Optional[ms.Tensor] = None,
         **kwargs,
-    ) -> Union[tuple[ms.Tensor, Optional[ms.Tensor]], tuple[ms.Tensor, Optional[ms.Tensor], tuple[ms.Tensor, ...]], ]:
+    ) -> Union[tuple[ms.Tensor, Optional[ms.Tensor]], tuple[ms.Tensor, Optional[ms.Tensor], tuple[ms.Tensor, ...]]]:
         input_shape = hidden_states.shape[:-1]
 
         if layer_past is not None:
