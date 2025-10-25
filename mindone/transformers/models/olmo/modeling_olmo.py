@@ -2,7 +2,6 @@ from typing import Callable, List, Optional, Tuple, Union
 
 from transformers.models.olmo.configuration_olmo import OlmoConfig
 from transformers.utils import (
-    LossKwargs,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
     logging,
@@ -23,6 +22,7 @@ from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
+from ...utils import TransformersKwargs
 
 logger = logging.get_logger(__name__)
 _CONFIG_FOR_DOC = "OlmoConfig"
@@ -687,10 +687,6 @@ class OlmoModel(OlmoPreTrainedModel):
         return causal_mask
 
 
-class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
-    ...
-
-
 class OlmoForCausalLM(OlmoPreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
     _tp_plan = {"lm_head": "colwise_rep"}
@@ -739,7 +735,7 @@ class OlmoForCausalLM(OlmoPreTrainedModel, GenerationMixin):
         return_dict: Optional[bool] = None,
         cache_position: Optional[Tensor] = None,
         logits_to_keep: Union[int, Tensor] = 0,
-        **kwargs: Unpack[KwargsForCausalLM],
+        **kwargs: Unpack[TransformersKwargs],
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
             labels (`Tensor` of shape `(batch_size, sequence_length)`, *optional*):

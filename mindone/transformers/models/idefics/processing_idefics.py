@@ -30,14 +30,7 @@ from mindspore import mint
 
 from ...feature_extraction_utils import BatchFeature
 from ...image_utils import ImageInput
-from ...processing_utils import (
-    ImagesKwargs,
-    ProcessingKwargs,
-    ProcessorMixin,
-    TextKwargs,
-    Unpack,
-    _validate_images_text_input_order,
-)
+from ...processing_utils import ImagesKwargs, ProcessingKwargs, ProcessorMixin, TextKwargs, Unpack
 
 IMAGE_TOKEN = "<image>"
 
@@ -297,8 +290,6 @@ class IdeficsProcessor(ProcessorMixin):
         """
         if images is None and text is None:
             raise ValueError("You need to specify either `text` or `images` and `text`.")
-        # check if images and text inputs are reversed for BC
-        images, text = _validate_images_text_input_order(images, text)
 
         if images is None:
             # assuming the user wants to use the old behavior with prompts as the only argument

@@ -98,7 +98,7 @@ class FalconMambaMixer(nn.Cell):
         self.activation = config.hidden_act
         self.act = ACT2FN[config.hidden_act]
 
-        self.use_mambapy = config.use_mambapy
+        self.use_mambapy = config.use_falcon_mambapy
 
         # projection of the input hidden states
         self.in_proj = mint.nn.Linear(self.hidden_size, self.intermediate_size * 2, bias=config.use_bias)

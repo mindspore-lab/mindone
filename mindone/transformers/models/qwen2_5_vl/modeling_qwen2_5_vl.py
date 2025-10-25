@@ -32,7 +32,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from transformers import Qwen2_5_VLConfig
-from transformers.models.qwen2_5_vl.configuration_qwen2_5_vl import Qwen2_5_VLVisionConfig
+from transformers.models.qwen2_5_vl.configuration_qwen2_5_vl import Qwen2_5_VLTextConfig, Qwen2_5_VLVisionConfig
 
 import mindspore as ms
 import mindspore.mint as mint
@@ -40,17 +40,18 @@ import mindspore.mint.nn.functional as F
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Parameter, Tensor
-from mindspore.mint.nn import CrossEntropyLoss
 
 from mindone.models.utils import normal_, zeros_
 from mindone.transformers.activations import ACT2FN
 from mindone.transformers.cache_utils import Cache, DynamicCache, SlidingWindowCache, StaticCache
 from mindone.transformers.generation import GenerationMixin
 from mindone.transformers.modeling_attn_mask_utils import dtype_to_min
+from mindone.transformers.modeling_flash_attention_utils import FlashAttentionKwargs
 from mindone.transformers.modeling_outputs import BaseModelOutputWithPast, ModelOutput
 from mindone.transformers.modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from mindone.transformers.modeling_utils import MSPreTrainedModel
-from mindone.transformers.utils import logging
+from mindone.transformers.processing_utils import Unpack
+from mindone.transformers.utils import TransformersKwargs, logging
 
 logger = logging.get_logger(__name__)
 
@@ -391,7 +392,12 @@ class Qwen2_5_VLPreTrainedModel(MSPreTrainedModel):
     _supports_static_cache = False
 
     def _init_weights(self, module):
-        std = self.config.initializer_range
+        # if hasattr(self.config, "initializer_range"):
+        std = (
+            self.config.initializer_range
+            if hasattr(self.config, "initializer_range")
+            else self.config.text_config.initializer_range
+        )
         if isinstance(module, (mint.nn.Linear, mint.nn.Conv3d)):
             normal_(module.weight, mean=0.0, std=std)
             if module.bias is not None:
@@ -541,6 +547,26 @@ class Qwen2_5_VisionTransformerPretrainedModel(Qwen2_5_VLPreTrainedModel):
         hidden_states = hidden_states[reverse_indices, :]
 
         return hidden_states
+
+
+@dataclass
+class Qwen2_5_VLModelOutputWithPast(ModelOutput):
+    r"""
+    past_key_values (`Cache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+        Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
+        `(batch_size, num_heads, sequence_length, embed_size_per_head)`)
+
+        Contains pre-computed hidden-states (key and values in the self-attention blocks) that can be used (see
+        `past_key_values` input) to speed up sequential decoding.
+    rope_deltas (`ms.Tensor` of shape `(batch_size, )`, *optional*):
+        The rope index difference between sequence length and multimodal rope.
+    """
+
+    last_hidden_state: ms.Tensor = None
+    past_key_values: Optional[list[ms.Tensor]] = None
+    hidden_states: Optional[tuple[ms.Tensor]] = None
+    attentions: Optional[tuple[ms.Tensor]] = None
+    rope_deltas: Optional[ms.Tensor] = None
 
 
 class Qwen2_5_VLRotaryEmbedding(nn.Cell):
@@ -960,8 +986,10 @@ class Qwen2_5_VLDecoderLayer(nn.Cell):
         return outputs
 
 
-class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
-    def __init__(self, config: Qwen2_5_VLConfig):
+class Qwen2_5_VLTextModel(Qwen2_5_VLPreTrainedModel):
+    config: Qwen2_5_VLTextConfig
+
+    def __init__(self, config: Qwen2_5_VLTextConfig):
         super().__init__(config)
         self.padding_idx = config.pad_token_id
         self.vocab_size = config.vocab_size
@@ -978,25 +1006,20 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    def get_input_embeddings(self):
-        return self.embed_tokens
-
-    def set_input_embeddings(self, value):
-        self.embed_tokens = value
-
     def construct(
         self,
-        input_ids: Tensor = None,
-        attention_mask: Optional[Tensor] = None,
-        position_ids: Optional[Tensor] = None,
-        past_key_values: Optional[List[Tensor]] = None,
-        inputs_embeds: Optional[Tensor] = None,
+        input_ids: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_values: Optional[Cache] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-        cache_position: Optional[Tensor] = None,
-    ) -> Union[Tuple, BaseModelOutputWithPast]:
+        cache_position: Optional[ms.Tensor] = None,
+        **kwargs: Unpack[FlashAttentionKwargs],
+    ) -> Union[tuple, BaseModelOutputWithPast]:
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -1218,48 +1241,10 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
         return causal_mask
 
 
-@dataclass
-class Qwen2_5_VLCausalLMOutputWithPast(ModelOutput):
-    """
-    Base class for Qwen2_5_VL causal language model (or autoregressive) outputs.
-
-    Args:
-        loss (`Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
-            Language modeling loss (for next-token prediction).
-        logits (`Tensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
-            Prediction scores of the language modeling head (scores for each vocabulary token before SoftMax).
-        past_key_values (`tuple(tuple(Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
-            `(batch_size, num_heads, sequence_length, embed_size_per_head)`)
-
-            Contains pre-computed hidden-states (key and values in the self-attention blocks) that can be used (see
-            `past_key_values` input) to speed up sequential decoding.
-        hidden_states (`tuple(Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
-            one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
-
-            Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
-        attentions (`tuple(Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
-            sequence_length)`.
-
-            Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
-            heads.
-        rope_deltas (`Tensor` of shape `(batch_size, )`, *optional*):
-            The rope index difference between sequence length and multimodal rope.
-    """
-
-    loss: Optional[Tensor] = None
-    logits: Tensor = None
-    past_key_values: Optional[List[Tensor]] = None
-    hidden_states: Optional[Tuple[Tensor]] = None
-    attentions: Optional[Tuple[Tensor]] = None
-    rope_deltas: Optional[Tensor] = None
-
-
-class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMixin):
-    _tied_weights_keys = ["lm_head.weight"]
-    config_class = Qwen2_5_VLConfig
+class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
+    base_model_prefix = ""
+    _checkpoint_conversion_mapping = {"^model": "language_model"}
+    config: Qwen2_5_VLConfig
     _no_split_modules = ["Qwen2_5_VLDecoderLayer", "Qwen2_5_VLVisionBlock"]
 
     def __init__(self, config):
@@ -1268,7 +1253,7 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
         config.vision_config._attn_implementation = config._attn_implementation
         config.vision_config.mindspore_dtype = getattr(config, "mindspore_dtype", None)
         self.visual = Qwen2_5_VisionTransformerPretrainedModel._from_config(config.vision_config)
-        self.model = Qwen2_5_VLModel(config)
+        self.language_model = Qwen2_5_VLTextModel._from_config(config.text_config)
         self.vocab_size = config.vocab_size
         self.lm_head = mint.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         self.rope_deltas = None  # cache rope_deltas here
@@ -1276,11 +1261,15 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
         # Initialize weights and apply final processing
         self.post_init()
 
+    def gradient_checkpointing_enable(self, **kwargs):
+        self.language_model.gradient_checkpointing = True
+        self.visual.gradient_checkpointing = True
+
     def get_input_embeddings(self):
-        return self.model.embed_tokens
+        return self.language_model.embed_tokens
 
     def set_input_embeddings(self, value):
-        self.model.embed_tokens = value
+        self.language_model.embed_tokens = value
 
     def get_output_embeddings(self):
         return self.lm_head
@@ -1289,10 +1278,10 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
         self.lm_head = new_embeddings
 
     def set_decoder(self, decoder):
-        self.model = decoder
+        self.language_model = decoder
 
     def get_decoder(self):
-        return self.model
+        return self.language_model
 
     def get_rope_index(
         self,
@@ -1460,70 +1449,26 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
 
             return position_ids, mrope_position_deltas
 
-    def gradient_checkpointing_enable(self, **kwargs):
-        self.model.gradient_checkpointing = True
-        self.visual.gradient_checkpointing = True
-
     def construct(
         self,
-        input_ids: Tensor = None,
-        attention_mask: Optional[Tensor] = None,
-        position_ids: Optional[Tensor] = None,
-        past_key_values: Optional[List[Tensor]] = None,
-        inputs_embeds: Optional[Tensor] = None,
-        labels: Optional[Tensor] = None,
+        input_ids: ms.Tensor = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_values: Optional[Cache] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-        pixel_values: Optional[Tensor] = None,
-        pixel_values_videos: Optional[Tensor] = None,
-        image_grid_thw: Optional[Tensor] = None,
-        video_grid_thw: Optional[Tensor] = None,
-        rope_deltas: Optional[Tensor] = None,
-        cache_position: Optional[Tensor] = None,
-        second_per_grid_ts: Optional[Tensor] = None,
-    ) -> Union[Tuple, Qwen2_5_VLCausalLMOutputWithPast]:
-        r"""
-        Args:
-            labels (`Tensor` of shape `(batch_size, sequence_length)`, *optional*):
-                Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,
-                config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored
-                (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`.
-
-        Returns:
-
-        Example:
-
-        ```python
-        >>> from PIL import Image
-        >>> import requests
-        >>> from mindone.transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
-
-        >>> model = Qwen2_5_VLForConditionalGeneration.from_pretrained("Qwen/Qwen2.5-VL-7B-Instruct")
-        >>> processor = AutoProcessor.from_pretrained("Qwen/Qwen2.5-VL-7B-Instruct")
-
-        >>> messages = [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "image"},
-                    {"type": "text", "text": "What is shown in this image?"},
-                ],
-            },
-        ]
-        >>> url = "https://www.ilankelman.org/stopsigns/australia.jpg"
-        >>> image = Image.open(requests.get(url, stream=True).raw)
-
-        >>> text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        >>> inputs = processor(text=[text], images=[image], return_tensors="ms")
-
-        >>> # Generate
-        >>> generate_ids = model.generate(**inputs, max_new_tokens=30)
-        >>> processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
-        "The image shows a street scene with a red stop sign in the foreground. In the background, there is a large red gate with Chinese characters ..."
-        ```"""
-
+        pixel_values: Optional[ms.Tensor] = None,
+        pixel_values_videos: Optional[ms.Tensor] = None,
+        image_grid_thw: Optional[ms.Tensor] = None,
+        video_grid_thw: Optional[ms.Tensor] = None,
+        rope_deltas: Optional[ms.Tensor] = None,
+        cache_position: Optional[ms.Tensor] = None,
+        second_per_grid_ts: Optional[ms.Tensor] = None,
+        **kwargs: Unpack[TransformersKwargs],
+    ) -> Union[Tuple, BaseModelOutputWithPast]:
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -1531,7 +1476,7 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         if inputs_embeds is None:
-            inputs_embeds = self.model.embed_tokens(input_ids)
+            inputs_embeds = self.language_model.embed_tokens(input_ids)
             if pixel_values is not None:
                 pixel_values = pixel_values.type(self.visual.dtype)
                 image_embeds = self.visual(pixel_values, grid_thw=image_grid_thw)
@@ -1595,7 +1540,7 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
                 position_ids = position_ids.add(delta)
                 position_ids = position_ids.unsqueeze(0).expand((3, -1, -1))
 
-        outputs = self.model(
+        outputs = self.language_model(
             input_ids=None,
             position_ids=position_ids,
             attention_mask=attention_mask,
@@ -1608,25 +1553,189 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
             cache_position=cache_position,
         )
 
+        output = Qwen2_5_VLModelOutputWithPast(
+            last_hidden_state=outputs.last_hidden_state,
+            past_key_values=outputs.past_key_values,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
+            rope_deltas=self.rope_deltas,
+        )
+        return output if return_dict else output.to_tuple()
+
+
+@dataclass
+class Qwen2_5_VLCausalLMOutputWithPast(ModelOutput):
+    """
+    Base class for Qwen2_5_VL causal language model (or autoregressive) outputs.
+
+    Args:
+        loss (`Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
+            Language modeling loss (for next-token prediction).
+        logits (`Tensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
+            Prediction scores of the language modeling head (scores for each vocabulary token before SoftMax).
+        past_key_values (`tuple(tuple(Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            Tuple of `tuple(Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
+            `(batch_size, num_heads, sequence_length, embed_size_per_head)`)
+
+            Contains pre-computed hidden-states (key and values in the self-attention blocks) that can be used (see
+            `past_key_values` input) to speed up sequential decoding.
+        hidden_states (`tuple(Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
+            one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
+
+            Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
+        attentions (`tuple(Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+            sequence_length)`.
+
+            Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
+            heads.
+        rope_deltas (`Tensor` of shape `(batch_size, )`, *optional*):
+            The rope index difference between sequence length and multimodal rope.
+    """
+
+    loss: Optional[Tensor] = None
+    logits: Tensor = None
+    past_key_values: Optional[List[Tensor]] = None
+    hidden_states: Optional[Tuple[Tensor]] = None
+    attentions: Optional[Tuple[Tensor]] = None
+    rope_deltas: Optional[Tensor] = None
+
+
+class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMixin):
+    _checkpoint_conversion_mapping = {
+        "^visual": "model.visual",
+        r"^model(?!\.(language_model|visual))": "model.language_model",
+    }
+    _tied_weights_keys = ["lm_head.weight"]
+
+    def __init__(self, config):
+        super().__init__(config)
+        self.model = Qwen2_5_VLModel(config)
+        self.lm_head = nn.Linear(config.text_config.hidden_size, config.text_config.vocab_size, bias=False)
+
+        self.post_init()
+
+    def get_input_embeddings(self):
+        return self.model.get_input_embeddings()
+
+    def set_input_embeddings(self, value):
+        self.model.set_input_embeddings(value)
+
+    def set_decoder(self, decoder):
+        self.model.set_decoder(decoder)
+
+    def get_decoder(self):
+        return self.model.get_decoder()
+
+    def get_video_features(self, pixel_values_videos: ms.Tensor, video_grid_thw: Optional[ms.Tensor] = None):
+        return self.model.get_video_features(pixel_values_videos, video_grid_thw)
+
+    def get_image_features(self, pixel_values: ms.Tensor, image_grid_thw: Optional[ms.Tensor] = None):
+        return self.model.get_image_features(pixel_values, image_grid_thw)
+
+    # Make modules available throught conditional class for BC
+    @property
+    def language_model(self):
+        return self.model.language_model
+
+    @property
+    def visual(self):
+        return self.model.visual
+
+    def construct(
+        self,
+        input_ids: ms.Tensor = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_values: Optional[Cache] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        labels: Optional[ms.Tensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        pixel_values: Optional[ms.Tensor] = None,
+        pixel_values_videos: Optional[ms.Tensor] = None,
+        image_grid_thw: Optional[ms.Tensor] = None,
+        video_grid_thw: Optional[ms.Tensor] = None,
+        rope_deltas: Optional[ms.Tensor] = None,
+        cache_position: Optional[ms.Tensor] = None,
+        second_per_grid_ts: Optional[ms.Tensor] = None,
+        logits_to_keep: Union[int, ms.Tensor] = 0,
+        **kwargs: Unpack[TransformersKwargs],
+    ) -> Union[Tuple, Qwen2_5_VLCausalLMOutputWithPast]:
+        r"""
+        Args:
+            labels (`Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+                Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,
+                config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored
+                (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`.
+
+        Returns:
+
+        Example:
+
+        ```python
+        >>> from PIL import Image
+        >>> import requests
+        >>> from mindone.transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
+
+        >>> model = Qwen2_5_VLForConditionalGeneration.from_pretrained("Qwen/Qwen2.5-VL-7B-Instruct")
+        >>> processor = AutoProcessor.from_pretrained("Qwen/Qwen2.5-VL-7B-Instruct")
+
+        >>> messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image"},
+                    {"type": "text", "text": "What is shown in this image?"},
+                ],
+            },
+        ]
+        >>> url = "https://www.ilankelman.org/stopsigns/australia.jpg"
+        >>> image = Image.open(requests.get(url, stream=True).raw)
+
+        >>> text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        >>> inputs = processor(text=[text], images=[image], return_tensors="ms")
+
+        >>> # Generate
+        >>> generate_ids = model.generate(**inputs, max_new_tokens=30)
+        >>> processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
+        "The image shows a street scene with a red stop sign in the foreground. In the background, there is a large red gate with Chinese characters ..."
+        ```"""
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
+        output_hidden_states = (
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+        )
+
+        outputs = self.model(
+            input_ids=input_ids,
+            pixel_values=pixel_values,
+            pixel_values_videos=pixel_values_videos,
+            image_grid_thw=image_grid_thw,
+            video_grid_thw=video_grid_thw,
+            second_per_grid_ts=second_per_grid_ts,
+            position_ids=position_ids,
+            attention_mask=attention_mask,
+            past_key_values=past_key_values,
+            inputs_embeds=inputs_embeds,
+            use_cache=use_cache,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=True,
+            cache_position=cache_position,
+            **kwargs,
+        )
+
         hidden_states = outputs[0]
-        logits = self.lm_head(hidden_states)
+
+        # Only compute necessary logits, and do not upcast them to float if we are not computing the loss
+        slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
+        logits = self.lm_head(hidden_states[:, slice_indices, :])
 
         loss = None
         if labels is not None:
-            # Upcast to float if we need to compute the loss to avoid potential precision issues
-            logits = logits.float()
-            # Shift so that tokens < n predict n
-            shift_logits = logits[..., :-1, :].contiguous()
-            shift_labels = labels[..., 1:].contiguous()
-            # Flatten the tokens
-            loss_fct = CrossEntropyLoss()
-            shift_logits = shift_logits.view(-1, self.config.vocab_size)
-            shift_labels = shift_labels.view(-1)
-            loss = loss_fct(shift_logits, shift_labels)
-
-        if not return_dict:
-            output = (logits,) + outputs[1:]
-            return (loss,) + output if loss is not None else output
+            loss = self.loss_function(logits=logits, labels=labels, vocab_size=self.config.vocab_size)
 
         return Qwen2_5_VLCausalLMOutputWithPast(
             loss=loss,
@@ -1634,7 +1743,7 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
             past_key_values=outputs.past_key_values,
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
-            rope_deltas=self.rope_deltas,
+            rope_deltas=outputs.rope_deltas,
         )
 
     def prepare_inputs_for_generation(

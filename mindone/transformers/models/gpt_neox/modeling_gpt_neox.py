@@ -7,7 +7,6 @@
 from typing import Callable, Optional, Tuple, Union
 
 from transformers.models.gpt_neox.configuration_gpt_neox import GPTNeoXConfig
-from transformers.utils import LossKwargs
 
 import mindspore as ms
 from mindspore import Parameter, mint, nn
@@ -27,17 +26,13 @@ from ...modeling_outputs import (
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
-from ...utils import logging
+from ...utils import TransformersKwargs, logging
 
 logger = logging.get_logger(__name__)
 
 
 class HybridCache(object):
     """This class do nothing and will be never used in our implement."""
-
-
-class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
-    ...
 
 
 class GPTNeoXMLP(nn.Cell):
@@ -578,7 +573,7 @@ class GPTNeoXForCausalLM(GPTNeoXPreTrainedModel, GenerationMixin):
         output_hidden_states: Optional[bool] = None,
         cache_position: Optional[ms.Tensor] = None,
         logits_to_keep: Union[int, ms.Tensor] = 0,
-        **kwargs: Unpack[KwargsForCausalLM],
+        **kwargs: Unpack[TransformersKwargs],
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
         labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):

@@ -173,6 +173,13 @@ COLPALI_FOR_RETRIEVAL_INPUT_DOCSTRING = r"""
     """
 )
 class ColPaliForRetrieval(ColPaliPreTrainedModel):
+    _checkpoint_conversion_mapping = {
+        "vlm.language_model.model": "vlm.model.language_model",
+        "vlm.vision_tower": "vlm.model.vision_tower",
+        "vlm.multi_modal_projector": "vlm.model.multi_modal_projector",
+        "vlm.language_model.lm_head": "vlm.lm_head",
+    }
+
     def __init__(self, config: ColPaliConfig):
         super().__init__(config)
         self.config = config
@@ -272,60 +279,55 @@ class ColPaliForRetrieval(ColPaliPreTrainedModel):
         )
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        outputs = self.vlm(
+        vlm_output = self.vlm.model(
             input_ids=input_ids,
             attention_mask=attention_mask,
             pixel_values=pixel_values,
             output_hidden_states=True,
-            return_dict=return_dict,
+            return_dict=True,
             output_attentions=output_attentions,
             **kwargs,
         )
+        vlm_hidden_states = vlm_output.hidden_states if output_hidden_states else None
+        vlm_image_hidden_states = vlm_output.image_hidden_states if pixel_values is not None else None
 
-        last_hidden_states = outputs.hidden_states[-1]  # (batch_size, sequence_length, hidden_size)
+        last_hidden_states = vlm_output[0]  # (batch_size, sequence_length, hidden_size)
         embeddings = self.embedding_proj_layer(last_hidden_states)  # (batch_size, sequence_length, dim)
 
         # L2 normalization
         embeddings = embeddings / embeddings.norm(dim=-1, keepdim=True)  # (batch_size, sequence_length, dim)
 
-        embeddings = embeddings * attention_mask.unsqueeze(-1)  # (batch_size, sequence_length, dim)
-
-        loss = None
-        if not return_dict:
-            output = (embeddings,) + outputs[2:]
-            output[2] = output[2] if output_hidden_states is not None else None
-            output[-1] = (outputs.image_hidden_states if pixel_values is not None else None,)
-            return (loss,) + output if loss is not None else output
+        if attention_mask is not None:
+            embeddings = embeddings * attention_mask.unsqueeze(-1)  # (batch_size, sequence_length, dim)
 
         return ColPaliForRetrievalOutput(
-            loss=loss,
             embeddings=embeddings,
-            past_key_values=outputs.past_key_values,
-            hidden_states=outputs.hidden_states if output_hidden_states else None,
-            attentions=outputs.attentions,
-            image_hidden_states=outputs.image_hidden_states if pixel_values is not None else None,
+            past_key_values=vlm_output.past_key_values,
+            hidden_states=vlm_hidden_states,
+            attentions=vlm_output.attentions,
+            image_hidden_states=vlm_image_hidden_states,
         )
 
     def get_input_embeddings(self):
-        return self.vlm.language_model.get_input_embeddings()
+        return self.vlm.get_input_embeddings()
 
     def set_input_embeddings(self, value):
-        self.vlm.language_model.set_input_embeddings(value)
+        self.vlm.set_input_embeddings(value)
 
     def get_output_embeddings(self):
-        return self.vlm.language_model.get_output_embeddings()
+        return self.vlm.get_output_embeddings()
 
     def set_output_embeddings(self, new_embeddings):
-        self.vlm.language_model.set_output_embeddings(new_embeddings)
+        self.vlm.set_output_embeddings(new_embeddings)
 
     def set_decoder(self, decoder):
-        self.vlm.language_model.set_decoder(decoder)
+        self.vlm.set_decoder(decoder)
 
     def get_decoder(self):
-        return self.vlm.language_model.get_decoder()
+        return self.vlm.get_decoder()
 
     def tie_weights(self):
-        return self.vlm.language_model.tie_weights()
+        return self.vlm.tie_weights()
 
     def resize_token_embeddings(
         self,
@@ -333,7 +335,7 @@ class ColPaliForRetrieval(ColPaliPreTrainedModel):
         pad_to_multiple_of: Optional[int] = None,
         mean_resizing: bool = True,
     ) -> mint.nn.Embedding:
-        model_embeds = self.vlm.language_model.resize_token_embeddings(
+        model_embeds = self.vlm.resize_token_embeddings(
             new_num_tokens=new_num_tokens,
             pad_to_multiple_of=pad_to_multiple_of,
             mean_resizing=mean_resizing,

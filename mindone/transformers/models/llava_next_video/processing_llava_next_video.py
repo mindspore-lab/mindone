@@ -25,13 +25,12 @@ from typing import List, Union
 import numpy as np
 from transformers.tokenization_utils_base import PreTokenizedInput, TextInput
 
-import mindspore as ms
-
 from ...feature_extraction_utils import BatchFeature
 from ...image_processing_utils import select_best_resolution
-from ...image_utils import ImageInput, VideoInput, get_image_size, to_numpy_array
-from ...processing_utils import ProcessingKwargs, ProcessorMixin, Unpack, _validate_images_text_input_order
+from ...image_utils import ImageInput, get_image_size, to_numpy_array
+from ...processing_utils import ProcessingKwargs, ProcessorMixin, Unpack
 from ...utils import logging
+from ...video_utils import VideoInput
 
 logger = logging.get_logger(__name__)
 
@@ -57,7 +56,7 @@ class LlavaNextVideoProcessor(ProcessorMixin):
     [`LlamaTokenizerFast`]. See the [`~LlavaNextVideoProcessor.__call__`] and [`~LlavaNextVideoProcessor.decode`] for more information.
 
     Args:
-        video_processor ([`LlavaNextVideoImageProcessor`], *optional*):
+        video_processor ([`LlavaNextVideoVideoProcessor`], *optional*):
             The video processor is a required input.
         image_processor ([`LlavaNextImageProcessor`], *optional*):
             The image processor is a required input.
@@ -69,7 +68,7 @@ class LlavaNextVideoProcessor(ProcessorMixin):
             Patch size from the vision tower.
         vision_feature_select_strategy (`str`, *optional*):
             The feature selection strategy used to select the vision feature from the vision backbone.
-            Shoudl be same as in model's config
+            Should be same as in model's config
         video_token (`str`, *optional*, defaults to `"<video>"`):
             Special token used to denote video location.
         image_token (`str`, *optional*, defaults to `"<image>"`):
@@ -82,16 +81,8 @@ class LlavaNextVideoProcessor(ProcessorMixin):
     # video and image processor share same args, but have different processing logic
     # only image processor config is saved in the hub
     attributes = ["video_processor", "image_processor", "tokenizer"]
-    valid_kwargs = [
-        "chat_template",
-        "patch_size",
-        "vision_feature_select_strategy",
-        "image_token",
-        "video_token",
-        "num_additional_image_tokens",
-    ]
-    image_processor_class = "LlavaNextImageProcessor"
-    video_processor_class = "LlavaNextVideoImageProcessor"
+    image_processor_class = ("LlavaNextImageProcessor", "LlavaNextImageProcessorFast")
+    video_processor_class = "AutoVideoProcessor"
     tokenizer_class = ("LlamaTokenizer", "LlamaTokenizerFast")
 
     def __init__(
@@ -112,6 +103,17 @@ class LlavaNextVideoProcessor(ProcessorMixin):
         self.vision_feature_select_strategy = vision_feature_select_strategy
         self.image_token = tokenizer.image_token if hasattr(tokenizer, "image_token") else image_token
         self.video_token = tokenizer.video_token if hasattr(tokenizer, "video_token") else video_token
+
+        self.image_token_id = (
+            tokenizer.image_token_id
+            if getattr(tokenizer, "image_token_id", None)
+            else tokenizer.convert_tokens_to_ids(self.image_token)
+        )
+        self.video_token_id = (
+            tokenizer.video_token_id
+            if getattr(tokenizer, "video_token_id", None)
+            else tokenizer.convert_tokens_to_ids(self.video_token)
+        )
         super().__init__(video_processor, image_processor, tokenizer, chat_template=chat_template)
 
     def __call__(
@@ -157,8 +159,6 @@ class LlavaNextVideoProcessor(ProcessorMixin):
               `None`).
             - **pixel_values** -- Pixel values to be fed to a model. Returned when `images` is not `None`.
         """
-        # check if images and text inputs are reversed for BC
-        images, text = _validate_images_text_input_order(images, text)
 
         output_kwargs = self._merge_kwargs(
             LlavaNextVideoProcessorKwargs,
@@ -178,7 +178,7 @@ class LlavaNextVideoProcessor(ProcessorMixin):
         if isinstance(text, str):
             text = [text]
         elif not isinstance(text, list) and not isinstance(text[0], str):
-            raise ValueError("Invalid input text. Please provide a string, or a list of strings")
+            raise TypeError("Invalid input text. Please provide a string, or a list of strings")
 
         if image_inputs:
             image_sizes = iter(image_inputs["image_sizes"])
@@ -217,12 +217,11 @@ class LlavaNextVideoProcessor(ProcessorMixin):
                 prompt_strings.append(sample)
             text = prompt_strings
 
-        output_kwargs["text_kwargs"].pop("return_tensors", None)
-        text_inputs = self.tokenizer(text, **output_kwargs["text_kwargs"], return_tensors="np")
-        for k, v in text_inputs.items():
-            text_inputs[k] = ms.tensor(v)
+        return_tensors = output_kwargs["text_kwargs"].pop("return_tensors", None)
+        text_inputs = self.tokenizer(text, **output_kwargs["text_kwargs"])
+        self._check_special_mm_tokens(text, text_inputs, modalities=["image", "video"])
 
-        return BatchFeature(data={**text_inputs, **image_inputs, **videos_inputs})
+        return BatchFeature(data={**text_inputs, **image_inputs, **videos_inputs}, tensor_type=return_tensors)
 
     # Copied from transformers.models.llava_next.processing_llava_next.LlavaNextProcessor._get_number_of_features
     def _get_number_of_features(self, orig_height: int, orig_width: int, height: int, width: int) -> int:

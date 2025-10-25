@@ -269,6 +269,6 @@ def test_named_modules(
 
     THRESHOLD = DTYPE_AND_THRESHOLDS[ms_dtype]
     assert (np.array(diffs) < THRESHOLD).all(), (
-        f"ms_dtype: {ms_dtype}, pt_type:{pt_dtype}, "
+        f"ms_dtype: {ms_dtype}, pt_type: {pt_dtype}, "
         f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}"
     )
