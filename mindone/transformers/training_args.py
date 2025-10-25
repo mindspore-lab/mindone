@@ -21,11 +21,12 @@ import os
 import warnings
 from dataclasses import dataclass, field
 from enum import Enum
+from functools import cached_property
 from typing import List, Optional, Union
 
 from transformers import is_safetensors_available, logging
 from transformers.trainer_utils import EvaluationStrategy, HubStrategy, IntervalStrategy, SchedulerType
-from transformers.utils.generic import ExplicitEnum, cached_property
+from transformers.utils.generic import ExplicitEnum
 
 import mindspore as ms
 from mindspore.communication.management import get_group_size, get_rank

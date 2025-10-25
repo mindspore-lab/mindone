@@ -216,6 +216,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("siglip", "SiglipModel"),
         ("siglip2", "Siglip2Model"),
         ("siglip_vision_model", "SiglipVisionModel"),
+        ("smollm3", "SmolLM3Model"),
         ("smolvlm", "SmolVLMModel"),
         ("smolvlm_vision", "SmolVLMVisionTransformer"),
         ("speech_to_text", "Speech2TextModel"),
@@ -318,6 +319,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("roc_bert", "RoCBertForPreTraining"),
         ("roberta-prelayernorm", "RobertaPreLayerNormForMaskedLM"),
         ("rwkv", "RwkvForCausalLM"),
+        ("smollm3", "SmolLM3ForCausalLM"),
         ("squeezebert", "SqueezeBertForMaskedLM"),
         ("t5", "T5ForConditionalGeneration"),
         ("tapas", "TapasForMaskedLM"),
@@ -915,6 +917,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("roc_bert", "RoCBertForSequenceClassification"),
         ("roberta", "RobertaForSequenceClassification"),
         ("roberta-prelayernorm", "RobertaPreLayerNormForSequenceClassification"),
+        ("smollm3", "SmolLM3ForSequenceClassification"),
         ("stablelm", "StableLmForSequenceClassification"),
         ("starcoder2", "Starcoder2ForSequenceClassification"),
         ("t5", "T5ForSequenceClassification"),
@@ -1066,6 +1069,7 @@ MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("roberta", "RobertaForTokenClassification"),
         ("roberta-prelayernorm", "RobertaPreLayerNormForTokenClassification"),
         ("roformer", "RoFormerForTokenClassification"),
+        ("smollm3", "SmolLM3ForTokenClassification"),
         ("starcoder2", "Starcoder2ForTokenClassification"),
         ("squeezebert", "SqueezeBertForTokenClassification"),
         ("stablelm", "StableLmForTokenClassification"),
@@ -1300,6 +1304,25 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES.update({"minimax": "MiniMaxForSequenceClassification"})
     MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES.update({"minimax": "MiniMaxForQuestionAnswering"})
     MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES.update({"minimax": "MiniMaxForTokenClassification"})
+
+if version.parse(transformers.__version__) >= version.parse("4.57.0"):
+    MODEL_MAPPING_NAMES.update(
+        {
+            ("qwen3_vl", "Qwen3VLModel"),
+            ("qwen3_vl_moe", "Qwen3VLMoeModel"),
+            ("qwen3_vl_moe_text", "Qwen3VLMoeTextModel"),
+            ("qwen3_vl_text", "Qwen3VLTextModel"),
+        }
+    )
+    MODEL_FOR_VISION_2_SEQ_MAPPING_NAMES.update(
+        {
+            ("qwen3_vl", "Qwen3VLForConditionalGeneration"),
+            ("qwen3_vl_moe", "Qwen3VLMoeForConditionalGeneration"),
+        }
+    )
+    MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES.update(
+        {("qwen3_vl", "Qwen3VLForConditionalGeneration"), ("qwen3_vl_moe", "Qwen3VLMoeForConditionalGeneration")}
+    )
 
 MODEL_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, MODEL_MAPPING_NAMES)
 MODEL_FOR_PRETRAINING_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, MODEL_FOR_PRETRAINING_MAPPING_NAMES)

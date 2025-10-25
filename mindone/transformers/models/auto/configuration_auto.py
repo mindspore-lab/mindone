@@ -237,6 +237,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("siglip", "SiglipConfig"),
         ("siglip2", "Siglip2Config"),
         ("siglip_vision_model", "SiglipVisionConfig"),
+        ("smollm3", "SmolLM3Config"),
         ("smolvlm", "SmolVLMConfig"),
         ("smolvlm_vision", "SmolVLMVisionConfig"),
         ("speech-encoder-decoder", "SpeechEncoderDecoderConfig"),
@@ -508,6 +509,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("siglip2", "SigLIP2"),
         ("siglip2_vision_model", "Siglip2VisionModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
+        ("smollm3", "SmolLM3"),
         ("smolvlm", "SmolVLM"),
         ("smolvlm_vision", "SmolVLMVisionTransformer"),
         ("speech-encoder-decoder", "Speech Encoder decoder"),
@@ -631,6 +633,24 @@ if version.parse(transformers.__version__) >= version.parse("4.51.3"):
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     CONFIG_MAPPING_NAMES.update({"minimax": "MiniMaxConfig", "vjepa2": "VJEPA2Model"})
     MODEL_NAMES_MAPPING.update({"minimax": "MiniMax", "vjepa2": "VJEPA2Model"})
+
+if version.parse(transformers.__version__) >= version.parse("4.57.0"):
+    CONFIG_MAPPING_NAMES.update(
+        {
+            ("qwen3_vl", "Qwen3VLConfig"),
+            ("qwen3_vl_moe", "Qwen3VLMoeConfig"),
+            ("qwen3_vl_moe_text", "Qwen3VLMoeTextConfig"),
+            ("qwen3_vl_text", "Qwen3VLTextConfig"),
+        }
+    )
+    MODEL_NAMES_MAPPING.update(
+        {
+            ("qwen3_vl", "Qwen3VL"),
+            ("qwen3_vl_moe", "Qwen3VLMoe"),
+            ("qwen3_vl_moe_text", "Qwen3VLMoe"),
+            ("qwen3_vl_text", "Qwen3VL"),
+        }
+    )
 
 
 def model_type_to_module_name(key):

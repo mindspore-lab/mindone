@@ -36,6 +36,7 @@ from ...cache_utils import Cache, DynamicCache, StaticCache
 from ...generation import GenerationMixin
 from ...mindspore_adapter import dtype_to_min
 from ...modeling_attn_mask_utils import AttentionMaskConverter
+from ...modeling_flash_attention_utils import is_flash_attn_available
 from ...modeling_outputs import (
     BaseModelOutputWithPast,
     BaseModelOutputWithPastAndCrossAttentions,
@@ -45,9 +46,9 @@ from ...modeling_outputs import (
     SequenceClassifierOutputWithPast,
     TokenClassifierOutput,
 )
-from ...modeling_utils import PreTrainedModel, is_flash_attn_2_available
+from ...modeling_utils import PreTrainedModel
 
-if is_flash_attn_2_available():
+if is_flash_attn_available():
     from ...integrations.flash_attention import flash_attention_forward
 
 

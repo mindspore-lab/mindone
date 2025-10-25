@@ -27,8 +27,9 @@ from transformers.tokenization_utils_base import AudioInput, BatchEncoding, PreT
 
 import mindspore as ms
 
-from ...image_utils import ImageInput, VideoInput
+from ...image_utils import ImageInput
 from ...processing_utils import ImagesKwargs, ProcessingKwargs, ProcessorMixin
+from ...video_utils import VideoInput
 
 
 class SamImagesKwargs(ImagesKwargs):

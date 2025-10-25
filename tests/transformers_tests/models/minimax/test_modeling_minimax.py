@@ -18,6 +18,7 @@ import numpy as np
 import pytest
 import transformers
 from torch import inference_mode, load
+from transformers.testing_utils import slow
 
 import mindspore as ms
 
@@ -99,6 +100,7 @@ if transformers.__version__ >= "4.53.0":
 
     @pytest.mark.parametrize("attn_impl", [None, "flash_attention_2"], ids=["default (sdpa)", "flash_attention_2"])
     @pytest.mark.skipif(transformers.__version__ < "4.53.0", reason="need to set specific transformers version")
+    @slow
     def test_minimax_forward(attn_impl: Union[str, None]):
         model = MiniMaxForCausalLM.from_pretrained(
             "hf-internal-testing/MiniMax-tiny", attn_implementation=attn_impl, mindspore_dtype=ms.float16
