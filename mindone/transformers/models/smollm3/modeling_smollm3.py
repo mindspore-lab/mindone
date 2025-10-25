@@ -20,11 +20,12 @@
 # limitations under the License.
 
 from typing import Callable, Optional, Union
+
 from transformers.models.smollm3.configuration_smollm3 import SmolLM3Config
 from transformers.utils.deprecation import deprecate_kwarg
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import mint, nn
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
@@ -43,7 +44,6 @@ from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
 from ...utils import TransformersKwargs, can_return_tuple
 from ...utils.generic import check_model_inputs
-
 
 
 def rotate_half(x):
@@ -373,9 +373,7 @@ class SmolLM3Model(SmolLM3PreTrainedModel):
 
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-            cache_position = mint.arange(
-                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1]
-            )
+            cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)

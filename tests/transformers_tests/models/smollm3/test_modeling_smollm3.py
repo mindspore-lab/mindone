@@ -13,10 +13,12 @@
 # limitations under the License.
 """Testing suite for the MindSpore SmolLM3 model."""
 import inspect
+
 import numpy as np
 import pytest
 import torch
 import transformers
+
 import mindspore as ms
 
 from tests.modeling_test_utils import (
@@ -38,7 +40,7 @@ if transformers.__version__ >= "4.54.1":
     class SmolLM3ModelTester:
         def __init__(
             self,
-            batch_size = 5,
+            batch_size=5,
             seq_length=20,
         ):
             self.batch_size = batch_size
@@ -52,7 +54,7 @@ if transformers.__version__ >= "4.54.1":
             vocab_size = config.vocab_size
             input_ids = ids_numpy([self.batch_size, self.seq_length], vocab_size)
             attention_mask = np.tril(np.ones_like(input_ids))
-            
+
             return config, input_ids, attention_mask
 
     model_tester = SmolLM3ModelTester()
