@@ -148,6 +148,7 @@ _import_structure = {
     "ltx": ["LTXPipeline", "LTXImageToVideoPipeline", "LTXConditionPipeline", "LTXLatentUpsamplePipeline"],
     "lumina": ["LuminaPipeline", "LuminaText2ImgPipeline"],
     "lumina2": ["Lumina2Pipeline", "Lumina2Text2ImgPipeline"],
+    "lucy": ["LucyEditPipeline"],
     "marigold": [
         "MarigoldDepthPipeline",
         "MarigoldIntrinsicsPipeline",
@@ -393,6 +394,7 @@ if TYPE_CHECKING:
         LEditsPPPipelineStableDiffusionXL,
     )
     from .ltx import LTXConditionPipeline, LTXImageToVideoPipeline, LTXLatentUpsamplePipeline, LTXPipeline
+    from .lucy import LucyEditPipeline
     from .lumina import LuminaPipeline, LuminaText2ImgPipeline
     from .lumina2 import Lumina2Pipeline, Lumina2Text2ImgPipeline
     from .marigold import MarigoldDepthPipeline, MarigoldIntrinsicsPipeline, MarigoldNormalsPipeline
