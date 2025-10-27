@@ -325,7 +325,9 @@ class BaseVideoProcessor(BaseImageProcessorFast):
         # torch resize uses interpolation instead of resample
         resample = kwargs.pop("resample")
         kwargs["interpolation"] = (
-            pil_mindspore_interpolation_mapping[resample] if isinstance(resample, (PILImageResampling, int)) else resample
+            pil_mindspore_interpolation_mapping[resample]
+            if isinstance(resample, (PILImageResampling, int))
+            else resample
         )
 
         # Pop kwargs that are not needed in _preprocess

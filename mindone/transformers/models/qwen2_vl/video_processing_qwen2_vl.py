@@ -24,33 +24,16 @@ from typing import Optional, Union
 
 from transformers import add_start_docstrings
 
-from ...image_processing_utils import (
-    BatchFeature,
-)
-from ...image_utils import (
-    OPENAI_CLIP_MEAN,
-    OPENAI_CLIP_STD,
-    ChannelDimension,
-    SizeDict,
-    get_image_size,
-)
+from ...image_processing_utils import BatchFeature
+from ...image_utils import OPENAI_CLIP_MEAN, OPENAI_CLIP_STD, ChannelDimension, SizeDict, get_image_size
 from ...processing_utils import Unpack, VideosKwargs
-from ...utils import (
-    TensorType,
-    is_vision_available,
-    is_mindspore_available,
-)
-from ...video_processing_utils import (
-    BASE_VIDEO_PROCESSOR_DOCSTRING,
-    BaseVideoProcessor,
-)
+from ...utils import TensorType, is_mindspore_available, is_vision_available
+from ...video_processing_utils import BASE_VIDEO_PROCESSOR_DOCSTRING, BaseVideoProcessor
 from ...video_utils import VideoMetadata, group_videos_by_shape, reorder_videos
-
 
 if is_vision_available():
     from ...image_utils import PILImageResampling
     from .image_processing_qwen2_vl import smart_resize
-    
 
 
 if is_mindspore_available():
@@ -256,12 +239,16 @@ class Qwen2VLVideoProcessor(BaseVideoProcessor):
                     min_pixels=min_pixels,
                     max_pixels=max_pixels,
                 )
-                stacked_videos = self.resize(
-                    image=stacked_videos,
-                    size=SizeDict(height=resized_height, width=resized_width),
-                    interpolation=interpolation,
-                )
-            resized_videos_grouped[shape] = stacked_videos
+                stacked_videos_updated = []
+                for i in range(len(stacked_videos)):
+                    stacked_videos_updated.append(
+                        self.resize(
+                            image=stacked_videos[i],
+                            size=SizeDict(height=resized_height, width=resized_width),
+                            interpolation=interpolation,
+                        )
+                    )
+            resized_videos_grouped[shape] = stacked_videos_updated
         resized_videos = reorder_videos(resized_videos_grouped, grouped_videos_index)
 
         # Group videos by size for further processing
@@ -287,6 +274,9 @@ class Qwen2VLVideoProcessor(BaseVideoProcessor):
             grid_t = grid_t // temporal_patch_size
             grid_h, grid_w = resized_height // patch_size, resized_width // patch_size
 
+            # TODO mindspore tensor shape do not support >8 dimensions operation
+            patches = patches.asnumpy()
+
             patches = patches.view(
                 batch_size,
                 grid_t,
@@ -305,6 +295,7 @@ class Qwen2VLVideoProcessor(BaseVideoProcessor):
                 grid_t * grid_h * grid_w,
                 channel * temporal_patch_size * patch_size * patch_size,
             )
+            flatten_patches = ms.tensor(flatten_patches)
 
             processed_videos_grouped[shape] = flatten_patches
             processed_grids[shape] = [[grid_t, grid_h, grid_w]] * batch_size

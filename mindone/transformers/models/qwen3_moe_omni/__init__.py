@@ -14,14 +14,5 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import TYPE_CHECKING
-
-from .feature_extraction_whisper import WhisperFeatureExtractor
-from .modeling_whisper import (
-    WhisperForAudioClassification,
-    WhisperForCausalLM,
-    WhisperForConditionalGeneration,
-    WhisperModel,
-    WhisperPreTrainedModel,
-)
-from .processing_whisper import WhisperProcessor
+from .processing_qwen3_omni_moe import Qwen3OmniMoeProcessor
+from .modeling_qwen3_omni_moe import Qwen3OmniMoeAudioEncoder

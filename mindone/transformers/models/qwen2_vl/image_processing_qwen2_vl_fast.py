@@ -30,23 +30,11 @@ from ...image_processing_utils_fast import (
     group_images_by_shape,
     reorder_images,
 )
-from ...image_utils import (
-    OPENAI_CLIP_MEAN,
-    OPENAI_CLIP_STD,
-    ChannelDimension,
-    ImageInput,
-    PILImageResampling,
-    SizeDict,
-)
+from ...image_utils import OPENAI_CLIP_MEAN, OPENAI_CLIP_STD, ChannelDimension, ImageInput, PILImageResampling, SizeDict
 from ...processing_utils import Unpack
-from ...utils import (
-    TensorType,
-    is_mindspore_available,
-    logging,
-)
+from ...utils import TensorType, is_mindspore_available, logging
 from ...video_utils import VideoInput, make_batched_videos
 from .image_processing_qwen2_vl import smart_resize
-
 
 if is_mindspore_available():
     import mindspore as ms
@@ -149,7 +137,6 @@ class Qwen2VLImageProcessorFast(BaseImageProcessorFast):
         videos: VideoInput,
         do_convert_rgb: bool,
         input_data_format: ChannelDimension,
-        device: Optional[Union[str, "torch.device"]] = None,
         **kwargs: Unpack[DefaultFastImageProcessorKwargs],
     ) -> BatchFeature:
         """
@@ -173,7 +160,7 @@ class Qwen2VLImageProcessorFast(BaseImageProcessorFast):
             # Can't change _prepare_images_structure to work with videos because it also needs to work with images.
             videos = make_batched_videos(videos)
             videos = [
-                mint.stack(self._prepare_image_like_inputs(video, do_convert_rgb, input_data_format, device))
+                mint.stack(self._prepare_image_like_inputs(video, do_convert_rgb, input_data_format))
                 for video in videos
             ]
             video_outputs = self._preprocess(videos, **kwargs)
@@ -212,12 +199,20 @@ class Qwen2VLImageProcessorFast(BaseImageProcessorFast):
                     min_pixels=size["shortest_edge"],
                     max_pixels=size["longest_edge"],
                 )
-                stacked_images = self.resize(
-                    image=stacked_images,
-                    size=SizeDict(height=resized_height, width=resized_width),
-                    interpolation=interpolation,
-                )
-            resized_images_grouped[shape] = stacked_images
+                # TODO mindspore.dataset.vision.Resize could only support (H, W, 3) format,
+                #  batch_size stacked image should be computed in one iteration
+                # batch_size, channels = stacked_images.shape[0], stacked_images.shape[1]
+                # stacked_images_updated = mint.zeros((batch_size, channels, resized_height, resized_width), dtype=stacked_images.dtype)
+                stacked_images_updated = []
+                for i in range(len(stacked_images)):
+                    stacked_images_updated.append(
+                        self.resize(
+                            image=stacked_images[i],
+                            size=SizeDict(height=resized_height, width=resized_width),
+                            interpolation=interpolation,
+                        )
+                    )
+            resized_images_grouped[shape] = stacked_images_updated
         resized_images = reorder_images(resized_images_grouped, grouped_images_index)
 
         # Group images by size for further processing
@@ -241,7 +236,10 @@ class Qwen2VLImageProcessorFast(BaseImageProcessorFast):
             grid_t = grid_t // temporal_patch_size
             grid_h, grid_w = resized_height // patch_size, resized_width // patch_size
 
-            patches = patches.view(
+            # TODO mindspore tensor shape do not support >8 dimensions operation
+            patches = patches.asnumpy()
+
+            patches = patches.reshape(
                 batch_size,
                 grid_t,
                 temporal_patch_size,
@@ -255,12 +253,13 @@ class Qwen2VLImageProcessorFast(BaseImageProcessorFast):
             )
             # Reorder dimensions to group grid and patch information for subsequent flattening.
             # (batch, grid_t, grid_h, grid_w, merge_h, merge_w, channel, temp_patch_size, patch_h, patch_w)
-            patches = patches.permute(0, 1, 4, 7, 5, 8, 3, 2, 6, 9)
+            patches = patches.transpose(0, 1, 4, 7, 5, 8, 3, 2, 6, 9)
             flatten_patches = patches.reshape(
                 batch_size,
                 grid_t * grid_h * grid_w,
                 channel * temporal_patch_size * patch_size * patch_size,
             )
+            flatten_patches = ms.tensor(flatten_patches)
 
             processed_images_grouped[shape] = flatten_patches
             processed_grids[shape] = [[grid_t, grid_h, grid_w]] * batch_size
