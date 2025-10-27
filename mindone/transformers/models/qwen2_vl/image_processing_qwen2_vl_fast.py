@@ -187,7 +187,7 @@ class Qwen2VLImageProcessorFast(BaseImageProcessorFast):
         images: list["ms.Tensor"],
         do_resize: bool,
         size: SizeDict,
-        interpolation: Optional["F.InterpolationMode"],
+        interpolation: Optional,
         do_rescale: bool,
         rescale_factor: float,
         do_normalize: bool,
@@ -196,7 +196,6 @@ class Qwen2VLImageProcessorFast(BaseImageProcessorFast):
         patch_size: int,
         temporal_patch_size: int,
         merge_size: int,
-        disable_grouping: Optional[bool],
         return_tensors: Optional[Union[str, TensorType]],
         **kwargs,
     ):
