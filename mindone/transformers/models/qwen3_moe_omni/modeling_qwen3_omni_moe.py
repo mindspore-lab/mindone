@@ -37,7 +37,7 @@ from ...modeling_outputs import (
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...mindspore_adapter import dtype_to_max, dtype_to_min
 from transformers.utils import auto_docstring
-from transformers.models.qwen3_moe_omni.configuration_qwen3_omni_moe import (
+from transformers.models.qwen3_omni_moe.configuration_qwen3_omni_moe import (
     Qwen3OmniMoeAudioEncoderConfig,
     Qwen3OmniMoeCode2WavConfig,
     Qwen3OmniMoeConfig,
