@@ -93,6 +93,7 @@ class MyArguments(MindSporeArguments, TrainingArguments):
     )  # no use
     resume: Union[bool, str] = field(default=False, metadata={"help": "Resume training from a checkpoint."})
     save_strategy: str = field(default="no", metadata={"help": "Save strategy, no, steps or epoch"})
+    seed: int = field(default=42)
 
 
 @dataclass
@@ -135,12 +136,20 @@ def main():
 
     # 1.2 the dataset
     dataset = load_dataset("parquet", data_dir=args.dataset_path, split="train")
-    dataset = dataset.shuffle(seed=42)
-    train_indices = list(range(666))
-    eval_indices = list(range(666, 833))
+    dataset = dataset.shuffle(seed=args.seed)
+
+    total_size = len(dataset)
+    train_size = int(total_size * 0.8)
+
+    train_indices = list(range(train_size))
+    eval_indices = list(range(train_size, total_size))
 
     def process_function(examples):
-        image = Image.open(io.BytesIO(examples["image"]["bytes"])).convert("RGB").resize((512, 512))
+        image = (
+            Image.open(io.BytesIO(examples["image"]["bytes"]))
+            .convert("RGB")
+            .resize((data_args.width, data_args.height))
+        )
         txt = examples["text"]
 
         # prepare the inputs
@@ -154,7 +163,7 @@ def main():
             height=height,
             width=width,
             dtype=encoder_hidden_states.dtype,
-            generator=np.random.Generator(np.random.PCG64(seed=42)),
+            generator=np.random.Generator(np.random.PCG64(seed=args.seed)),
             latents=None,
         )
 
@@ -353,7 +362,7 @@ def main():
                 height=data_args.height,
                 num_inference_steps=8,
                 true_cfg_scale=1.0,
-                generator=np.random.Generator(np.random.PCG64(seed=42)),
+                generator=np.random.Generator(np.random.PCG64(seed=args.seed)),
             )[0][0]
             return image
 
@@ -488,7 +497,7 @@ class TrainStepForQwenImage(nn.Cell):
                 encoder_hidden_states=encoder_hidden_states,
                 encoder_hidden_states_mask=encoder_hidden_states_mask,
                 timestep=timestep / 1000,
-                img_shapes=[(1, 32, 32)],
+                img_shapes=[(1, self.args.height // 16, self.args.width // 16)],
                 txt_seq_lens=txt_seq_lens,
                 return_dict=False,
             )[0]
