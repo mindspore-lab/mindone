@@ -1120,8 +1120,10 @@ from .models.qwen2_moe import (
 from .models.qwen2_vl import (
     Qwen2VLForConditionalGeneration,
     Qwen2VLImageProcessor,
+    Qwen2VLImageProcessorFast,
     Qwen2VLModel,
     Qwen2VLPreTrainedModel,
+    Qwen2VLVideoProcessor,
 )
 from .models.rag import RagModel, RagPreTrainedModel, RagSequenceForGeneration, RagTokenForGeneration
 from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
