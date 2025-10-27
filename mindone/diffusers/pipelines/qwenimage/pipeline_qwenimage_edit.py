@@ -563,11 +563,6 @@ class QwenImageEditPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                 enabled by setting `true_cfg_scale > 1` and a provided `negative_prompt`. Higher guidance scale
                 encourages to generate images that are closely linked to the text `prompt`, usually at the expense of
                 lower image quality.
-
-                This parameter in the pipeline is there to support future guidance-distilled models when they come up.
-                Note that passing `guidance_scale` to the pipeline is ineffective. To enable classifier-free guidance,
-                please pass `true_cfg_scale` and `negative_prompt` (even an empty negative prompt like " ") should
-                enable classifier-free guidance computations.
             height (`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor):
                 The height in pixels of the generated image. This is set to 1024 by default for the best results.
             width (`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor):
