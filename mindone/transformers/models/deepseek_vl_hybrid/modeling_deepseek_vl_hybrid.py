@@ -18,40 +18,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import mindspore
-from mindspore import mint, nn
-from dataclasses import dataclass
 from typing import Optional, Union
+
+from transformers import DeepseekVLHybridConfig
+
+import mindspore
+from mindspore import mint
 
 from ...cache_utils import Cache
 from ...generation import GenerationMixin
 from ...modeling_outputs import ModelOutput
 from ...modeling_utils import PreTrainedModel
 from ...processing_utils import Unpack
-from ...utils import (
-    TransformersKwargs,
-    auto_docstring,
-    can_return_tuple,
-)
+from ...utils import TransformersKwargs
 from ..auto import AutoModel
-from .configuration_deepseek_vl_hybrid import DeepseekVLHybridConfig
 
 
-@dataclass
-@auto_docstring(
-    custom_intro="""
-    Base class for DeepseekVLHybrid model's outputs that may also contain a past key/values (to speed up sequential decoding).
-    """
-)
 class DeepseekVLHybridBaseModelOutputWithPast(ModelOutput):
     r"""
-    last_hidden_state (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`):
+    last_hidden_state (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
         Sequence of hidden-states at the output of the last layer of the model.
 
         If `past_key_values` is used only the last hidden-state of the sequences of shape `(batch_size, 1,
         hidden_size)` is output.
     past_key_values (`Cache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-        Tuple of `tuple(torch.FloatTensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
+        Tuple of `tuple(mindspore.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
         `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and optionally if
         `config.is_encoder_decoder=True` 2 additional tensors of shape `(batch_size, num_heads,
         encoder_sequence_length, embed_size_per_head)`.
@@ -59,54 +50,48 @@ class DeepseekVLHybridBaseModelOutputWithPast(ModelOutput):
         Contains pre-computed hidden-states (key and values in the self-attention blocks and optionally if
         `config.is_encoder_decoder=True` in the cross-attention blocks) that can be used (see `past_key_values`
         input) to speed up sequential decoding.
-    image_hidden_states (`tuple(torch.FloatTensor)`, *optional*):
-        Tuple of `torch.FloatTensor` (one for the output of the image embeddings, `(batch_size, num_images,
+    image_hidden_states (`tuple(mindspore.Tensor)`, *optional*):
+        Tuple of `mindspore.Tensor` (one for the output of the image embeddings, `(batch_size, num_images,
         sequence_length, hidden_size)`.
 
         image_hidden_states of the model produced by the vision encoder, and optionally by the perceiver
     """
 
-    last_hidden_state: Optional[ms.Tensor] = None
-    past_key_values: Optional[tuple[tuple[ms.Tensor]]] = None
-    hidden_states: Optional[tuple[ms.Tensor]] = None
-    attentions: Optional[tuple[ms.Tensor]] = None
-    image_hidden_states: Optional[tuple[ms.Tensor]] = None
+    last_hidden_state: Optional[mindspore.Tensor] = None
+    past_key_values: Optional[tuple[tuple[mindspore.Tensor]]] = None
+    hidden_states: Optional[tuple[mindspore.Tensor]] = None
+    attentions: Optional[tuple[mindspore.Tensor]] = None
+    image_hidden_states: Optional[tuple[mindspore.Tensor]] = None
 
 
-@dataclass
-@auto_docstring(
-    custom_intro="""
-    Base class for DeepseekVLHybrid causal language model (or autoregressive) outputs.
-    """
-)
 class DeepseekVLHybridCausalLMOutputWithPast(ModelOutput):
     r"""
-    loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
+    loss (`mindspore.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
         Language modeling loss (for next-token prediction).
-    logits (`torch.FloatTensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
+    logits (`mindspore.Tensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
         Prediction scores of the language modeling head (scores for each vocabulary token before SoftMax).
     past_key_values (`Cache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-        Tuple of `tuple(torch.FloatTensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
+        Tuple of `tuple(mindspore.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
         `(batch_size, num_heads, sequence_length, embed_size_per_head)`)
 
         Contains pre-computed hidden-states (key and values in the self-attention blocks) that can be used (see
         `past_key_values` input) to speed up sequential decoding.
-    image_hidden_states (`tuple(torch.FloatTensor)`, *optional*):
-        Tuple of `torch.FloatTensor` (one for the output of the image embeddings, `(batch_size, num_images,
+    image_hidden_states (`tuple(mindspore.Tensor)`, *optional*):
+        Tuple of `mindspore.Tensor` (one for the output of the image embeddings, `(batch_size, num_images,
         sequence_length, hidden_size)`.
 
         image_hidden_states of the model produced by the vision encoder, and optionally by the perceiver
     """
 
-    loss: Optional[ms.Tensor] = None
-    logits: Optional[ms.Tensor] = None
-    past_key_values: Optional[list[ms.Tensor]] = None
-    hidden_states: Optional[tuple[ms.Tensor]] = None
-    attentions: Optional[tuple[ms.Tensor]] = None
-    image_hidden_states: Optional[tuple[ms.Tensor]] = None
+    loss: Optional[mindspore.Tensor] = None
+    logits: Optional[mindspore.Tensor] = None
+    past_key_values: Optional[list[mindspore.Tensor]] = None
+    hidden_states: Optional[tuple[mindspore.Tensor]] = None
+    attentions: Optional[tuple[mindspore.Tensor]] = None
+    image_hidden_states: Optional[tuple[mindspore.Tensor]] = None
 
 
-class DeepseekVLHybridLayerNorm(ms.nn.Cell):
+class DeepseekVLHybridLayerNorm(mindspore.nn.Cell):
     r"""LayerNorm that supports two data formats: channels_last (default) or channels_first.
     The ordering of the dimensions in the inputs. channels_last corresponds to inputs with shape (batch_size, height,
     width, channels) while channels_first corresponds to inputs with shape (batch_size, channels, height, width).
@@ -114,15 +99,15 @@ class DeepseekVLHybridLayerNorm(ms.nn.Cell):
 
     def __init__(self, normalized_shape, eps=1e-6, data_format="channels_last"):
         super().__init__()
-        self.weight = ms.Parameter(mint.ones(normalized_shape))
-        self.bias = ms.Parameter(mint.zeros(normalized_shape))
+        self.weight = mindspore.Parameter(mint.ones(normalized_shape))
+        self.bias = mindspore.Parameter(mint.zeros(normalized_shape))
         self.eps = eps
         self.data_format = data_format
         if self.data_format not in ["channels_last", "channels_first"]:
             raise NotImplementedError(f"Unsupported data format: {self.data_format}")
         self.normalized_shape = (normalized_shape,)
 
-    def construct(self, x: ms.Tensor) -> ms.Tensor:
+    def construct(self, x: mindspore.Tensor) -> mindspore.Tensor:
         if self.data_format == "channels_last":
             x = mint.nn.functional.layer_norm(x, self.normalized_shape, self.weight, self.bias, self.eps)
         elif self.data_format == "channels_first":
@@ -136,14 +121,16 @@ class DeepseekVLHybridLayerNorm(ms.nn.Cell):
         return x
 
 
-class DeepseekVLSamVisionNeck(ms.nn.Cell):
+class DeepseekVLSamVisionNeck(mindspore.nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.config = config
 
         self.conv1 = mint.nn.Conv2d(config.hidden_size, config.output_channels, kernel_size=1, bias=False)
         self.layer_norm1 = DeepseekVLHybridLayerNorm(config.output_channels, data_format="channels_first")
-        self.conv2 = mint.nn.Conv2d(config.output_channels, config.output_channels, kernel_size=3, padding=1, bias=False)
+        self.conv2 = mint.nn.Conv2d(
+            config.output_channels, config.output_channels, kernel_size=3, padding=1, bias=False
+        )
         self.layer_norm2 = DeepseekVLHybridLayerNorm(config.output_channels, data_format="channels_first")
 
     def construct(self, hidden_states):
@@ -156,7 +143,7 @@ class DeepseekVLSamVisionNeck(ms.nn.Cell):
         return hidden_states
 
 
-class DeepseekVLSamVisionProj(ms.nn.Cell):
+class DeepseekVLSamVisionProj(mindspore.nn.Cell):
     def __init__(self, config, output_size: int = 24):
         super().__init__()
         self.config = config
@@ -169,7 +156,7 @@ class DeepseekVLSamVisionProj(ms.nn.Cell):
             config.output_channels * 2, config.output_channels * 4, kernel_size=3, stride=2, padding=1, bias=False
         )
 
-    def construct(self, features: ms.Tensor) -> ms.Tensor:
+    def construct(self, features: mindspore.Tensor) -> mindspore.Tensor:
         # interpolate Sam encodings to match Siglip encodings
         features = mint.nn.functional.interpolate(
             features,
@@ -182,7 +169,7 @@ class DeepseekVLSamVisionProj(ms.nn.Cell):
         return features
 
 
-class DeepseekVLHybridAligner(ms.nn.Cell):
+class DeepseekVLHybridAligner(mindspore.nn.Cell):
     def __init__(self, config: DeepseekVLHybridConfig):
         super().__init__()
 
@@ -198,9 +185,9 @@ class DeepseekVLHybridAligner(ms.nn.Cell):
 
     def construct(
         self,
-        vision_encodings: ms.Tensor,
-        high_res_vision_encodings: ms.Tensor,
-    ) -> ms.Tensor:
+        vision_encodings: mindspore.Tensor,
+        high_res_vision_encodings: mindspore.Tensor,
+    ) -> mindspore.Tensor:
         vision_encodings = self.vision_proj(vision_encodings)
         high_res_vision_encodings = self.high_res_vision_proj(high_res_vision_encodings)
 
@@ -211,7 +198,6 @@ class DeepseekVLHybridAligner(ms.nn.Cell):
         return encodings
 
 
-@auto_docstring
 class DeepseekVLHybridPreTrainedModel(PreTrainedModel):
     config: DeepseekVLHybridConfig
     base_model_prefix = "model"
@@ -231,7 +217,7 @@ class DeepseekVLHybridPreTrainedModel(PreTrainedModel):
             if module.bias is not None:
                 module.bias.data.zero_()
         elif isinstance(module, mint.nn.Conv2d):
-            nn.init.kaiming_normal_(module.weight, mode="fan_out", nonlinearity="relu")
+            mint.nn.init.kaiming_normal_(module.weight, mode="fan_out", nonlinearity="relu")
             if module.bias is not None:
                 module.bias.data.zero_()
         elif isinstance(module, DeepseekVLHybridLayerNorm):
@@ -241,14 +227,6 @@ class DeepseekVLHybridPreTrainedModel(PreTrainedModel):
             module.high_res_vision_alpha.data.zero_()
 
 
-DEEPSEEK_VL_COMMON_CUSTOM_ARGS = r"""
-    high_res_pixel_values (`torch.FloatTensor` of shape `(batch_size, num_channels, image_size, image_size), *optional*):
-        The tensors corresponding to the input images. Pixel values can be obtained using
-        [`AutoImageProcessor`].
-"""
-
-
-@auto_docstring
 class DeepseekVLHybridModel(DeepseekVLHybridPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
@@ -257,10 +235,8 @@ class DeepseekVLHybridModel(DeepseekVLHybridPreTrainedModel):
 
         self.high_res_vision_model = AutoModel.from_config(config.high_res_vision_config)
         self.high_res_vision_neck = DeepseekVLSamVisionNeck(config.high_res_vision_config)
-        self.high_res_vision_proj = DeepseekVLSamVisionProj(
-            config.high_res_vision_config, output_size=self.output_size
-        )
-        self.high_res_vision_alpha = ms.Parameter(mint.zeros(1))
+        self.high_res_vision_proj = DeepseekVLSamVisionProj(config.high_res_vision_config, output_size=self.output_size)
+        self.high_res_vision_alpha = mindspore.Parameter(mint.zeros(1))
         self.config = config
 
         self.vision_model = AutoModel.from_config(config.vision_config)
@@ -284,20 +260,18 @@ class DeepseekVLHybridModel(DeepseekVLHybridPreTrainedModel):
         images_embeds = self.aligner(vision_encodings, high_res_vision_encodings)
         return images_embeds
 
-    @can_return_tuple
-    @auto_docstring(custom_args=DEEPSEEK_VL_COMMON_CUSTOM_ARGS)
     def construct(
         self,
-        input_ids: ms.Tensor = None,
-        pixel_values: ms.Tensor = None,
-        high_res_pixel_values: ms.Tensor = None,
-        attention_mask: Optional[ms.Tensor] = None,
-        position_ids: Optional[ms.Tensor] = None,
+        input_ids: mindspore.Tensor = None,
+        pixel_values: mindspore.Tensor = None,
+        high_res_pixel_values: mindspore.Tensor = None,
+        attention_mask: Optional[mindspore.Tensor] = None,
+        position_ids: Optional[mindspore.Tensor] = None,
         past_key_values: Optional[Cache] = None,
-        cache_position: Optional[ms.Tensor] = None,
-        inputs_embeds: Optional[ms.Tensor] = None,
+        cache_position: Optional[mindspore.Tensor] = None,
+        inputs_embeds: Optional[mindspore.Tensor] = None,
         use_cache: Optional[bool] = None,
-        logits_to_keep: Union[int, ms.Tensor] = 0,
+        logits_to_keep: Union[int, mindspore.Tensor] = 0,
         **kwargs,
     ):
         if (input_ids is None) ^ (inputs_embeds is not None):
@@ -314,7 +288,10 @@ class DeepseekVLHybridModel(DeepseekVLHybridPreTrainedModel):
         if pixel_values is not None:
             if input_ids is None:
                 image_attention_mask = inputs_embeds == self.get_input_embeddings()(
-                    ms.Tensor(self.config.image_token_id, dtype=ms.int64, )
+                    mindspore.Tensor(
+                        self.config.image_token_id,
+                        dtype=mindspore.int64,
+                    )
                 )
                 image_attention_mask = image_attention_mask.all(-1)
             else:
@@ -392,7 +369,7 @@ class DeepseekVLHybridForConditionalGeneration(DeepseekVLHybridPreTrainedModel, 
     def set_input_embeddings(self, value):
         self.model.language_model.set_input_embeddings(value)
 
-    def prepare_embeddings_for_image_generation(self) -> ms.Tensor:
+    def prepare_embeddings_for_image_generation(self) -> mindspore.Tensor:
         raise AttributeError("Not needed for DeepseekVLHybrid")
 
     def set_decoder(self, decoder):
@@ -401,25 +378,23 @@ class DeepseekVLHybridForConditionalGeneration(DeepseekVLHybridPreTrainedModel, 
     def get_decoder(self):
         return self.model
 
-    @can_return_tuple
-    @auto_docstring(custom_args=DEEPSEEK_VL_COMMON_CUSTOM_ARGS)
     def construct(
         self,
-        input_ids: ms.Tensor = None,
-        pixel_values: ms.Tensor = None,
-        high_res_pixel_values: ms.Tensor = None,
-        attention_mask: Optional[ms.Tensor] = None,
-        position_ids: Optional[ms.Tensor] = None,
+        input_ids: mindspore.Tensor = None,
+        pixel_values: mindspore.Tensor = None,
+        high_res_pixel_values: mindspore.Tensor = None,
+        attention_mask: Optional[mindspore.Tensor] = None,
+        position_ids: Optional[mindspore.Tensor] = None,
         past_key_values: Optional[Cache] = None,
-        cache_position: Optional[ms.Tensor] = None,
-        inputs_embeds: Optional[ms.Tensor] = None,
-        labels: Optional[ms.Tensor] = None,
+        cache_position: Optional[mindspore.Tensor] = None,
+        inputs_embeds: Optional[mindspore.Tensor] = None,
+        labels: Optional[mindspore.Tensor] = None,
         use_cache: Optional[bool] = None,
-        logits_to_keep: Union[int, ms.Tensor] = 0,
+        logits_to_keep: Union[int, mindspore.Tensor] = 0,
         **kwargs: Unpack[TransformersKwargs],
     ):
         r"""
-        labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+        labels (`mindspore.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,
             config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored
             (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`.
