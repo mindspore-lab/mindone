@@ -212,7 +212,6 @@ class Glm4vProcessor(ProcessorMixin):
                 text[i] = text[i].replace("<|placeholder|>", self.image_token)
 
         return_tensors = output_kwargs["text_kwargs"].pop("return_tensors", None)
-        output_kwargs["text_kwargs"].pop("videos")
         text_inputs = self.tokenizer(text, **output_kwargs["text_kwargs"])
 
         return BatchFeature(data={**text_inputs, **image_inputs, **videos_inputs}, tensor_type=return_tensors)

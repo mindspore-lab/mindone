@@ -26,7 +26,7 @@ import math
 from typing import Callable, Optional, Tuple, Union
 
 from transformers import GlmConfig
-from transformers.utils import LossKwargs, add_start_docstrings, add_start_docstrings_to_model_forward, logging
+from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging
 
 import mindspore as ms
 from mindspore import mint, nn, ops
@@ -46,6 +46,7 @@ from ...modeling_outputs import (
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
+from ...utils import TransformersKwargs
 
 
 class GlmRMSNorm(nn.Cell):
@@ -747,10 +748,6 @@ class GlmModel(GlmPreTrainedModel):
         return causal_mask
 
 
-class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
-    ...
-
-
 class GlmForCausalLM(GlmPreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
 
@@ -800,7 +797,7 @@ class GlmForCausalLM(GlmPreTrainedModel, GenerationMixin):
         return_dict: Optional[bool] = False,
         cache_position: Optional[ms.Tensor] = None,
         logits_to_keep: int = 0,
-        **kwargs: Unpack[KwargsForCausalLM],
+        **kwargs: Unpack[TransformersKwargs],
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
         Args:

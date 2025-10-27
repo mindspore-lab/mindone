@@ -12,6 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""
+Image/Text processor class for OWL-ViT
+"""
 
 import warnings
 from typing import TYPE_CHECKING, Optional, Union
@@ -19,18 +22,10 @@ from typing import TYPE_CHECKING, Optional, Union
 import numpy as np
 from transformers.tokenization_utils_base import PreTokenizedInput, TextInput
 
-from mindspore import mint
-
 from ...image_processing_utils import BatchFeature
 from ...image_utils import ImageInput
-from ...processing_utils import (
-    ImagesKwargs,
-    ProcessingKwargs,
-    ProcessorMixin,
-    Unpack,
-    _validate_images_text_input_order,
-)
-from ...utils import TensorType
+from ...processing_utils import ImagesKwargs, ProcessingKwargs, ProcessorMixin, Unpack
+from ...utils import TensorType, is_mindspore_available
 
 if TYPE_CHECKING:
     from .modeling_owlvit import OwlViTImageGuidedObjectDetectionOutput, OwlViTObjectDetectionOutput
@@ -56,7 +51,7 @@ class OwlViTProcessorKwargs(ProcessingKwargs, total=False):
 class OwlViTProcessor(ProcessorMixin):
     r"""
     Constructs an OWL-ViT processor which wraps [`OwlViTImageProcessor`] and [`CLIPTokenizer`]/[`CLIPTokenizerFast`]
-    into a single processor that interits both the image processor and tokenizer functionalities. See the
+    into a single processor that inherits both the image processor and tokenizer functionalities. See the
     [`~OwlViTProcessor.__call__`] and [`~OwlViTProcessor.decode`] for more information.
 
     Args:
@@ -69,8 +64,6 @@ class OwlViTProcessor(ProcessorMixin):
     attributes = ["image_processor", "tokenizer"]
     image_processor_class = "OwlViTImageProcessor"
     tokenizer_class = ("CLIPTokenizer", "CLIPTokenizerFast")
-    # For backward compatibility. See transformers.processing_utils.ProcessorMixin.prepare_and_validate_optional_call_args for more details.
-    optional_call_args = ["query_images"]
 
     def __init__(self, image_processor=None, tokenizer=None, **kwargs):
         feature_extractor = None
@@ -94,12 +87,6 @@ class OwlViTProcessor(ProcessorMixin):
         self,
         images: Optional[ImageInput] = None,
         text: Union[TextInput, PreTokenizedInput, list[TextInput], list[PreTokenizedInput]] = None,
-        # The following is to capture `query_images` argument that may be passed as a positional argument.
-        # See transformers.processing_utils.ProcessorMixin.prepare_and_validate_optional_call_args for more details,
-        # or this conversation for more context: https://github.com/huggingface/transformers/pull/32544#discussion_r1720208116
-        # This behavior is only needed for backward compatibility and will be removed in future versions.
-        #
-        *args,
         audio=None,
         videos=None,
         **kwargs: Unpack[OwlViTProcessorKwargs],
@@ -108,26 +95,28 @@ class OwlViTProcessor(ProcessorMixin):
         Main method to prepare for the model one or several text(s) and image(s). This method forwards the `text` and
         `kwargs` arguments to CLIPTokenizerFast's [`~CLIPTokenizerFast.__call__`] if `text` is not `None` to encode:
         the text. To prepare the image(s), this method forwards the `images` and `kwrags` arguments to
-        CLIPImageProcessor's [`~CLIPImageProcessor.__call__`] if `images` is not `None`. Please refer to the doctsring
+        CLIPImageProcessor's [`~CLIPImageProcessor.__call__`] if `images` is not `None`. Please refer to the docstring
         of the above two methods for more information.
 
         Args:
-            images (`PIL.Image.Image`, `np.ndarray`, `ms.Tensor`, `list[PIL.Image.Image]`, `list[np.ndarray]`,
-            `list[ms.Tensor]`):
-                The image or batch of images to be prepared. Each image can be a PIL image, NumPy array or MindSpore
+            images (`PIL.Image.Image`, `np.ndarray`, `torch.Tensor`, `list[PIL.Image.Image]`, `list[np.ndarray]`,
+            `list[torch.Tensor]`):
+                The image or batch of images to be prepared. Each image can be a PIL image, NumPy array or PyTorch
                 tensor. Both channels-first and channels-last formats are supported.
             text (`str`, `list[str]`, `list[list[str]]`):
                 The sequence or batch of sequences to be encoded. Each sequence can be a string or a list of strings
                 (pretokenized string). If the sequences are provided as list of strings (pretokenized), you must set
                 `is_split_into_words=True` (to lift the ambiguity with a batch of sequences).
-            query_images (`PIL.Image.Image`, `np.ndarray`, `ms.Tensor`, `list[PIL.Image.Image]`, `list[np.ndarray]`, `list[ms.Tensor]`):
+            query_images (`PIL.Image.Image`, `np.ndarray`, `torch.Tensor`, `list[PIL.Image.Image]`, `list[np.ndarray]`, `list[torch.Tensor]`):
                 The query image to be prepared, one query image is expected per target image to be queried. Each image
-                can be a PIL image, NumPy array or MindSpore tensor. In case of a NumPy array/MindSpore tensor, each image
+                can be a PIL image, NumPy array or PyTorch tensor. In case of a NumPy array/PyTorch tensor, each image
                 should be of shape (C, H, W), where C is a number of channels, H and W are image height and width.
             return_tensors (`str` or [`~utils.TensorType`], *optional*):
                 If set, will return tensors of a particular framework. Acceptable values are:
-                - `'ms'`: Return MindSpore `ms.Tensor` objects.
+                - `'tf'`: Return TensorFlow `tf.constant` objects.
+                - `'pt'`: Return PyTorch `torch.Tensor` objects.
                 - `'np'`: Return NumPy `np.ndarray` objects.
+                - `'jax'`: Return JAX `jnp.ndarray` objects.
 
         Returns:
             [`BatchFeature`]: A [`BatchFeature`] with the following fields:
@@ -142,15 +131,12 @@ class OwlViTProcessor(ProcessorMixin):
             OwlViTProcessorKwargs,
             tokenizer_init_kwargs=self.tokenizer.init_kwargs,
             **kwargs,
-            **self.prepare_and_validate_optional_call_args(*args),
         )
         query_images = output_kwargs["images_kwargs"].pop("query_images", None)
         return_tensors = output_kwargs["common_kwargs"]["return_tensors"]
 
         if text is None and query_images is None and images is None:
             raise ValueError("You have to specify at least one text or query image or image. All three cannot be none.")
-        # check if images and text inputs are reversed for BC
-        images, text = _validate_images_text_input_order(images, text)
 
         data = {}
         if text is not None:
@@ -177,7 +163,9 @@ class OwlViTProcessor(ProcessorMixin):
                 input_ids = np.concatenate([encoding["input_ids"] for encoding in encodings], axis=0)
                 attention_mask = np.concatenate([encoding["attention_mask"] for encoding in encodings], axis=0)
 
-            elif return_tensors == "ms":
+            elif return_tensors == "ms" and is_mindspore_available():
+                from mindspore import mint
+
                 input_ids = mint.cat([encoding["input_ids"] for encoding in encodings], dim=0)
                 attention_mask = mint.cat([encoding["attention_mask"] for encoding in encodings], dim=0)
 
@@ -233,11 +221,11 @@ class OwlViTProcessor(ProcessorMixin):
                 Raw outputs of the model.
             threshold (`float`, *optional*, defaults to 0.1):
                 Score threshold to keep object detection predictions.
-            target_sizes (`ms.Tensor` or `list[tuple[int, int]]`, *optional*):
+            target_sizes (`torch.Tensor` or `list[tuple[int, int]]`, *optional*):
                 Tensor of shape `(batch_size, 2)` or list of tuples (`tuple[int, int]`) containing the target size
                 `(height, width)` of each image in the batch. If unset, predictions will not be resized.
             text_labels (`list[list[str]]`, *optional*):
-                list of lists of text labels for each image in the batch. If unset, "text_labels" in output will be
+                List of lists of text labels for each image in the batch. If unset, "text_labels" in output will be
                 set to `None`.
 
         Returns:
@@ -283,7 +271,7 @@ class OwlViTProcessor(ProcessorMixin):
                 Minimum confidence threshold to use to filter out predicted boxes.
             nms_threshold (`float`, *optional*, defaults to 0.3):
                 IoU threshold for non-maximum suppression of overlapping boxes.
-            target_sizes (`ms.Tensor`, *optional*):
+            target_sizes (`torch.Tensor`, *optional*):
                 Tensor of shape (batch_size, 2) where each entry is the (height, width) of the corresponding image in
                 the batch. If set, predicted normalized bounding boxes are rescaled to the target sizes. If left to
                 None, predictions will not be unnormalized.

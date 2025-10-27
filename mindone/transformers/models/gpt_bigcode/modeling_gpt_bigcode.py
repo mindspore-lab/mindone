@@ -1,5 +1,9 @@
 # coding=utf-8
 # Copyright 2023 The Bigcode team and HuggingFace Inc. team.
+#
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,21 +15,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""PyTorch GPTBigCode model."""
+"""MindSpore GPTBigCode model."""
 
 import math
-from typing import List, Optional, Tuple, Union
+from typing import Callable, Optional, Union
 
 from transformers.models.gpt_bigcode.configuration_gpt_bigcode import GPTBigCodeConfig
+from transformers.utils import auto_docstring
 
 import mindspore as ms
-from mindspore import Parameter, mint, nn
-from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+from mindspore import mint, nn
+from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
+from ...cache_utils import Cache, EncoderDecoderCache
 from ...generation import GenerationMixin
-from ...mindspore_adapter import dtype_to_min, scaled_dot_product_attention
-from ...modeling_attn_mask_utils import AttentionMaskConverter
+from ...masking_utils import create_causal_mask
 from ...modeling_flash_attention_utils import is_flash_attn_available
 from ...modeling_outputs import (
     BaseModelOutputWithPastAndCrossAttentions,
@@ -33,11 +38,11 @@ from ...modeling_outputs import (
     SequenceClassifierOutputWithPast,
     TokenClassifierOutput,
 )
-from ...modeling_utils import PreTrainedModel
-from ...utils import logging
+from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
+from ...utils import can_return_tuple, logging
 
 if is_flash_attn_available():
-    from mindspore.ops.operations.nn_ops import FlashAttentionScore as MSFlashAttention
+    pass
 
 
 logger = logging.get_logger(__name__)
@@ -47,25 +52,68 @@ logger = logging.get_logger(__name__)
 # Use separate functions for each case because conditionals prevent kernel fusion.
 # TODO: Could have better fused kernels depending on scaling, dropout and head mask.
 #  Is it doable without writing 32 functions?
-def upcast_masked_softmax(x: ms.Tensor, mask: ms.Tensor, mask_value: ms.Tensor, scale: float, softmax_dtype: ms.dtype):
+def upcast_masked_softmax(x: ms.Tensor, mask: ms.Tensor, mask_value: ms.Tensor, scale: float, softmax_dtype: ms.Type):
     input_dtype = x.dtype
     x = x.to(softmax_dtype) * scale
-    x = mint.where(mask.to(ms.bool_), x, mask_value)
-    x = mint.functional.softmax(x, dim=-1).to(input_dtype)
+    x = mint.where(mask, x, mask_value)
+    x = mint.nn.functional.softmax(x, dim=-1).to(input_dtype)
     return x
 
 
-def upcast_softmax(x: ms.Tensor, scale: float, softmax_dtype: ms.dtype):
+def upcast_softmax(x: ms.Tensor, scale: float, softmax_dtype: ms.Type):
     input_dtype = x.dtype
     x = x.to(softmax_dtype) * scale
-    x = mint.functional.softmax(x, dim=-1).to(input_dtype)
+    x = mint.nn.functional.softmax(x, dim=-1).to(input_dtype)
     return x
 
 
 def masked_softmax(x: ms.Tensor, mask: ms.Tensor, mask_value: ms.Tensor):
-    x = mint.where(mask.to(ms.bool_), x, mask_value)
-    x = mint.functional.softmax(x, dim=-1)
+    x = mint.where(mask, x, mask_value)
+    x = mint.nn.functional.softmax(x, dim=-1)
     return x
+
+
+def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
+    """
+    This is the equivalent of torch.repeat_interleave(x, dim=1, repeats=n_rep). The hidden states go from (batch,
+    num_key_value_heads, seqlen, head_dim) to (batch, num_attention_heads, seqlen, head_dim)
+    """
+    batch, num_key_value_heads, slen, head_dim = hidden_states.shape
+    if n_rep == 1:
+        return hidden_states
+    hidden_states = hidden_states[:, :, None, :, :].expand((batch, num_key_value_heads, n_rep, slen, head_dim))
+    return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
+
+
+def eager_attention_forward(
+    module: nn.Cell,
+    query: ms.Tensor,
+    key: ms.Tensor,
+    value: ms.Tensor,
+    attention_mask: Optional[ms.Tensor],
+    scaling: float,
+    dropout: float = 0.0,
+    head_mask: Optional[ms.Tensor] = None,
+    **kwargs,
+):
+    key_states = repeat_kv(key, module.num_key_value_groups)
+    value_states = repeat_kv(value, module.num_key_value_groups)
+
+    attn_weights = mint.matmul(query, key_states.transpose(2, 3)) * scaling
+    if attention_mask is not None:
+        causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
+        attn_weights = attn_weights + causal_mask
+
+    attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query.dtype)
+    attn_weights = mint.nn.functional.dropout(attn_weights, p=dropout, training=module.training)
+
+    if head_mask is not None:
+        attn_weights = attn_weights * head_mask.view(1, -1, 1, 1)
+
+    attn_output = mint.matmul(attn_weights, value_states)
+    attn_output = attn_output.transpose(1, 2).contiguous()
+
+    return attn_output, attn_weights
 
 
 class GPTBigCodeAttention(nn.Cell):
@@ -80,6 +128,7 @@ class GPTBigCodeAttention(nn.Cell):
         self.head_dim = self.embed_dim // self.num_heads
         self.kv_heads = 1 if self.multi_query else self.num_heads
         self.kv_dim = self.kv_heads * self.head_dim
+        self.num_key_value_groups = self.num_heads // self.kv_heads
         self.split_size = self.embed_dim
         self.is_causal = True
 
@@ -90,6 +139,7 @@ class GPTBigCodeAttention(nn.Cell):
             )
 
         self.scale_attn_weights = config.scale_attn_weights
+        self.scaling = self.head_dim**0.5 if config.scale_attn_weights else 1.0
         self.is_cross_attention = is_cross_attention
 
         self.layer_idx = layer_idx
@@ -110,366 +160,90 @@ class GPTBigCodeAttention(nn.Cell):
 
         self.c_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
 
-        self.attn_dropout = mint.nn.Dropout(config.attn_pdrop)
-        self.resid_dropout = mint.nn.Dropout(config.resid_pdrop)
-
-    def _get_mask_value(self, dtype):
-        # mint.where expects a tensor. We use a cache to avoid recreating it every time.
-        if self.mask_value is None or self.mask_value.dtype != dtype:
-            self.mask_value = mint.full([], dtype_to_min(dtype).item(), dtype=dtype)
-        return self.mask_value
-
-    def _attn(self, query, key, value, attention_mask=None, head_mask=None):
-        dtype = query.dtype
-        softmax_dtype = ms.float32 if self.attention_softmax_in_fp32 else dtype
-        upcast = dtype != softmax_dtype
-
-        unscale = self.layer_idx + 1 if self.scale_attention_softmax_in_fp32 and upcast else 1
-        scale_factor = unscale**-1
-        if self.scale_attn_weights:
-            scale_factor /= self.head_dim**0.5
-
-        # MQA models: (batch_size, query_length, num_heads * head_dim)
-        # MHA models: (batch_size, num_heads, query_length, head_dim)
-        query_shape = query.shape
-        batch_size = query_shape[0]
-        key_length = key.shape[-1]
-        if self.multi_query:
-            # (batch_size, query_length, num_heads, head_dim) x (batch_size, head_dim, key_length)
-            # -> (batch_size, query_length, num_heads, key_length)
-            query_length = query_shape[1]
-            attn_shape = (batch_size, query_length, self.num_heads, key_length)
-            attn_view = (batch_size, query_length * self.num_heads, key_length)
-            # No copy needed for MQA 2, or when layer_past is provided.
-            query = query.reshape(batch_size, query_length * self.num_heads, self.head_dim)
-        else:
-            # (batch_size, num_heads, query_length, head_dim) x (batch_size, num_heads, head_dim, key_length)
-            # -> (batch_size, num_heads, query_length, key_length)
-            query_length = query_shape[2]
-            attn_shape = (batch_size, self.num_heads, query_length, key_length)
-            attn_view = (batch_size * self.num_heads, query_length, key_length)
-            # Always copies
-            query = query.reshape(batch_size * self.num_heads, query_length, self.head_dim)
-            # No copy when layer_past is provided.
-            key = key.reshape(batch_size * self.num_heads, self.head_dim, key_length)
-
-        attn_weights = mint.empty(attn_view, dtype=query.dtype)
-        beta = 0
-        attn_weights = mint.baddbmm(attn_weights, query, key, beta=beta, alpha=scale_factor).view(attn_shape)
-
-        if upcast:
-            # Use a fused kernel to prevent a large overhead from casting and scaling.
-            # Sub-optimal when the key length is not a multiple of 8.
-            if attention_mask is None:
-                attn_weights = upcast_softmax(attn_weights, unscale, softmax_dtype)
-            else:
-                mask_value = self._get_mask_value(softmax_dtype)
-                attn_weights = upcast_masked_softmax(attn_weights, attention_mask, mask_value, unscale, softmax_dtype)
-        else:
-            if attention_mask is not None:
-                mask_value = self._get_mask_value(softmax_dtype)
-
-                # The fused kernel is very slow when the key length is not a multiple of 8, so we skip fusion.
-                attn_weights = mint.where(attention_mask.to(ms.bool_), attn_weights, mask_value)
-
-            attn_weights = mint.functional.softmax(attn_weights, dim=-1)
-
-        attn_weights = self.attn_dropout(attn_weights)
-
-        # Mask heads if we want to
-        if head_mask is not None:
-            if self.multi_query:
-                head_mask = mint.transpose(head_mask, 1, 2)
-            attn_weights = attn_weights * head_mask
-
-        if self.multi_query:
-            attn_output = mint.bmm(attn_weights.view(attn_view), value).view(query_shape)
-        else:
-            attn_output = mint.matmul(attn_weights, value)
-
-        return attn_output, attn_weights
+        self.attn_dropout = config.attn_pdrop
+        self.resid_dropout = nn.Dropout(config.resid_pdrop)
 
     def construct(
         self,
         hidden_states: ms.Tensor,
-        layer_past: Optional[ms.Tensor] = None,
+        layer_past: Optional[Cache] = None,
         attention_mask: Optional[ms.Tensor] = None,
         head_mask: Optional[ms.Tensor] = None,
         encoder_hidden_states: Optional[ms.Tensor] = None,
         encoder_attention_mask: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = False,
         output_attentions: Optional[bool] = False,
-    ) -> Union[Tuple[ms.Tensor, Optional[ms.Tensor]], Tuple[ms.Tensor, Optional[ms.Tensor], Tuple[ms.Tensor, ...]]]:
-        if encoder_hidden_states is not None:
+        cache_position: Optional[ms.Tensor] = None,
+        **kwargs,
+    ) -> Union[tuple[ms.Tensor, Optional[ms.Tensor]], tuple[ms.Tensor, Optional[ms.Tensor], tuple[ms.Tensor, ...]]]:
+        input_shape = hidden_states.shape[:-1]
+
+        if layer_past is not None:
+            if isinstance(layer_past, EncoderDecoderCache):
+                is_updated = layer_past.is_updated.get(self.layer_idx)
+                if self.is_cross_attention:
+                    # after the first generated id, we can subsequently re-use all key/value_states from cache
+                    curr_past_key_value = layer_past.cross_attention_cache
+                else:
+                    curr_past_key_value = layer_past.self_attention_cache
+            else:
+                curr_past_key_value = layer_past
+
+        if self.is_cross_attention:
             if not hasattr(self, "q_attn") or not self.is_cross_attention:
                 raise ValueError(
                     "If class is used as cross attention, the weights `q_attn` have to be defined. "
                     "Please make sure to instantiate class with `GPTBigCodeAttention(..., is_cross_attention=True)`."
                 )
-
-            query = self.q_attn(hidden_states)
-            key_value = self.c_attn(encoder_hidden_states)
-            attention_mask = encoder_attention_mask
-        elif self.multi_query:
-            query, key_value = self.c_attn(hidden_states).split((self.embed_dim, 2 * self.kv_dim), dim=2)
+            if layer_past is not None and is_updated:
+                # reuse k,v, cross_attentions
+                key = curr_past_key_value.key_cache[self.layer_idx]
+                value = curr_past_key_value.value_cache[self.layer_idx]
+            else:
+                query = self.q_attn(hidden_states).view(*input_shape, -1, self.head_dim).transpose(1, 2)
+                key, value = self.c_attn(encoder_hidden_states).split((self.head_dim, self.head_dim), dim=-1)
         else:
-            # Note: We split as (self.num_heads, 3, self.head_dim) instead of (3, self.num_heads, self.head_dim),
-            # i.e., the memory layout is not the same as GPT2.
-            # This makes the concatenation with past_key_value more efficient.
-            query, key_value = mint.transpose(
-                self.c_attn(hidden_states).view(*hidden_states.shape[:2], self.num_heads, 3 * self.head_dim), 1, 2
-            ).split((self.head_dim, 2 * self.head_dim), dim=3)
+            if self.multi_query:
+                query, key, value = (
+                    self.c_attn(hidden_states).unsqueeze(1).split((self.embed_dim, self.kv_dim, self.kv_dim), dim=3)
+                )
+                query = query.view(*input_shape, -1, self.head_dim).transpose(1, 2)
+            else:
+                query, key, value = (
+                    self.c_attn(hidden_states)
+                    .view(*hidden_states.shape[:2], self.num_heads, 3 * self.head_dim)
+                    .transpose(1, 2)
+                    .split(3 * [self.head_dim], dim=3)
+                )
 
         if layer_past is not None:
-            key_value = mint.cat((layer_past, key_value), dim=-2)
-        present = key_value if use_cache else None
+            # save all key/value_states to cache to be re-used for fast auto-regressive generation
+            cache_position = cache_position if not self.is_cross_attention else None
+            key, value = curr_past_key_value.update(key, value, self.layer_idx, {"cache_position": cache_position})
+            # set flag that curr layer for cross-attn is already updated so we can re-use in subsequent calls
+            if self.is_cross_attention:
+                layer_past.is_updated[self.layer_idx] = True
 
-        key, value = key_value.split((self.head_dim, self.head_dim), dim=-1)
+        attention_interface: Callable = eager_attention_forward
+        if self.config._attn_implementation != "eager":
+            attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
 
-        attn_output, attn_weights = self._attn(query, mint.transpose(key, -1, -2), value, attention_mask, head_mask)
-
-        if not self.multi_query:
-            attn_output = mint.transpose(attn_output, 1, 2).reshape(hidden_states.shape)
-        attn_output = self.c_proj(attn_output)
-        attn_output = self.resid_dropout(attn_output)
-
-        outputs = (attn_output, present)
-        if output_attentions:
-            if self.multi_query:
-                # Transpose to return weights in the usual format (batch_size, num_heads, query_length, key_length)
-                attn_weights = mint.transpose(attn_weights, 1, 2)
-            outputs += (attn_weights,)
-
-        return outputs  # a, present, (attentions)
-
-
-class GPTBigCodeFlashAttention2(GPTBigCodeAttention):
-    """
-    GPTBigCode flash attention module. This module inherits from `GPTBigCodeAttention` as the weights of the module
-    stays untouched. The only required change would be on the forward pass where it needs to correctly call the public
-    API of flash attention and deal with padding tokens in case the input contains any of them.
-    """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        attn_dropout = self.attn_pdrop if self.training else 0.0
-        self.flash_attention = MSFlashAttention(
-            head_num=self.num_heads,
-            keep_prob=1 - attn_dropout,
-            input_layout="BSND",
+        attn_output, attn_weights = attention_interface(
+            self,
+            query,
+            key,
+            value,
+            attention_mask,
+            dropout=0.0 if not self.training else self.attn_dropout,
+            scaling=self.scaling,
+            head_mask=head_mask,
+            **kwargs,
         )
 
-    def construct(
-        self,
-        hidden_states: ms.Tensor,
-        layer_past: Optional[ms.Tensor] = None,
-        attention_mask: Optional[ms.Tensor] = None,
-        head_mask: Optional[ms.Tensor] = None,
-        encoder_hidden_states: Optional[ms.Tensor] = None,
-        encoder_attention_mask: Optional[ms.Tensor] = None,
-        use_cache: Optional[bool] = False,
-        output_attentions: Optional[bool] = False,
-    ) -> Union[Tuple[ms.Tensor, Optional[ms.Tensor]], Tuple[ms.Tensor, Optional[ms.Tensor], Tuple[ms.Tensor, ...]]]:
-        if encoder_hidden_states is not None:
-            if not hasattr(self, "q_attn") or not self.is_cross_attention:
-                raise ValueError(
-                    "If class is used as cross attention, the weights `q_attn` have to be defined. "
-                    "Please make sure to instantiate class with `GPTBigCodeAttention(..., is_cross_attention=True)`."
-                )
-
-            query = self.q_attn(hidden_states)
-            key_value = self.c_attn(encoder_hidden_states)
-        elif self.multi_query:
-            query, key_value = self.c_attn(hidden_states).split((self.embed_dim, 2 * self.kv_dim), dim=2)
-        else:
-            # Note: We split as (self.num_heads, 3, self.head_dim) instead of (3, self.num_heads, self.head_dim),
-            # i.e., the memory layout is not the same as GPT2.
-            # This makes the concatenation with past_key_value more efficient.
-            query, key_value = mint.transpose(
-                self.c_attn(hidden_states).view(*hidden_states.shape[:2], self.num_heads, 3 * self.head_dim), 1, 2
-            ).split((self.head_dim, 2 * self.head_dim), dim=3)
-
-        if layer_past is not None:
-            key_value = mint.cat((layer_past, key_value), dim=-2)
-        present = key_value if use_cache else None
-
-        key, value = key_value.split((self.head_dim, self.head_dim), dim=-1)
-
-        # Flash attention requires the input to have the shape
-        # batch_size x seq_length x head_dim x hidden_dim
-        if self.multi_query:
-            batch_size, query_length, _ = query.shape
-            query = query.reshape(batch_size, query_length, self.num_heads, self.head_dim)
-            key = key.unsqueeze(2)
-            value = value.unsqueeze(2)
-        else:
-            query_length = query.shape[2]
-            batch_size, _, tgt, _ = key.shape
-            query = mint.transpose(query, 1, 2).reshape(batch_size, query_length, self.num_heads, self.head_dim)
-            key = mint.transpose(key, 1, 2).reshape(batch_size, tgt, self.num_heads, self.head_dim)
-            value = mint.transpose(value, 1, 2).reshape(batch_size, tgt, self.num_heads, self.head_dim)
-
-        # In PEFT, usually we cast the layer norms in float32 for training stability reasons
-        # therefore the input hidden states gets silently casted in float32. Hence, we need
-        # cast them back in float16 just to be sure everything works as expected.
-        input_dtype = query.dtype
-        if input_dtype == ms.float32:
-            # Handle the case where the model is quantized
-            if hasattr(self.config, "_pre_quantization_dtype"):
-                target_dtype = self.config._pre_quantization_dtype
-            else:
-                target_dtype = self.c_attn.weight.dtype
-
-            logger.warning(
-                f"The input hidden states seems to be silently casted in float32, this might be related to"
-                f" the fact you have upcasted embedding or layer norm layers in float32. We will cast back the input in"
-                f" {target_dtype}."
-            )
-            query = query.to(target_dtype)
-            key = key.to(target_dtype)
-            value = value.to(target_dtype)
-
-        attn_output = self.flash_attention(query, key, value)[3]
-
-        attn_weights_reshaped = attn_output.reshape(batch_size, query_length, self.num_heads * self.head_dim)
-        attn_output = self.c_proj(attn_weights_reshaped)
-        attn_output = self.resid_dropout(attn_output)
-
-        outputs = (attn_output, present)
-
-        if output_attentions:
-            if self.multi_query:
-                # Transpose to return weights in the usual format (batch_size, num_heads, query_length, key_length)
-                attn_weights_reshaped = mint.transpose(attn_weights_reshaped, 1, 2)
-        else:
-            attn_weights_reshaped = None
-
-        outputs += (attn_weights_reshaped,)
-
-        return outputs  # a, present, (attentions)
-
-
-class GPTBigCodeSdpaAttention(GPTBigCodeAttention):
-    def _attn(self, query, key, value, attention_mask=None, head_mask=None):
-        # MQA models: (batch_size, query_length, num_heads * head_dim)
-        # MHA models: (batch_size, num_heads, query_length, head_dim)
-        query_shape = query.shape
-        batch_size = query_shape[0]
-        key.shape[-2]
-
-        if self.multi_query:
-            query_length = query_shape[1]
-
-            # SDPA requires the dimension [..., sequence_length, head_dim].
-            query = mint.transpose(query.view(batch_size, query_length, self.num_heads, self.head_dim), 1, 2)
-
-            # Without these unsqueeze, SDPA complains as the query and key/value have a different number of dimensions.
-            key = key.unsqueeze(1)
-            value = value.unsqueeze(1)
-
-            # Although these expand are not numerically useful, PyTorch can not dispatch to memory-efficient backend
-            # and flash attention backend (No available kernel.  Aborting execution.) from the shapes
-            # query = [batch_size, num_heads, query_length, head_dim]
-            # key = [batch_size, 1, past_length, head_dim]
-            # value = [batch_size, 1, past_length, head_dim]
-            key = mint.broadcast_to(key, (-1, self.num_heads, -1, -1))
-            value = mint.broadcast_to(value, (-1, self.num_heads, -1, -1))
-        else:
-            query_length = query_shape[-1]
-
-            # See the comment above.
-            if attention_mask is not None:
-                query = query.contiguous()
-                key = key.contiguous()
-                value = value.contiguous()
-
-        # We dispatch to SDPA's Flash Attention or Efficient kernels via this `is_causal` if statement instead of an
-        # inline conditional assignment
-        # in SDPA to support both torch.compile's dynamic shapes and full graph options. An inline conditional
-        # prevents dynamic shapes from compiling.
-        # The query_length > 1 is necessary to match with AttentionMaskConverter.to_causal_4d that does not
-        # create a causal mask in case query_length == 1.
-
-        sdpa_result = scaled_dot_product_attention(query, key, value, attn_mask=attention_mask)
-
-        if self.multi_query:
-            # (batch_size, num_heads, seq_len, head_dim) --> (batch_size, seq_len, num_heads, head_dim)
-            sdpa_result = mint.transpose(sdpa_result, 1, 2)
-
-            # Reshape is kind of expensive here, as it does a memory copy,
-            # but I did not manage to make away without it (logits do not match when using view)
-            # (batch_size, seq_len, num_heads, head_dim) --> (batch_size, seq_len, num_heads * head_dim)
-            sdpa_result = sdpa_result.reshape(query_shape)
-
-        return sdpa_result, None
-
-    def construct(
-        self,
-        hidden_states: ms.Tensor,
-        layer_past: Optional[ms.Tensor] = None,
-        attention_mask: Optional[ms.Tensor] = None,
-        head_mask: Optional[ms.Tensor] = None,
-        encoder_hidden_states: Optional[ms.Tensor] = None,
-        encoder_attention_mask: Optional[ms.Tensor] = None,
-        use_cache: Optional[bool] = False,
-        output_attentions: Optional[bool] = False,
-    ) -> Union[Tuple[ms.Tensor, Optional[ms.Tensor]], Tuple[ms.Tensor, Optional[ms.Tensor], Tuple[ms.Tensor, ...]]]:
-        if encoder_hidden_states is not None:
-            if not hasattr(self, "q_attn") or not self.is_cross_attention:
-                raise ValueError(
-                    "If class is used as cross attention, the weights `q_attn` have to be defined. "
-                    "Please make sure to instantiate class with `GPTBigCodeAttention(..., is_cross_attention=True)`."
-                )
-
-            query = self.q_attn(hidden_states)
-            key_value = self.c_attn(encoder_hidden_states)
-            attention_mask = encoder_attention_mask
-        elif self.multi_query:
-            query, key_value = self.c_attn(hidden_states).split((self.embed_dim, 2 * self.kv_dim), dim=2)
-        else:
-            # Note: We split as (self.num_heads, 3, self.head_dim) instead of (3, self.num_heads, self.head_dim),
-            # i.e., the memory layout is not the same as GPT2.
-            # This makes the concatenation with past_key_value more efficient.
-            query, key_value = mint.transpose(
-                self.c_attn(hidden_states).view(*hidden_states.shape[:2], self.num_heads, 3 * self.head_dim), 1, 2
-            ).split((self.head_dim, 2 * self.head_dim), dim=3)
-
-        if layer_past is not None:
-            key_value = mint.cat((layer_past, key_value), dim=-2)
-        present = key_value if use_cache else None
-
-        key, value = key_value.split((self.head_dim, self.head_dim), dim=-1)
-
-        if not output_attentions and head_mask is None:
-            # Difference with the original implementation: there is no need to transpose the key here,
-            # as SDPA expects seq_length to be at index -2 for the key as well
-            attn_output, attn_weights = self._attn(query, key, value, attention_mask, head_mask)
-        else:
-            # TODO: Improve this warning with e.g. `model.config._attn_implementation = "manual"`
-            #  once this is implemented.
-            logger.warning(
-                "GPTBigCodeModel is using GPTBigCodeSdpaAttention, but `torch.nn.functional."
-                "scaled_dot_product_attention` does not support `output_attentions=True` and `head_mask` not None."
-                " Falling back to the manual attention implementation, but specifying the manual implementation will "
-                "be required from Transformers version v5.0.0 onwards. This warning can be removed using the argument "
-                '`attn_implementation="eager"` when loading the model.'
-            )
-            attn_output, attn_weights = super()._attn(query, key.transpose(-1, -2), value, attention_mask, head_mask)
-
-        if not self.multi_query:
-            attn_output = mint.transpose(attn_output, 1, 2).reshape(hidden_states.shape)
+        attn_output = attn_output.reshape(*input_shape, -1).contiguous()
         attn_output = self.c_proj(attn_output)
         attn_output = self.resid_dropout(attn_output)
-
-        outputs = (attn_output, present)
-        if output_attentions:
-            if self.multi_query:
-                # Transpose to return weights in the usual format (batch_size, num_heads, query_length, key_length)
-                attn_weights = mint.transpose(attn_weights, 1, 2)
-            outputs += (attn_weights,)
-
-        return outputs
+        return attn_output, attn_weights
 
 
 class GPTBigCodeMLP(nn.Cell):
@@ -479,22 +253,15 @@ class GPTBigCodeMLP(nn.Cell):
         self.c_fc = mint.nn.Linear(embed_dim, intermediate_size)
         self.c_proj = mint.nn.Linear(intermediate_size, embed_dim)
         self.act = ACT2FN[config.activation_function]
-        self.dropout = mint.nn.Dropout(config.resid_pdrop)
+        self.dropout = nn.Dropout(config.resid_pdrop)
 
-    # Copied from transformers.models.gpt2.modeling_gpt2.GPT2MLP.construct
-    def construct(self, hidden_states: Optional[Tuple[ms.Tensor]]) -> ms.Tensor:
+    # Copied from transformers.models.gpt2.modeling_gpt2.GPT2MLP.forward
+    def construct(self, hidden_states: Optional[tuple[ms.Tensor]]) -> ms.Tensor:
         hidden_states = self.c_fc(hidden_states)
         hidden_states = self.act(hidden_states)
         hidden_states = self.c_proj(hidden_states)
         hidden_states = self.dropout(hidden_states)
         return hidden_states
-
-
-GPTBIGCODE_ATTENTION_CLASSES = {
-    "eager": GPTBigCodeAttention,
-    "flash_attention_2": GPTBigCodeFlashAttention2,
-    "sdpa": GPTBigCodeSdpaAttention,
-}
 
 
 class GPTBigCodeBlock(nn.Cell):
@@ -505,7 +272,7 @@ class GPTBigCodeBlock(nn.Cell):
 
         self.ln_1 = mint.nn.LayerNorm(hidden_size, eps=config.layer_norm_epsilon)
 
-        self.attn = GPTBIGCODE_ATTENTION_CLASSES[config._attn_implementation](config, layer_idx=layer_idx)
+        self.attn = GPTBigCodeAttention(config, layer_idx=layer_idx)
 
         self.ln_2 = mint.nn.LayerNorm(hidden_size, eps=config.layer_norm_epsilon)
 
@@ -513,9 +280,7 @@ class GPTBigCodeBlock(nn.Cell):
             if config.multi_query:
                 raise NotImplementedError("Cross-attention not implemented for MQA")
 
-            self.crossattention = GPTBIGCODE_ATTENTION_CLASSES[config._attn_implementation](
-                config, is_cross_attention=True, layer_idx=layer_idx
-            )
+            self.crossattention = GPTBigCodeAttention(config, is_cross_attention=True, layer_idx=layer_idx)
 
             self.ln_cross_attn = mint.nn.LayerNorm(hidden_size, eps=config.layer_norm_epsilon)
 
@@ -523,16 +288,17 @@ class GPTBigCodeBlock(nn.Cell):
 
     def construct(
         self,
-        hidden_states: Optional[Tuple[ms.Tensor]],
-        layer_past: Optional[ms.Tensor] = None,
+        hidden_states: Optional[tuple[ms.Tensor]],
+        layer_past: Optional[Cache] = None,
         attention_mask: Optional[ms.Tensor] = None,
         head_mask: Optional[ms.Tensor] = None,
         encoder_hidden_states: Optional[ms.Tensor] = None,
         encoder_attention_mask: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = False,
         output_attentions: Optional[bool] = False,
+        cache_position: Optional[ms.Tensor] = None,
         **kwargs,
-    ) -> Union[Tuple[ms.Tensor], Tuple[ms.Tensor, ms.Tensor], Tuple[ms.Tensor, ms.Tensor, ms.Tensor]]:
+    ) -> Union[tuple[ms.Tensor], tuple[ms.Tensor, ms.Tensor], tuple[ms.Tensor, ms.Tensor, ms.Tensor]]:
         residual = hidden_states
         hidden_states = self.ln_1(hidden_states)
         attn_outputs = self.attn(
@@ -542,6 +308,8 @@ class GPTBigCodeBlock(nn.Cell):
             head_mask=head_mask,
             use_cache=use_cache,
             output_attentions=output_attentions,
+            cache_position=cache_position,
+            **kwargs,
         )
         attn_output = attn_outputs[0]  # output_attn: a, present, (attentions)
         outputs = attn_outputs[1:]
@@ -564,47 +332,40 @@ class GPTBigCodeBlock(nn.Cell):
                 encoder_hidden_states=encoder_hidden_states,
                 encoder_attention_mask=encoder_attention_mask,
                 output_attentions=output_attentions,
+                cache_position=cache_position,
+                **kwargs,
             )
             attn_output = cross_attn_outputs[0]
             # residual connection
             hidden_states = residual + attn_output
-            outputs = outputs + cross_attn_outputs[2:]  # add cross attentions if we output attention weights
+            outputs = outputs + cross_attn_outputs[1:]  # add cross attentions if we output attention weights
 
         residual = hidden_states
         hidden_states = self.ln_2(hidden_states)
         feed_forward_hidden_states = self.mlp(hidden_states)
-        # residual connection
         hidden_states = residual + feed_forward_hidden_states
-
-        if use_cache:
-            outputs = (hidden_states,) + outputs
-        else:
-            outputs = (hidden_states,) + outputs[1:]
-
-        return outputs  # hidden_states, present, (attentions, cross_attentions)
+        return (hidden_states,) + outputs
 
 
+@auto_docstring
 class GPTBigCodePreTrainedModel(PreTrainedModel):
-    config_class = GPTBigCodeConfig
+    config: GPTBigCodeConfig
     base_model_prefix = "transformer"
     supports_gradient_checkpointing = True
     _no_split_modules = ["GPTBigCodeBlock"]
     _skip_keys_device_placement = "past_key_values"
-    _supports_flash_attn_2 = True
+    _supports_flash_attn = True
     _supports_sdpa = True
 
     def __init__(self, *inputs, **kwargs):
         super().__init__(*inputs, **kwargs)
-        self._supports_dynamic_input = True
 
     def _init_weights(self, module):
         """Initialize the weights."""
         if isinstance(module, (GPTBigCodeMLP, GPTBigCodeAttention)):
             # Reinitialize selected weights subject to the OpenAI GPT-2 Paper Scheme:
-            #   > A modified initialization which accounts for the accumulation on the residual path with model depth.
-            #   Scale
-            #   > the weights of residual layers at initialization by a factor of 1/√N where N is the # of
-            #   residual layers.
+            #   > A modified initialization which accounts for the accumulation on the residual path with model depth. Scale
+            #   > the weights of residual layers at initialization by a factor of 1/√N where N is the # of residual layers.
             #   >   -- GPT-2 :: https://openai.com/blog/better-language-models/
             #
             # Reference (Megatron-LM): https://github.com/NVIDIA/Megatron-LM/blob/main/megatron/model/gpt_model.py
@@ -627,6 +388,7 @@ class GPTBigCodePreTrainedModel(PreTrainedModel):
             module.weight.data.fill_(1.0)
 
 
+@auto_docstring
 class GPTBigCodeModel(GPTBigCodePreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
@@ -636,12 +398,14 @@ class GPTBigCodeModel(GPTBigCodePreTrainedModel):
         self.wte = mint.nn.Embedding(config.vocab_size, self.embed_dim)
         self.wpe = mint.nn.Embedding(config.max_position_embeddings, self.embed_dim)
 
-        self.drop = mint.nn.Dropout(config.embd_pdrop)
+        self.drop = nn.Dropout(config.embd_pdrop)
         self.h = nn.CellList([GPTBigCodeBlock(config, layer_idx=i) for i in range(config.num_hidden_layers)])
         self.ln_f = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_epsilon)
 
         max_positions = config.max_position_embeddings
-        self.register_buffer("bias", mint.tril(mint.ones((max_positions, max_positions), dtype=ms.int32)))
+        self.register_buffer(
+            "bias", mint.tril(mint.ones((max_positions, max_positions), dtype=ms.bool_)), persistent=False
+        )
 
         self.gradient_checkpointing = False
 
@@ -657,13 +421,12 @@ class GPTBigCodeModel(GPTBigCodePreTrainedModel):
     def set_input_embeddings(self, new_embeddings):
         self.wte = new_embeddings
 
-    def register_buffer(self, name, attr):
-        setattr(self, name, Parameter(default_input=attr, requires_grad=False))
-
+    @can_return_tuple
+    @auto_docstring
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
-        past_key_values: Optional[List[ms.Tensor]] = None,
+        past_key_values: Optional[list[ms.Tensor]] = None,
         attention_mask: Optional[ms.Tensor] = None,
         token_type_ids: Optional[ms.Tensor] = None,
         position_ids: Optional[ms.Tensor] = None,
@@ -675,11 +438,13 @@ class GPTBigCodeModel(GPTBigCodePreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[Tuple, BaseModelOutputWithPastAndCrossAttentions]:
+        cache_position: Optional[ms.Tensor] = None,
+        **kwargs,
+    ) -> Union[tuple, BaseModelOutputWithPastAndCrossAttentions]:
         r"""
         input_ids (`ms.Tensor` of shape `(batch_size, input_ids_length)`):
             `input_ids_length` = `sequence_length` if `past_key_values` is `None` else
-            `past_key_values[0][0].shape[-2]` (`sequence_length` of input past key value states). Indices of input
+            `past_key_values.get_seq_length()` (`sequence_length` of input past key value states). Indices of input
             sequence tokens in the vocabulary.
 
             If `past_key_values` is used, only `input_ids` that do not have their past calculated should be passed as
@@ -697,10 +462,9 @@ class GPTBigCodeModel(GPTBigCodePreTrainedModel):
         use_cache = use_cache if use_cache is not None else self.config.use_cache
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        if input_ids is not None and inputs_embeds is not None:
-            raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
+        if (input_ids is None) ^ (inputs_embeds is not None):
+            raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
         elif input_ids is not None:
-            self.warn_if_padding_and_no_attention_mask(input_ids, attention_mask)
             input_shape = input_ids.shape
             input_ids = input_ids.view(-1, input_shape[-1])
             batch_size = input_ids.shape[0]
@@ -713,76 +477,42 @@ class GPTBigCodeModel(GPTBigCodePreTrainedModel):
         if batch_size <= 0:
             raise ValueError("batch_size has to be defined and > 0")
 
-        if token_type_ids is not None:
-            token_type_ids = token_type_ids.view(-1, input_shape[-1])
+        return_legacy_cache = False
+        if use_cache and not isinstance(past_key_values, Cache):
+            logger.warning_once(
+                "Passing a tuple of `past_key_values` is deprecated and will be removed in Transformers v4.58.0. "
+                "You should pass an instance of `EncoderDecoderCache` instead, e.g. "
+                "`past_key_values=EncoderDecoderCache.from_legacy_cache(past_key_values)`."
+            )
+            return_legacy_cache = True
+            past_key_values = EncoderDecoderCache.from_legacy_cache(past_key_values)
 
-        if past_key_values is None:
-            past_length = 0
-            past_key_values = tuple([None] * len(self.h))
-        else:
-            past_length = past_key_values[0].shape[-2]
+        if inputs_embeds is None:
+            inputs_embeds = self.wte(input_ids)
 
-        if attention_mask is not None and len(attention_mask.shape) == 2 and position_ids is None:
-            # create position_ids on the fly for batch generation
-            position_ids = attention_mask.to(ms.int32).cumsum(-1) - 1
-            position_ids.masked_fill_(attention_mask == 0, 1)
-            if past_length > 0:
-                position_ids = position_ids[:, past_length : input_shape[-1] + past_length :]
-        elif position_ids is None:
-            position_ids = mint.arange(past_length, input_shape[-1] + past_length, dtype=ms.int64)
-            position_ids = position_ids.unsqueeze(0)
+        if cache_position is None:
+            past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
+            cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
-        # Self-attention mask.
-        query_length = input_shape[-1]
-        key_length = past_length + query_length
-        self_attention_mask = self.bias[None, key_length - query_length : key_length, :key_length]
+        if position_ids is None:
+            position_ids = cache_position.unsqueeze(0)
+
+        causal_mask = create_causal_mask(
+            config=self.config,
+            input_embeds=inputs_embeds,
+            attention_mask=attention_mask,
+            cache_position=cache_position,
+            position_ids=position_ids,
+            past_key_values=past_key_values,
+        )
 
         if self._use_flash_attention_2:
-            # 2d mask is passed through the layers
-            attention_mask = attention_mask.bool() if (attention_mask is not None and 0 in attention_mask) else None
             encoder_attention_mask = (
                 encoder_attention_mask.bool()
                 if (encoder_attention_mask is not None and 0 in encoder_attention_mask)
                 else None
             )
         else:
-            # 4d mask is passed through the layers
-            if attention_mask is not None:
-                self_attention_mask = self_attention_mask * attention_mask.view(batch_size, 1, -1).bool()
-
-            # MQA models: (batch_size, query_length, n_heads, key_length)
-            # MHA models: (batch_size, n_heads, query_length, key_length)
-            self_attention_mask = self_attention_mask.unsqueeze(2 if self.multi_query else 1)
-
-            if self._use_sdpa and head_mask is None and not output_attentions:
-                # SDPA with a custom mask is much faster in fp16/fp32 dtype rather than bool. Cast here to floating
-                # point instead of at every layer.
-                dtype = self.wte.weight.dtype
-                min_dtype = dtype_to_min(dtype)
-                self_attention_mask = mint.where(
-                    self_attention_mask.to(ms.bool_),
-                    mint.full([], 0.0, dtype=dtype),
-                    mint.full([], fill_value=min_dtype.item(), dtype=dtype),
-                )
-
-                # output_attentions=True can not be supported when using SDPA, and we fall back on
-                # the manual implementation that requires a 4D causal mask in all cases.
-                if self.multi_query:
-                    # gpt_bigcode using MQA has the bad taste to use a causal mask with shape
-                    # [batch_size, target_length, 1, source_length], not compatible with SDPA, hence this transpose.
-                    self_attention_mask = mint.transpose(self_attention_mask, 1, 2)
-
-                if query_length > 1 and attention_mask is not None:
-                    # From PyTorch 2.1 onwards, F.scaled_dot_product_attention with the memory-efficient attention
-                    # backend
-                    # produces nans if sequences are completely unattended in the attention mask.
-                    # Details: https://github.com/pytorch/pytorch/issues/110213
-                    self_attention_mask = AttentionMaskConverter._unmask_unattended(
-                        self_attention_mask, min_dtype=min_dtype
-                    )
-
-            attention_mask = self_attention_mask
-
             # If a 2D or 3D attention mask is provided for the cross-attention
             # we need to make broadcastable to [batch_size, num_heads, seq_length, seq_length]
             if (
@@ -803,59 +533,42 @@ class GPTBigCodeModel(GPTBigCodePreTrainedModel):
         # head_mask has shape n_layer x batch x n_heads x N x N
         head_mask = self.get_head_mask(head_mask, self.config.n_layer)
 
-        if inputs_embeds is None:
-            inputs_embeds = self.wte(input_ids)
         position_embeds = self.wpe(position_ids)
         hidden_states = inputs_embeds + position_embeds
 
         if token_type_ids is not None:
+            token_type_ids = token_type_ids.view(-1, input_shape[-1])
             token_type_embeds = self.wte(token_type_ids)
             hidden_states = hidden_states + token_type_embeds
 
         hidden_states = self.drop(hidden_states)
-
         output_shape = input_shape + (hidden_states.shape[-1],)
 
-        presents = [] if use_cache else None
         all_self_attentions = () if output_attentions else None
         all_cross_attentions = () if output_attentions and self.config.add_cross_attention else None
         all_hidden_states = () if output_hidden_states else None
-        for i, (block, layer_past) in enumerate(zip(self.h, past_key_values)):
+        for i, block in enumerate(self.h):
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
 
-            if self.gradient_checkpointing and self.training:
-                outputs = self._gradient_checkpointing_func(
-                    block.__call__,
-                    hidden_states,
-                    None,
-                    attention_mask,
-                    head_mask[i],
-                    encoder_hidden_states,
-                    encoder_attention_mask,
-                    use_cache,
-                    output_attentions,
-                )
-            else:
-                outputs = block(
-                    hidden_states,
-                    layer_past=layer_past,
-                    attention_mask=attention_mask,
-                    head_mask=head_mask[i],
-                    encoder_hidden_states=encoder_hidden_states,
-                    encoder_attention_mask=encoder_attention_mask,
-                    use_cache=use_cache,
-                    output_attentions=output_attentions,
-                )
+            outputs = block(
+                hidden_states,
+                past_key_values,
+                causal_mask,
+                head_mask[i],
+                encoder_hidden_states,  # as a positional argument for gradient checkpointing
+                encoder_attention_mask=encoder_attention_mask,
+                use_cache=use_cache,
+                output_attentions=output_attentions,
+                cache_position=cache_position,
+                **kwargs,
+            )
 
             hidden_states = outputs[0]
-            if use_cache:
-                presents.append(outputs[1])
-
             if output_attentions:
-                all_self_attentions = all_self_attentions + (outputs[2 if use_cache else 1],)
+                all_self_attentions = all_self_attentions + (outputs[1],)
                 if self.config.add_cross_attention:
-                    all_cross_attentions = all_cross_attentions + (outputs[3 if use_cache else 2],)
+                    all_cross_attentions = all_cross_attentions + (outputs[2],)
 
         hidden_states = self.ln_f(hidden_states)
 
@@ -864,22 +577,24 @@ class GPTBigCodeModel(GPTBigCodePreTrainedModel):
         if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)
 
-        if not return_dict:
-            return tuple(
-                v
-                for v in [hidden_states, presents, all_hidden_states, all_self_attentions, all_cross_attentions]
-                if v is not None
-            )
+        if return_legacy_cache:
+            past_key_values = past_key_values.to_legacy_cache()
 
         return BaseModelOutputWithPastAndCrossAttentions(
             last_hidden_state=hidden_states,
-            past_key_values=presents,
+            past_key_values=past_key_values,
             hidden_states=all_hidden_states,
             attentions=all_self_attentions,
             cross_attentions=all_cross_attentions,
         )
 
 
+@auto_docstring(
+    custom_intro="""
+    The GPT_BIGCODE Model transformer with a language modeling head on top (linear layer with weights tied to the input
+    embeddings).
+    """
+)
 class GPTBigCodeForCausalLM(GPTBigCodePreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
 
@@ -891,85 +606,11 @@ class GPTBigCodeForCausalLM(GPTBigCodePreTrainedModel, GenerationMixin):
         # Initialize weights and apply final processing
         self.post_init()
 
-    def get_output_embeddings(self):
-        return self.lm_head
-
-    def set_output_embeddings(self, new_embeddings):
-        self.lm_head = new_embeddings
-
-    def prepare_inputs_for_generation(self, input_ids, past_key_values=None, inputs_embeds=None, **kwargs):
-        # Overwritten -- `past_key_values` with uncommon shape
-
-        token_type_ids = kwargs.get("token_type_ids", None)
-        # Omit tokens covered by past_key_values
-        if past_key_values:
-            if self.config.multi_query:
-                past_length = past_key_values[0].shape[1]
-            else:
-                past_length = past_key_values[0].shape[2]
-
-            # Some generation methods already pass only the last input ID
-            if input_ids.shape[1] > past_length:
-                remove_prefix_length = past_length
-            else:
-                # Default to old behavior: keep only final ID
-                remove_prefix_length = input_ids.shape[1] - 1
-
-            input_ids = input_ids[:, remove_prefix_length:]
-            if token_type_ids is not None:
-                token_type_ids = token_type_ids[:, -input_ids.shape[1] :]
-
-        attention_mask = kwargs.get("attention_mask", None)
-        position_ids = kwargs.get("position_ids", None)
-
-        if attention_mask is not None and position_ids is None:
-            # create position_ids on the fly for batch generation
-            position_ids = attention_mask.to(ms.int64).cumsum(-1) - 1
-            position_ids.masked_fill_(attention_mask == 0, 1)
-            if past_key_values:
-                position_ids = position_ids[:, -input_ids.shape[1] :]
-        else:
-            position_ids = None
-
-        # if `inputs_embeds` are passed, we only want to use them in the 1st generation step
-        if inputs_embeds is not None and past_key_values is None:
-            model_inputs = {"inputs_embeds": inputs_embeds}
-        else:
-            model_inputs = {"input_ids": input_ids}
-
-        model_inputs.update(
-            {
-                "past_key_values": past_key_values,
-                "use_cache": kwargs.get("use_cache"),
-                "position_ids": position_ids,
-                "attention_mask": attention_mask,
-                "token_type_ids": token_type_ids,
-            }
-        )
-        return model_inputs
-
-    def _get_initial_cache_position(self, input_ids, model_kwargs):
-        """
-        Calculates `cache_position` for the pre-fill stage based on `input_ids` and optionally past length.
-        Since gpt bigcode is special, the method is overridden here, other models use it from `generation.utils.py`.
-        """
-        past_length = 0
-        if "past_key_values" in model_kwargs:
-            if self.config.multi_query:
-                past_length = model_kwargs["past_key_values"][0].shape[1]
-            else:
-                past_length = model_kwargs["past_key_values"][0].shape[2]
-        if "inputs_embeds" in model_kwargs:
-            cur_len = model_kwargs["inputs_embeds"].shape[1]
-        else:
-            cur_len = input_ids.shape[-1]
-        model_kwargs["cache_position"] = mint.arange(past_length, cur_len)
-        return model_kwargs
-
+    @auto_docstring
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
-        past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None,
+        past_key_values: Optional[tuple[tuple[ms.Tensor]]] = None,
         attention_mask: Optional[ms.Tensor] = None,
         token_type_ids: Optional[ms.Tensor] = None,
         position_ids: Optional[ms.Tensor] = None,
@@ -982,9 +623,22 @@ class GPTBigCodeForCausalLM(GPTBigCodePreTrainedModel, GenerationMixin):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        cache_position: Optional[ms.Tensor] = None,
         **kwargs,
-    ) -> Union[Tuple, CausalLMOutputWithCrossAttentions]:
+    ) -> Union[tuple, CausalLMOutputWithCrossAttentions]:
         r"""
+        input_ids (`ms.Tensor` of shape `(batch_size, input_ids_length)`):
+            `input_ids_length` = `sequence_length` if `past_key_values` is `None` else
+            `past_key_values.get_seq_length()` (`sequence_length` of input past key value states). Indices of input
+            sequence tokens in the vocabulary.
+
+            If `past_key_values` is used, only `input_ids` that do not have their past calculated should be passed as
+            `input_ids`.
+
+            Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
+            [`PreTrainedTokenizer.__call__`] for details.
+
+            [What are input IDs?](../glossary#input-ids)
         labels (`ms.Tensor` of shape `(batch_size, input_ids_length)`, *optional*):
             Labels for language modeling. Note that the labels **are shifted** inside the model, i.e. you can set
             `labels = input_ids` Indices are selected in `[-100, 0, ..., config.vocab_size]` All labels set to `-100`
@@ -1006,6 +660,7 @@ class GPTBigCodeForCausalLM(GPTBigCodePreTrainedModel, GenerationMixin):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
+            cache_position=cache_position,
         )
         hidden_states = transformer_outputs[0]
 
@@ -1033,16 +688,21 @@ class GPTBigCodeForCausalLM(GPTBigCodePreTrainedModel, GenerationMixin):
             cross_attentions=transformer_outputs.cross_attentions,
         )
 
-    @staticmethod
-    def _reorder_cache(past_key_values: Tuple[Tuple[ms.Tensor]], beam_idx: ms.Tensor) -> Tuple[Tuple[ms.Tensor]]:
-        """
-        This function is used to re-order the `past_key_values` cache if [`~PreTrainedModel.beam_search`] or
-        [`~PreTrainedModel.beam_sample`] is called. This is required to match `past_key_values` with the correct
-        beam_idx at every generation step.
-        """
-        return tuple(layer_past.index_select(0) for layer_past in past_key_values)
 
+@auto_docstring(
+    custom_intro="""
+    The GPTBigCode Model transformer with a sequence classification head on top (linear layer).
 
+    [`GPTBigCodeForSequenceClassification`] uses the last token in order to do the classification, as other causal
+    models (e.g. GPT-1) do.
+
+    Since it does classification on the last token, it requires to know the position of the last token. If a
+    `pad_token_id` is defined in the configuration, it finds the last token that is not a padding token in each row. If
+    no `pad_token_id` is defined, it simply takes the last value in each row of the batch. Since it cannot guess the
+    padding tokens when `inputs_embeds` are passed instead of `input_ids`, it does the same (take the last value in
+    each row of the batch).
+    """
+)
 class GPTBigCodeForSequenceClassification(GPTBigCodePreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
@@ -1053,10 +713,11 @@ class GPTBigCodeForSequenceClassification(GPTBigCodePreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
+    @auto_docstring
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
-        past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None,
+        past_key_values: Optional[tuple[tuple[ms.Tensor]]] = None,
         attention_mask: Optional[ms.Tensor] = None,
         token_type_ids: Optional[ms.Tensor] = None,
         position_ids: Optional[ms.Tensor] = None,
@@ -1067,8 +728,21 @@ class GPTBigCodeForSequenceClassification(GPTBigCodePreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[Tuple, SequenceClassifierOutputWithPast]:
+        **kwargs,
+    ) -> Union[tuple, SequenceClassifierOutputWithPast]:
         r"""
+        input_ids (`ms.Tensor` of shape `(batch_size, input_ids_length)`):
+            `input_ids_length` = `sequence_length` if `past_key_values` is `None` else
+            `past_key_values.get_seq_length()` (`sequence_length` of input past key value states). Indices of input
+            sequence tokens in the vocabulary.
+
+            If `past_key_values` is used, only `input_ids` that do not have their past calculated should be passed as
+            `input_ids`.
+
+            Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
+            [`PreTrainedTokenizer.__call__`] for details.
+
+            [What are input IDs?](../glossary#input-ids)
         labels (`ms.Tensor` of shape `(batch_size,)`, *optional*):
             Labels for computing the sequence classification/regression loss. Indices should be in `[0, ...,
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If
@@ -1088,6 +762,7 @@ class GPTBigCodeForSequenceClassification(GPTBigCodePreTrainedModel):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
+            **kwargs,
         )
         hidden_states = transformer_outputs[0]
         logits = self.score(hidden_states)
@@ -1103,12 +778,12 @@ class GPTBigCodeForSequenceClassification(GPTBigCodePreTrainedModel):
             last_non_pad_token = -1
         elif input_ids is not None:
             # To handle both left- and right- padding, we take the rightmost token that is not equal to pad_token_id
-            non_pad_mask = ms.Tensor((input_ids != self.config.pad_token_id), ms.int32)
+            non_pad_mask = (input_ids != self.config.pad_token_id).to(ms.int32)
             token_indices = mint.arange(input_ids.shape[-1], dtype=ms.int32)
             last_non_pad_token = (token_indices * non_pad_mask).argmax(-1)
         else:
             last_non_pad_token = -1
-            logger.warning(
+            logger.warning_once(
                 f"{self.__class__.__name__} will not detect padding tokens in `inputs_embeds`. Results may be "
                 "unexpected if using padding tokens in conjunction with `inputs_embeds.`"
             )
@@ -1150,6 +825,7 @@ class GPTBigCodeForSequenceClassification(GPTBigCodePreTrainedModel):
         )
 
 
+@auto_docstring
 class GPTBigCodeForTokenClassification(GPTBigCodePreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
@@ -1162,16 +838,17 @@ class GPTBigCodeForTokenClassification(GPTBigCodePreTrainedModel):
             classifier_dropout = config.hidden_dropout
         else:
             classifier_dropout = 0.1
-        self.dropout = mint.nn.Dropout(classifier_dropout)
+        self.dropout = nn.Dropout(classifier_dropout)
         self.classifier = mint.nn.Linear(config.hidden_size, config.num_labels)
 
         # Initialize weights and apply final processing
         self.post_init()
 
+    @auto_docstring
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
-        past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None,
+        past_key_values: Optional[tuple[tuple[ms.Tensor]]] = None,
         attention_mask: Optional[ms.Tensor] = None,
         token_type_ids: Optional[ms.Tensor] = None,
         position_ids: Optional[ms.Tensor] = None,
@@ -1182,8 +859,20 @@ class GPTBigCodeForTokenClassification(GPTBigCodePreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[Tuple, TokenClassifierOutput]:
+    ) -> Union[tuple, TokenClassifierOutput]:
         r"""
+        input_ids (`ms.Tensor` of shape `(batch_size, input_ids_length)`):
+            `input_ids_length` = `sequence_length` if `past_key_values` is `None` else
+            `past_key_values.get_seq_length()` (`sequence_length` of input past key value states). Indices of input
+            sequence tokens in the vocabulary.
+
+            If `past_key_values` is used, only `input_ids` that do not have their past calculated should be passed as
+            `input_ids`.
+
+            Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
+            [`PreTrainedTokenizer.__call__`] for details.
+
+            [What are input IDs?](../glossary#input-ids)
         labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Labels for computing the sequence classification/regression loss. Indices should be in `[0, ...,
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If

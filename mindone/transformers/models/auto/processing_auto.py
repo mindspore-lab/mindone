@@ -76,6 +76,9 @@ PROCESSOR_MAPPING_NAMES = OrderedDict(
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     PROCESSOR_MAPPING_NAMES.update({"glm4v": "Glm4vProcessor"})
 
+if version.parse(transformers.__version__) >= version.parse("4.57.0"):
+    PROCESSOR_MAPPING_NAMES.update({"qwen3_vl": "Qwen3VLProcessor", "qwen3_vl_moe": "Qwen3VLProcessor"})
+
 PROCESSOR_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, PROCESSOR_MAPPING_NAMES)
 
 

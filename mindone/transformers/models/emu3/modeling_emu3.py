@@ -28,7 +28,6 @@ from typing import Callable, List, Optional, Tuple, Union
 
 from transformers import Emu3Config, Emu3TextConfig, Emu3VQVAEConfig
 from transformers.utils import (
-    LossKwargs,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
     logging,
@@ -52,6 +51,7 @@ from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
+from ...utils import TransformersKwargs
 
 
 @jit_class
@@ -1616,10 +1616,6 @@ class Emu3TextModel(Emu3PreTrainedModel):
         return causal_mask
 
 
-class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
-    ...
-
-
 class Emu3ForCausalLM(Emu3PreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
     _tp_plan = {"lm_head": "colwise_rep"}
@@ -1670,7 +1666,7 @@ class Emu3ForCausalLM(Emu3PreTrainedModel, GenerationMixin):
         return_dict: Optional[bool] = None,
         cache_position: Optional[ms.Tensor] = None,
         logits_to_keep: Union[int, ms.Tensor] = 0,
-        **kwargs: Unpack[KwargsForCausalLM],
+        **kwargs: Unpack[TransformersKwargs],
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
             labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
@@ -1832,13 +1828,12 @@ EMU3_INPUTS_DOCSTRING = r"""
 """
 
 
-class Emu3ForConditionalGeneration(Emu3PreTrainedModel, GenerationMixin):
-    _tied_weights_keys = ["text_model.lm_head.weight"]
-    _supports_static_cache = False  # `get_image_tokens()`, called when `pixel_values` is passed, is not compileable
+class Emu3Model(Emu3PreTrainedModel):
+    _checkpoint_conversion_mapping = {"text_model.model": "text_model"}
 
     def __init__(self, config):
         super().__init__(config)
-        self.text_model = Emu3ForCausalLM._from_config(config.text_config)
+        self.text_model = Emu3TextModel._from_config(config.text_config)
         self.vqmodel = Emu3VQVAE(config.vq_config)
         self.vocabulary_mapping = Emu3ImageVocabularyMapping(config.vocabulary_map)
 
@@ -1887,6 +1882,102 @@ class Emu3ForConditionalGeneration(Emu3PreTrainedModel, GenerationMixin):
             image = self.vqmodel.decode(image_tokens)
             return image
 
+    def construct(
+        self,
+        input_ids: ms.Tensor = None,
+        pixel_values: ms.Tensor = None,
+        image_sizes: ms.Tensor = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_values: Optional[Cache] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        use_cache: Optional[bool] = None,
+        cache_position: Optional[ms.Tensor] = None,
+        **kwargs: Unpack[TransformersKwargs],
+    ) -> Union[tuple, CausalLMOutputWithPast]:
+        r"""
+        image_sizes (`ms.Tensor` of shape `(batch_size, 2)`):
+            The sizes of the images in the batch, being (height, width) for each image. Image sizes can be obtained using
+            [`AutoImageProcessor`]. See [`Emu3ImageProcessor.__call__`] for details ([]`Emu3Processor`] uses
+            [`Emu3ImageProcessor`] for processing images).
+        """
+        if (input_ids is None) != (inputs_embeds is not None):
+            raise ValueError(
+                "You cannot specify both input_ids and inputs_embeds at the same time, and must specify either one"
+            )
+
+        if pixel_values is not None and inputs_embeds is not None:
+            raise ValueError(
+                "You cannot specify both pixel_values and inputs_embeds at the same time, and must specify either one"
+            )
+
+        if pixel_values is not None:
+            image_tokens = self.get_image_tokens(pixel_values, image_sizes)
+            special_image_mask = input_ids == self.vocabulary_mapping.image_token_id
+            image_tokens = image_tokens.to(input_ids.dtype)
+            input_ids = input_ids.masked_scatter(special_image_mask, image_tokens)
+
+        # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
+        outputs = self.text_model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            past_key_values=past_key_values,
+            inputs_embeds=inputs_embeds,
+            use_cache=use_cache,
+            cache_position=cache_position,
+        )
+
+        return outputs
+
+
+class Emu3ForConditionalGeneration(Emu3PreTrainedModel, GenerationMixin):
+    base_model_prefix = ""
+    _tied_weights_keys = ["lm_head.weight"]
+    _checkpoint_conversion_mapping = {
+        "^text_model.model": "model.text_model",
+        "^vqmodel": "model.vqmodel",
+        "^text_model.lm_head": "lm_head",
+    }
+
+    def __init__(self, config):
+        super().__init__(config)
+        self.model = Emu3Model(config)
+        self.lm_head = mint.nn.Linear(config.text_config.hidden_size, config.text_config.vocab_size, bias=False)
+
+        self.post_init()
+
+    def get_input_embeddings(self):
+        return self.model.get_input_embeddings()
+
+    def set_input_embeddings(self, value):
+        self.model.set_input_embeddings(value)
+
+    def get_output_embeddings(self) -> nn.Cell:
+        return self.lm_head
+
+    def set_decoder(self, decoder):
+        self.model.set_decoder(decoder)
+
+    def get_decoder(self):
+        return self.model.get_decoder()
+
+    # Make modules available throught conditional class for BC
+    @property
+    def text_model(self):
+        return self.model.text_model
+
+    @property
+    def vqmodel(self):
+        return self.model.vqmodel
+
+    @property
+    def vocabulary_mapping(self):
+        return self.model.vocabulary_mapping
+
+    def decode_image_tokens(self, **kwargs):
+        return self.model.decode_image_tokens(**kwargs)
+
     @add_start_docstrings_to_model_forward(EMU3_INPUTS_DOCSTRING)
     @replace_return_docstrings(output_type=CausalLMOutputWithPast, config_class=_CONFIG_FOR_DOC)
     def construct(
@@ -1905,6 +1996,7 @@ class Emu3ForConditionalGeneration(Emu3PreTrainedModel, GenerationMixin):
         cache_position: Optional[ms.Tensor] = None,
         labels: Optional[ms.Tensor] = None,
         logits_to_keep: Union[int, ms.Tensor] = 0,
+        **kwargs: Unpack[TransformersKwargs],
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
             labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
@@ -1966,44 +2058,35 @@ class Emu3ForConditionalGeneration(Emu3PreTrainedModel, GenerationMixin):
         >>> generated_ids = model.generate(**inputs, max_new_tokens=100, do_sample=False)
         >>> processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
         ```"""
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
-        )
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
-        if (input_ids is None) != (inputs_embeds is not None):
-            raise ValueError(
-                "You cannot specify both input_ids and inputs_embeds at the same time, and must specify either one"
-            )
-
-        if pixel_values is not None and inputs_embeds is not None:
-            raise ValueError(
-                "You cannot specify both pixel_values and inputs_embeds at the same time, and must specify either one"
-            )
-
-        if pixel_values is not None:
-            image_tokens = self.get_image_tokens(pixel_values, image_sizes)
-            special_image_mask = input_ids == self.vocabulary_mapping.image_token_id
-            image_tokens = image_tokens.to(input_ids.dtype)
-            input_ids = input_ids.masked_scatter(special_image_mask, image_tokens)
-
-        # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
-        outputs = self.text_model(
+        outputs = self.model(
             input_ids=input_ids,
             attention_mask=attention_mask,
             position_ids=position_ids,
             past_key_values=past_key_values,
             inputs_embeds=inputs_embeds,
             use_cache=use_cache,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
             cache_position=cache_position,
-            logits_to_keep=logits_to_keep,
+            **kwargs,
         )
 
-        return outputs
+        hidden_states = outputs[0]
+        # Only compute necessary logits, and do not upcast them to float if we are not computing the loss
+        slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
+        logits = self.lm_head(hidden_states[:, slice_indices, :])
+
+        loss = None
+        if labels is not None:
+            loss = self.loss_function(
+                logits=logits, labels=labels, vocab_size=self.config.text_config.vocab_size, **kwargs
+            )
+
+        return CausalLMOutputWithPast(
+            loss=loss,
+            logits=logits,
+            past_key_values=outputs.past_key_values,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
+        )
 
     def prepare_inputs_for_generation(
         self,

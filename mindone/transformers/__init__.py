@@ -21,15 +21,29 @@
 # to defer the actual importing for when the objects are requested. This way `import transformers` provides the names
 # in the namespace without actually importing anything (and especially none of the backends).
 
-__version__ = "4.50.0"
+__version__ = "4.54.1"
 import transformers
 from packaging import version
+
+from .cache_utils import (
+    Cache,
+    DynamicCache,
+    EncoderDecoderCache,
+    HybridCache,
+    MambaCache,
+    OffloadedStaticCache,
+    SlidingWindowCache,
+    StaticCache,
+)
+from .feature_extraction_sequence_utils import SequenceFeatureExtractor
 
 # Feature Extractor
 from .feature_extraction_utils import BatchFeature, FeatureExtractionMixin
 from .image_processing_base import ImageProcessingMixin
 from .image_processing_utils import BaseImageProcessor
+from .image_processing_utils_fast import BaseImageProcessorFast
 from .image_utils import ImageFeatureExtractionMixin
+from .masking_utils import AttentionMaskInterface
 from .modeling_utils import MSPreTrainedModel, PreTrainedModel
 from .models.albert import (
     AlbertForMaskedLM,
@@ -1559,3 +1573,20 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
         Qwen2_5OmniToken2WavModel,
     )
     from .models.vjepa2 import VJEPA2ForVideoClassification, VJEPA2Model, VJEPA2PreTrainedModel
+
+if version.parse(transformers.__version__) >= version.parse("4.57.0"):
+    from .models.qwen3_vl import (
+        Qwen3VLForConditionalGeneration,
+        Qwen3VLModel,
+        Qwen3VLPreTrainedModel,
+        Qwen3VLProcessor,
+        Qwen3VLTextModel,
+        Qwen3VLVisionModel,
+    )
+    from .models.qwen3_vl_moe import (
+        Qwen3VLMoeForConditionalGeneration,
+        Qwen3VLMoeModel,
+        Qwen3VLMoePreTrainedModel,
+        Qwen3VLMoeTextModel,
+        Qwen3VLMoeVisionModel,
+    )
