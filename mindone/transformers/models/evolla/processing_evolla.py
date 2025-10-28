@@ -19,11 +19,12 @@ Processor class for EVOLLA.
 import os
 from typing import Optional, Union
 
+from transformers.models.auto import AutoTokenizer
+
 import mindspore as ms
 
 from ...feature_extraction_utils import BatchFeature
 from ...processing_utils import ProcessorMixin
-from ..auto import AutoTokenizer
 
 PROTEIN_VALID_KEYS = ["aa_seq", "foldseek", "msa"]
 
