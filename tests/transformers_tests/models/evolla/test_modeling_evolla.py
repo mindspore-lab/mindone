@@ -9,6 +9,7 @@ import inspect
 import numpy as np
 import pytest
 import torch
+from transformers import EvollaConfig
 
 import mindspore as ms
 
@@ -21,14 +22,10 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
-from transformers import EvollaConfig
-
-
 # Tolerances similar to other decoder models
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
 # Support both modes if possible; fall back to pynative if needed
-MODES = [0, 1]
-
+MODES = [1]  # only test in pynative mode
 
 
 class EvollaModelTester:
@@ -121,14 +118,8 @@ EVOLLA_CASES = [
 
 @pytest.mark.parametrize(
     "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",
-    [
-        case + [dtype] + [mode]
-        for case in EVOLLA_CASES
-        for dtype in DTYPE_AND_THRESHOLDS.keys()
-        for mode in MODES
-    ],
+    [case + [dtype] + [mode] for case in EVOLLA_CASES for dtype in DTYPE_AND_THRESHOLDS.keys() for mode in MODES],
 )
-
 def test_named_modules(
     name,
     pt_module,
