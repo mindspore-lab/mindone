@@ -99,6 +99,8 @@ class ColQwen2ModelTester:
         self.vision_start_token_id = vision_start_token_id
         self.image_token_id = image_token_id
         self.video_token_id = video_token_id
+        self.num_image_tokens = 32
+        self.seq_length = self.seq_length + self.num_image_tokens
         # ColQwen2 specific
         self.embedding_dim = embedding_dim
         self.initializer_range = initializer_range
