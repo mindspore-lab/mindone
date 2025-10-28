@@ -17,7 +17,7 @@ import math
 from dataclasses import dataclass
 from typing import Callable, Optional, Union
 
-from transformers import EvollaConfig, SaProtConfig
+from transformers.models.evolla.configuration_evolla import EvollaConfig, SaProtConfig
 from transformers.utils import ModelOutput, TransformersKwargs, auto_docstring, can_return_tuple, logging
 from transformers.utils.generic import check_model_inputs
 
