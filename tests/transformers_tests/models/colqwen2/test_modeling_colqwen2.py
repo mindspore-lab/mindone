@@ -74,25 +74,30 @@ class ColQwen2ModelTester:
         self.num_hidden_layers = num_hidden_layers
         self.num_attention_heads = num_attention_heads
         self.num_key_value_heads = num_key_value_heads
-        self.vision_config = vision_config or {
-            "depth": 2,
-            "embed_dim": 32,
-            "mlp_ratio": 4,
-            "num_heads": 4,
-            "patch_size": 14,
-            "in_chans": 3,
-            "temporal_patch_size": 2,
-            "max_size": [image_size, image_size],
-        }
-
+        self.vision_config = (
+            vision_config
+            or {
+                "depth": 2,
+                "in_chans": 3,
+                "hidden_act": "silu",
+                "intermediate_size": 32,
+                "out_hidden_size": 128,
+                "hidden_size": 128,
+                "num_heads": 8,
+                "patch_size": 14,
+                "spatial_patch_size": 14,
+                "spatial_merge_size": 1,
+                "temporal_patch_size": 2,
+            },
+        )
         # ColQwen2 specific
         self.embedding_dim = embedding_dim
         self.initializer_range = initializer_range
 
     def prepare_config_and_inputs(self):
         config = self.get_config()
-        patch_size = config.vision_config.patch_size
-        temporal_patch_size = config.vision_config.temporal_patch_size
+        patch_size = self.vision_config.patch_size
+        temporal_patch_size = self.vision_config.temporal_patch_size
         pixel_values = floats_numpy(
             [
                 self.batch_size * (self.image_size**2) // (patch_size**2),
