@@ -51,7 +51,19 @@ class ColQwen2ModelTester:
         num_hidden_layers=2,
         num_attention_heads=4,
         num_key_value_heads=4,
-        vision_config=None,
+        vision_config={
+                "depth": 2,
+                "in_chans": 3,
+                "hidden_act": "silu",
+                "intermediate_size": 32,
+                "out_hidden_size": 128,
+                "hidden_size": 128,
+                "num_heads": 8,
+                "patch_size": 14,
+                "spatial_patch_size": 14,
+                "spatial_merge_size": 1,
+                "temporal_patch_size": 2,
+        },
         # ColQwen2 specific
         embedding_dim=64,
         initializer_range=0.02,
@@ -74,22 +86,7 @@ class ColQwen2ModelTester:
         self.num_hidden_layers = num_hidden_layers
         self.num_attention_heads = num_attention_heads
         self.num_key_value_heads = num_key_value_heads
-        self.vision_config = (
-            vision_config
-            or {
-                "depth": 2,
-                "in_chans": 3,
-                "hidden_act": "silu",
-                "intermediate_size": 32,
-                "out_hidden_size": 128,
-                "hidden_size": 128,
-                "num_heads": 8,
-                "patch_size": 14,
-                "spatial_patch_size": 14,
-                "spatial_merge_size": 1,
-                "temporal_patch_size": 2,
-            },
-        )
+        self.vision_config = vision_config
         # ColQwen2 specific
         self.embedding_dim = embedding_dim
         self.initializer_range = initializer_range
