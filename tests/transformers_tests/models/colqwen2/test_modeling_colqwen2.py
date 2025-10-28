@@ -96,8 +96,8 @@ class ColQwen2ModelTester:
 
     def prepare_config_and_inputs(self):
         config = self.get_config()
-        patch_size = self.vision_config.patch_size
-        temporal_patch_size = self.vision_config.temporal_patch_size
+        patch_size = self.vision_config["patch_size"]
+        temporal_patch_size = self.vision_config["temporal_patch_size"]
         pixel_values = floats_numpy(
             [
                 self.batch_size * (self.image_size**2) // (patch_size**2),
