@@ -598,7 +598,8 @@ class SinusoidsPositionEmbedding(nn.Cell):
         super().__init__()
         if channels % 2 != 0:
             raise ValueError("SinusoidsPositionEmbedding needs even channels input")
-        log_timescale_increment = np.log(max_timescale) / (channels // 2 - 1)
+        # FIXME mindspore do not support numpy array for mint.exp
+        log_timescale_increment = ms.tensor(np.log(max_timescale) / (channels // 2 - 1))
         inv_timescales = mint.exp(-log_timescale_increment * mint.arange(channels // 2).float())
         scaled_time = mint.arange(length)[:, np.newaxis] * inv_timescales[np.newaxis, :]
         self.register_buffer(
