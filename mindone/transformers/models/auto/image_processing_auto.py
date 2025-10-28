@@ -63,6 +63,7 @@ else:
             ("dinov2", ("BitImageProcessor",)),
             ("dpt", ("DPTImageProcessor",)),
             ("efficientnet", ("EfficientNetImageProcessor",)),
+            ("eomt", ("EomtImageProcessor", "EomtImageProcessorFast")),
             ("flava", ("FlavaImageProcessor",)),
             ("llava_next", ("LlavaNextImageProcessor",)),
             ("llava_next_video", ("LlavaNextVideoImageProcessor",)),
