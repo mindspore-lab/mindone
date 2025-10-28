@@ -110,9 +110,27 @@ class ColQwen2ModelTester:
             np.float32
         )
 
+        # Derive image_grid_thw following processor semantics:
+        # (T, H, W) where T=1 for static images, and H=W=image_size // patch_size
+        # Note: We only compute it here for completeness; we do not pass it to the model unless
+        # pixel_values are prepared as padded patch sequences by the processor.
+        patch_size = self.vision_config.get("patch_size", 14)
+        thw_h = self.image_size // patch_size
+        thw_w = self.image_size // patch_size
+        image_grid_thw = np.stack([np.array([1, thw_h, thw_w], dtype=np.int32) for _ in range(self.batch_size)], axis=0)
+
         config = self.get_config()
 
-        return config, input_ids, input_mask, sequence_labels, token_labels, choice_labels, pixel_values
+        return (
+            config,
+            input_ids,
+            input_mask,
+            sequence_labels,
+            token_labels,
+            choice_labels,
+            pixel_values,
+            image_grid_thw,
+        )
 
     def get_config(self):
         from transformers.models.qwen2_vl import Qwen2VLConfig
@@ -146,6 +164,7 @@ model_tester = ColQwen2ModelTester()
     token_labels,
     choice_labels,
     pixel_values,
+    image_grid_thw,
 ) = model_tester.prepare_config_and_inputs()
 
 
@@ -161,6 +180,7 @@ COLQWEN2_CASES = [
             "input_ids": input_ids,
             "attention_mask": input_mask,
             "pixel_values": pixel_values,
+            "image_grid_thw": image_grid_thw,
         },
         {
             "embeddings": 0,
