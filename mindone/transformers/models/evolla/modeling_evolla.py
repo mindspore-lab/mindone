@@ -14,31 +14,32 @@
 # limitations under the License.
 
 import math
-
 from dataclasses import dataclass
 from typing import Callable, Optional, Union
+
+from transformers import EvollaConfig, SaProtConfig
+from transformers.utils import ModelOutput, TransformersKwargs, auto_docstring, can_return_tuple, logging
+from transformers.utils.generic import check_model_inputs
 
 import mindspore as ms
 from mindspore import Tensor, mint
 
-from mindone.transformers.mindspore_adapter.utils import _DTYPE_2_MIN
 from mindone.models.utils import constant_, normal_
+from mindone.transformers.mindspore_adapter.utils import _DTYPE_2_MIN
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
 from ...generation import GenerationMixin
-from ...integrations import use_kernel_forward_from_hub
+
+# from ...integrations import use_kernel_forward_from_hub
 from ...masking_utils import create_causal_mask
 from ...modeling_flash_attention_utils import flash_attn_supports_top_left_mask, is_flash_attn_available
-
 from ...modeling_outputs import (
     BaseModelOutputWithCrossAttentions,
     BaseModelOutputWithPast,
     BaseModelOutputWithPoolingAndCrossAttentions,
     CausalLMOutputWithPast,
 )
-
-from transformers.utils import ModelOutput
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update
 from ...modeling_utils import (
     ALL_ATTENTION_FUNCTIONS,
@@ -49,9 +50,6 @@ from ...modeling_utils import (
     prune_linear_layer,
 )
 from ...processing_utils import Unpack
-from transformers.utils import TransformersKwargs, auto_docstring, can_return_tuple, logging
-from transformers.utils.generic import check_model_inputs
-from transformers import EvollaConfig, SaProtConfig
 
 if is_flash_attn_available():
     from ...modeling_flash_attention_utils import _flash_attention_forward
@@ -378,7 +376,9 @@ class EvollaSaProtFlashAttention2(EvollaSaProtSelfAttention):
         super().__init__(config, position_embedding_type=position_embedding_type, layer_idx=layer_idx)
 
         # TODO: Should be removed once Flash Attention for RoCm is bumped to 2.1.
-        # flash_attn<2.1 generates top-left aligned causal mask, while what is needed here is bottom-right alignement, that was made default for flash_attn>=2.1. This attribute is used to handle this difference. Reference: https://github.com/Dao-AILab/flash-attention/releases/tag/v2.1.0.
+        # flash_attn<2.1 generates top-left aligned causal mask, while what is needed here is bottom-right alignement,
+        # that was made default for flash_attn>=2.1. This attribute is used to handle this difference.
+        # Reference: https://github.com/Dao-AILab/flash-attention/releases/tag/v2.1.0.
         # Beware that with flash_attn<2.1, using q_seqlen != k_seqlen (except for the case q_seqlen == 1) produces a wrong mask (top-left).
         self._flash_attn_uses_top_left_mask = flash_attn_supports_top_left_mask()
         self.dropout_prob = config.attention_probs_dropout_prob
@@ -1198,7 +1198,7 @@ class EvollaSequenceAlignerCrossAttention(ms.nn.Cell):
         return hidden_states
 
 
-@use_kernel_forward_from_hub("RMSNorm")
+# @use_kernel_forward_from_hub("RMSNorm")
 class EvollaRMSNorm(ms.nn.Cell):
     def __init__(self, hidden_size, eps=1e-6):
         """
@@ -1571,13 +1571,17 @@ class EvollaModel(EvollaPreTrainedModel):
         protein_attention_mask (mindspore.Tensor):
             The attention mask for the protein sequence. Should be of shape `(batch_size, protein_seq_length)` and type `mindspore.Tensor`.
         structure_feats (mindspore.Tensor):
-            The input IDs for purely structure-based features. Should be of shape `(batch_size, structure_seq_length, structure_feat_dim)` and type `mindspore.Tensor`. Dummy input for now.
+            The input IDs for purely structure-based features. Should be of shape `(batch_size, structure_seq_length, structure_feat_dim)` and
+            type `mindspore.Tensor`. Dummy input for now.
         msa_feats (mindspore.Tensor):
-            The input IDs for purely MSA-based features. Should be of shape `(batch_size, msa_seq_length, msa_feat_dim)` and type `mindspore.Tensor`. Dummy input for now.
+            The input IDs for purely MSA-based features. Should be of shape `(batch_size, msa_seq_length, msa_feat_dim)` and type `mindspore.Tensor`.
+            Dummy input for now.
         structure_batch_mask (mindspore.Tensor):
-            The batch mask to decide which protein sequences are purely structure-based. Should be of shape `(batch_size)` and type `mindspore.Tensor`. Should be paired with `structure_feats`. Dummpy input for now.
+            The batch mask to decide which protein sequences are purely structure-based. Should be of shape `(batch_size)` and type `mindspore.Tensor`.
+            Should be paired with `structure_feats`. Dummpy input for now.
         msa_batch_mask (mindspore.Tensor):
-            The batch mask to decide which protein sequences are purely MSA-based. Should be of shape `(batch_size)` and type `mindspore.Tensor`. Should be paired with `msa_feats`. Dummpy input for now.
+            The batch mask to decide which protein sequences are purely MSA-based. Should be of shape `(batch_size)` and type `mindspore.Tensor`.
+             Should be paired with `msa_feats`. Dummpy input for now.
         """
         if (input_ids is None) ^ (inputs_embeds is not None):
             raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
