@@ -924,7 +924,7 @@ class EvollaSequenceCompressorResampler(ms.nn.Cell):
 
         bs, _ = mask.shape  # bs, max_protein_length
         latent_mask = mint.ones((bs, self.num_latents))
-        mask = mint.cat((mask, latent_mask), dim=1)  # bs, max_protein_length + num_latents
+        mask = mint.cat((mask.to(latent_mask.dtype), latent_mask), dim=1)  # bs, max_protein_length + num_latents
 
         # blocks
         ones = mint.ones(b)
