@@ -957,7 +957,8 @@ class Qwen3OmniMoeVisionPatchEmbed(nn.Cell):
         self.in_channels = config.in_channels
         self.embed_dim = config.hidden_size
 
-        kernel_size = [self.temporal_patch_size, self.patch_size, self.patch_size]
+        # FIXME "mint.nn.Conv3d" do not support list input for "kernel_size" parameters
+        kernel_size = (self.temporal_patch_size, self.patch_size, self.patch_size)
         self.proj = mint.nn.Conv3d(self.in_channels, self.embed_dim, kernel_size=kernel_size, stride=kernel_size, bias=True)
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
