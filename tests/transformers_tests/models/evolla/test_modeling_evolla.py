@@ -40,7 +40,7 @@ class EvollaModelTester:
         hidden_size=32,
         num_hidden_layers=2,
         num_attention_heads=4,
-        num_key_value_heads=2,
+        num_key_value_heads=4,
         intermediate_size=64,
         max_position_embeddings=128,
         attention_dropout=0.0,
