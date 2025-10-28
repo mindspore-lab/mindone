@@ -706,7 +706,8 @@ class Qwen3OmniMoeAudioEncoder(Qwen3OmniMoePreTrainedModel):
         chunk_lengths[tail_chunk_index] = feature_lens % (self.n_window * 2)
         chunk_lengths[chunk_lengths == 0] = self.n_window * 2
 
-        chunk_list = input_features.T.split(chunk_lengths.tolist(), dim=0)
+        # TODO mindspore do not support "split_size=list[int]"
+        chunk_list = input_features.T.split(chunk_lengths.item(), dim=0)
         # TODO mindspore do not support "nn.utils.rnn.pad_sequence", we use "pad+stack" for substitution
         # padded_feature = nn.utils.rnn.pad_sequence(chunk_list, batch_first=True).transpose(1, 2)
         max_length = max([i.shape[1] for i in chunk_list])
