@@ -51,6 +51,12 @@ class ColQwen2ModelTester:
         num_hidden_layers=2,
         num_attention_heads=4,
         num_key_value_heads=4,
+        bos_token_id=0,
+        eos_token_id=1,
+        pad_token_id=2,
+        vision_start_token_id=3,
+        image_token_id=4,
+        video_token_id=5,
         vision_config={
                 "depth": 2,
                 "in_chans": 3,
@@ -87,6 +93,12 @@ class ColQwen2ModelTester:
         self.num_attention_heads = num_attention_heads
         self.num_key_value_heads = num_key_value_heads
         self.vision_config = vision_config
+        self.bos_token_id = bos_token_id
+        self.eos_token_id = eos_token_id
+        self.pad_token_id = pad_token_id
+        self.vision_start_token_id = vision_start_token_id
+        self.image_token_id = image_token_id
+        self.video_token_id = video_token_id
         # ColQwen2 specific
         self.embedding_dim = embedding_dim
         self.initializer_range = initializer_range
