@@ -867,7 +867,7 @@ class EvollaSequenceCompressorAttention(ms.nn.Cell):
         sim = mint.matmul(q, k.transpose(-1, -2))
         sim = sim - sim.amax(dim=-1, keepdim=True).clone()
         bs, nh, skd, okd = sim.shape
-        ones = mint.ones(nh, skd)  # Create a tensor of ones with shape (nh, skd)
+        ones = mint.ones((nh, skd))  # Create a tensor of ones with shape (nh, skd)
         mask_exp = mask[:, None, None, :]
         ones_exp = ones[None, :, :, None]
         mask = mask_exp * ones_exp
@@ -923,7 +923,7 @@ class EvollaSequenceCompressorResampler(ms.nn.Cell):
         b = embeds.shape[0]
 
         bs, _ = mask.shape  # bs, max_protein_length
-        latent_mask = mint.ones(bs, self.num_latents)
+        latent_mask = mint.ones((bs, self.num_latents))
         mask = mint.cat((mask, latent_mask), dim=1)  # bs, max_protein_length + num_latents
 
         # blocks
@@ -1107,7 +1107,7 @@ class EvollaSequenceAlignerCrossAttention(ms.nn.Cell):
 
         # attention_mask: [bs, 1, querylength, keylength]
         if query_attn_mask is None:
-            query_attn_mask = mint.ones(query_states.shape[0], query_states.shape[1])
+            query_attn_mask = mint.ones((query_states.shape[0], query_states.shape[1]))
         attention_mask = query_attn_mask[:, None, :, None] * kv_attn_mask[:, None, None, :]
         # Compute the scaled dot-product attention scores
         attn_weights = mint.matmul(query_layer, key_layer.transpose(-1, -2))  # [bs, numheads, querylength, keylength]
@@ -1148,7 +1148,7 @@ class EvollaSequenceAlignerCrossAttention(ms.nn.Cell):
         if protein_kv_states is not None:
             bs, protein_kv_seq_len, dim = protein_kv_states.shape
             if protein_kv_attn_mask is None:
-                protein_kv_attn_mask = mint.ones(bs, protein_kv_seq_len) * protein_batch_mask.reshape(
+                protein_kv_attn_mask = mint.ones((bs, protein_kv_seq_len)) * protein_batch_mask.reshape(
                     bs, 1
                 ).broadcast_to((bs, protein_kv_seq_len))
         else:
@@ -1157,7 +1157,7 @@ class EvollaSequenceAlignerCrossAttention(ms.nn.Cell):
         if structure_kv_states is not None:
             bs, structure_kv_seq_len, dim = structure_kv_states.shape
             if structure_kv_attn_mask is None:
-                structure_kv_attn_mask = mint.ones(bs, structure_kv_seq_len) * structure_batch_mask.reshape(
+                structure_kv_attn_mask = mint.ones((bs, structure_kv_seq_len)) * structure_batch_mask.reshape(
                     bs, 1
                 ).broadcast_to((bs, structure_kv_seq_len))
         else:
@@ -1166,7 +1166,7 @@ class EvollaSequenceAlignerCrossAttention(ms.nn.Cell):
         if msa_kv_states is not None:
             bs, msa_kv_seq_len, dim = msa_kv_states.shape
             if msa_kv_attn_mask is None:
-                msa_kv_attn_mask = mint.ones(bs, msa_kv_seq_len) * msa_batch_mask.reshape(bs, 1).broadcast_to(
+                msa_kv_attn_mask = mint.ones((bs, msa_kv_seq_len)) * msa_batch_mask.reshape(bs, 1).broadcast_to(
                     (bs, msa_kv_seq_len)
                 )
         else:
