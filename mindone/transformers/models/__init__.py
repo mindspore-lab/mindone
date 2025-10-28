@@ -49,6 +49,7 @@ from . import (
     cohere,
     cohere2,
     colpali,
+    colqwen2,
     convbert,
     convnext,
     convnextv2,
