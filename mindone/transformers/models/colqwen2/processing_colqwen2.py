@@ -351,7 +351,7 @@ class ColQwen2Processor(ProcessorMixin):
         query_embeddings: Union[ms.Tensor, list[ms.Tensor]],
         passage_embeddings: Union[ms.Tensor, list[ms.Tensor]],
         batch_size: int = 128,
-        output_dtype: Optional[ms.dtype] = None,
+        output_dtype: Optional[ms.Type] = None,
         output_device: Union[str, None] = None,
     ) -> ms.Tensor:
         """
