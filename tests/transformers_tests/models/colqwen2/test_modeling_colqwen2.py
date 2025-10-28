@@ -50,7 +50,7 @@ class ColQwen2ModelTester:
         intermediate_size=64,
         num_hidden_layers=2,
         num_attention_heads=4,
-        num_key_value_heads=2,
+        num_key_value_heads=4,
         vision_config=None,
         # ColQwen2 specific
         embedding_dim=64,
