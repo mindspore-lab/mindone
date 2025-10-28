@@ -31,7 +31,7 @@ Here is the development plan of the project:
 </div>
 
 1. Install
-   [8.1.RC1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.1.RC1) or [8.2.RC1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1)
+   [CANN 8.1.RC1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.1.RC1) or [CANN 8.2.RC1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1)
    and MindSpore according to the [official instructions](https://www.mindspore.cn/install).
 2. Install requirements
     ```shell
