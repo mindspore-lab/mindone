@@ -18,6 +18,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from dataclasses import dataclass
 from typing import Optional, Union
 
 from transformers import DeepseekVLConfig
@@ -34,6 +35,7 @@ from ...utils import TransformersKwargs
 from ..auto import AutoModel
 
 
+@dataclass
 class DeepseekVLBaseModelOutputWithPast(ModelOutput):
     r"""
     last_hidden_state (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
@@ -64,6 +66,7 @@ class DeepseekVLBaseModelOutputWithPast(ModelOutput):
     image_hidden_states: Optional[tuple[mindspore.Tensor]] = None
 
 
+@dataclass
 class DeepseekVLCausalLMOutputWithPast(ModelOutput):
     r"""
     loss (`mindspore.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
