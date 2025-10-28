@@ -22,7 +22,7 @@
 
 import math
 from dataclasses import dataclass
-from typing import Callable, Union, Optional
+from typing import Callable, Optional, Union
 
 import numpy as np
 from transformers.models.qwen3_omni_moe.configuration_qwen3_omni_moe import (
@@ -37,9 +37,10 @@ from transformers.models.qwen3_omni_moe.configuration_qwen3_omni_moe import (
     Qwen3OmniMoeVisionEncoderConfig,
 )
 from transformers.utils import auto_docstring
+from transformers.utils.deprecation import deprecate_kwarg
 
 import mindspore as ms
-from mindspore import mint, nn, ops, Parameter
+from mindspore import Parameter, mint, nn, ops
 from mindspore.mint.nn import functional as F
 
 from ...activations import ACT2FN
@@ -50,12 +51,17 @@ from ...mindspore_adapter import dtype_to_max, dtype_to_min
 from ...mindspore_adapter._conv import Conv1d, ConvTranspose1d
 from ...modeling_flash_attention_utils import FlashAttentionKwargs
 from ...modeling_layers import GradientCheckpointingLayer
-from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPast, CausalLMOutputWithPast, MoeModelOutputWithPast, MoeCausalLMOutputWithPast
+from ...modeling_outputs import (
+    BaseModelOutput,
+    BaseModelOutputWithPast,
+    CausalLMOutputWithPast,
+    MoeCausalLMOutputWithPast,
+    MoeModelOutputWithPast,
+)
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
 from ...utils import can_return_tuple
-from transformers.utils.deprecation import deprecate_kwarg
 from ...utils.generic import OutputRecorder, TransformersKwargs, check_model_inputs
 
 
@@ -742,7 +748,7 @@ class Qwen3OmniMoeAudioEncoder(Qwen3OmniMoePreTrainedModel):
             .to(padded_embed.dtype)
         )
         padded_embed = padded_embed + positional_embedding
-        hidden_states = padded_embed[padded_mask_after_cnn]
+        hidden_states = padded_embed[padded_mask_after_cnn.expand((padded_embed.shape[0], -1))]
         cu_chunk_lens = [0]
         window_aftercnn = padded_mask_after_cnn.shape[-1] * (self.n_window_infer // (self.n_window * 2))
         for cnn_len in aftercnn_lens:
@@ -809,6 +815,7 @@ class Qwen3OmniMoeAudioEncoder(Qwen3OmniMoePreTrainedModel):
         input_lengths = (input_lengths - 1) // 2 + 1
         output_lengths = (input_lengths - 2) // 2 + 1
         return input_lengths, output_lengths
+
 
 def rotate_half(x):
     """Rotates half the hidden dims of the input."""
@@ -960,7 +967,9 @@ class Qwen3OmniMoeVisionPatchEmbed(nn.Cell):
 
         # FIXME "mint.nn.Conv3d" do not support list input for "kernel_size" parameters
         kernel_size = (self.temporal_patch_size, self.patch_size, self.patch_size)
-        self.proj = mint.nn.Conv3d(self.in_channels, self.embed_dim, kernel_size=kernel_size, stride=kernel_size, bias=True)
+        self.proj = mint.nn.Conv3d(
+            self.in_channels, self.embed_dim, kernel_size=kernel_size, stride=kernel_size, bias=True
+        )
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         target_dtype = self.proj.weight.dtype
@@ -1129,9 +1138,7 @@ class Qwen3OmniMoeVisionEncoder(Qwen3OmniMoePreTrainedModel):
                 weight_list[i].extend(weights[i].tolist())
 
         idx_tensor = ms.tensor(idx_list, dtype=ms.int64)
-        weight_tensor = ms.tensor(
-            weight_list, dtype=self.pos_embed.weight.dtype
-        )
+        weight_tensor = ms.tensor(weight_list, dtype=self.pos_embed.weight.dtype)
         pos_embeds = self.pos_embed(idx_tensor) * weight_tensor[:, :, None]
         patch_pos_embeds = pos_embeds[0] + pos_embeds[1] + pos_embeds[2] + pos_embeds[3]
 
@@ -1255,7 +1262,6 @@ class Qwen3OmniMoeThinkerTextRotaryEmbedding(nn.Cell):
         inv_freq_expanded = self.inv_freq[None, None, :, None].float().expand((3, position_ids.shape[1], -1, 1))
         position_ids_expanded = position_ids[:, :, None, :].float()  # shape (3, bs, 1, positions)
 
-
         freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).transpose(2, 3)
         freqs = self.apply_interleaved_mrope(freqs, self.mrope_section)
         emb = mint.cat((freqs, freqs), dim=-1)
@@ -1311,9 +1317,7 @@ class Qwen3OmniMoeThinkerTextSparseMoeBlock(nn.Cell):
         # we cast back to the input dtype
         routing_weights = routing_weights.to(hidden_states.dtype)
 
-        final_hidden_states = mint.zeros(
-            (batch_size * sequence_length, hidden_dim), dtype=hidden_states.dtype
-        )
+        final_hidden_states = mint.zeros((batch_size * sequence_length, hidden_dim), dtype=hidden_states.dtype)
 
         # One hot encode the selected experts to create an expert mask
         # this will be used to easily index which expert is going to be sollicitated
@@ -1336,7 +1340,6 @@ class Qwen3OmniMoeThinkerTextSparseMoeBlock(nn.Cell):
             final_hidden_states.index_add_(0, top_x, current_hidden_states.to(hidden_states.dtype))
         final_hidden_states = final_hidden_states.reshape(batch_size, sequence_length, hidden_dim)
         return final_hidden_states, router_logits
-
 
 
 class Qwen3OmniMoeThinkerTextRMSNorm(nn.Cell):
@@ -1651,9 +1654,7 @@ class Qwen3OmniMoeThinkerTextModel(Qwen3OmniMoePreTrainedModel):
 
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-            cache_position = mint.arange(
-                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1]
-            )
+            cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
         # the hard coded `3` is for temporal, height and width.
         if position_ids is None:
@@ -1813,9 +1814,7 @@ def load_balancing_loss_func(
     The Qwen2.5OmniThinker model which consists of a audio backbone and a language model.
     """
 )
-class Qwen3OmniMoeThinkerForConditionalGeneration(
-    Qwen3OmniMoePreTrainedModelForConditionalGeneration, GenerationMixin
-):
+class Qwen3OmniMoeThinkerForConditionalGeneration(Qwen3OmniMoePreTrainedModelForConditionalGeneration, GenerationMixin):
     config: Qwen3OmniMoeThinkerConfig
     base_model_prefix = "thinker"
     _tied_weights_keys = ["model.embed_tokens.weight", "lm_head.weight"]
@@ -1849,9 +1848,7 @@ class Qwen3OmniMoeThinkerForConditionalGeneration(
     def set_input_embeddings(self, value):
         self.model.set_input_embeddings(value)
 
-    def get_video_features(
-        self, pixel_values_videos: ms.Tensor, video_grid_thw: Optional[ms.Tensor] = None
-    ):
+    def get_video_features(self, pixel_values_videos: ms.Tensor, video_grid_thw: Optional[ms.Tensor] = None):
         """
         Encodes videos into continuous embeddings that can be forwarded to the language model.
 
@@ -1932,10 +1929,7 @@ class Qwen3OmniMoeThinkerForConditionalGeneration(
             )
             special_video_mask = special_video_mask.all(-1)
             special_audio_mask = (
-                inputs_embeds
-                == self.get_input_embeddings()(
-                    ms.Tensor(self.config.audio_token_id, dtype=ms.int64)
-                )
+                inputs_embeds == self.get_input_embeddings()(ms.Tensor(self.config.audio_token_id, dtype=ms.int64))
             ).all(-1)
         else:
             special_image_mask = input_ids == self.config.image_token_id
@@ -2146,9 +2140,7 @@ class Qwen3OmniMoeThinkerForConditionalGeneration(
 
         loss = None
         if labels is not None:
-            loss = self.loss_function(
-                logits=logits, labels=labels, vocab_size=self.config.get_text_config().vocab_size
-            )
+            loss = self.loss_function(logits=logits, labels=labels, vocab_size=self.config.get_text_config().vocab_size)
 
         aux_loss = None
         if output_router_logits:
@@ -2223,7 +2215,9 @@ class Qwen3OmniMoeTalkerResizeMLP(nn.Cell):
     def __init__(self, config: Qwen3OmniMoeTalkerConfig):
         super().__init__()
         self.linear_fc1 = mint.nn.Linear(config.thinker_hidden_size, config.text_config.intermediate_size, bias=True)
-        self.linear_fc2 = mint.nn.Linear(config.text_config.intermediate_size, config.text_config.hidden_size, bias=True)
+        self.linear_fc2 = mint.nn.Linear(
+            config.text_config.intermediate_size, config.text_config.hidden_size, bias=True
+        )
         self.act_fn = ACT2FN[config.text_config.hidden_act]
 
     def construct(self, hidden_state):
@@ -2484,9 +2478,7 @@ class Qwen3OmniMoeTalkerCodePredictorModel(Qwen3OmniMoePreTrainedModel):
 
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-            cache_position = mint.arange(
-                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1]
-            )
+            cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
@@ -2551,7 +2543,10 @@ class Qwen3OmniMoeTalkerCodePredictorModelForConditionalGeneration(Qwen3OmniMoeP
         self.model = Qwen3OmniMoeTalkerCodePredictorModel._from_config(config)
         self.vocab_size = config.vocab_size
         self.lm_head = nn.CellList(
-            [mint.nn.Linear(config.hidden_size, config.vocab_size, bias=False) for _ in range(config.num_code_groups - 1)]
+            [
+                mint.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+                for _ in range(config.num_code_groups - 1)
+            ]
         )
 
         # Initialize weights and apply final processing
@@ -2671,9 +2666,7 @@ class Qwen3OmniMoeTalkerTextSparseMoeBlock(nn.Cell):
             ]
         )
 
-        self.shared_expert = Qwen3OmniMoeTalkerTextMLP(
-            config, intermediate_size=config.shared_expert_intermediate_size
-        )
+        self.shared_expert = Qwen3OmniMoeTalkerTextMLP(config, intermediate_size=config.shared_expert_intermediate_size)
         self.shared_expert_gate = mint.nn.Linear(config.hidden_size, 1, bias=False)
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
@@ -2690,9 +2683,7 @@ class Qwen3OmniMoeTalkerTextSparseMoeBlock(nn.Cell):
         # we cast back to the input dtype
         routing_weights = routing_weights.to(hidden_states.dtype)
 
-        final_hidden_states = mint.zeros(
-            (batch_size * sequence_length, hidden_dim), dtype=hidden_states.dtype
-        )
+        final_hidden_states = mint.zeros((batch_size * sequence_length, hidden_dim), dtype=hidden_states.dtype)
 
         # One hot encode the selected experts to create an expert mask
         # this will be used to easily index which expert is going to be sollicitated
@@ -2870,9 +2861,7 @@ class Qwen3OmniMoeTalkerModel(Qwen3OmniMoePreTrainedModel):
 
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-            cache_position = mint.arange(
-                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1]
-            )
+            cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
         # the hard coded `3` is for temporal, height and width.
         if position_ids is None:
@@ -2928,9 +2917,7 @@ class Qwen3OmniMoeTalkerModel(Qwen3OmniMoePreTrainedModel):
             past_key_values=past_key_values,
         )
 
-    def _deepstack_process(
-        self, hidden_states: ms.Tensor, visual_pos_masks: ms.Tensor, visual_embeds: ms.Tensor
-    ):
+    def _deepstack_process(self, hidden_states: ms.Tensor, visual_pos_masks: ms.Tensor, visual_embeds: ms.Tensor):
         visual_pos_masks = visual_pos_masks
         visual_embeds = visual_embeds.to(hidden_states.dtype)
         local_this = hidden_states[visual_pos_masks, :].clone() + visual_embeds
@@ -3168,9 +3155,7 @@ class Qwen3OmniMoeTalkerForConditionalGeneration(Qwen3OmniMoeThinkerTextPreTrain
             residual_codes = mint.cat((input_ids, predictor_result.sequences), dim=-1)
 
             mid_residual_hiddens = [hid[0] for hid in predictor_result.hidden_states[1:]]
-            last_residual_hidden = self.code_predictor.get_input_embeddings()[-1](
-                predictor_result.sequences[..., -1:]
-            )
+            last_residual_hidden = self.code_predictor.get_input_embeddings()[-1](predictor_result.sequences[..., -1:])
             codec_hiddens = mint.cat(
                 [last_id_hidden] + mid_residual_hiddens + [last_residual_hidden],
                 dim=1,
@@ -3545,9 +3530,7 @@ class Qwen3OmniMoeCode2WavTransformerModel(Qwen3OmniMoePreTrainedModel):
 
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-            cache_position = mint.arange(
-                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1]
-            )
+            cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
@@ -3762,9 +3745,7 @@ class Qwen3OmniMoeForConditionalGeneration(Qwen3OmniMoePreTrainedModel, Generati
             del self.code2wav
         self.has_talker = False
 
-    def _get_talker_user_parts(
-        self, im_start_index, segment_end_index, multimodal_mask, thinker_hidden, thinker_embed
-    ):
+    def _get_talker_user_parts(self, im_start_index, segment_end_index, multimodal_mask, thinker_hidden, thinker_embed):
         user_talker_part = mint.empty(
             (1, segment_end_index - im_start_index, self.config.talker_config.text_config.hidden_size),
             dtype=self.talker.dtype,
@@ -3948,18 +3929,19 @@ class Qwen3OmniMoeForConditionalGeneration(Qwen3OmniMoePreTrainedModel, Generati
             dim=-1,
         )  # Shape [n_starts + 1]; Take batch 0 since batched inference is not supported here.
         multimodal_mask = (
-            (thinker_result.sequences == self.config.thinker_config.audio_token_id) |
-            (thinker_result.sequences == self.config.thinker_config.image_token_id) |
-            (thinker_result.sequences == self.config.thinker_config.video_token_id)
+            (thinker_result.sequences == self.config.thinker_config.audio_token_id)
+            | (thinker_result.sequences == self.config.thinker_config.image_token_id)
+            | (thinker_result.sequences == self.config.thinker_config.video_token_id)
         )  # [1 t] # fmt: skip
 
         talker_special_tokens = ms.Tensor(
             [[self.config.tts_bos_token_id, self.config.tts_eos_token_id, self.config.tts_pad_token_id]],
             dtype=input_ids.dtype,
         )
-        tts_bos_embed, tts_eos_embed, tts_pad_embed = (
-            self.talker.text_projection(self.thinker.get_input_embeddings()(talker_special_tokens))
-            .chunk(3, dim=1)
+        tts_bos_embed, tts_eos_embed, tts_pad_embed = self.talker.text_projection(
+            self.thinker.get_input_embeddings()(talker_special_tokens)
+        ).chunk(
+            3, dim=1
         )  # 3 * [1 1 d]
 
         talker_input_embeds = []  # [1 t d]
@@ -4006,10 +3988,9 @@ class Qwen3OmniMoeForConditionalGeneration(Qwen3OmniMoePreTrainedModel, Generati
             talker_input_ids=talker_input_id,  # Not use input_ids to prevent repetation penalty out of bound
             **talker_kwargs,
         )
-        talker_codes = (
-            mint.stack([hid[-1] for hid in talker_result.hidden_states if hid[-1] is not None], dim=1)
-            .transpose(1, 2)
-        )
+        talker_codes = mint.stack(
+            [hid[-1] for hid in talker_result.hidden_states if hid[-1] is not None], dim=1
+        ).transpose(1, 2)
         talker_wavs = self.code2wav.chunked_decode(talker_codes, chunk_size=300, left_context_size=25)
 
         return thinker_result, talker_wavs.float()
