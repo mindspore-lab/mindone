@@ -24,6 +24,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional, Union
 
 # Build the list of all video processors
+import transformers
+from packaging import version
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import get_class_from_dynamic_module, resolve_trust_remote_code
 from transformers.utils import CONFIG_NAME, VIDEO_PROCESSOR_NAME, cached_file, is_torchvision_available, logging
@@ -43,6 +45,13 @@ else:
     VIDEO_PROCESSOR_MAPPING_NAMES = OrderedDict(
         [
             ("qwen2_vl", "Qwen2VLVideoProcessor"),
+        ]
+    )
+
+if version.parse(transformers.__version__) >= version.parse("4.57.0"):
+    VIDEO_PROCESSOR_MAPPING_NAMES.update(
+        [
+            ("qwen3_omni_moe", "Qwen2VLVideoProcessor"),
         ]
     )
 
