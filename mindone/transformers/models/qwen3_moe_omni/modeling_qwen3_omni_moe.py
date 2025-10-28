@@ -752,10 +752,10 @@ class Qwen3OmniMoeAudioEncoder(Qwen3OmniMoePreTrainedModel):
         cu_chunk_lens = [0]
         window_aftercnn = padded_mask_after_cnn.shape[-1] * (self.n_window_infer // (self.n_window * 2))
         for cnn_len in aftercnn_lens:
-            cu_chunk_lens += [window_aftercnn] * (cnn_len // window_aftercnn)
+            cu_chunk_lens += [window_aftercnn] * (cnn_len.item() // window_aftercnn)
             remainder = cnn_len % window_aftercnn
             if remainder != 0:
-                cu_chunk_lens += [remainder]
+                cu_chunk_lens += [remainder.item()]
         cu_seqlens = ms.tensor(cu_chunk_lens).cumsum(-1, dtype=ms.int32)
 
         for encoder_layer in self.layers:
@@ -2054,7 +2054,8 @@ class Qwen3OmniMoeThinkerForConditionalGeneration(Qwen3OmniMoePreTrainedModelFor
             )
             audio_features = audio_features.to(inputs_embeds.dtype)
             _, _, audio_mask = self.get_placeholder_mask(input_ids, inputs_embeds=inputs_embeds)
-            inputs_embeds = inputs_embeds.masked_scatter(audio_mask, audio_features)
+            audio_features = audio_features.float()
+            inputs_embeds = inputs_embeds.float().masked_scatter(audio_mask, audio_features).to(inputs_embeds.dtype)
 
         if pixel_values is not None:
             image_embeds, image_embeds_multiscale = self.get_image_features(pixel_values, image_grid_thw)
@@ -2062,7 +2063,8 @@ class Qwen3OmniMoeThinkerForConditionalGeneration(Qwen3OmniMoePreTrainedModelFor
             image_mask, _, _ = self.get_placeholder_mask(
                 input_ids, inputs_embeds=inputs_embeds, image_features=image_embeds
             )
-            inputs_embeds = inputs_embeds.masked_scatter(image_mask, image_embeds)
+            image_embeds = image_embeds.float()
+            inputs_embeds = inputs_embeds.float().masked_scatter(image_mask, image_embeds).to(inputs_embeds.dtype)
 
             visual_pos_masks = image_mask
             visual_embeds_multiscale = image_embeds_multiscale
@@ -2074,7 +2076,8 @@ class Qwen3OmniMoeThinkerForConditionalGeneration(Qwen3OmniMoePreTrainedModelFor
             _, video_mask, _ = self.get_placeholder_mask(
                 input_ids, inputs_embeds=inputs_embeds, video_features=video_embeds
             )
-            inputs_embeds = inputs_embeds.masked_scatter(video_mask, video_embeds)
+            video_embeds = video_embeds.float()
+            inputs_embeds = inputs_embeds.float().masked_scatter(video_mask, video_embeds).to(inputs_embeds.dtype)
 
             if visual_embeds_multiscale is None:
                 visual_embeds_multiscale = video_embeds_multiscale
