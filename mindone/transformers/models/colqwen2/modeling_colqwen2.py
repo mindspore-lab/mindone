@@ -22,9 +22,9 @@ from transformers.utils import ModelOutput, auto_docstring, can_return_tuple
 import mindspore as ms
 from mindspore import mint
 
-from mindone.transformers import AutoModelForImageTextToText
-from mindone.transformers.cache_utils import Cache
-from mindone.transformers.modeling_utils import PreTrainedModel
+from ...cache_utils import Cache
+from ...modeling_utils import PreTrainedModel
+from ..auto import AutoModelForImageTextToText
 
 
 @auto_docstring
