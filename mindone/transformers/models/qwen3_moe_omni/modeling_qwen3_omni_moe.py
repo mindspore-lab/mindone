@@ -3425,7 +3425,7 @@ class Qwen3OmniMoeCode2WavLayerScale(nn.Cell):
         super().__init__()
         channels = config.hidden_size
         initial_scale = config.layer_scale_initial_scale
-        self.scale = Parameter(ops.full((channels,), initial_scale, requires_grad=True))
+        self.scale = Parameter(ops.full((channels,), initial_scale))
 
     def construct(self, x: ms.Tensor):
         return self.scale * x
