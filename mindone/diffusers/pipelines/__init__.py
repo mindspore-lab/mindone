@@ -183,11 +183,12 @@ _import_structure = {
         "PixArtSigmaPipeline",
     ],
     "qwenimage": [
-        "QwenImageEditPipeline",
-        "QwenImageEditInpaintPipeline",
+        "QwenImagePipeline",
         "QwenImageImg2ImgPipeline",
         "QwenImageInpaintPipeline",
-        "QwenImagePipeline",
+        "QwenImageEditPipeline",
+        "QwenImageEditPlusPipeline",
+        "QwenImageEditInpaintPipeline",
     ],
     "sana": ["SanaPipeline", "SanaSprintPipeline", "SanaControlNetPipeline", "SanaSprintImg2ImgPipeline"],
     "semantic_stable_diffusion": ["SemanticStableDiffusionPipeline"],
@@ -425,6 +426,7 @@ if TYPE_CHECKING:
     from .qwenimage import (
         QwenImageEditInpaintPipeline,
         QwenImageEditPipeline,
+        QwenImageEditPlusPipeline,
         QwenImageImg2ImgPipeline,
         QwenImageInpaintPipeline,
         QwenImagePipeline,
