@@ -1585,7 +1585,7 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     from .models.vjepa2 import VJEPA2ForVideoClassification, VJEPA2Model, VJEPA2PreTrainedModel
 
 if version.parse(transformers.__version__) >= version.parse("4.57.0"):
-    from .models.qwen3_moe_omni import Qwen3OmniMoeProcessor, Qwen3OmniMoeAudioEncoder
+    from .models.qwen3_moe_omni import Qwen3OmniMoeAudioEncoder, Qwen3OmniMoeProcessor
     from .models.qwen3_vl import (
         Qwen3VLForConditionalGeneration,
         Qwen3VLModel,

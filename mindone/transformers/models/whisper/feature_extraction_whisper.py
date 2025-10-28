@@ -23,12 +23,7 @@ import numpy as np
 from ...audio_utils import mel_filter_bank, spectrogram, window_function
 from ...feature_extraction_sequence_utils import SequenceFeatureExtractor
 from ...feature_extraction_utils import BatchFeature
-from ...utils import is_mindspore_available, TensorType, logging
-
-
-if is_mindspore_available():
-    import mindspore as ms
-    from mindspore import mint
+from ...utils import TensorType, logging
 
 logger = logging.get_logger(__name__)
 
@@ -290,7 +285,8 @@ class WhisperFeatureExtractor(SequenceFeatureExtractor):
 
         if return_token_timestamps is not None:
             logger.warning_once(
-                f"`return_token_timestamps` is deprecated for {self.__class__.__name__} and will be removed in Transformers v5. Use `return_attention_mask` instead, as the number of frames can be inferred from it."
+                f"`return_token_timestamps` is deprecated for {self.__class__.__name__} and will be removed in Transformers v5. "
+                f"Use `return_attention_mask` instead, as the number of frames can be inferred from it."
             )
             padded_inputs["num_frames"] = [len(raw_speech_i) // self.hop_length for raw_speech_i in raw_speech]
 

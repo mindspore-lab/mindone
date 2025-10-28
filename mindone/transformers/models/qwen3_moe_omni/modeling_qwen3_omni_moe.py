@@ -25,23 +25,22 @@ from dataclasses import dataclass
 from typing import Callable, Optional
 
 import numpy as np
-import mindspore as ms
-from mindspore import mint, nn, ops
-from mindspore.mint.nn import functional as F
-
-from ...activations import ACT2FN
-from ...modeling_layers import GradientCheckpointingLayer
-from ...modeling_outputs import (
-    BaseModelOutput,
-)
-from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
-from ...mindspore_adapter import dtype_to_max, dtype_to_min
-from transformers.utils import auto_docstring
 from transformers.models.qwen3_omni_moe.configuration_qwen3_omni_moe import (
     Qwen3OmniMoeAudioEncoderConfig,
     Qwen3OmniMoeCode2WavConfig,
     Qwen3OmniMoeConfig,
 )
+from transformers.utils import auto_docstring
+
+import mindspore as ms
+from mindspore import mint, nn, ops
+from mindspore.mint.nn import functional as F
+
+from ...activations import ACT2FN
+from ...mindspore_adapter import dtype_to_max, dtype_to_min
+from ...modeling_layers import GradientCheckpointingLayer
+from ...modeling_outputs import BaseModelOutput
+from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 
 
 @auto_docstring
@@ -103,9 +102,7 @@ class Qwen3OmniMoePreTrainedModelForConditionalGeneration(Qwen3OmniMoePreTrained
             # In this case we assume that the mask comes already in inverted form and requires no inversion or slicing.
             causal_mask = attention_mask
         else:
-            causal_mask = ops.full(
-                (sequence_length, target_length), fill_value=min_dtype, dtype=dtype
-            )
+            causal_mask = ops.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
             if sequence_length != 1:
                 causal_mask = mint.triu(causal_mask, diagonal=1)
             causal_mask *= mint.arange(target_length) > cache_position.reshape(-1, 1)
@@ -259,9 +256,7 @@ class Qwen3OmniMoePreTrainedModelForConditionalGeneration(Qwen3OmniMoePreTrained
             if attention_mask is not None:
                 attention_mask = attention_mask == 1
             position_ids = mint.zeros(
-                (3,
-                input_ids.shape[0],
-                input_ids.shape[1]),
+                (3, input_ids.shape[0], input_ids.shape[1]),
                 dtype=ms.float32,
             )
             image_idx, video_idx, audio_idx = 0, 0, 0
@@ -700,7 +695,7 @@ class Qwen3OmniMoeAudioEncoder(Qwen3OmniMoePreTrainedModel):
         max_length = max([i.shape[1] for i in chunk_list])
         padded_feature = []
         for i in range(len(chunk_list)):
-            padded_feature.append(mint.nn.functional.pad(chunk_list[i], pad=(0, 0, 0, max_length-len(chunk_list[i]))))
+            padded_feature.append(mint.nn.functional.pad(chunk_list[i], pad=(0, 0, 0, max_length - len(chunk_list[i]))))
         padded_feature = mint.stack(padded_feature).transpose(1, 2)
         feature_lens_after_cnn = _get_feat_extract_output_lengths(chunk_lengths)
         # TODO mindspore do not support "nn.utils.rnn.pad_sequence", we use "pad+stack" for substitution

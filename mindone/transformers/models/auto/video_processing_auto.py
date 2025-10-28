@@ -27,15 +27,10 @@ from typing import TYPE_CHECKING, Optional, Union
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import get_class_from_dynamic_module, resolve_trust_remote_code
 from transformers.utils import CONFIG_NAME, VIDEO_PROCESSOR_NAME, cached_file, is_torchvision_available, logging
+
 from ...video_processing_utils import BaseVideoProcessor
 from .auto_factory import _LazyAutoMapping
-from .configuration_auto import (
-    CONFIG_MAPPING_NAMES,
-    AutoConfig,
-    model_type_to_module_name,
-    replace_list_option_in_docstrings,
-)
-
+from .configuration_auto import CONFIG_MAPPING_NAMES, AutoConfig, replace_list_option_in_docstrings
 
 logger = logging.get_logger(__name__)
 
