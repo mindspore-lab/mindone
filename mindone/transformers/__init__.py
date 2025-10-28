@@ -502,6 +502,7 @@ from .models.esm import (
     EsmModel,
     EsmPreTrainedModel,
 )
+from .models.evolla import EvollaForProteinText2Text, EvollaModel, EvollaPreTrainedModel, EvollaProcessor
 from .models.falcon import (
     FalconForCausalLM,
     FalconForQuestionAnswering,
@@ -570,8 +571,6 @@ from .models.funnel import (
     FunnelModel,
     FunnelPreTrainedModel,
 )
-from .models.dpt import DPTForDepthEstimation
-from .models.evolla import EvollaForProteinText2Text, EvollaModel, EvollaPreTrainedModel
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
     GemmaForCausalLM,
