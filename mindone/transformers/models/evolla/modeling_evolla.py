@@ -865,7 +865,7 @@ class EvollaSequenceCompressorAttention(ms.nn.Cell):
 
         # attention
         sim = mint.matmul(q, k.transpose(-1, -2))
-        sim = sim - sim.amax(dim=-1, keepdim=True).clone()
+        sim = sim - mint.amax(sim, dim=-1, keepdim=True).clone()
         bs, nh, skd, okd = sim.shape
         ones = mint.ones((nh, skd))  # Create a tensor of ones with shape (nh, skd)
         mask_exp = mask[:, None, None, :]
@@ -1111,7 +1111,7 @@ class EvollaSequenceAlignerCrossAttention(ms.nn.Cell):
         attention_mask = query_attn_mask[:, None, :, None] * kv_attn_mask[:, None, None, :]
         # Compute the scaled dot-product attention scores
         attn_weights = mint.matmul(query_layer, key_layer.transpose(-1, -2))  # [bs, numheads, querylength, keylength]
-        attn_weights = attn_weights - attn_weights.amax(dim=-1, keepdim=True).clone()  # To stablize score
+        attn_weights = attn_weights - mint.amax(attn_weights, dim=-1, keepdim=True).clone()  # To stablize score
         attention_scores = attn_weights.masked_fill(
             (1 - attention_mask).bool(), _DTYPE_2_MIN[attn_weights.dtype]
         )  # [bs, numheads, querylength, keylength]
