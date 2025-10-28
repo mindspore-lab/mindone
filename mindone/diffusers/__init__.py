@@ -658,7 +658,7 @@ if TYPE_CHECKING:
         PixArtSigmaPipeline,
         QwenImageEditInpaintPipeline,
         QwenImageEditPipeline,
-        QwenImageEditPlusPipeline,        
+        QwenImageEditPlusPipeline,
         QwenImageImg2ImgPipeline,
         QwenImageInpaintPipeline,
         QwenImagePipeline,
