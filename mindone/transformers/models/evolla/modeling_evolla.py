@@ -873,7 +873,7 @@ class EvollaSequenceCompressorAttention(ms.nn.Cell):
         mask = mask_exp * ones_exp
 
         sim = sim.masked_fill((1 - mask).bool(), -1e4)
-        attn = sim.softmax(dim=-1)
+        attn = mint.nn.functional.softmax(sim, dim=-1)
         out = mint.matmul(attn, v)
         out = out.permute(0, 2, 1, 3)
 
