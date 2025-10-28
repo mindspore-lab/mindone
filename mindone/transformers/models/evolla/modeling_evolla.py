@@ -714,6 +714,7 @@ class EvollaSaProtPreTrainedModel(PreTrainedModel):
     config: SaProtConfig
     _no_split_modules = ["EvollaSaProtLayer"]
     _supports_flash_attn = True
+    _supports_dynamic_input = True
 
     def _init_weights(self, module):
         """Initialize the weights"""
