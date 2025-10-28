@@ -23,7 +23,7 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import ids_numpy
+from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
 MODES = [1]  # 1: pynative mode (graph mode not supported yet)
@@ -90,47 +90,37 @@ class ColQwen2ModelTester:
         self.initializer_range = initializer_range
 
     def prepare_config_and_inputs(self):
-        # Create text inputs
-        input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
-
-        input_mask = None
-        if self.use_input_mask:
-            input_mask = np.tril(np.ones_like(input_ids))
-
-        sequence_labels = None
-        token_labels = None
-        choice_labels = None
-        if self.use_labels:
-            sequence_labels = ids_numpy([self.batch_size], self.type_sequence_label_size)
-            token_labels = ids_numpy([self.batch_size, self.seq_length], self.num_labels)
-            choice_labels = ids_numpy([self.batch_size], self.num_choices)
-
-        # Create image inputs
-        pixel_values = np.random.randn(self.batch_size, self.num_channels, self.image_size, self.image_size).astype(
-            np.float32
-        )
-
-        # Derive image_grid_thw following processor semantics:
-        # (T, H, W) where T=1 for static images, and H=W=image_size // patch_size
-        # Note: We only compute it here for completeness; we do not pass it to the model unless
-        # pixel_values are prepared as padded patch sequences by the processor.
-        patch_size = self.vision_config.get("patch_size", 14)
-        thw_h = self.image_size // patch_size
-        thw_w = self.image_size // patch_size
-        image_grid_thw = np.stack([np.array([1, thw_h, thw_w], dtype=np.int32) for _ in range(self.batch_size)], axis=0)
-
         config = self.get_config()
-
-        return (
-            config,
-            input_ids,
-            input_mask,
-            sequence_labels,
-            token_labels,
-            choice_labels,
-            pixel_values,
-            image_grid_thw,
+        patch_size = config.vision_config.patch_size
+        temporal_patch_size = config.vision_config.temporal_patch_size
+        pixel_values = floats_numpy(
+            [
+                self.batch_size * (self.image_size**2) // (patch_size**2),
+                self.num_channels * (patch_size**2) * temporal_patch_size,
+            ]
         )
+
+        return config, pixel_values
+
+    def prepare_config_and_inputs_for_common(self):
+        config_and_inputs = self.prepare_config_and_inputs()
+        config, pixel_values = config_and_inputs
+        input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
+        attention_mask = np.ones(input_ids.shape, dtype=np.int64)
+
+        input_ids[:, -1] = self.pad_token_id
+        input_ids[input_ids == self.video_token_id] = self.pad_token_id
+        input_ids[input_ids == self.image_token_id] = self.pad_token_id
+        input_ids[input_ids == self.vision_start_token_id] = self.pad_token_id
+        input_ids[:, self.num_image_tokens] = self.image_token_id
+        input_ids[:, self.num_image_tokens - 1] = self.vision_start_token_id
+        inputs_dict = {
+            "pixel_values": pixel_values,
+            "image_grid_thw": np.array([[1, 1, 1]] * self.batch_size),
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+        }
+        return config, inputs_dict
 
     def get_config(self):
         from transformers.models.qwen2_vl import Qwen2VLConfig
@@ -156,17 +146,7 @@ class ColQwen2ModelTester:
 
 
 model_tester = ColQwen2ModelTester()
-(
-    config,
-    input_ids,
-    input_mask,
-    sequence_labels,
-    token_labels,
-    choice_labels,
-    pixel_values,
-    image_grid_thw,
-) = model_tester.prepare_config_and_inputs()
-
+config, inputs_dict = model_tester.prepare_config_and_inputs_for_common()
 
 COLQWEN2_CASES = [
     [
@@ -176,15 +156,8 @@ COLQWEN2_CASES = [
         (config,),
         {},
         (),
-        {
-            "input_ids": input_ids,
-            "attention_mask": input_mask,
-            "pixel_values": pixel_values,
-            "image_grid_thw": image_grid_thw,
-        },
-        {
-            "embeddings": 0,
-        },
+        inputs_dict,
+        {"logits": "logits"},
     ],
 ]
 
