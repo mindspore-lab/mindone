@@ -21,13 +21,14 @@
 
 from typing import Optional, Union
 
+from transformers.tokenization_utils_base import PreTokenizedInput, TextInput
+
 import mindspore as ms
 from mindspore import mint
 
 from ...feature_extraction_utils import BatchFeature
 from ...image_utils import ImageInput, is_valid_image
 from ...processing_utils import MultiModalData, ProcessingKwargs, ProcessorMixin, Unpack
-from ...tokenization_utils_base import PreTokenizedInput, TextInput
 
 
 class ColQwen2ProcessorKwargs(ProcessingKwargs, total=False):
@@ -296,7 +297,7 @@ class ColQwen2Processor(ProcessorMixin):
                 If set, will return tensors of a particular framework. Acceptable values are:
 
                 - `'tf'`: Return TensorFlow `tf.constant` objects.
-                - `'pt'`: Return PyTorch `torch.Tensor` objects.
+                - `'ms'`: Return MindSpore `ms.Tensor` objects.
                 - `'np'`: Return NumPy `np.ndarray` objects.
                 - `'jax'`: Return JAX `jnp.ndarray` objects.
 
@@ -331,7 +332,7 @@ class ColQwen2Processor(ProcessorMixin):
                 If set, will return tensors of a particular framework. Acceptable values are:
 
                 - `'tf'`: Return TensorFlow `tf.constant` objects.
-                - `'pt'`: Return PyTorch `torch.Tensor` objects.
+                - `'ms'`: Return MindSpore `ms.Tensor` objects.
                 - `'np'`: Return NumPy `np.ndarray` objects.
                 - `'jax'`: Return JAX `jnp.ndarray` objects.
 
