@@ -1054,7 +1054,7 @@ class EvollaSequenceAlignerCrossAttention(ms.nn.Cell):
         query_layer = self.query(query_layer)  # [bs, querylength, dim]
 
         if self.key_protein is not None and self.value_protein is not None:
-            protein_key_value_states = protein_key_value_states.to(query_states)
+            protein_key_value_states = protein_key_value_states.to(query_states.dtype)
             key_layer_protein = self.key_protein(protein_key_value_states)  # [bs, keylength, dim]
             value_layer_protein = self.value_protein(protein_key_value_states)  # [bs, keylength, dim]
         else:
@@ -1062,7 +1062,7 @@ class EvollaSequenceAlignerCrossAttention(ms.nn.Cell):
             value_layer_protein = None
 
         if self.key_structure is not None and self.value_structure is not None:
-            structure_key_value_states = structure_key_value_states.to(query_states)
+            structure_key_value_states = structure_key_value_states.to(query_states.dtype)
             key_layer_structure = self.key_structure(structure_key_value_states)  # [bs, keylength, dim]
             value_layer_structure = self.value_structure(structure_key_value_states)  # [bs, keylength, dim]
         else:
@@ -1070,7 +1070,7 @@ class EvollaSequenceAlignerCrossAttention(ms.nn.Cell):
             value_layer_structure = None
 
         if self.key_msa is not None and self.value_msa is not None:
-            msa_key_value_states = msa_key_value_states.to(query_states)
+            msa_key_value_states = msa_key_value_states.to(query_states.dtype)
             key_layer_msa = self.key_msa(msa_key_value_states)  # [bs, keylength, dim]
             value_layer_msa = self.value_msa(msa_key_value_states)  # [bs, keylength, dim]
         else:
