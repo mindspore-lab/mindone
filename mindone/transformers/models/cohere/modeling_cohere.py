@@ -1,7 +1,7 @@
 from typing import Callable, List, Optional, Tuple, Union
 
 from transformers import CohereConfig
-from transformers.utils import LossKwargs, add_start_docstrings, add_start_docstrings_to_model_forward, logging
+from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging
 from transformers.utils.deprecation import deprecate_kwarg
 
 import mindspore as ms
@@ -567,7 +567,7 @@ class CohereModel(CoherePreTrainedModel):
         dtype = input_tensor.dtype
         sequence_length = input_tensor.shape[1]
         if using_static_cache:
-            target_length = past_key_values.get_max_length()
+            target_length = past_key_values.get_max_cache_shape()
         else:
             target_length = (
                 attention_mask.shape[-1]
@@ -619,10 +619,6 @@ class CohereModel(CoherePreTrainedModel):
                 causal_mask = mint.cat([mask_temp, causal_mask[:, :, :, mask_length:]], dim=-1)
 
         return causal_mask
-
-
-class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
-    ...
 
 
 class CohereForCausalLM(CoherePreTrainedModel, GenerationMixin):

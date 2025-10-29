@@ -35,7 +35,7 @@ dependencies = [
     "mindcv==0.3.0",
     "huggingface-hub>=0.20.2",
     "safetensors>=0.3.1",
-    "transformers==4.50.0",
+    "transformers==4.54.1",
     "better_profanity",
     "nltk"
 ]
