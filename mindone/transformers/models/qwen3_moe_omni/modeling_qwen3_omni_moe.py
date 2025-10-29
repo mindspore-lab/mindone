@@ -286,7 +286,7 @@ class Qwen3OmniMoePreTrainedModelForConditionalGeneration(Qwen3OmniMoePreTrained
                 if attention_mask is not None:
                     input_ids = input_ids[attention_mask[i]]
                 image_nums, video_nums, audio_nums = 0, 0, 0
-                vision_start_indices = mint.argwhere(input_ids == vision_start_token_id).squeeze(1)
+                vision_start_indices = ops.argwhere(input_ids == vision_start_token_id).squeeze(1)
                 vision_tokens = input_ids[vision_start_indices + 1]
                 audio_nums = mint.sum(input_ids == audio_start_token_id)
                 image_nums = (vision_tokens == image_token_id).sum()
