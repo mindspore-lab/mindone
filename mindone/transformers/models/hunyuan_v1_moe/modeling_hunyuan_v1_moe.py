@@ -21,13 +21,16 @@
 
 from typing import Callable, Optional, Union
 
-import mindspore as ms
-from mindspore import nn, mint
+from transformers import HunYuanMoEV1Config
+from transformers.utils.deprecation import deprecate_kwarg
 
-from ...cache_utils import Cache
+import mindspore as ms
+from mindspore import mint, nn
+
+from mindone.models.utils import normal_, zeros_
 
 from ...activations import ACT2FN
-from ...cache_utils import DynamicCache
+from ...cache_utils import Cache, DynamicCache
 from ...generation import GenerationMixin
 from ...masking_utils import create_causal_mask
 from ...modeling_layers import GenericForSequenceClassification, GradientCheckpointingLayer
@@ -36,11 +39,7 @@ from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
 from ...utils import TransformersKwargs, can_return_tuple
-from transformers.utils.deprecation import deprecate_kwarg
-from mindone.models.utils import normal_, trunc_normal_, zeros_
-
 from ...utils.generic import check_model_inputs
-from .configuration_hunyuan_v1_moe import HunYuanMoEV1Config
 
 
 class HunYuanMoEV1RMSNorm(nn.Cell):
@@ -272,9 +271,7 @@ class HunYuanMoEV1Moe(nn.Cell):
         # we cast back to the input dtype
         routing_weights = routing_weights.to(hidden_states.dtype)
 
-        final_hidden_states = mint.zeros(
-            (batch_size * sequence_length, hidden_dim), dtype=hidden_states.dtype
-        )
+        final_hidden_states = mint.zeros((batch_size * sequence_length, hidden_dim), dtype=hidden_states.dtype)
 
         # One hot encode the selected experts to create an expert mask
         # this will be used to easily index which expert is going to be sollicitated
@@ -413,7 +410,6 @@ class HunYuanMoEV1RotaryEmbedding(nn.Cell):
         return cos.to(dtype=x.dtype), sin.to(dtype=x.dtype)
 
 
-@auto_docstring
 class HunYuanMoEV1Model(HunYuanMoEV1PreTrainedModel):
     def __init__(self, config: HunYuanMoEV1Config):
         super().__init__(config)
@@ -454,9 +450,7 @@ class HunYuanMoEV1Model(HunYuanMoEV1PreTrainedModel):
 
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-            cache_position: ms.Tensor = mint.arange(
-                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1]
-            )
+            cache_position: ms.Tensor = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
@@ -491,7 +485,6 @@ class HunYuanMoEV1Model(HunYuanMoEV1PreTrainedModel):
         )
 
 
-@auto_docstring
 class HunYuanMoEV1ForCausalLM(HunYuanMoEV1PreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
     _tp_plan = {"lm_head": "colwise_rep"}
