@@ -1072,6 +1072,8 @@ class Qwen3OmniMoeVisionEncoder(Qwen3OmniMoePreTrainedModel):
         offset = 0
         for num_frames, height, width in grid_thw:
             merged_h, merged_w = height // merge_size, width // merge_size
+            merged_h = merged_h.item()
+            merged_w = merged_w.item()
 
             block_rows = mint.arange(merged_h)  # block row indices
             block_cols = mint.arange(merged_w)  # block col indices
