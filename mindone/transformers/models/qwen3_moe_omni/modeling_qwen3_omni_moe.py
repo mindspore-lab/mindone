@@ -3998,6 +3998,7 @@ class Qwen3OmniMoeForConditionalGeneration(Qwen3OmniMoePreTrainedModel, Generati
             else:
                 raise AssertionError("Expect role id after <|im_start|> (assistant, user, system)")
         talker_input_embed = mint.cat([embed for embed in talker_input_embeds], dim=1)
+        # TODO check the reason that talker_input_ids contains both int64 and int32 dtype
         talker_input_id = mint.cat([embed for embed in talker_input_ids], dim=1)
         talker_result = self.talker.generate(
             inputs_embeds=talker_input_embed,
