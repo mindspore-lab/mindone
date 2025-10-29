@@ -150,8 +150,8 @@ class Qwen3OmniMoePreTrainedModelForConditionalGeneration(Qwen3OmniMoePreTrained
         grid_ws: list[ms.Tensor],
     ):
         llm_pos_ids_list = []
-        llm_grid_h = grid_hs[vision_idx] // spatial_merge_size
-        llm_grid_w = grid_ws[vision_idx] // spatial_merge_size
+        llm_grid_h = grid_hs[vision_idx].item() // spatial_merge_size
+        llm_grid_w = grid_ws[vision_idx].item() // spatial_merge_size
         h_index = mint.arange(llm_grid_h).view(1, -1, 1).expand((len(t_index), -1, llm_grid_w)).flatten().float()
         w_index = mint.arange(llm_grid_w).view(1, 1, -1).expand((len(t_index), llm_grid_h, -1)).flatten().float()
         t_index = ms.Tensor(t_index).view(-1, 1).expand((-1, llm_grid_h * llm_grid_w)).flatten().float()
