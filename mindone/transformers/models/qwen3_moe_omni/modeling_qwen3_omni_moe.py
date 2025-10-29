@@ -3793,7 +3793,7 @@ class Qwen3OmniMoeForConditionalGeneration(Qwen3OmniMoePreTrainedModel, Generati
 
     def _get_talker_user_parts(self, im_start_index, segment_end_index, multimodal_mask, thinker_hidden, thinker_embed):
         user_talker_part = mint.zeros(
-            (1, segment_end_index - im_start_index, self.config.talker_config.text_config.hidden_size),
+            (1, (segment_end_index - im_start_index).item(), self.config.talker_config.text_config.hidden_size),
             dtype=self.talker.dtype,
         )
 
