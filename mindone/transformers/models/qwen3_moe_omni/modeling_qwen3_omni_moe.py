@@ -1105,6 +1105,9 @@ class Qwen3OmniMoeVisionEncoder(Qwen3OmniMoePreTrainedModel):
         weight_list = [[] for _ in range(4)]
 
         for t, h, w in zip(grid_ts, grid_hs, grid_ws):
+            h = h.item()
+            w = w.item()
+
             h_idxs = mint.linspace(0, self.num_grid_per_side - 1, h)
             w_idxs = mint.linspace(0, self.num_grid_per_side - 1, w)
 
