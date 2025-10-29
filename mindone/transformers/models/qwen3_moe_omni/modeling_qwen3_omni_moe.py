@@ -2860,6 +2860,7 @@ class Qwen3OmniMoeTalkerModel(Qwen3OmniMoePreTrainedModel):
         # args for deepstack
         visual_pos_masks: Optional[ms.Tensor] = None,
         deepstack_visual_embeds: Optional[list[ms.Tensor]] = None,
+        output_hidden_states: Optional[bool] = None,
         **kwargs: Unpack[FlashAttentionKwargs],
     ) -> Union[tuple, BaseModelOutputWithPast]:
         r"""
@@ -2870,6 +2871,10 @@ class Qwen3OmniMoeTalkerModel(Qwen3OmniMoePreTrainedModel):
             The feature is extracted from the different visual encoder layers, and fed to the decoder
             hidden states. It's from the paper DeepStack(https://arxiv.org/abs/2406.04334).
         """
+        output_hidden_states = (
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+        )
+
         if (input_ids is None) ^ (inputs_embeds is not None):
             raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
 
@@ -2909,6 +2914,8 @@ class Qwen3OmniMoeTalkerModel(Qwen3OmniMoePreTrainedModel):
         # create position embeddings to be shared across the decoder layers
         position_embeddings = self.rotary_emb(hidden_states, position_ids)
 
+        all_hidden_states = () if output_hidden_states else None
+
         # decoder layers
         for layer_idx, decoder_layer in enumerate(self.layers):
             layer_outputs = decoder_layer(
@@ -2932,9 +2939,14 @@ class Qwen3OmniMoeTalkerModel(Qwen3OmniMoePreTrainedModel):
 
         hidden_states = self.norm(hidden_states)
 
+        # add hidden states from the last decoder layer
+        if output_hidden_states:
+            all_hidden_states += (hidden_states,)
+
         return BaseModelOutputWithPast(
             last_hidden_state=hidden_states,
             past_key_values=past_key_values,
+            hidden_states=all_hidden_states,
         )
 
     def _deepstack_process(self, hidden_states: ms.Tensor, visual_pos_masks: ms.Tensor, visual_embeds: ms.Tensor):
