@@ -3941,7 +3941,7 @@ class Qwen3OmniMoeForConditionalGeneration(Qwen3OmniMoePreTrainedModel, Generati
         )  # [1 t d]
         im_start_indexes = mint.cat(
             (
-                mint.nonzero(input_ids[0] == self.config.im_start_token_id).squeeze(),
+                mint.nonzero(input_ids[0] == self.config.im_start_token_id).squeeze().astype(input_ids.dtype),
                 ms.tensor([thinker_result.sequences.shape[-1]], dtype=input_ids.dtype),
             ),
             dim=-1,
