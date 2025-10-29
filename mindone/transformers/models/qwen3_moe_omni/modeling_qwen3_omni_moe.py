@@ -128,7 +128,7 @@ class Qwen3OmniMoePreTrainedModelForConditionalGeneration(Qwen3OmniMoePreTrained
             if sequence_length != 1:
                 causal_mask = mint.triu(causal_mask, diagonal=1)
             causal_mask *= mint.arange(target_length) > cache_position.reshape(-1, 1)
-            causal_mask = causal_mask[None, None, :, :].expand(batch_size, 1, -1, -1)
+            causal_mask = causal_mask[None, None, :, :].expand((batch_size, 1, -1, -1))
             if attention_mask is not None:
                 causal_mask = causal_mask.clone()  # copy to contiguous memory for in-place edit
                 mask_length = attention_mask.shape[-1]
@@ -152,9 +152,9 @@ class Qwen3OmniMoePreTrainedModelForConditionalGeneration(Qwen3OmniMoePreTrained
         llm_pos_ids_list = []
         llm_grid_h = grid_hs[vision_idx] // spatial_merge_size
         llm_grid_w = grid_ws[vision_idx] // spatial_merge_size
-        h_index = mint.arange(llm_grid_h).view(1, -1, 1).expand(len(t_index), -1, llm_grid_w).flatten().float()
-        w_index = mint.arange(llm_grid_w).view(1, 1, -1).expand(len(t_index), llm_grid_h, -1).flatten().float()
-        t_index = ms.Tensor(t_index).view(-1, 1).expand(-1, llm_grid_h * llm_grid_w).flatten().float()
+        h_index = mint.arange(llm_grid_h).view(1, -1, 1).expand((len(t_index), -1, llm_grid_w)).flatten().float()
+        w_index = mint.arange(llm_grid_w).view(1, 1, -1).expand((len(t_index), llm_grid_h, -1)).flatten().float()
+        t_index = ms.Tensor(t_index).view(-1, 1).expand((-1, llm_grid_h * llm_grid_w)).flatten().float()
         _llm_pos_ids = mint.stack([t_index, h_index, w_index])
         llm_pos_ids_list.append(_llm_pos_ids + start_idx)
         llm_pos_ids = mint.cat(llm_pos_ids_list, dim=1)
@@ -318,19 +318,19 @@ class Qwen3OmniMoePreTrainedModelForConditionalGeneration(Qwen3OmniMoePreTrained
 
                     text_len = min_ed - st
                     if text_len != 0:
-                        llm_pos_ids_list.append(mint.arange(text_len).view(1, -1).expand(3, -1) + st_idx)
+                        llm_pos_ids_list.append(mint.arange(text_len).view(1, -1).expand((3, -1)) + st_idx)
                         st_idx += text_len
                     # Audio in Video
                     if min_ed == ed_vision_start and ed_vision_start + 1 == ed_audio_start:
                         bos_len, eos_len = 2, 2
                     else:
                         bos_len, eos_len = 1, 1
-                    llm_pos_ids_list.append(mint.arange(bos_len).view(1, -1).expand(3, -1) + st_idx)
+                    llm_pos_ids_list.append(mint.arange(bos_len).view(1, -1).expand((3, -1)) + st_idx)
                     st_idx += bos_len
                     # Audio Only
                     if min_ed == ed_audio_start:
                         audio_len = _get_feat_extract_output_lengths(audio_seqlens[audio_idx])
-                        llm_pos_ids = mint.arange(audio_len).view(1, -1).expand(3, -1) + st_idx
+                        llm_pos_ids = mint.arange(audio_len).view(1, -1).expand((3, -1)) + st_idx
                         llm_pos_ids_list.append(llm_pos_ids)
 
                         st += int(text_len + bos_len + audio_len + eos_len)
@@ -374,7 +374,7 @@ class Qwen3OmniMoePreTrainedModelForConditionalGeneration(Qwen3OmniMoePreTrained
                     # Audio in Video
                     elif min_ed == ed_vision_start and ed_vision_start + 1 == ed_audio_start:
                         audio_len = _get_feat_extract_output_lengths(audio_seqlens[audio_idx])
-                        audio_llm_pos_ids = mint.arange(audio_len).view(1, -1).expand(3, -1) + st_idx
+                        audio_llm_pos_ids = mint.arange(audio_len).view(1, -1).expand((3, -1)) + st_idx
                         grid_t = video_grid_thw[video_idx][0]
                         grid_hs = video_grid_thw[:, 1]
                         grid_ws = video_grid_thw[:, 2]
@@ -413,12 +413,12 @@ class Qwen3OmniMoePreTrainedModelForConditionalGeneration(Qwen3OmniMoePreTrained
                         remain_videos -= 1
                         remain_audios -= 1
                     st_idx = llm_pos_ids_list[-1].max() + 1 if len(llm_pos_ids_list) > 0 else 0
-                    llm_pos_ids_list.append(mint.arange(eos_len).view(1, -1).expand(3, -1) + st_idx)
+                    llm_pos_ids_list.append(mint.arange(eos_len).view(1, -1).expand((3, -1)) + st_idx)
 
                 if st < len(input_tokens):
                     st_idx = llm_pos_ids_list[-1].max() + 1 if len(llm_pos_ids_list) > 0 else 0
                     text_len = len(input_tokens) - st
-                    llm_pos_ids_list.append(mint.arange(text_len).view(1, -1).expand(3, -1) + st_idx)
+                    llm_pos_ids_list.append(mint.arange(text_len).view(1, -1).expand((3, -1)) + st_idx)
 
                 llm_positions = mint.cat([item.float() for item in llm_pos_ids_list], dim=1).reshape(3, -1)
 
@@ -430,7 +430,7 @@ class Qwen3OmniMoePreTrainedModelForConditionalGeneration(Qwen3OmniMoePreTrained
         else:
             position_ids = attention_mask.float().cumsum(-1) - 1
             position_ids.masked_fill_(attention_mask == 0, 1)
-            position_ids = position_ids.unsqueeze(0).expand(3, -1, -1)
+            position_ids = position_ids.unsqueeze(0).expand((3, -1, -1))
             max_position_ids = position_ids.max(0, keepdim=False)[0].max(-1, keepdim=True)[0]
             mrope_position_deltas = max_position_ids + 1 - mint.sum(attention_mask, dim=-1, keepdim=True)
 
@@ -445,7 +445,7 @@ def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
     batch, num_key_value_heads, slen, head_dim = hidden_states.shape
     if n_rep == 1:
         return hidden_states
-    hidden_states = hidden_states[:, :, None, :, :].expand(batch, num_key_value_heads, n_rep, slen, head_dim)
+    hidden_states = hidden_states[:, :, None, :, :].expand((batch, num_key_value_heads, n_rep, slen, head_dim))
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 
