@@ -339,7 +339,7 @@ class Qwen3OmniMoePreTrainedModelForConditionalGeneration(Qwen3OmniMoePreTrained
 
                     # Image Only
                     elif min_ed == ed_vision_start and input_ids[ed_vision_start + 1] == image_token_id:
-                        grid_t = image_grid_thw[image_idx][0]
+                        grid_t = image_grid_thw[image_idx][0].item()
                         grid_hs = image_grid_thw[:, 1]
                         grid_ws = image_grid_thw[:, 2]
                         t_index = (mint.arange(grid_t) * 1 * position_id_per_seconds).float()
