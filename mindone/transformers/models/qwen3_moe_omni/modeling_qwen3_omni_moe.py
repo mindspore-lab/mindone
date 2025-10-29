@@ -1335,7 +1335,7 @@ class Qwen3OmniMoeThinkerTextSparseMoeBlock(nn.Cell):
         # Loop over all available experts in the model and perform the computation on each expert
         expert_hit = mint.greater(expert_mask.sum(dim=(-1, -2)), 0).nonzero()
         for expert_idx in expert_hit:
-            expert_layer = self.experts[expert_idx]
+            expert_layer = self.experts[expert_idx.item()]
             idx, top_x = mint.where(expert_mask[expert_idx].squeeze(0))
 
             # Index the correct hidden states and compute the expert hidden state for
