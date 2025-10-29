@@ -1150,6 +1150,10 @@ class Qwen3OmniMoeVisionEncoder(Qwen3OmniMoePreTrainedModel):
         patch_pos_embeds_permute = []
         merge_size = self.config.spatial_merge_size
         for pos_embed, t, h, w in zip(patch_pos_embeds, grid_ts, grid_hs, grid_ws):
+            t = t.item()
+            h = h.item()
+            w = w.item()
+
             pos_embed = pos_embed.repeat(t.item(), 1)
             pos_embed = (
                 pos_embed.view(t, h // merge_size, merge_size, w // merge_size, merge_size, -1)
