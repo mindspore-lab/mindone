@@ -330,7 +330,7 @@ class Qwen3OmniMoePreTrainedModelForConditionalGeneration(Qwen3OmniMoePreTrained
                     # Audio Only
                     if min_ed == ed_audio_start:
                         audio_len = _get_feat_extract_output_lengths(audio_seqlens[audio_idx])
-                        llm_pos_ids = mint.arange(audio_len).view(1, -1).expand((3, -1)) + st_idx
+                        llm_pos_ids = mint.arange(audio_len.item()).view(1, -1).expand((3, -1)) + st_idx
                         llm_pos_ids_list.append(llm_pos_ids)
 
                         st += int(text_len + bos_len + audio_len + eos_len)
