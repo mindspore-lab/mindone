@@ -20,10 +20,11 @@
 
 from typing import Union
 
+from transformers.tokenization_utils_base import PreTokenizedInput, TextInput
+
 from ...image_processing_utils import BatchFeature
 from ...image_utils import ImageInput, make_flat_list_of_images
 from ...processing_utils import ProcessingKwargs, ProcessorMixin, Unpack
-from ...tokenization_utils_base import PreTokenizedInput, TextInput
 
 
 class DeepseekVLProcessorKwargs(ProcessingKwargs, total=False):

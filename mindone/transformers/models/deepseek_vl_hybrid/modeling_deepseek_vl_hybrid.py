@@ -18,12 +18,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from dataclasses import dataclass
 from typing import Optional, Union
 
 from transformers import DeepseekVLHybridConfig
 
 import mindspore
 from mindspore import mint
+from mindspore.common.initializer import KaimingNormal, Normal, One, Zero, initializer
 
 from ...cache_utils import Cache
 from ...generation import GenerationMixin
@@ -34,6 +36,7 @@ from ...utils import TransformersKwargs
 from ..auto import AutoModel
 
 
+@dataclass
 class DeepseekVLHybridBaseModelOutputWithPast(ModelOutput):
     r"""
     last_hidden_state (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
@@ -64,6 +67,7 @@ class DeepseekVLHybridBaseModelOutputWithPast(ModelOutput):
     image_hidden_states: Optional[tuple[mindspore.Tensor]] = None
 
 
+@dataclass
 class DeepseekVLHybridCausalLMOutputWithPast(ModelOutput):
     r"""
     loss (`mindspore.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
@@ -211,20 +215,36 @@ class DeepseekVLHybridPreTrainedModel(PreTrainedModel):
     _supports_param_buffer_assignment = False
 
     def _init_weights(self, module):
-        """Initialize the weights"""
+        """Initialize the weights (MindSpore set_data version)"""
+
         if isinstance(module, mint.nn.Linear):
-            module.weight.data.normal_(mean=0.0, std=self.config.text_config.initializer_range)
+            module.weight.set_data(
+                initializer(
+                    Normal(sigma=self.config.text_config.initializer_range, mean=0.0),
+                    module.weight.shape,
+                    module.weight.dtype,
+                )
+            )
             if module.bias is not None:
-                module.bias.data.zero_()
+                module.bias.set_data(initializer(Zero(), module.bias.shape, module.bias.dtype))
+
         elif isinstance(module, mint.nn.Conv2d):
-            mint.nn.init.kaiming_normal_(module.weight, mode="fan_out", nonlinearity="relu")
+            module.weight.set_data(
+                initializer(
+                    KaimingNormal(mode="fan_out", nonlinearity="relu"), module.weight.shape, module.weight.dtype
+                )
+            )
             if module.bias is not None:
-                module.bias.data.zero_()
+                module.bias.set_data(initializer(Zero(), module.bias.shape, module.bias.dtype))
+
         elif isinstance(module, DeepseekVLHybridLayerNorm):
-            module.weight.data.fill_(1.0)
-            module.bias.data.zero_()
+            module.weight.set_data(initializer(One(), module.weight.shape, module.weight.dtype))
+            module.bias.set_data(initializer(Zero(), module.bias.shape, module.bias.dtype))
+
         elif isinstance(module, DeepseekVLHybridModel):
-            module.high_res_vision_alpha.data.zero_()
+            module.high_res_vision_alpha.set_data(
+                initializer(Zero(), module.high_res_vision_alpha.shape, module.high_res_vision_alpha.dtype)
+            )
 
 
 class DeepseekVLHybridModel(DeepseekVLHybridPreTrainedModel):

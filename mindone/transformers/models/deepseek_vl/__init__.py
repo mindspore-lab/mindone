@@ -13,5 +13,4 @@
 # limitations under the License.
 
 from .modeling_deepseek_vl import *
-
-# from .processing_deepseek_vl import *
+from .processing_deepseek_vl import *
