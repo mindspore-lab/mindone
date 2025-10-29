@@ -1145,7 +1145,7 @@ class Qwen3OmniMoeVisionEncoder(Qwen3OmniMoePreTrainedModel):
         pos_embeds = self.pos_embed(idx_tensor) * weight_tensor[:, :, None]
         patch_pos_embeds = pos_embeds[0] + pos_embeds[1] + pos_embeds[2] + pos_embeds[3]
 
-        patch_pos_embeds = patch_pos_embeds.split([h * w for h, w in zip(grid_hs, grid_ws)])
+        patch_pos_embeds = patch_pos_embeds.split([(h * w).item() for h, w in zip(grid_hs, grid_ws)])
 
         patch_pos_embeds_permute = []
         merge_size = self.config.spatial_merge_size
