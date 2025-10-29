@@ -29,8 +29,7 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
-from transformers import HunYuanMoEV1Config
+from tests.transformers_tests.models.modeling_common import ids_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]  # not support graph mode yet
@@ -48,7 +47,12 @@ if transformers.__version__ >= "4.57.0":
             self.seq_length = seq_length
 
         def get_config(self):
-            return HunYuanMoEV1Config()
+            return HunYuanMoEV1Config(
+                hidden_size=32,
+                intermediate_size=128,
+                num_attention_heads=16,
+                head_dim=2,
+            )
 
         def prepare_config_and_inputs(self):
             config = self.get_config()
@@ -58,7 +62,7 @@ if transformers.__version__ >= "4.57.0":
 
             return config, input_ids, attention_mask
 
-    model_tester = HunyuanV1DenseModelTester()
+    model_tester = HunyuanV1MoeModelTester()
     config, input_ids, attention_mask = model_tester.prepare_config_and_inputs()
 
     HUNYUANV1MOE_CASES = [
@@ -150,4 +154,3 @@ if transformers.__version__ >= "4.57.0":
             f"ms_dtype: {ms_dtype}, pt_type:{pt_dtype}, "
             f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}"
         )
-

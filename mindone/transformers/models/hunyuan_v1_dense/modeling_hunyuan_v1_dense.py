@@ -121,7 +121,7 @@ def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
     batch, num_key_value_heads, slen, head_dim = hidden_states.shape
     if n_rep == 1:
         return hidden_states
-    hidden_states = hidden_states[:, :, None, :, :].broadcast_to(batch, num_key_value_heads, n_rep, slen, head_dim)
+    hidden_states = hidden_states[:, :, None, :, :].broadcast_to((batch, num_key_value_heads, n_rep, slen, head_dim))
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 
@@ -299,7 +299,9 @@ class HunYuanDenseV1PreTrainedModel(PreTrainedModel):
         elif isinstance(module, mint.nn.Embedding):
             normal_(module.weight, mean=0.0, std=std)
             if module.padding_idx is not None:
-                zeros_(module.weight.data[module.padding_idx])
+                weights = module.weight.data
+                weights[module.padding_idx] = 0.0
+                module.weight.set_data(weights)
 
 
 class HunYuanDenseV1RotaryEmbedding(nn.Cell):
@@ -331,7 +333,7 @@ class HunYuanDenseV1RotaryEmbedding(nn.Cell):
 
     @dynamic_rope_update  # power user: used with advanced RoPE types (e.g. dynamic rope)
     def construct(self, x, position_ids):
-        inv_freq_expanded = self.inv_freq[None, :, None].float().expand(position_ids.shape[0], -1, 1)
+        inv_freq_expanded = self.inv_freq[None, :, None].float().expand((position_ids.shape[0], -1, 1))
         position_ids_expanded = position_ids[:, None, :].float()
 
         # Force float32

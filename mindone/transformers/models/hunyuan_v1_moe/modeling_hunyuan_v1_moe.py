@@ -280,7 +280,7 @@ class HunYuanMoEV1Moe(nn.Cell):
         # Loop over all available experts in the model and perform the computation on each expert
         expert_hit = mint.greater(expert_mask.sum(dim=(-1, -2)), 0).nonzero()
         for expert_idx in expert_hit:
-            expert_layer = self.experts[expert_idx]
+            expert_layer = self.experts[int(expert_idx)]
             idx, top_x = mint.where(expert_mask[expert_idx].squeeze(0))
 
             # Index the correct hidden states and compute the expert hidden state for
@@ -366,7 +366,9 @@ class HunYuanMoEV1PreTrainedModel(PreTrainedModel):
         elif isinstance(module, mint.nn.Embedding):
             normal_(module.weight, mean=0.0, std=std)
             if module.padding_idx is not None:
-                zeros_(module.weight.data[module.padding_idx])
+                weights = module.weight.data
+                weights[module.padding_idx] = 0.0
+                module.weight.set_data(weights)
 
 
 class HunYuanMoEV1RotaryEmbedding(nn.Cell):
@@ -398,7 +400,7 @@ class HunYuanMoEV1RotaryEmbedding(nn.Cell):
 
     @dynamic_rope_update  # power user: used with advanced RoPE types (e.g. dynamic rope)
     def construct(self, x, position_ids):
-        inv_freq_expanded = self.inv_freq[None, :, None].float().expand(position_ids.shape[0], -1, 1)
+        inv_freq_expanded = self.inv_freq[None, :, None].float().expand((position_ids.shape[0], -1, 1))
         position_ids_expanded = position_ids[:, None, :].float()
 
         # Force float32
