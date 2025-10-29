@@ -669,8 +669,6 @@ def create_causal_mask(
     cache_position: ms.Tensor,
     past_key_values: Optional[Cache],
     position_ids: Optional[ms.Tensor] = None,
-    or_mask_function: Optional[Callable] = None,
-    and_mask_function: Optional[Callable] = None,
 ) -> Optional[Union[ms.Tensor, BlockMask]]:
     """
     Create a standard causal mask based on the attention implementation used (stored in the config). If `past_key_values`
