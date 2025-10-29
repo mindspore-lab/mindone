@@ -2475,7 +2475,7 @@ class Qwen3OmniMoeTalkerCodePredictorModel(Qwen3OmniMoePreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @check_model_inputs
+    
     @auto_docstring
     def construct(
         self,
@@ -2844,7 +2844,7 @@ class Qwen3OmniMoeTalkerModel(Qwen3OmniMoePreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @check_model_inputs
+
     @auto_docstring
     def construct(
         self,
@@ -3522,7 +3522,7 @@ class Qwen3OmniMoeCode2WavTransformerModel(Qwen3OmniMoePreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @check_model_inputs
+
     @auto_docstring
     def construct(
         self,
@@ -3999,7 +3999,7 @@ class Qwen3OmniMoeForConditionalGeneration(Qwen3OmniMoePreTrainedModel, Generati
                 raise AssertionError("Expect role id after <|im_start|> (assistant, user, system)")
         talker_input_embed = mint.cat([embed for embed in talker_input_embeds], dim=1)
         # TODO check the reason that talker_input_ids contains both int64 and int32 dtype
-        talker_input_id = mint.cat([embed for embed in talker_input_ids], dim=1)
+        talker_input_id = mint.cat([embed.astype(ms.int32) for embed in talker_input_ids], dim=1)
         talker_result = self.talker.generate(
             inputs_embeds=talker_input_embed,
             trailing_text_hidden=trailing_text_hidden,
