@@ -1154,7 +1154,7 @@ class Qwen3OmniMoeVisionEncoder(Qwen3OmniMoePreTrainedModel):
             h = h.item()
             w = w.item()
 
-            pos_embed = pos_embed.repeat(t.item(), 1)
+            pos_embed = pos_embed.repeat(t, 1)
             pos_embed = (
                 pos_embed.view(t, h // merge_size, merge_size, w // merge_size, merge_size, -1)
                 .permute(0, 1, 3, 2, 4, 5)
