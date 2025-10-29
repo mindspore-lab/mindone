@@ -2475,7 +2475,7 @@ class Qwen3OmniMoeTalkerCodePredictorModel(Qwen3OmniMoePreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    
+
     @auto_docstring
     def construct(
         self,
@@ -2710,6 +2710,8 @@ class Qwen3OmniMoeTalkerTextSparseMoeBlock(nn.Cell):
         # Loop over all available experts in the model and perform the computation on each expert
         expert_hit = mint.greater(expert_mask.sum(dim=(-1, -2)), 0).nonzero()
         for expert_idx in expert_hit:
+            expert_idx = expert_idx.item()
+
             expert_layer = self.experts[expert_idx]
             idx, top_x = mint.where(expert_mask[expert_idx].squeeze(0))
 
