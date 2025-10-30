@@ -25,7 +25,7 @@ from transformers import DeepseekVLHybridConfig
 
 import mindspore
 from mindspore import mint
-from mindspore.common.initializer import KaimingNormal, Normal, One, Zero, initializer
+from mindspore.common.initializer import HeNormal, Normal, One, Zero, initializer
 
 from ...cache_utils import Cache
 from ...generation import GenerationMixin
@@ -230,9 +230,7 @@ class DeepseekVLHybridPreTrainedModel(PreTrainedModel):
 
         elif isinstance(module, mint.nn.Conv2d):
             module.weight.set_data(
-                initializer(
-                    KaimingNormal(mode="fan_out", nonlinearity="relu"), module.weight.shape, module.weight.dtype
-                )
+                initializer(HeNormal(mode="fan_out", nonlinearity="relu"), module.weight.shape, module.weight.dtype)
             )
             if module.bias is not None:
                 module.bias.set_data(initializer(Zero(), module.bias.shape, module.bias.dtype))

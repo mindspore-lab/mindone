@@ -15,67 +15,7 @@ import inspect
 import numpy as np
 import pytest
 import torch
-
-try:
-    from transformers import DeepseekVLHybridConfig
-except ImportError:
-    # Create a minimal config for testing if not available in transformers
-    from dataclasses import dataclass
-
-    @dataclass
-    class TextConfig:
-        vocab_size: int = 99
-        hidden_size: int = 16
-        num_hidden_layers: int = 2
-        num_attention_heads: int = 4
-        intermediate_size: int = 37
-        max_position_embeddings: int = 512
-        pad_token_id: int = 1
-
-    @dataclass
-    class VisionConfig:
-        num_channels: int = 3
-        hidden_size: int = 16
-        num_hidden_layers: int = 1
-        num_attention_heads: int = 4
-        intermediate_size: int = 37
-        image_size: int = 32
-        patch_size: int = 8
-        hidden_act: str = "gelu"
-        vision_use_head: bool = False
-
-    @dataclass
-    class HighResVisionConfig:
-        num_channels: int = 3
-        hidden_size: int = 16
-        num_hidden_layers: int = 2
-        num_attention_heads: int = 4
-        intermediate_size: int = 37
-        mlp_dim: int = 24
-        output_channels: int = 4
-        image_size: int = 128
-        patch_size: int = 32
-        global_attn_indexes: list = None
-
-        def __post_init__(self):
-            if self.global_attn_indexes is None:
-                self.global_attn_indexes = [0]
-
-    @dataclass
-    class DeepseekVLHybridConfig:
-        text_config: TextConfig = None
-        vision_config: VisionConfig = None
-        high_res_vision_config: HighResVisionConfig = None
-        image_token_id: int = 0
-
-        def __post_init__(self):
-            if self.text_config is None:
-                self.text_config = TextConfig()
-            if self.vision_config is None:
-                self.vision_config = VisionConfig()
-            if self.high_res_vision_config is None:
-                self.high_res_vision_config = HighResVisionConfig()
-
+from transformers import DeepseekVLHybridConfig
 
 import mindspore as ms
 
@@ -159,9 +99,9 @@ class DeepseekVLHybridModelTester:
     def get_config(self):
         # Always use the dataclass version for our custom implementation
         return DeepseekVLHybridConfig(
-            text_config=TextConfig(**self.text_config),
-            vision_config=VisionConfig(**self.vision_config),
-            high_res_vision_config=HighResVisionConfig(**self.high_res_vision_config),
+            text_config=self.text_config,
+            vision_config=self.vision_config,
+            high_res_vision_config=self.high_res_vision_config,
             image_token_id=self.image_token_id,
         )
 
