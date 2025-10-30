@@ -3775,9 +3775,7 @@ class Qwen3OmniMoeForConditionalGeneration(Qwen3OmniMoePreTrainedModel, Generati
         super().__init__(config)
         # TODO right now mindspore_dtype is needed to be set in all sub_configs, "torch_dtype-->dtype" is needed to be updated in v4.57.1
         config.mindspore_dtype = config.dtype
-        for sub_config_key in config.sub_configs.keys():
-            sub_config = getattr(config, sub_config_key)
-            sub_config.mindspore_dtype = config.mindspore_dtype
+        config.thinker_config.mindspore_dtype = config.dtype
 
         self.thinker = Qwen3OmniMoeThinkerForConditionalGeneration._from_config(config.thinker_config)
         self.has_talker = config.enable_audio_output
@@ -3786,6 +3784,9 @@ class Qwen3OmniMoeForConditionalGeneration(Qwen3OmniMoePreTrainedModel, Generati
         self.post_init()
 
     def enable_talker(self):
+        self.config.talker_config.mindspore_dtype = self.config.dtype
+        self.config.code2wav_config.mindspore_dtype = self.config.dtype
+
         self.talker = Qwen3OmniMoeTalkerForConditionalGeneration._from_config(self.config.talker_config)
         self.code2wav = Qwen3OmniMoeCode2Wav._from_config(self.config.code2wav_config)
 
