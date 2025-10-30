@@ -417,7 +417,7 @@ def _get_mindspore_dtype(
         config.mindspore_dtype = dtype_to_str(mindspore_dtype)
         for sub_config_key in config.sub_configs.keys():
             sub_config = getattr(config, sub_config_key)
-            sub_config.mindspore_dtype = mindspore_dtype
+            sub_config.mindspore_dtype = dtype_to_str(mindspore_dtype)
         if isinstance(mindspore_dtype, str):
             if mindspore_dtype == "auto":
                 if hasattr(config, "torch_dtype") and config.torch_dtype is not None:
