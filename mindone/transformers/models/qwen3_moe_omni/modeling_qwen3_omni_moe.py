@@ -3710,7 +3710,7 @@ class Qwen3OmniMoeCode2WavDecoderBlock(Qwen3OmniMoePreTrainedModel):
 class Qwen3OmniMoeCode2Wav(Qwen3OmniMoePreTrainedModel):
     def __init__(self, config: Qwen3OmniMoeCode2WavConfig):
         super().__init__(config)
-        self.total_upsample = np.prod(config.upsample_rates + config.upsampling_ratios)
+        self.total_upsample = ms.tensor(np.prod(config.upsample_rates + config.upsampling_ratios))
         self.pre_transformer = Qwen3OmniMoeCode2WavTransformerModel._from_config(config)
         self.code_embedding = mint.nn.Embedding(config.codebook_size * config.num_quantizers, config.hidden_size)
         self.register_buffer(
@@ -3763,7 +3763,7 @@ class Qwen3OmniMoeCode2Wav(Qwen3OmniMoePreTrainedModel):
             context_size = left_context_size if start_index - left_context_size > 0 else start_index
             codes_chunk = codes[..., start_index - context_size : end_index]
             wav_chunk = self(codes_chunk)
-            wavs.append(wav_chunk[..., context_size * self.total_upsample :])
+            wavs.append(wav_chunk[..., context_size * self.total_upsample.item() :])
             start_index = end_index
         return mint.cat(wavs, dim=-1)
 
