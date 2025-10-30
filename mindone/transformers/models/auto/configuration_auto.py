@@ -397,7 +397,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("hiera", "Hiera"),
         ("hubert", "Hubert"),
         ("hunyuan_v1_dense", "HunYuanDenseV1"),
-        ("hunyuan_v1_moe", "HunYuanMoeV1"),
+        ("hunyuan_v1_moe", "HunYuanMoEV1"),
         ("ibert", "I-BERT"),
         ("idefics", "IDEFICS"),
         ("idefics2", "Idefics2"),

@@ -237,7 +237,7 @@ class HunYuanMoEV1Gate(nn.Cell):
     def construct(self, hidden_states):
         bsz, seq_len, hidden_size = hidden_states.shape
         hidden_states = hidden_states.reshape(-1, hidden_size)
-        if self.wg.weight.dtype == ms.Tensor:
+        if self.wg.weight.dtype == ms.float32:
             hidden_states = hidden_states.float()
         logits = self.wg(hidden_states)
         return logits
