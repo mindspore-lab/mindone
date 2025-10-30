@@ -171,7 +171,7 @@ class HGNetV2Embeddings(nn.Cell):
         emb_stem_2a = self.stem2a(embedding)
         emb_stem_2a = mint.nn.functional.pad(emb_stem_2a, (0, 1, 0, 1))
         emb_stem_2a = self.stem2b(emb_stem_2a)
-        pooled_emb = self.pool(embedding)
+        pooled_emb = self.pool(embedding.float()).to(embedding.dtype)
         embedding = mint.cat([pooled_emb, emb_stem_2a], dim=1)
         embedding = self.stem3(embedding)
         embedding = self.stem4(embedding)
