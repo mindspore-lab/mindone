@@ -1845,6 +1845,10 @@ class Qwen3OmniMoeThinkerForConditionalGeneration(Qwen3OmniMoePreTrainedModelFor
 
     def __init__(self, config):
         super().__init__(config)
+        config.audio_config.mindspore_dtype = config.mindspore_dtype
+        config.vision_config.mindspore_dtype = config.mindspore_dtype
+        config.text_config.mindspore_dtype = config.mindspore_dtype
+
         self.audio_tower = Qwen3OmniMoeAudioEncoder._from_config(config.audio_config)
         self.visual = Qwen3OmniMoeVisionEncoder._from_config(config.vision_config)
         self.vocab_size = config.text_config.vocab_size
@@ -2989,6 +2993,9 @@ class Qwen3OmniMoeTalkerForConditionalGeneration(Qwen3OmniMoeThinkerTextPreTrain
 
     def __init__(self, config: Qwen3OmniMoeTalkerConfig):
         super().__init__(config)
+        config.text_config.mindspore_dtype = config.mindspore_dtype
+        config.code_predictor_config.mindspore_dtype = config.mindspore_dtype
+
         self.model = Qwen3OmniMoeTalkerModel._from_config(config.text_config)
         self.vocab_size = config.text_config.vocab_size
         self.router_aux_loss_coef = config.text_config.router_aux_loss_coef
