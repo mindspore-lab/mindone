@@ -1137,11 +1137,8 @@ class PreTrainedModel(
         # modeling code, we can try to infer it here same way as done in `from_pretrained`
         if hasattr(config, "mindspore_dtype"):
             mindspore_dtype = kwargs.pop("mindspore_dtype", config.mindspore_dtype)
-        elif hasattr(config, "torch_dtype"):
+        else:
             mindspore_dtype = kwargs.pop("torch_dtype", config.torch_dtype)
-        # TODO add patch for "config.dtype", and "torch_dtype-->dtype" could be updated soon in v4.57.1
-        elif hasattr(config, "dtype"):
-            mindspore_dtype = kwargs.pop("dtype", config.dtype)
 
         if isinstance(mindspore_dtype, str):
             mindspore_dtype = getattr(ms, mindspore_dtype)
