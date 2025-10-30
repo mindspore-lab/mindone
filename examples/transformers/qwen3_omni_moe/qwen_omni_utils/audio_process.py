@@ -12,7 +12,7 @@ def _check_if_video_has_audio(video_path):
     return True
 
 
-def process_audio_info(conversations: list[dict] | list[list[dict]], use_audio_in_video: bool):
+def process_audio_info(conversations: list[dict], use_audio_in_video: bool):
     audios = []
     if isinstance(conversations[0], dict):
         conversations = [conversations]
