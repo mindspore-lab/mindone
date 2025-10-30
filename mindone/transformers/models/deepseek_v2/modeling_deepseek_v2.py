@@ -23,10 +23,10 @@ import warnings
 from typing import Callable, Optional, Union
 
 from transformers.configuration_deepseek_v2 import DeepseekV2Config
-from transformers.utils import TransformersKwargs, auto_docstring, can_return_tuple
 
 import mindspore
-from mindspore import mint, nn
+from mindspore import mint
+from mindspore.common.initializer import Normal, initializer
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
@@ -37,10 +37,10 @@ from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
-from ...utils.generic import check_model_inputs
+from ...utils import TransformersKwargs
 
 
-class DeepseekV2MoEGate(ms.nn.Cell):
+class DeepseekV2MoEGate(mindspore.nn.Cell):
     def __init__(self, config: DeepseekV2Config):
         super().__init__()
         self.config = config
@@ -56,14 +56,16 @@ class DeepseekV2MoEGate(ms.nn.Cell):
         # topk selection algorithm
         self.norm_topk_prob = config.norm_topk_prob
         self.gating_dim = config.hidden_size
-        self.weight = ms.Parameter(mint.empty((self.num_experts, self.gating_dim)))
+        self.weight = mindspore.Parameter(mint.empty((self.num_experts, self.gating_dim)))
 
-    def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
+    def construct(self, hidden_states: mindspore.Tensor) -> mindspore.Tensor:
         batch_size, seq_len, hidden_dim = hidden_states.shape
-        ### compute gating score
+        # compute gating score
         hidden_states = hidden_states.view(-1, hidden_dim)
-        logits = mint.nn.functional.linear(hidden_states.type(ms.float32), self.weight.type(ms.float32), None)
-        scores = logits.softmax(dim=-1, dtype=ms.float32)
+        logits = mint.nn.functional.linear(
+            hidden_states.astype(mindspore.float32), self.weight.astype(mindspore.float32), None
+        )
+        scores = logits.softmax(dim=-1, dtype=mindspore.float32)
 
         # select top-k experts
         # greedy method is used for DeepSeek-V2-Lite
@@ -77,18 +79,18 @@ class DeepseekV2MoEGate(ms.nn.Cell):
             group_mask.scatter_(1, group_idx, 1)  # [n, num_group]
             score_mask = (
                 group_mask.unsqueeze(-1)
-                .expand(batch_size * seq_len, self.num_group, self.num_experts // self.num_group)
+                .broadcast_to((batch_size * seq_len, self.num_group, self.num_experts // self.num_group))
                 .reshape(batch_size * seq_len, -1)
             )  # [n, e]
             tmp_scores = scores.masked_fill(~score_mask.bool(), 0.0)  # [n, e]
             topk_weight, topk_idx = mint.topk(tmp_scores, k=self.top_k, dim=-1, sorted=False)
 
         topk_weight = topk_weight * self.routed_scaling_factor
-        ### expert-level computation auxiliary loss
+        # expert-level computation auxiliary loss
         return topk_idx, topk_weight
 
 
-class DeepseekV2MoE(ms.nn.Cell):
+class DeepseekV2MoE(mindspore.nn.Cell):
     """
     A mixed expert module containing shared experts.
     """
@@ -98,7 +100,7 @@ class DeepseekV2MoE(ms.nn.Cell):
         self.config = config
         self.num_experts_per_tok = config.num_experts_per_tok
 
-        self.experts = ms.nn.CellList(
+        self.experts = mindspore.nn.CellList(
             [
                 (DeepseekV2MLP(config, intermediate_size=config.moe_intermediate_size))
                 for _ in range(config.n_routed_experts)
@@ -111,8 +113,10 @@ class DeepseekV2MoE(ms.nn.Cell):
         self.ep_rank = 0
         self.experts_per_rank = config.n_routed_experts
 
-    def moe(self, hidden_states: ms.Tensor, topk_ids: ms.Tensor, topk_weight: ms.Tensor) -> ms.Tensor:
-        cnts = topk_ids.new_zeros((topk_ids.shape[0], len(self.experts)))
+    def moe(
+        self, hidden_states: mindspore.Tensor, topk_ids: mindspore.Tensor, topk_weight: mindspore.Tensor
+    ) -> mindspore.Tensor:
+        cnts = mint.zeros((topk_ids.shape[0], len(self.experts)), dtype=topk_ids.dtype)
         cnts.scatter_(1, topk_ids, 1)
         tokens_per_expert = cnts.sum(dim=0)
         indices = topk_ids.view(-1).argsort()
@@ -131,21 +135,21 @@ class DeepseekV2MoE(ms.nn.Cell):
             outputs.append(expert_out)
             start_idx = end_idx
 
-        outs = mint.cat(outputs, dim=0) if outputs else sorted_tokens.new_empty(0)
+        outs = mint.cat(outputs, dim=0) if outputs else mint.zeros((0,), dtype=sorted_tokens.dtype)
 
         # Reorder and combine outputs
         new_x = mint.empty_like(outs)
         new_x[indices] = outs
         hidden_states = (
             new_x.view(*topk_ids.shape, -1)
-            .type(topk_weight.dtype)
+            .astype(topk_weight.dtype)
             .mul_(topk_weight.unsqueeze(dim=-1))
             .sum(dim=1)
-            .type(new_x.dtype)
+            .astype(new_x.dtype)
         )
         return hidden_states
 
-    def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
+    def construct(self, hidden_states: mindspore.Tensor) -> mindspore.Tensor:
         residuals = hidden_states
         orig_shape = hidden_states.shape
         topk_indices, topk_weights = self.gate(hidden_states)
@@ -155,7 +159,7 @@ class DeepseekV2MoE(ms.nn.Cell):
         return hidden_states
 
 
-class DeepseekV2MLP(ms.nn.Cell):
+class DeepseekV2MLP(mindspore.nn.Cell):
     def __init__(self, config: DeepseekV2Config, hidden_size=None, intermediate_size=None):
         super().__init__()
         self.config = config
@@ -171,30 +175,30 @@ class DeepseekV2MLP(ms.nn.Cell):
         return down_proj
 
 
-class DeepseekV2RMSNorm(ms.nn.Cell):
+class DeepseekV2RMSNorm(mindspore.nn.Cell):
     def __init__(self, hidden_size, eps=1e-6):
         """
         DeepseekV2RMSNorm is equivalent to T5LayerNorm
         """
         super().__init__()
-        self.weight = ms.Parameter(mint.ones(hidden_size))
+        self.weight = mindspore.Parameter(mint.ones(hidden_size))
         self.variance_epsilon = eps
 
     def construct(self, hidden_states):
         input_dtype = hidden_states.dtype
-        hidden_states = hidden_states.to(ms.float32)
+        hidden_states = hidden_states.astype(mindspore.float32)
         variance = hidden_states.pow(2).mean(-1, keepdim=True)
         hidden_states = hidden_states * mint.rsqrt(variance + self.variance_epsilon)
-        return self.weight * hidden_states.to(input_dtype)
+        return self.weight * hidden_states.astype(input_dtype)
 
     def extra_repr(self):
         return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
 
 
-class DeepseekV2RotaryEmbedding(ms.nn.Cell):
-    inv_freq: ms.Tensor  # fix linting for `register_buffer`
+class DeepseekV2RotaryEmbedding(mindspore.nn.Cell):
+    inv_freq: mindspore.Tensor  # fix linting for `register_buffer`
 
-    def __init__(self, config: DeepseekV2Config, device=None):
+    def __init__(self, config: DeepseekV2Config):
         super().__init__()
         # BC: "rope_type" was originally "type"
         self.rope_type = (
@@ -209,28 +213,25 @@ class DeepseekV2RotaryEmbedding(ms.nn.Cell):
         self.config = config
         self.rope_init_fn = ROPE_INIT_FUNCTIONS[self.rope_type]
 
-        inv_freq, self.attention_scaling = self.rope_init_fn(self.config, device)
+        inv_freq, self.attention_scaling = self.rope_init_fn(self.config)
         self.register_buffer("inv_freq", inv_freq, persistent=False)
         self.original_inv_freq = self.inv_freq
 
-    @ms._no_grad()
     @dynamic_rope_update  # power user: used with advanced RoPE types (e.g. dynamic rope)
     def construct(self, x, position_ids):
         inv_freq_expanded = self.inv_freq[None, :, None].float().expand(position_ids.shape[0], -1, 1)
         position_ids_expanded = position_ids[:, None, :].float()
 
-        device_type = x.device.type if isinstance(x.device.type, str) and x.device.type != "mps" else "cpu"
-        with torch.autocast(device_type=device_type, enabled=False):  # Force float32
-            freqs = (inv_freq_expanded @ position_ids_expanded).transpose(1, 2)
-            freqs_cis = mint.polar(mint.ones_like(freqs), freqs)  # Convert to complex representation
-            freqs_cis = freqs_cis * self.attention_scaling
+        freqs = (inv_freq_expanded @ position_ids_expanded).transpose(1, 2)
+        freqs_cis = mint.polar(mint.ones_like(freqs), freqs)  # Convert to complex representation
+        freqs_cis = freqs_cis * self.attention_scaling
 
         return freqs_cis
 
 
-def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
+def repeat_kv(hidden_states: mindspore.Tensor, n_rep: int) -> mindspore.Tensor:
     """
-    This is the equivalent of torch.repeat_interleave(x, dim=1, repeats=n_rep). The hidden states go from (batch,
+    This is the equivalent of mint.repeat_interleave(x, dim=1, repeats=n_rep). The hidden states go from (batch,
     num_key_value_heads, seqlen, head_dim) to (batch, num_attention_heads, seqlen, head_dim)
     """
     batch, num_key_value_heads, slen, head_dim = hidden_states.shape
@@ -241,11 +242,11 @@ def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
 
 
 def eager_attention_forward(
-    module: ms.nn.Cell,
-    query: ms.Tensor,
-    key: ms.Tensor,
-    value: ms.Tensor,
-    attention_mask: Optional[ms.Tensor],
+    module: mindspore.nn.Cell,
+    query: mindspore.Tensor,
+    key: mindspore.Tensor,
+    value: mindspore.Tensor,
+    attention_mask: Optional[mindspore.Tensor],
     scaling: float,
     dropout: float = 0.0,
     **kwargs: Unpack[TransformersKwargs],
@@ -258,31 +259,31 @@ def eager_attention_forward(
         causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
         attn_weights = attn_weights + causal_mask
 
-    attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query.dtype)
+    attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1, dtype=mindspore.float32).astype(query.dtype)
     attn_weights = mint.nn.functional.dropout(attn_weights, p=dropout, training=module.training)
     attn_output = mint.matmul(attn_weights, value_states)
-    attn_output = attn_output.transpose(1, 2).contiguous()
+    attn_output = attn_output.transpose(1, 2)
 
     return attn_output, attn_weights
 
 
 def apply_rotary_emb(
-    xq: ms.Tensor,
-    xk: ms.Tensor,
-    freqs_cis: ms.Tensor,
-) -> tuple[ms.Tensor, ms.Tensor]:
-    xq_ = torch.view_as_complex(xq.float().reshape(*xq.shape[:-1], -1, 2))
-    xk_ = torch.view_as_complex(xk.float().reshape(*xk.shape[:-1], -1, 2))
+    xq: mindspore.Tensor,
+    xk: mindspore.Tensor,
+    freqs_cis: mindspore.Tensor,
+) -> tuple[mindspore.Tensor, mindspore.Tensor]:
+    xq_ = mindspore.ops.view_as_complex(xq.float().reshape(*xq.shape[:-1], -1, 2))
+    xk_ = mindspore.ops.view_as_complex(xk.float().reshape(*xk.shape[:-1], -1, 2))
 
     # Broadcast to [1, 1, seq_len, dim // 2]
     freqs_cis = freqs_cis.unsqueeze(1)
 
-    xq_out = torch.view_as_real(xq_ * freqs_cis).flatten(3).type_as(xq)
-    xk_out = torch.view_as_real(xk_ * freqs_cis).flatten(3).type_as(xk)
+    xq_out = mindspore.ops.view_as_real(xq_ * freqs_cis).flatten(3).astype(xq.dtype)
+    xk_out = mindspore.ops.view_as_real(xk_ * freqs_cis).flatten(3).astype(xk.dtype)
     return xq_out, xk_out
 
 
-class DeepseekV2Attention(ms.nn.Cell):
+class DeepseekV2Attention(mindspore.nn.Cell):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
 
     def __init__(self, config: DeepseekV2Config, layer_idx: Optional[int] = None):
@@ -332,17 +333,16 @@ class DeepseekV2Attention(ms.nn.Cell):
 
         self.scaling = self.qk_head_dim ** (-0.5)
 
-    @deprecate_kwarg("past_key_value", new_name="past_key_values", version="4.58")
     def construct(
         self,
-        hidden_states: ms.Tensor,
-        attention_mask: Optional[ms.Tensor] = None,
+        hidden_states: mindspore.Tensor,
+        attention_mask: Optional[mindspore.Tensor] = None,
         past_key_values: Optional[Cache] = None,
-        cache_position: Optional[ms.Tensor] = None,
-        position_embeddings: Optional[tuple[ms.Tensor, ms.Tensor]] = None,
-        position_ids: Optional[ms.Tensor] = None,
+        cache_position: Optional[mindspore.Tensor] = None,
+        position_embeddings: Optional[tuple[mindspore.Tensor, mindspore.Tensor]] = None,
+        position_ids: Optional[mindspore.Tensor] = None,
         **kwargs,
-    ) -> tuple[ms.Tensor, Optional[ms.Tensor], Optional[tuple[ms.Tensor]]]:
+    ) -> tuple[mindspore.Tensor, Optional[mindspore.Tensor], Optional[tuple[mindspore.Tensor]]]:
         if "padding_mask" in kwargs:
             warnings.warn(
                 "Passing `padding_mask` is deprecated and will be removed in v4.37. Please make sure use `attention_mask` instead.`"
@@ -366,7 +366,7 @@ class DeepseekV2Attention(ms.nn.Cell):
         k_pe = k_pe.view(batch_size, 1, seq_length, self.qk_rope_head_dim)
         q_pe, k_pe = apply_rotary_emb(q_pe, k_pe, position_embeddings)
 
-        k_pe = k_pe.expand(*k_nope.shape[:-1], -1)
+        k_pe = k_pe.broadcast_to((*k_nope.shape[:-1], -1))
         query_states = mint.cat((q_nope, q_pe), dim=-1)
         key_states = mint.cat((k_nope, k_pe), dim=-1)
 
@@ -396,7 +396,7 @@ class DeepseekV2Attention(ms.nn.Cell):
         if self.config._attn_implementation == "flash_attention_2" and self.qk_head_dim != self.v_head_dim:
             attn_output = attn_output[:, :, :, : self.v_head_dim]
 
-        attn_output = attn_output.reshape(batch_size, seq_length, -1).contiguous()
+        attn_output = attn_output.reshape(batch_size, seq_length, -1)
         attn_output = self.o_proj(attn_output)
         return attn_output, attn_weights
 
@@ -412,18 +412,19 @@ class DeepseekV2DecoderLayer(GradientCheckpointingLayer):
         self.input_layernorm = DeepseekV2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.post_attention_layernorm = DeepseekV2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
-    @deprecate_kwarg("past_key_value", new_name="past_key_values", version="4.58")
     def construct(
         self,
-        hidden_states: ms.Tensor,
-        attention_mask: Optional[ms.Tensor] = None,
-        position_ids: Optional[ms.Tensor] = None,
+        hidden_states: mindspore.Tensor,
+        attention_mask: Optional[mindspore.Tensor] = None,
+        position_ids: Optional[mindspore.Tensor] = None,
         past_key_values: Optional[Cache] = None,
         use_cache: Optional[bool] = False,
-        cache_position: Optional[ms.Tensor] = None,
-        position_embeddings: Optional[tuple[ms.Tensor, ms.Tensor]] = None,  # necessary, but kept here for BC
+        cache_position: Optional[mindspore.Tensor] = None,
+        position_embeddings: Optional[
+            tuple[mindspore.Tensor, mindspore.Tensor]
+        ] = None,  # necessary, but kept here for BC
         **kwargs: Unpack[TransformersKwargs],
-    ) -> ms.Tensor:
+    ) -> mindspore.Tensor:
         residual = hidden_states
         hidden_states = self.input_layernorm(hidden_states)
         # Self Attention
@@ -447,7 +448,6 @@ class DeepseekV2DecoderLayer(GradientCheckpointingLayer):
         return hidden_states
 
 
-@auto_docstring
 class DeepseekV2PreTrainedModel(PreTrainedModel):
     config: DeepseekV2Config
     base_model_prefix = "model"
@@ -467,10 +467,15 @@ class DeepseekV2PreTrainedModel(PreTrainedModel):
     def _init_weights(self, module):
         super()._init_weights(module)
         if isinstance(module, DeepseekV2MoEGate):
-            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+            module.weight.set_data(
+                initializer(
+                    Normal(sigma=self.config.initializer_range, mean=0.0),
+                    module.weight.shape,
+                    module.weight.dtype,
+                )
+            )
 
 
-@auto_docstring
 class DeepseekV2Model(DeepseekV2PreTrainedModel):
     def __init__(self, config: DeepseekV2Config):
         super().__init__(config)
@@ -478,7 +483,7 @@ class DeepseekV2Model(DeepseekV2PreTrainedModel):
         self.vocab_size = config.vocab_size
 
         self.embed_tokens = mint.nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)
-        self.layers = ms.nn.CellList(
+        self.layers = mindspore.nn.CellList(
             [DeepseekV2DecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]
         )
         self.norm = DeepseekV2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
@@ -488,16 +493,14 @@ class DeepseekV2Model(DeepseekV2PreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @check_model_inputs
-    @auto_docstring
     def construct(
         self,
-        input_ids: Optional[ms.Tensor] = None,
-        attention_mask: Optional[ms.Tensor] = None,
-        position_ids: Optional[ms.Tensor] = None,
+        input_ids: Optional[mindspore.Tensor] = None,
+        attention_mask: Optional[mindspore.Tensor] = None,
+        position_ids: Optional[mindspore.Tensor] = None,
         past_key_values: Optional[Cache] = None,
-        inputs_embeds: Optional[ms.Tensor] = None,
-        cache_position: Optional[ms.Tensor] = None,
+        inputs_embeds: Optional[mindspore.Tensor] = None,
+        cache_position: Optional[mindspore.Tensor] = None,
         use_cache: Optional[bool] = None,
         **kwargs: Unpack[TransformersKwargs],
     ) -> BaseModelOutputWithPast:
@@ -505,14 +508,14 @@ class DeepseekV2Model(DeepseekV2PreTrainedModel):
             raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
 
         if inputs_embeds is None:
-            inputs_embeds: ms.Tensor = self.embed_tokens(input_ids)
+            inputs_embeds: mindspore.Tensor = self.embed_tokens(input_ids)
 
         if use_cache and past_key_values is None:
             past_key_values = DynamicCache(config=self.config)
 
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-            cache_position: ms.Tensor = mint.arange(
+            cache_position: mindspore.Tensor = mint.arange(
                 past_seen_tokens,
                 past_seen_tokens + inputs_embeds.shape[1],
             )
@@ -550,7 +553,6 @@ class DeepseekV2Model(DeepseekV2PreTrainedModel):
         )
 
 
-@auto_docstring
 class DeepseekV2ForCausalLM(DeepseekV2PreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
     _tp_plan = {"lm_head": "colwise_rep"}
@@ -565,19 +567,17 @@ class DeepseekV2ForCausalLM(DeepseekV2PreTrainedModel, GenerationMixin):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @can_return_tuple
-    @auto_docstring
     def construct(
         self,
-        input_ids: Optional[ms.Tensor] = None,
-        attention_mask: Optional[ms.Tensor] = None,
-        position_ids: Optional[ms.Tensor] = None,
+        input_ids: Optional[mindspore.Tensor] = None,
+        attention_mask: Optional[mindspore.Tensor] = None,
+        position_ids: Optional[mindspore.Tensor] = None,
         past_key_values: Optional[Cache] = None,
-        inputs_embeds: Optional[ms.Tensor] = None,
-        labels: Optional[ms.Tensor] = None,
+        inputs_embeds: Optional[mindspore.Tensor] = None,
+        labels: Optional[mindspore.Tensor] = None,
         use_cache: Optional[bool] = None,
-        cache_position: Optional[ms.Tensor] = None,
-        logits_to_keep: Union[int, ms.Tensor] = 0,
+        cache_position: Optional[mindspore.Tensor] = None,
+        logits_to_keep: Union[int, mindspore.Tensor] = 0,
         **kwargs: Unpack[TransformersKwargs],
     ) -> CausalLMOutputWithPast:
         r"""
