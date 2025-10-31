@@ -384,7 +384,7 @@ class LlamaPreTrainedModel(PreTrainedModel):
     _supports_flash_attn_2 = True
     _supports_sdpa = False  # SDPA, not support yet
     _supports_flex_attn = False  # FlexAttention, not support yet
-    _supports_cache_class = True  # set it True if use DynamicCache
+    _supports_cache_class = False  # set it True if use DynamicCache
     _supports_quantized_cache = False
     _supports_static_cache = False  # StaticCache, not used
     _supports_attention_backend = True

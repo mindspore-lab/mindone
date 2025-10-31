@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Dict, Optional
 
 import mindspore as ms
 from mindspore import ParallelMode, Tensor, context, nn, ops
+from mindspore.amp import LossScaler
 from mindspore.ops import composite as C
 
 if TYPE_CHECKING:
@@ -89,15 +90,15 @@ def create_grad_reducer(trainable_parameters):
 
 
 class LossWithScaleSense(nn.Cell):
-    def __init__(self, network: nn.Cell) -> None:
+    def __init__(self, network: nn.Cell, scaler: LossScaler) -> None:
         super().__init__(auto_prefix=False)
         self.network = network
+        self.scaler = scaler
 
-    def construct(self, *args, scale_sense: float = 1.0, **kwargs) -> Tensor:
+    def construct(self, *args, **kwargs) -> Tensor:
         loss = self.network(*args, **kwargs)
-        if isinstance(scale_sense, ms.Tensor):
-            scale_sense = scale_sense.to(loss.dtype)
-        loss = loss * scale_sense
+        scale_sense =  self.scaler.scale_value
+        loss = loss * scale_sense.to(loss.dtype)
         return loss
 
 
@@ -139,8 +140,23 @@ class TrainOneStepWrapper(nn.Cell):
             reducer = create_grad_reducer(network.trainable_params())
             is_zero = False
 
+        # scaler and reducer
+        assert "ms_loss_scaler" not in scaler_config
+        if scaler.lower() in ("default", "static"):
+            _scaler_config = {"scale_value": 1024}
+            _scaler_config.update(scaler_config)
+            scaler = create_loss_scaler("static", **_scaler_config)
+        elif scaler.lower() in ("auto", "dynamic"):
+            scaler = create_loss_scaler("dynamic", **scaler_config)
+        elif scaler.lower() == "none":
+            scaler = create_loss_scaler("none", **scaler_config)
+        else:
+            raise NotImplementedError
+
+        self.scaler = scaler
+
         # wrap network with scale sense
-        network = LossWithScaleSense(network)
+        network = LossWithScaleSense(network, self.scaler)
 
         # grad accumulation
         assert gradient_accumulation_steps >= 1
@@ -177,21 +193,6 @@ class TrainOneStepWrapper(nn.Cell):
 
         self.optimizer = optimizer
         self.ema = ema
-
-        # scaler and reducer
-        assert "ms_loss_scaler" not in scaler_config
-        if scaler.lower() in ("default", "static"):
-            _scaler_config = {"scale_value": 1024}
-            _scaler_config.update(scaler_config)
-            scaler = create_loss_scaler("static", **_scaler_config)
-        elif scaler.lower() in ("auto", "dynamic"):
-            scaler = create_loss_scaler("dynamic", **scaler_config)
-        elif scaler.lower() == "none":
-            scaler = create_loss_scaler("none", **scaler_config)
-        else:
-            raise NotImplementedError
-
-        self.scaler = scaler
         self.reducer = reducer
         self.is_zero = is_zero
         self.all_finite = ms.amp.all_finite if not _is_cpu() else return_true
@@ -274,7 +275,7 @@ class TrainOneStepWrapper(nn.Cell):
         return loss
 
     def construct(self, *inputs):
-        loss, grads = self.value_and_grad(*inputs, self.scaler.scale_value)
+        loss, grads = self.value_and_grad(*inputs)
         loss = self.scaler.unscale(loss)
         loss = loss * self.accum_steps
 
