@@ -1,78 +1,55 @@
 # Changelog
 
-## [v0.4.0] - 2025-10-30
+## [v0.4.0] - 2025-11-02
 
 ### Added
 
-#### Language Models
-- Added FLAVA model support (#1342)
-- Added RT-DETR and RT-DETR v2 models (#1317)
-- Added SegGPT model (#1318)
-- Added PromptDepthAnything model (#1315)
-- Added Table Transformer model (#1320)
-- Added UperNet model (#1319)
-- Added DiffLlama, OLMoE and other models (#1147)
-- Added SwinV2 and GroupViT models (#1213)
-- Added LongT5, Longformer and other models (#1234)
-- Added usage examples for BERT Japanese, BERTweet, ByT5, DialoGPT, Falcon3, Flan-T5, PhoBERT and XLM-V (#1328)
+#### Multimodal Models
+- Added Janus model for unified understanding and generation
+- Added Emu3 model for multimodal tasks
+- Added VAR model for class-conditional image generation
 
-#### Vision Models
-- Added Granite-Vision, MatCha, and DePlot usage examples (#1334)
-- Added Aya Vision, BridgeTower and other models (#1253)
-- Added vision models including ViT series and ZoeDepth (#1321)
-- Added Data2Vec model series (#1273)
-- Added Vision Text Dual Encoder (#1225)
-- Added ImageToImage, ImageToText and VisualQuestionAnswering pipelines (#1197)
-- Added image segmentation pipeline with SegFormer model (#1191)
-- Added Llava series models (#1016)
-- Added Aria model (#1089)
-- Added EasyAnimateV5.1 text-to-video, image-to-video, and control-to-video models (#995)
+#### Video Generation Models
+- Added HunyuanVideo and HunyuanVideo-I2V models
+- Added Wan2.1 and Wan2.2 models for text/image-to-video generation
+- Added OpenSora models (PKU and HPC-AI versions)
+- Added MovieGen 30B model
+- Added Step-Video-T2V model
+
+#### Image Generation Models
+- Added CogView4 model for text-to-image generation
+- Added OmniGen and OmniGen2 models
+- Added CannyEdit for image editing tasks
 
 #### Audio Models
-- Added Wav2Vec2-Conformer and Wav2Vec2-BERT models (#1312)
-- Added MusicGen Melody model (#1322)
-- Added MusicGen model (#1324)
-- Added AST and WavLM models (#1323)
-- Added Speech-Encoder-Decoder model with Wav2Vec2 UT fixes (#1281)
-- Added UniSpeech and UniSpeech-SAT models (#1277)
-- Added Speech2Text model (#1284)
-- Added Pop2Piano, FastSpeech2-Conformer and Seamless-M4T-V2 models (#1282)
+- Added SparkTTS for text-to-speech synthesis
+- Added various audio processing capabilities
 
-#### Diffusers Pipelines
-- Added Wan-VACE pipeline (#1148)
-- Added SkyReels-V2 pipelines (#1203)
-- Added Chroma-Dev pipeline (#1157)
-- Added Sana Sprint Img2Img, VisualCloze and other pipelines (#1145)
-- Added more HunyuanVideo pipelines (#1029)
-- Added UniDiffusers test (#1007)
-- Added OmniGen and Marigold intrinsics pipelines (#1062)
-- Added LTXConditionPipeline (#997)
-- Added Wan pipeline (#1021)
-- Added AudioLDM2 pipeline (#981)
-- Added Stable Diffusion Attend and Excite pipeline (#1013)
-- Added Lumina2 pipeline (#996)
-- Added K-diffusion pipelines (#986)
+#### Computer Vision Models
+- Added SAM2 for image segmentation
+- Added LangSAM for language-guided segmentation
+- Added MMaDA for multimodal generation
+
+#### Diffusers Integration
+- Enhanced CogVideoX factory support
+- Added Flux model support via DreamBooth
+- Updated diffusers to support v0.35.1
 
 ### Changed
-- Updated Llama3 documentation (#1337)
-- Added Jamba model support (#1274)
-- Upgraded mindone.diffusers from v0.34.0 to v0.35.1 (#1299)
-- Added Udop model (#1283)
-- Added ShieldGemma2 model (#1308)
-- Added Perceiver model (#1307)
-- Added OneFormer model (#1306)
-- Added Bros model (#1258)
-- Added Seamless-M4T model (#1293)
+- Updated all documentation links to v0.4.0 branch
+- Reorganized model support table by capability levels
+- Improved installation instructions across all examples
+- Updated MindSpore version requirements to >=2.6.0
+- Enhanced model configuration and requirements documentation
 
 ### Fixed
-- Fixed auto mapping alphabetical sorting (#1353)
-- Moved MiniCPM example to correct location (#1356)
-- Removed old models (#1350)
-- Removed AdamW implementation variants (#1302)
-- Fixed ReformerModel unit test issues (#1343)
-- Fixed RAG model unit test bugs (#1340)
+- Corrected model links and paths in documentation
+- Removed duplicate entries and non-existent models
+- Fixed installation instructions and requirements
+- Updated organization names and references
 
 ### Statistics
-- **Total commits**: 302
-- **Files changed**: 4,005
-- **New models added**: 104
+- **Total commits**: 52
+- **Files changed**: 103
+- **Models documented**: 26
+- **Examples updated**: 18
