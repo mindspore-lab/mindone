@@ -24,12 +24,13 @@
 #### Diffusers Pipelines
 - **Major upgrade**: Enhanced compatibility with 🤗 diffusers v0.35.1
 - **70+ pipelines supported**: Comprehensive pipeline library for text-to-image, image-to-image, text-to-video, and audio generation
-- Added latest diffusion architectures: QwenImage, HiDream, Wan-VACE, SkyReels-V2, Chroma-Dev
-- Enhanced video generation: HunyuanVideo, Wan, Lumina2, LTXCondition pipelines
-- Improved image generation: Sana Sprint, OmniGen, Marigold, Stable Diffusion variants
-- Added audio capabilities: AudioLDM2 pipeline for text-to-audio generation
-- Extended conditioning: ControlNet, IP-Adapter, T2I-Adapter pipelines
-- Added advanced sampling: K-diffusion, Attend and Excite methods
+
+**New Pipeline Additions:**
+- **Video Generation**: QwenImage (#1288), HiDream (#1360), Wan-VACE (#1148), SkyReels-V2 (#1203), Chroma-Dev (#1157), Sana Sprint Img2Img/VisualCloze (#1145), HunyuanVideo (#1029), Wan (#1021), Lumina2 (#996), LTXCondition (#997), UniDiffuser (#979)
+- **Image Generation**: Amused & Ledits++ (#976), OmniGen & Marigold (#1062), Stable Diffusion Attend & Excite (#1013), SD Unclip/PIA (#958)
+- **Audio Generation**: AudioLDM2 (#981)
+- **Advanced Sampling**: K-diffusion pipelines (#986)
+- **Testing & Documentation**: UniDiffusers test (#1007), 'reuse a pipeline' docs (#989), diffusers mint changes (#992)
 
 #### Examples Models
 - Added Janus model for unified understanding and generation
