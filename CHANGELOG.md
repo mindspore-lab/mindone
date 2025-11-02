@@ -63,6 +63,11 @@
 - Added LangSAM for language-guided segmentation
 - Added MMaDA for multimodal generation
 
+#### PEFT (Parameter-Efficient Fine-Tuning)
+- Added mindone.peft and upgraded to v0.15.2 (#1194)
+- Added Qwen2.5-Omni LoRA finetuning script with transformers 4.53.0 (#1218)
+- Fixed lora and lora_scale from each PEFT layer (#1187)
+
 ### Changed
 - Upgraded mindone.diffusers from v0.34.0 to v0.35.1 (#1299)
 - Updated GLM4V processor (#1349)
