@@ -84,8 +84,8 @@
 - Updated organization names and references
 
 ### Statistics
-- **Total commits**: 52
-- **Files changed**: 103
+- **Total commits**: 374
+- **Files changed**: 4128
 - **Transformers models supported**: 280+
 - **Diffusers pipelines supported**: 70+
 - **Examples updated**: 18
