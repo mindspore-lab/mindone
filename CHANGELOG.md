@@ -62,8 +62,6 @@
 - Added LangSAM for language-guided segmentation ([#1369](https://github.com/mindspore-lab/mindone/pull/1369))
 - Added MMaDA for multimodal generation ([#1116](https://github.com/mindspore-lab/mindone/pull/1116))
 
-### Changed
-
 ### Fixed
 - Fixed auto mapping alphabetical sorting ([#1353](https://github.com/mindspore-lab/mindone/pull/1353))
 - Fixed ReformerModel unit test issues ([#1343](https://github.com/mindspore-lab/mindone/pull/1343))
