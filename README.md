@@ -100,7 +100,7 @@ image.save("sd3.png")
 | Text-to-Image | [omnigen2](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/omnigen2) | ✅ | ✅ | ✅ | VectorVision |
 | Image-Segmentation | [sam2](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/sam2) | ✅ | ✅ | ✅ | Meta |
 | Text-to-Speech | [sparktts](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/sparktts) | ✅ | ✅ | ✅ | SparkAudio |
-### supported captioner
-| task | model  | inference | finetune | pretrain | features  |
+
+### supported captioner| task | model  | inference | finetune | pretrain | features  |
 | :---   |  :---   |  :---:    |  :---:  |  :---:     |  :--  |
 | Image-Text-to-Text | [pllava](https://github.com/mindspore-lab/mindone/tree/v0.4.0/tools/captioners/PLLaVA) 🔥|  ✅ |  ✖️ |  ✖️   | support video and image captioning |
