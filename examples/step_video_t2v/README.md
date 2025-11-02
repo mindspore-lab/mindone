@@ -54,28 +54,18 @@ The following table shows the requirements for running **Step-Video-T2V** model 
 
 ## 📦 Requirements
 
-
-<div align="center">
-
 mindspore  |  ascend driver   |cann  |
 |:--:|:--:|:--:|
 | >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
-</div>
+
 
 ### ⬇️ 3.2 Dependencies and Installation
 
 To install other dependent packages:
 
 ```bash
-git clone https://github.com/mindspore-lab/mindone.git
-
-# install mindone
-cd mindone
-pip install -e .
-
-# install requirements
-cd examples/step_video_t2v
+pip install mindone==0.4.0
 pip install -r requirements.txt
 ```
 

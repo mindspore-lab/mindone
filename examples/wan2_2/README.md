@@ -32,25 +32,18 @@ We are excited to introduce **Wan2.2**, a major upgrade to our foundational vide
 
 ## 📦 Requirements
 
-
-<div align="center">
-
 mindspore  |  ascend driver   |cann  |
 |:--:|:--:|:--:|
 | >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
-</div>
+
 
 
 #### Installation
 Clone the repo:
-```sh
-git clone https://github.com/mindspore-lab/mindone.git
-cd mindone/examples/wan2_2
-```
-
 Install dependencies:
 ```sh
+pip install mindone==0.4.0
 pip install -r requirements.txt
 ```
 

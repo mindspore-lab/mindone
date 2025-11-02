@@ -34,14 +34,11 @@ Here is the illustrations of OmniGen's capabilities:
 
 ## 📦 Requirements
 
-
-<div align="center">
-
 mindspore  |  ascend driver   |cann  |
 |:--:|:--:|:--:|
 | >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
-</div>
+
 
 #### Installation Tutorials
 

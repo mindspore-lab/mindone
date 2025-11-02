@@ -25,14 +25,11 @@ Here is the development plan of the project:
 
 ## 📦 Requirements
 
-
-<div align="center">
-
 mindspore  |  ascend driver   |cann  |
 |:--:|:--:|:--:|
 | >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
-</div>
+
 
 1. Install
    [CANN 8.1.RC1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.1.RC1)
@@ -136,14 +133,6 @@ range: 0.1–0.15).
 
 ##### Evaluation
 
-<div align="center">
-
-| Method                  | LPIPS ↓ | SSIM ↑ | PSNR ↑ |
-|-------------------------|---------|--------|--------|
-| TeaCache-slow (𝝳=0.1)  | 0.1263  | 0.8383 | 26.05  |
-| TeaCache-fast (𝝳=0.15) | 0.1676  | 0.8010 | 24.49  |
-
-</div>
 
 > [!NOTE]
 > The above metrics were collected from 12 randomly selected prompts.

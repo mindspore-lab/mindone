@@ -42,23 +42,16 @@ Image VQA:
 ## Get Started
 ## 📦 Requirements
 
-
-<div align="center">
-
 mindspore  |  ascend driver   |cann  |
 |:--:|:--:|:--:|
 | >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
-</div>
-
 ### Dependencies
 
-Enter this directory and install required packages:
+Install the required packages:
 
 ```shell
-cd mindone
-pip install -e .[training]
-cd examples/emu3
+pip install mindone==0.4.0
 pip install -r requirements.txt
 ```
 

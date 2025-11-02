@@ -28,14 +28,11 @@ competitive performance across four primary capabilities:
 
 ## 📦 Requirements
 
-
-<div align="center">
-
 mindspore  |  ascend driver   |cann  |
 |:--:|:--:|:--:|
 | >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
-</div>
+
 
 1) Install MindSpore and Ascend software per the official docs:
 

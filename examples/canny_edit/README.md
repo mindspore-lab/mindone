@@ -24,22 +24,16 @@ CannyEdit is a novel training-free framework to support multitask image editing.
 
 ## 📦 Requirements
 
-
-<div align="center">
-
 mindspore  |  ascend driver   |cann  |
 |:--:|:--:|:--:|
 | >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
-</div>
+
 
 Install requirements
 ```shell
-    git clone https://github.com/mindspore-lab/mindone.git
-    cd mindone
-    pip install -e .
-    cd examples/cann_edit/
-    pip install -r requirements.txt
+pip install mindone==0.4.0
+pip install -r requirements.txt
 ```
 Try `python -c "import mindone"`. If no error occurs, the installation is successful.
 
@@ -96,14 +90,6 @@ python main.py \
 ```
 
 
-<div align="center">
-<img src=./assets/imgs/girl33.jpeg width="240" height="318" />
-
-<img src=./assets/mask_temp/mask_209_inverse.png width="240" height="318" />
-
-<img src=./assets/example_results/result_338.png width="240" height="318" />
-
-</div>
 <p align="center">
   <em> From left to right, these are original image, mask image, and generated edited image. </em>
 </p>
@@ -119,14 +105,6 @@ python main.py \
   --prompt_target "A young boy with red hair smiles brightly, wearing a red and white checkered shirt." \
   --mask_path "./assets/mask_temp/mask_208.png"
 ```
-<div align="center">
-<img src=./assets/imgs/girl33.jpeg width="240" height="318" />
-
-<img src=./assets/mask_temp/mask_208.png width="240" height="318" />
-
-<img src=./assets/example_results/result_339.png width="240" height="318" />
-
-</div>
 <p align="center">
   <em> From left to right, these are original image, mask image, and generated edited image. </em>
 </p>
@@ -142,14 +120,6 @@ python main.py \
 --prompt_target "A young girl with red hair smiles brightly, wearing a red and white checkered shirt, a monkey playing nearby." \
 --mask_path "./assets/mask_temp/mask_213.png"
 ```
-<div align="center">
-<img src=./assets/imgs/girl33.jpeg width="240" height="318" />
-
-<img src=./assets/mask_temp/mask_213.png width="240" height="318" />
-
-<img src=./assets/example_results/result_346.png width="240" height="318" />
-
-</div>
 <p align="center">
   <em> From left to right, these are original image, mask image, and generated edited image. </em>
 </p>
@@ -164,14 +134,6 @@ python main.py \
   --mask_path "./assets/mask_temp/mask_208.png" \
   --dilate_mask
 ```
-<div align="center">
-<img src=./assets/imgs/girl33.jpeg width="240" height="318" />
-
-<img src=./assets/mask_temp/mask_208.png width="240" height="318" />
-
-<img src=./assets/example_results/result_800.png width="240" height="318" />
-
-</div>
 <p align="center">
   <em> From left to right, these are original image, mask image, and generated edited image. </em>
 </p>
@@ -189,15 +151,6 @@ python main.py \
   --mask_path "./assets/mask_temp/mask_215.png" \
   --prompt_target "A young boy wearing a red and white checkered shirt, a monkey playing nearby."
 ```
-<div align="center">
-<img src=./assets/imgs/girl33.jpeg width="200" height="265" />
-
-<img src=./assets/mask_temp/mask_208.png width="200" height="265" />
-<img src=./assets/mask_temp/mask_215.png width="200" height="265" />
-
-<img src=./assets/example_results/result_345.png width="200" height="265" />
-
-</div>
 <p align="center">
   <em> From left to right, these are original image, two mask images, and generated edited image. </em>
 </p>
