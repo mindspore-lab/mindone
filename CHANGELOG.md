@@ -21,27 +21,24 @@
 - **Architecture Models**: DiffLlama/OLMoE (#1147), LongT5/Longformer (#1234), NLLB-MoE (#1244), mBART (#1195), ELECTRA/Pegasus/X (#1295), SqueezeBERT (#1295), IBert (#1212), Bamba (#1241), FocalNet/RegNet (#1254), MobileNet v1/v2 (#1171), DistilBERT/Funnel/MLLaMA (#1256), Mistral3/Pixtral/ResNet (#1190), BERT Generation/DeiT (#1205), SigLIP2 (#1076)
 - **Examples & Documentation**: BERT Japanese/BERTweet/ByT5/DialogGPT/Falcon3/Flan-T5/PhoBERT/XLM-V (#1328), Depth Anything V2/DiT (#1332), Granite-Vision/MatCha/DePlot (#1334), GLM4V processor (#1349)
 
-#### Diffusers Model Components
-- **Model components library**: Core building blocks for diffusion pipelines
-- **50+ model components**: Transformers, autoencoders, controlnets, and processing modules
-
-**New Model Components:**
-- **Video Transformers**: transformer_qwenimage, transformer_hidream_image, transformer_wan_vace, transformer_skyreels_v2, transformer_chroma, transformer_cosmos, transformer_hunyuan_video_framepack, consisid_transformer_3d
-- **Autoencoders**: autoencoder_kl_qwenimage, autoencoder_kl_cosmos
-- **ControlNets**: controlnet_sana, multicontrolnet_union
-- **Processing Modules**: cache_utils, auto_model, lora processing modules
-- **Integration Components**: Model components for QwenImage, HiDream, Wan-VACE, SkyReels-V2, Chroma, Cosmos, HunyuanVideo, Sana, and other pipelines
-
-#### Diffusers Pipelines
+#### mindone.diffusers update
 - **Major upgrade**: Enhanced compatibility with 🤗 diffusers v0.35.1
 - **70+ pipelines supported**: Comprehensive pipeline library for text-to-image, image-to-image, text-to-video, and audio generation
+- **50+ model components**: Transformers, autoencoders, controlnets, and processing modules as building blocks
 
-**New Pipeline Additions:**
+**New pipelines:**
 - **Video Generation**: QwenImage (#1288), HiDream (#1360), Wan-VACE (#1148), SkyReels-V2 (#1203), Chroma-Dev (#1157), Sana Sprint Img2Img/VisualCloze (#1145), HunyuanVideo (#1029), Wan (#1021), Lumina2 (#996), LTXCondition (#997), UniDiffuser (#979)
 - **Image Generation**: Amused & Ledits++ (#976), OmniGen & Marigold (#1062), Stable Diffusion Attend & Excite (#1013), SD Unclip/PIA (#958)
 - **Audio Generation**: AudioLDM2 (#981)
 - **Advanced Sampling**: K-diffusion pipelines (#986)
 - **Testing & Documentation**: UniDiffusers test (#1007), 'reuse a pipeline' docs (#989), diffusers mint changes (#992)
+
+**Model components:**
+- **Video Transformers**: transformer_qwenimage, transformer_hidream_image, transformer_wan_vace, transformer_skyreels_v2, transformer_chroma, transformer_cosmos, transformer_hunyuan_video_framepack, consisid_transformer_3d
+- **Autoencoders**: autoencoder_kl_qwenimage, autoencoder_kl_cosmos
+- **ControlNets**: controlnet_sana, multicontrolnet_union
+- **Processing Modules**: cache_utils, auto_model, lora processing modules
+- **Integration Components**: Model components for QwenImage, HiDream, Wan-VACE, SkyReels-V2, Chroma, Cosmos, HunyuanVideo, Sana, and other pipelines
 
 #### Examples Models
 - Added Janus model for unified understanding and generation
