@@ -34,7 +34,7 @@
 - **Testing & Documentation**: UniDiffusers test (#1007), 'reuse a pipeline' docs (#989), diffusers mint changes (#992)
 
 #### model components
-- **Video Transformers**: transformer_qwenimage (#1288), transformer_hidream_image, transformer_wan_vace (#1148), transformer_skyreels_v2, transformer_chroma, transformer_cosmos, transformer_hunyuan_video_framepack, consisid_transformer_3d
+- **Video Transformers**: transformer_qwenimage (#1288), transformer_hidream_image, transformer_wan_vace (#1148), transformer_skyreels_v2 (#1203), transformer_chroma (#1157), transformer_cosmos (#1196), transformer_hunyuan_video_framepack (#1029), consisid_transformer_3d (#1124)
 - **Autoencoders**: autoencoder_kl_qwenimage (#1288), autoencoder_kl_cosmos
 - **ControlNets**: controlnet_sana, multicontrolnet_union
 - **Processing Modules**: cache_utils, auto_model, lora processing modules
