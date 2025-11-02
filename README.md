@@ -53,7 +53,7 @@ image.save("sd3.png")
 
 ### supported models under mindone/examples
 
-| model  | inference | finetune | pretrain | institute  |
+| model  | inference | finetune | pretrain | organization  |
 |  :---   |  :---:    |  :---:  |  :---:     |  :--  |
 | [hunyuanvideo-i2v](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/hunyuanvideo-i2v)  |  ✅  | ✖️  | ✖️  | Tencent |
 | [wan2.1](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/wan2_1)  |  ✅  |  ✖️  |  ✖️   | Alibaba  |
