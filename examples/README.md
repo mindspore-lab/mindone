@@ -7,7 +7,6 @@
 
 | model   |  codebase style | original repo
 | :---   |  :--  | :--: |
-| [janus](https://github.com/mindspore-lab/mindone/tree/master/examples/janus) | DeekSeek | https://github.com/deepseek-ai/Janus
 | [cogview](https://github.com/mindspore-lab/mindone/blob/master/examples/diffusers/cogview) | THUDM official | https://github.com/THUDM/CogView4 |
 | [cogvideox](https://github.com/mindspore-lab/mindone/blob/master/examples/diffusers/cogvideox_factory) | THUDM official | https://github.com/THUDM/CogVideo |
 | [flux](https://github.com/mindspore-lab/mindone/blob/master/examples/diffusers/dreambooth) | Black Forest Labs official | https://github.com/black-forest-labs/flux |
