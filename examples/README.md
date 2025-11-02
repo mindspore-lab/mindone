@@ -10,6 +10,7 @@
 | [janus](https://github.com/mindspore-lab/mindone/tree/master/examples/janus) | DeekSeek | https://github.com/deepseek-ai/Janus
 | [cogview](https://github.com/mindspore-lab/mindone/blob/master/examples/diffusers/cogview) | THUDM official | https://github.com/THUDM/CogView4 |
 | [cogvideox](https://github.com/mindspore-lab/mindone/blob/master/examples/diffusers/cogvideox_factory) | THUDM official | https://github.com/THUDM/CogVideo |
+| [flux](https://github.com/mindspore-lab/mindone/blob/master/examples/diffusers/dreambooth) | Black Forest Labs official | https://github.com/black-forest-labs/flux |
 | [wan2_1](https://github.com/mindspore-lab/mindone/blob/master/examples/wan2_1) | Alibaba Wan Group official|  https://github.com/Wan-Video/Wan2.1 |
 | [step_video_t2v](https://github.com/mindspore-lab/mindone/blob/master/examples/step_video_t2v) | StepFun official | https://github.com/stepfun-ai/Step-Video-T2V   |
 | [janus](https://github.com/mindspore-lab/mindone/blob/master/examples/janus) | DeepSeek AI official | https://github.com/deepseek-ai/Janus |
@@ -20,3 +21,10 @@
 | [movie gen](https://github.com/mindspore-lab/mindone/blob/master/examples/moviegen)     | implemented by MindONE team, based on the MovieGen paper by Meta | https://arxiv.org/pdf/2310.05737  |
 | [hunyuanvideo](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuanvideo) | HunyuanVideo official | https://github.com/Tencent/HunyuanVideo |
 | [hunyuanvideo-i2v](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuanvideo-i2v) | Tencent official  | https://github.com/Tencent/HunyuanVideo-I2V  |
+| [canny_edit](https://github.com/mindspore-lab/mindone/blob/master/examples/canny_edit) | implemented by MindONE team | https://github.com/VayneXie/CannyEdit |
+| [lang_sam](https://github.com/mindspore-lab/mindone/blob/master/examples/lang_sam) | implemented by MindONE team | https://github.com/luca-medeiros/lang-segment-anything |
+| [mmada](https://github.com/mindspore-lab/mindone/blob/master/examples/mmada) | Gen-Verse official | https://github.com/Gen-Verse/MMaDA |
+| [omnigen](https://github.com/mindspore-lab/mindone/blob/master/examples/omnigen) | VectorVision official | https://github.com/VectorSpaceLab/OmniGen |
+| [omnigen2](https://github.com/mindspore-lab/mindone/blob/master/examples/omnigen2) | VectorVision official | https://github.com/VectorSpaceLab/OmniGen |
+| [sam2](https://github.com/mindspore-lab/mindone/blob/master/examples/sam2) | Meta official | https://github.com/facebookresearch/sam2 |
+| [sparktts](https://github.com/mindspore-lab/mindone/blob/master/examples/sparktts) | SparkAudio official | https://github.com/SparkAudio/Spark-TTS |
