@@ -53,54 +53,55 @@ image.save("sd3.png")
 
 ### supported models under mindone/examples
 
-| task | model  | inference | finetune | pretrain | institute  |
-| :---   |  :---   |  :---:    |  :---:  |  :---:     |  :--  |
-| Image-to-Video | [hunyuanvideo-i2v](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/hunyuanvideo-i2v) 🔥🔥 |  ✅  | ✖️  | ✖️  | Tencent |
-| Text/Image-to-Video | [wan2.1](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/wan2_1) 🔥🔥🔥 |  ✅  |  ✖️  |  ✖️   | Alibaba  |
-| Text/Image/Speech-to-Video | [wan2.2](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/wan2_2) 🔥🔥🔥 |  ✅  |  ✖️  |  ✖️   | Alibaba  |
-| Text-to-Image | [cogview4](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/cogview) 🔥🔥🔥 | ✅ | ✖️  | ✖️  | Zhipuai |
-| Text-to-Video | [step_video_t2v](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/step_video_t2v) 🔥🔥 | ✅   | ✖️  | ✖️   | StepFun  |
-| Image-Text-to-Text | [qwen2_vl](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/qwen2_vl) 🔥🔥🔥|  ✅ |  ✖️ |  ✖️   | Alibaba |
-| Any-to-Any | [janus](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/janus)  🔥🔥🔥 | ✅  | ✅  | ✅  | DeepSeek |
-| Any-to-Any | [emu3](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/emu3)  🔥🔥 | ✅  | ✅  | ✅  |  BAAI |
-| Class-to-Image | [var](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/var)🔥🔥 | ✅  | ✅  | ✅  | ByteDance  |
-| Text/Image-to-Video | [hpcai open sora 1.2/2.0](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/opensora_hpcai)   🔥🔥   | ✅ | ✅ | ✅ | HPC-AI Tech  |
-| Text/Image-to-Video | [cogvideox 1.5 5B~30B ](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/diffusers/cogvideox_factory) 🔥🔥 | ✅ |  ✅  | ✅  | Zhipu  |
-| Text-to-Video | [open sora plan 1.3](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/opensora_pku) 🔥🔥 | ✅ | ✅ | ✅ | PKU |
-| Text-to-Video | [hunyuanvideo](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/hunyuanvideo) 🔥🔥| ✅  | ✅  | ✅  | Tencent  |
-| Text-to-Video | [movie gen 30B](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/moviegen) 🔥🔥  | ✅ | ✅ | ✅ | Meta |
-| Video-Encode-Decode | [magvit](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/magvit) |  ✅  |  ✅  |  ✅  | Google  |
-| Text-to-Image | [story_diffusion](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/story_diffusion) | ✅  | ✖️  | ✖️  | ByteDance |
-| Image-to-Video | [dynamicrafter](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/dynamicrafter)     | ✅  | ✖️  | ✖️  | Tencent  |
-| Video-to-Video | [venhancer](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/venhancer) |  ✅  | ✖️  | ✖️  | Shanghai AI Lab |
-| Text-to-Video | [t2v_turbo](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/t2v_turbo) |   ✅ |   ✅ |   ✅ | Google |
-| Image-to-Video | [svd](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/svd) | ✅  |  ✅ | ✅  | Stability AI |
-| Text-to-Video | [animate diff](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/animatediff) | ✅  | ✅  | ✅  | CUHK |
-| Text/Image-to-Video | [video composer](https://github.com/mindspore-lab/mindone/tree/v0.4.0/examples/videocomposer)     | ✅  | ✅  | ✅  | Alibaba |
-| Text-to-Image | [flux](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/diffusers/dreambooth/README_flux.md)  🔥 | ✅ | ✅ | ✖️  | Black Forest Lab |
-| Text-to-Image | [stable diffusion 3](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/diffusers/dreambooth/README_sd3.md) 🔥| ✅ | ✅ | ✖️ | Stability AI |
-| Text-to-Image | [kohya_sd_scripts](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/kohya_sd_scripts) | ✅ | ✅ | ✖️  | kohya |
-| Text-to-Image | [stable diffusion xl](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/diffusers/text_to_image/README_sdxl.md)  | ✅ | ✅ | ✅ | Stability AI|
-| Text-to-Image | [stable diffusion](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/stable_diffusion_v2) | ✅ | ✅ | ✅ | Stability AI |
-| Text-to-Image | [hunyuan_dit](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/hunyuan_dit)     | ✅ | ✅ | ✅ | Tencent |
-| Text-to-Image | [pixart_sigma](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/pixart_sigma)     | ✅ | ✅ | ✅ | Huawei |
-| Text-to-Image | [fit](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/fit) | ✅ | ✅ | ✅ | Shanghai AI Lab  |
-| Class-to-Video | [latte](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/latte)     |✅  | ✅ | ✅  | Shanghai AI Lab |
-| Class-to-Image | [dit](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/dit)     | ✅  | ✅  | ✅  | Meta |
-| Text-to-Image | [t2i-adapter](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/t2i_adapter)     | ✅  | ✅  | ✅  | Shanghai AI Lab |
-| Text-to-Image | [ip adapter](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/ip_adapter)     | ✅  | ✅  | ✅  | Tencent  |
-| Text-to-3D | [mvdream](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/mvdream) |   ✅ |   ✅ |   ✅ | ByteDance  |
-| Image-to-3D | [instantmesh](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/instantmesh) | ✅  | ✅  | ✅  | Tencent  |
-| Image-to-3D | [sv3d](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/sv3d) |   ✅ |   ✅ |   ✅ | Stability AI  |
-| Text/Image-to-3D | [hunyuan3d-1.0](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/hunyuan3d_1)     | ✅ | ✅ | ✅ | Tencent |
-| Image-to-Image | [canny_edit](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/canny_edit) | ✅ | ✅ | ✅ | VayneXie |
-| Image-Segmentation | [lang_sam](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/lang_sam) | ✅ | ✅ | ✅ | Luca Medeiros |
-| Multimodal-Generation | [mmada](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/mmada) | ✅ | ✅ | ✅ | Gen-Verse |
-| Text-to-Image | [omnigen](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/omnigen) | ✅ | ✅ | ✅ | VectorVision |
-| Text-to-Image | [omnigen2](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/omnigen2) | ✅ | ✅ | ✅ | VectorVision |
-| Image-Segmentation | [sam2](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/sam2) | ✅ | ✅ | ✅ | Meta |
-| Text-to-Speech | [sparktts](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/sparktts) | ✅ | ✅ | ✅ | SparkAudio |
+| model  | inference | finetune | pretrain | institute  |
+|  :---   |  :---:    |  :---:  |  :---:     |  :--  |
+| [hunyuanvideo-i2v](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/hunyuanvideo-i2v) 🔥🔥 |  ✅  | ✖️  | ✖️  | Tencent |
+| [wan2.1](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/wan2_1) 🔥🔥🔥 |  ✅  |  ✖️  |  ✖️   | Alibaba  |
+| [wan2.2](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/wan2_2) 🔥🔥🔥 |  ✅  |  ✖️  |  ✖️   | Alibaba  |
+| [cogview4](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/cogview) 🔥🔥🔥 | ✅ | ✖️  | ✖️  | Zhipuai |
+| [step_video_t2v](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/step_video_t2v) 🔥🔥 | ✅   | ✖️  | ✖️   | StepFun  |
+| [qwen2_vl](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/qwen2_vl) 🔥🔥🔥|  ✅ |  ✖️ |  ✖️   | Alibaba |
+| [janus](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/janus)  🔥🔥🔥 | ✅  | ✅  | ✅  | DeepSeek |
+| [emu3](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/emu3)  🔥🔥 | ✅  | ✅  | ✅  |  BAAI |
+| [var](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/var)🔥🔥 | ✅  | ✅  | ✅  | ByteDance  |
+| [hpcai open sora 1.2/2.0](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/opensora_hpcai)   🔥🔥   | ✅ | ✅ | ✅ | HPC-AI Tech  |
+| [cogvideox 1.5 5B~30B ](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/diffusers/cogvideox_factory) 🔥🔥 | ✅ |  ✅  | ✅  | Zhipu  |
+| [open sora plan 1.3](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/opensora_pku) 🔥🔥 | ✅ | ✅ | ✅ | PKU |
+| [hunyuanvideo](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/hunyuanvideo) 🔥🔥| ✅  | ✅  | ✅  | Tencent  |
+| [movie gen 30B](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/moviegen) 🔥🔥  | ✅ | ✅ | ✅ | Meta |
+| [magvit](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/magvit) |  ✅  |  ✅  |  ✅  | Google  |
+| [story_diffusion](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/story_diffusion) | ✅  | ✖️  | ✖️  | ByteDance |
+| [dynamicrafter](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/dynamicrafter)     | ✅  | ✖️  | ✖️  | Tencent  |
+| [venhancer](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/venhancer) |  ✅  | ✖️  | ✖️  | Shanghai AI Lab |
+| [t2v_turbo](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/t2v_turbo) |   ✅ |   ✅ |   ✅ | Google |
+| [svd](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/svd) | ✅  |  ✅ | ✅  | Stability AI |
+| [animate diff](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/animatediff) | ✅  | ✅  | ✅  | CUHK |
+| [video composer](https://github.com/mindspore-lab/mindone/tree/v0.4.0/examples/videocomposer)     | ✅  | ✅  | ✅  | Alibaba |
+| [flux](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/diffusers/dreambooth/README_flux.md)  🔥 | ✅ | ✅ | ✖️  | Black Forest Lab |
+| [stable diffusion 3](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/diffusers/dreambooth/README_sd3.md) 🔥| ✅ | ✅ | ✖️ | Stability AI |
+| [kohya_sd_scripts](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/kohya_sd_scripts) | ✅ | ✅ | ✖️  | kohya |
+| [stable diffusion xl](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/diffusers/text_to_image/README_sdxl.md)  | ✅ | ✅ | ✅ | Stability AI|
+| [stable diffusion](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/stable_diffusion_v2) | ✅ | ✅ | ✅ | Stability AI |
+| [hunyuan_dit](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/hunyuan_dit)     | ✅ | ✅ | ✅ | Tencent |
+| [pixart_sigma](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/pixart_sigma)     | ✅ | ✅ | ✅ | Huawei |
+| [fit](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/fit) | ✅ | ✅ | ✅ | Shanghai AI Lab  |
+| [latte](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/latte)     |✅  | ✅ | ✅  | Shanghai AI Lab |
+| [dit](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/dit)     | ✅  | ✅  | ✅  | Meta |
+| [t2i-adapter](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/t2i_adapter)     | ✅  | ✅  | ✅  | Shanghai AI Lab |
+| [ip adapter](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/ip_adapter)     | ✅  | ✅  | ✅  | Tencent  |
+| [mvdream](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/mvdream) |   ✅ |   ✅ |   ✅ | ByteDance  |
+| [instantmesh](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/instantmesh) | ✅  | ✅  | ✅  | Tencent  |
+| [sv3d](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/sv3d) |   ✅ |   ✅ |   ✅ | Stability AI  |
+| [hunyuan3d-1.0](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/hunyuan3d_1)     | ✅ | ✅ | ✅ | Tencent |
+| [canny_edit](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/canny_edit) | ✅ | ✅ | ✅ | VayneXie |
+| [lang_sam](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/lang_sam) | ✅ | ✅ | ✅ | Luca Medeiros |
+| [mmada](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/mmada) | ✅ | ✅ | ✅ | Gen-Verse |
+| [omnigen](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/omnigen) | ✅ | ✅ | ✅ | VectorVision |
+| [omnigen2](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/omnigen2) | ✅ | ✅ | ✅ | VectorVision |
+| [sam2](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/sam2) | ✅ | ✅ | ✅ | Meta |
+| [sparktts](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/sparktts) | ✅ | ✅ | ✅ | SparkAudio |
 
-### supported captioner| task | model  | inference | finetune | pretrain | features  |
-| :---   |  :---   |  :---:    |  :---:  |  :---:     |  :--  |
-| Image-Text-to-Text | [pllava](https://github.com/mindspore-lab/mindone/tree/v0.4.0/tools/captioners/PLLaVA) 🔥|  ✅ |  ✖️ |  ✖️   | support video and image captioning |
+### supported captioner
+| model  | inference | finetune | pretrain | features  |
+|  :---   |  :---:    |  :---:  |  :---:     |  :--  |
+| [pllava](https://github.com/mindspore-lab/mindone/tree/v0.4.0/tools/captioners/PLLaVA) 🔥|  ✅ |  ✖️ |  ✖️   | support video and image captioning |
