@@ -66,6 +66,7 @@ image.save("sd3.png")
 | [var](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/var)🔥🔥 | ✅  | ✅  | ✅  | ByteDance  |
 | [hpcai open sora 1.2/2.0](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/opensora_hpcai)   🔥🔥   | ✅ | ✅ | ✅ | HPC-AI Tech  |
 | [cogvideox 1.5 5B~30B ](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/diffusers/cogvideox_factory) 🔥🔥 | ✅ |  ✅  | ✅  | Zhipu  |
+| [flux](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/diffusers/dreambooth)  🔥 | ✅ | ✅ | ✖️  | Black Forest Lab |
 | [open sora plan 1.3](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/opensora_pku) 🔥🔥 | ✅ | ✅ | ✅ | PKU |
 | [hunyuanvideo](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/hunyuanvideo) 🔥🔥| ✅  | ✅  | ✅  | Tencent  |
 | [movie gen 30B](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/moviegen) 🔥🔥  | ✅ | ✅ | ✅ | Meta |
