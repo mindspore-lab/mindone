@@ -72,6 +72,7 @@ mindspore  |  ascend driver   |cann  |
    and MindSpore according to the [official instructions](https://www.mindspore.cn/install).
 2. Install requirements
     ```shell
+    cd examples/moviegen
     pip install -r requirements.txt
     ```
 

@@ -36,6 +36,7 @@ mindspore  |  ascend driver   |cann  |
    and MindSpore according to the [official instructions](https://www.mindspore.cn/install).
 2. Install requirements
     ```shell
+    cd examples/hunyuanvideo
     pip install -r requirements.txt
     ```
     In case `decord` package is not available, try `pip install eva-decord`.

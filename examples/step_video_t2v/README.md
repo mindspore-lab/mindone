@@ -66,6 +66,7 @@ To install other dependent packages:
 
 ```bash
 pip install mindone==0.4.0
+cd examples/step_video_t2v
 pip install -r requirements.txt
 ```
 

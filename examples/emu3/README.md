@@ -52,6 +52,7 @@ Install the required packages:
 
 ```shell
 pip install mindone==0.4.0
+cd examples/emu3
 pip install -r requirements.txt
 ```
 

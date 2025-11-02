@@ -198,6 +198,7 @@ Other useful documents and links are listed below.
 2. Install requirements
 
 ```shell
+cd examples/opensora_hpcai
 pip install -r requirements.txt
 ```
 

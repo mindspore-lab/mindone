@@ -87,6 +87,7 @@ mindspore  |  ascend driver   |cann  |
 Install dependencies:
 ```
 pip install mindone==0.4.0
+cd examples/wan2_1
 pip install -r requirements.txt
 ```
 

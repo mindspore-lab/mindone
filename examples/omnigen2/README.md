@@ -42,6 +42,7 @@ mindspore  |  ascend driver   |cann  |
 2) Install Python dependencies:
 
     ```shell
+    cd examples/omnigen2
     pip install -r requirements.txt
     ```
 

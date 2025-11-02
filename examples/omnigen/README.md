@@ -44,7 +44,11 @@ mindspore  |  ascend driver   |cann  |
 
 1. Install Mindspore>=2.4.10 according to the [official tutorials](https://www.mindspore.cn/install)
 2. Ascend users please install the corresponding *CANN* in [community edition](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC3.beta1) as well as the relevant driver and firmware packages in [firmware and driver](https://www.hiascend.com/hardware/firmware-drivers/community), as stated in the [official document](https://www.mindspore.cn/install/#%E5%AE%89%E8%A3%85%E6%98%87%E8%85%BEai%E5%A4%84%E7%90%86%E5%99%A8%E9%85%8D%E5%A5%97%E8%BD%AF%E4%BB%B6%E5%8C%85).
-3. Install the pacakges listed in requirements.txt with `pip install -r requirements.txt`
+3. Install the packages listed in requirements.txt with:
+```bash
+cd examples/omnigen
+pip install -r requirements.txt
+```
 
 
 ## Inference

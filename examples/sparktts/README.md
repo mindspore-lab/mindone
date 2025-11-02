@@ -41,6 +41,7 @@ mindspore  |  ascend driver   |cann  |
 To install other dependent packages:
 ```bash
 pip install mindone==0.4.0
+cd examples/sparktts
 pip install -r requirements.txt
 ```
 

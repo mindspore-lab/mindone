@@ -90,6 +90,7 @@ Other useful documents and links are listed below.
 
 3. Install requirements
 ```bash
+cd examples/opensora_pku
 pip install -r requirements.txt
 ```
 

@@ -44,6 +44,7 @@ Clone the repo:
 Install dependencies:
 ```sh
 pip install mindone==0.4.0
+cd examples/wan2_2
 pip install -r requirements.txt
 ```
 
