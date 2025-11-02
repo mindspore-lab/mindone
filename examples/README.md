@@ -2,7 +2,7 @@
 
 | lib  |  hf version | original repo
 | :---   |  :--  | :-
-| [mindone.diffusers](https://github.com/mindspore-lab/mindone/blob/master/examples/diffusers) | support v0.35| https://github.com/huggingface/diffusers |
+| [mindone.diffusers](https://github.com/mindspore-lab/mindone/blob/master/examples/diffusers) | support v0.35 (CogView, CogVideoX, Flux, etc.)| https://github.com/huggingface/diffusers |
 | [mindone.transformers](https://github.com/mindspore-lab/mindone/blob/master/examples/transformers) | support v4.50| https://github.com/huggingface/transformers |
 
 | model   |  codebase style | original repo
