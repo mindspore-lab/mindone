@@ -34,11 +34,11 @@
 - **Testing & Documentation**: UniDiffusers test (#1007), 'reuse a pipeline' docs (#989), diffusers mint changes (#992)
 
 #### model components
-- **Video Transformers**: transformer_qwenimage, transformer_hidream_image, transformer_wan_vace, transformer_skyreels_v2, transformer_chroma, transformer_cosmos, transformer_hunyuan_video_framepack, consisid_transformer_3d
-- **Autoencoders**: autoencoder_kl_qwenimage, autoencoder_kl_cosmos
+- **Video Transformers**: transformer_qwenimage (#1288), transformer_hidream_image, transformer_wan_vace (#1148), transformer_skyreels_v2, transformer_chroma, transformer_cosmos, transformer_hunyuan_video_framepack, consisid_transformer_3d
+- **Autoencoders**: autoencoder_kl_qwenimage (#1288), autoencoder_kl_cosmos
 - **ControlNets**: controlnet_sana, multicontrolnet_union
 - **Processing Modules**: cache_utils, auto_model, lora processing modules
-- **Integration Components**: Model components for QwenImage, HiDream, Wan-VACE, SkyReels-V2, Chroma, Cosmos, HunyuanVideo, Sana, and other pipelines
+- **Integration Components**: Model components added as part of pipeline implementations
 
 ### mindone.peft
 - Added mindone.peft and upgraded to v0.15.2 (#1194)
@@ -46,20 +46,21 @@
 - Fixed lora and lora_scale from each PEFT layer (#1187)
 
 ### models under examples (mostly with finetune/training scripts)
-- Added Janus model for unified understanding and generation
-- Added Emu3 model for multimodal tasks
+- Added Janus model for unified understanding and generation (#1378)
+- Added Emu3 model for multimodal tasks (#1233)
 - Added VAR model for class-conditional image generation
 - Added HunyuanVideo and HunyuanVideo-I2V models
-- Added Wan2.1 and Wan2.2 models for text/image-to-video generation
-- Added OpenSora models (PKU and HPC-AI versions)
-- Added MovieGen 30B model
+- Added Wan2.1 model for text/image-to-video generation (#1363)
+- Added Wan2.2 model for text/image-to-video generation (#1243)
+- Added OpenSora models (PKU and HPC-AI versions) (#687)
+- Added MovieGen 30B model (#1362)
 - Added Step-Video-T2V model
 - Added CogView4 model for text-to-image generation
-- Added OmniGen and OmniGen2 models
-- Added CannyEdit for image editing tasks
+- Added OmniGen and OmniGen2 models (#1227)
+- Added CannyEdit for image editing tasks (#1346)
 - Added SparkTTS for text-to-speech synthesis
-- Added SAM2 for image segmentation
-- Added LangSAM for language-guided segmentation
+- Added SAM2 for image segmentation (#1200)
+- Added LangSAM for language-guided segmentation (#1369)
 - Added MMaDA for multimodal generation
 
 ### Changed
