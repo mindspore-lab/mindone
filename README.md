@@ -60,7 +60,7 @@ image.save("sd3.png")
 | [wan2.2](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/wan2_2) 🔥🔥🔥 |  ✅  |  ✖️  |  ✖️   | Alibaba  |
 | [cogview4](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/cogview) 🔥🔥🔥 | ✅ | ✖️  | ✖️  | Zhipuai |
 | [step_video_t2v](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/step_video_t2v) 🔥🔥 | ✅   | ✖️  | ✖️   | StepFun  |
-| [qwen2_vl](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/qwen2_vl) 🔥🔥🔥|  ✅ |  ✖️ |  ✖️   | Alibaba |
+| [qwen2_vl](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/transformers/qwen2_vl) 🔥🔥🔥|  ✅ |  ✖️ |  ✖️   | Alibaba |
 | [janus](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/janus)  🔥🔥🔥 | ✅  | ✅  | ✅  | DeepSeek |
 | [emu3](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/emu3)  🔥🔥 | ✅  | ✅  | ✅  |  BAAI |
 | [var](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/var)🔥🔥 | ✅  | ✅  | ✅  | ByteDance  |
