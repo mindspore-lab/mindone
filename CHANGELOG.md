@@ -39,7 +39,7 @@
 - **ControlNets**: controlnet_sana ([#1145](https://github.com/mindspore-lab/mindone/pull/1145)), multicontrolnet_union ([#1158](https://github.com/mindspore-lab/mindone/pull/1158))
 - **Processing Modules**: cache_utils ([#1299](https://github.com/mindspore-lab/mindone/pull/1299)), auto_model ([#1158](https://github.com/mindspore-lab/mindone/pull/1158)), lora processing modules ([#1158](https://github.com/mindspore-lab/mindone/pull/1158))
 
-### mindone.peft
+### mindone.peft updates
 - Added mindone.peft and upgraded to v0.15.2 ([#1194](https://github.com/mindspore-lab/mindone/pull/1194))
 - Added Qwen2.5-Omni LoRA finetuning script with transformers 4.53.0 ([#1218](https://github.com/mindspore-lab/mindone/pull/1218))
 - Fixed lora and lora_scale from each PEFT layer ([#1187](https://github.com/mindspore-lab/mindone/pull/1187))
@@ -63,16 +63,6 @@
 - Added MMaDA for multimodal generation ([#1116](https://github.com/mindspore-lab/mindone/pull/1116))
 
 ### Changed
-- Upgraded mindone.diffusers from v0.34.0 to v0.35.1 ([#1299](https://github.com/mindspore-lab/mindone/pull/1299))
-- Updated GLM4V processor ([#1349](https://github.com/mindspore-lab/mindone/pull/1349))
-- Added fill mask pipeline support ([#1038](https://github.com/mindspore-lab/mindone/pull/1038))
-- Updated Llama3 documentation ([#1337](https://github.com/mindspore-lab/mindone/pull/1337))
-- Updated MMaDA performance in readme ([#1377](https://github.com/mindspore-lab/mindone/pull/1377))
-- Updated all documentation links to v0.4.0 branch
-- Reorganized model support table by capability levels
-- Improved installation instructions across all examples
-- Updated MindSpore version requirements to >=2.6.0
-- Enhanced model configuration and requirements documentation
 
 ### Fixed
 - Fixed auto mapping alphabetical sorting ([#1353](https://github.com/mindspore-lab/mindone/pull/1353))
