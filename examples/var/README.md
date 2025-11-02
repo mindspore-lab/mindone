@@ -22,7 +22,7 @@ mindspore  |  ascend driver   |cann  |
 
 ```shell
 cd mindone
-pip install -e .[training]
+pip install mindone==0.4.0[training]
 cd examples/var
 pip install -r requirements.txt
 ```

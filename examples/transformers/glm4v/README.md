@@ -23,7 +23,7 @@ mindspore  |  ascend driver   |cann  |
 
 git clone https://github.com/mindspore-lab/mindone.git
 cd mindone
-pip install -e .
+pip install mindone==0.4.0
 cd examples/transformers/glm4v
 pip install -r requirements.txt
 ```

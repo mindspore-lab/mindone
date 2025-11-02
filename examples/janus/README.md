@@ -73,7 +73,7 @@ mindspore  |  ascend driver   |cann  |
 On the basis of `Python >= 3.8` environment, install the necessary dependencies by running the following command:
 
 ```shell
-pip install -e .
+pip install mindone==0.4.0
 ```
 
 
@@ -103,7 +103,7 @@ For the remote gradio demo, you can run with the following command:
 
 On NPU server:
 ```shell
-pip install -e .[gradio]
+pip install mindone==0.4.0[gradio]
 
 python demo/app_januspro.py
 ```

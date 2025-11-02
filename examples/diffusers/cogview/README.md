@@ -25,13 +25,11 @@ To install other dependent packages:
 git clone https://github.com/mindspore-lab/mindone
 
 # install mindone
-cd mindone
-pip install -e .
+pip install mindone==0.4.0
 # NOTE: transformers requires >=4.46.0
 
 cd examples/diffusers/cogview
 ```
-
 
 ## Quick Start
 

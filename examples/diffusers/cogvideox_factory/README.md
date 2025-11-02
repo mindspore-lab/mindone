@@ -2,11 +2,10 @@
 
 在 Ascend 硬件下对 Cog 系列视频模型进行微调以实现自定义视频生成 ⚡️📼
 
-> 我们的开发和验证基于Ascend Atlas 800T A2硬件，相关环境如下：
-> | mindspore  | ascend driver  |  firmware   | cann toolkit/kernel |
-> |:----------:|:--------------:|:-----------:|:------------------:|
-> |    2.6.0     |    24.1.RC2    | 7.3.0.1.231 |      8.1.RC1       |
-> |    2.7.0     |    24.1.RC2    | 7.3.0.1.231 |      8.2.RC1       |
+## 📦 Requirements
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
 <table align="center">
 <tr>
@@ -18,8 +17,7 @@
 
 克隆并安装此仓库, 并且确保安装了相关依赖
 ```shell
-cd mindone
-pip install -e .[training]
+pip install mindone==0.4.0
 cd examples/diffusers/cogvideox_factory
 pip install -r requirements.txt
 ```

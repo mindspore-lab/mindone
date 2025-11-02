@@ -22,12 +22,13 @@ mindspore  |  ascend driver   |cann  |
    and MindSpore according to the [official instructions](https://www.mindspore.cn/install).
 2. Install requirements
     ```shell
+    cd examples/sam2
     pip install -r requirements.txt
     ```
 3. Install mindone
     ```
     cd mindone
-    pip install -e .
+    pip install mindone==0.4.0
     ```
     Try `python -c "import mindone"`. If no error occurs, the installation is successful.
 
