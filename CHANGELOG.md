@@ -23,7 +23,7 @@
 
 #### Diffusers Pipelines
 - **Major upgrade**: Enhanced compatibility with 🤗 diffusers v0.35.1
-- **160+ pipelines supported**: Comprehensive pipeline library for text-to-image, image-to-image, text-to-video, and audio generation
+- **70+ pipelines supported**: Comprehensive pipeline library for text-to-image, image-to-image, text-to-video, and audio generation
 - Added latest diffusion architectures: QwenImage, HiDream, Wan-VACE, SkyReels-V2, Chroma-Dev
 - Enhanced video generation: HunyuanVideo, Wan, Lumina2, LTXCondition pipelines
 - Improved image generation: Sana Sprint, OmniGen, Marigold, Stable Diffusion variants
@@ -89,5 +89,6 @@
 ### Statistics
 - **Total commits**: 52
 - **Files changed**: 103
-- **Models documented**: 26
+- **Transformers models supported**: 280+
+- **Diffusers pipelines supported**: 70+
 - **Examples updated**: 18
