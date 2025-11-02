@@ -10,46 +10,23 @@
 ### Added
 
 #### Transformers Models
-- Added FLAVA model (#1342)
-- Added RT-DETR and RT-DETR v2 models (#1317)
-- Added SegGPT model (#1318)
-- Added PromptDepthAnything model (#1315)
-- Added Table Transformer model (#1320)
-- Added UperNet model (#1319)
-- Added DiffLlama, OLMoE and other models (#1147)
-- Added SwinV2 and GroupViT models (#1213)
-- Added LongT5, Longformer and other models (#1234)
-- Added usage examples for BERT Japanese, BERTweet, ByT5, DialoGPT, Falcon3, Flan-T5, PhoBERT and XLM-V (#1328)
-- Added Granite-Vision, MatCha, and DePlot usage examples (#1334)
-- Added Aya Vision, BridgeTower and other models (#1253)
-- Added vision models including ViT series and ZoeDepth (#1321)
-- Added Data2Vec model series (#1273)
-- Added Vision Text Dual Encoder (#1225)
-- Added Wav2Vec2-Conformer and Wav2Vec2-BERT models (#1312)
-- Added MusicGen Melody model (#1322)
-- Added MusicGen model (#1324)
-- Added AST and WavLM models (#1323)
-- Added Jamba model (#1274)
-- Added Udop model (#1283)
-- Added Cohere model (#1304)
-- Added Nougat example (#1336)
+- **Major upgrade**: Enhanced compatibility with 🤗 transformers v4.50
+- **280+ models supported**: Comprehensive model library including vision, audio, multimodal, and text models
+- Added latest model architectures: FLAVA, RT-DETR v2, SegGPT, Table Transformer, UperNet, Jamba, Udop, Cohere
+- Enhanced audio models: Wav2Vec2-Conformer, MusicGen, AST, WavLM series
+- Improved vision capabilities: Granite-Vision, MatCha, DePlot, ViT series, ZoeDepth
+- Added multilingual support: BERT Japanese, BERTweet, XLM-V, PhoBERT examples
+- Extended segmentation models: Nougat for document understanding
 
 #### Diffusers Pipelines
-- Added pipelines and required modules of QwenImage in Diffusers Master (#1288)
-- Added HiDream pipeline (#1360)
-- Added Wan-VACE pipeline (#1148)
-- Added SkyReels-V2 pipelines (#1203)
-- Added Chroma-Dev pipeline (#1157)
-- Added Sana Sprint Img2Img, VisualCloze and other pipelines (#1145)
-- Added more HunyuanVideo pipelines (#1029)
-- Added UniDiffusers test (#1007)
-- Added OmniGen and Marigold intrinsics pipelines (#1062)
-- Added LTXConditionPipeline (#997)
-- Added Wan pipeline (#1021)
-- Added AudioLDM2 pipeline (#981)
-- Added Stable Diffusion Attend and Excite pipeline (#1013)
-- Added Lumina2 pipeline (#996)
-- Added K-diffusion pipelines (#986)
+- **Major upgrade**: Enhanced compatibility with 🤗 diffusers v0.35.1
+- **160+ pipelines supported**: Comprehensive pipeline library for text-to-image, image-to-image, text-to-video, and audio generation
+- Added latest diffusion architectures: QwenImage, HiDream, Wan-VACE, SkyReels-V2, Chroma-Dev
+- Enhanced video generation: HunyuanVideo, Wan, Lumina2, LTXCondition pipelines
+- Improved image generation: Sana Sprint, OmniGen, Marigold, Stable Diffusion variants
+- Added audio capabilities: AudioLDM2 pipeline for text-to-audio generation
+- Extended conditioning: ControlNet, IP-Adapter, T2I-Adapter pipelines
+- Added advanced sampling: K-diffusion, Attend and Excite methods
 
 #### Examples Models
 - Added Janus model for unified understanding and generation
