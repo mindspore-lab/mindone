@@ -2,6 +2,11 @@
 
 ## [v0.4.0] - 2025-11-02
 
+**Compatibility Updates:**
+- **mindone.diffusers**: Compatible with 🤗 diffusers v0.35.0
+- **mindone.transformers**: Compatible with 🤗 transformers v4.50
+- **MindSpore**: Upgraded to require >=2.6.0
+
 ### Added
 
 #### Transformers Models
