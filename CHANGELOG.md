@@ -35,9 +35,9 @@
 
 #### model components
 - **Video Transformers**: transformer_qwenimage (#1288), transformer_hidream_image, transformer_wan_vace (#1148), transformer_skyreels_v2 (#1203), transformer_chroma (#1157), transformer_cosmos (#1196), transformer_hunyuan_video_framepack (#1029), consisid_transformer_3d (#1124)
-- **Autoencoders**: autoencoder_kl_qwenimage (#1288), autoencoder_kl_cosmos
-- **ControlNets**: controlnet_sana, multicontrolnet_union
-- **Processing Modules**: cache_utils, auto_model, lora processing modules
+- **Autoencoders**: autoencoder_kl_qwenimage (#1288), autoencoder_kl_cosmos (#1196)
+- **ControlNets**: controlnet_sana (#1145), multicontrolnet_union (#1158)
+- **Processing Modules**: cache_utils (#1299), auto_model (#1158), lora processing modules (#1158)
 - **Integration Components**: Model components added as part of pipeline implementations
 
 ### mindone.peft
@@ -48,20 +48,20 @@
 ### models under examples (mostly with finetune/training scripts)
 - Added Janus model for unified understanding and generation (#1378)
 - Added Emu3 model for multimodal tasks (#1233)
-- Added VAR model for class-conditional image generation
-- Added HunyuanVideo and HunyuanVideo-I2V models
+- Added VAR model for class-conditional image generation (#905)
+- Added HunyuanVideo and HunyuanVideo-I2V models (#1029, #883)
 - Added Wan2.1 model for text/image-to-video generation (#1363)
 - Added Wan2.2 model for text/image-to-video generation (#1243)
 - Added OpenSora models (PKU and HPC-AI versions) (#687)
 - Added MovieGen 30B model (#1362)
-- Added Step-Video-T2V model
-- Added CogView4 model for text-to-image generation
+- Added Step-Video-T2V model (#848)
+- Added CogView4 model for text-to-image generation (#874)
 - Added OmniGen and OmniGen2 models (#1227)
 - Added CannyEdit for image editing tasks (#1346)
 - Added SparkTTS for text-to-speech synthesis
 - Added SAM2 for image segmentation (#1200)
 - Added LangSAM for language-guided segmentation (#1369)
-- Added MMaDA for multimodal generation
+- Added MMaDA for multimodal generation (#1116)
 
 ### Changed
 - Upgraded mindone.diffusers from v0.34.0 to v0.35.1 (#1299)
