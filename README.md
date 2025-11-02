@@ -71,9 +71,9 @@ image.save("sd3.png")
 | [hunyuanvideo](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/hunyuanvideo) 🔥🔥| ✅  | ✅  | ✅  | Tencent  |
 | [movie gen 30B](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/moviegen) 🔥🔥  | ✅ | ✅ | ✅ | Meta |
 | [canny_edit](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/canny_edit) | ✅ | ✅ | ✅ | VayneXie |
-| [lang_sam](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/lang_sam) | ✅ | ✅ | ✅ | Luca Medeiros |
+| [lang_sam](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/lang_sam) | ✅ | ✖️ | ✖️ | Luca Medeiros |
 | [mmada](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/mmada) | ✅ | ✅ | ✅ | Gen-Verse |
 | [omnigen](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/omnigen) | ✅ | ✅ | ✅ | VectorVision |
 | [omnigen2](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/omnigen2) | ✅ | ✅ | ✅ | VectorVision |
-| [sam2](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/sam2) | ✅ | ✅ | ✅ | Meta |
-| [sparktts](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/sparktts) | ✅ | ✅ | ✅ | SparkAudio |
+| [sam2](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/sam2) | ✅ | ✖️ | ✖️ | Meta |
+| [sparktts](https://github.com/mindspore-lab/mindone/blob/v0.4.0/examples/sparktts) | ✅ | ✖️ | ✖️ | SparkAudio |
