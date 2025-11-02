@@ -8,14 +8,13 @@
 
 # Get Started
 
-## Requirements:
-|mindspore |	ascend driver | firmware | cann tookit/kernel|
-|--- | --- | --- | --- |
-|2.6.0 | 24.1.RC3 | 7.5.T11.0 | 8.0.0.beta1|
-|2.5.0 | 24.1.RC3 | 7.3.0.1.231 | 8.0.RC3.beta1|
+## 📦 Requirements
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
-### Installation:
-```
+
+
 cd examples/transformers/qwen2-vl
 pip install requirements.txt
 ```

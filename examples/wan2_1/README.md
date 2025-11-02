@@ -78,14 +78,16 @@ prompt: Summer beach vacation style, a white cat wearing sunglasses sits on a su
 
 ## Quickstart
 
-###  Requirements
+## 📦 Requirements
 
-The code is tested in the following environments
 
-| mindspore | ascend driver | firmware    | cann tookit/kernel |
-| :-------: | :-----------: | :---------: | :----------------: |
-| 2.6.0     |  25.0.RC1.1   | 7.7.0.1.231 | 8.1.RC1            |
-| 2.7.0     |  25.2.0       | 7.7.0.6.236 | 8.2.RC1            |
+<div align="center">
+
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
+
+</div>
 
 ### Installation
 Clone the repo:

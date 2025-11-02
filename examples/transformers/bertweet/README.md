@@ -26,24 +26,26 @@ The abstract from the paper is the following:
 
 This model was contributed by [dqnguyen](https://huggingface.co/dqnguyen). The original code can be found [here](https://github.com/VinAIResearch/BERTweet).
 
+## 📦 Requirements
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
+
+
+
+
 ## Usage example
 
-```python
->>> import mindspore as ms
->>> from mindone.transformers import AutoModel
->>> from transformers import AutoTokenizer
+```pythonimport mindspore
+from transformers import pipeline
 
->>> bertweet = AutoModel.from_pretrained("vinai/bertweet-base")
-
->>> # For transformers v4.x+:
->>> tokenizer = AutoTokenizer.from_pretrained("vinai/bertweet-base", use_fast=False)
-
->>> # INPUT TWEET IS ALREADY NORMALIZED!
->>> line = "SC has first two presumptive cases of coronavirus , DHEC confirms HTTPURL via @USER :cry:"
-
->>> input_ids = ms.tensor([tokenizer.encode(line)])
-
->>> features = bertweet(input_ids)  # Models outputs are now tuples
+pipeline = pipeline(
+    task="fill-mask",
+    model="vinai/bertweet-base",
+    dtype=mindspore.float16,
+    device=0
+)
+pipeline("Plants create <mask> through a process known as photosynthesis.")
 
 ```
 

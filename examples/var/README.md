@@ -12,13 +12,16 @@ VAR, a new generation paradigm that redefines the autoregressive learning on ima
 </p>
 
 
-## Requirements
+## 📦 Requirements
 
-| mindspore | ascend driver  | firmware    | cann toolkit/kernel |
-|:---------:|:--------------:|:-----------:|:-------------------:|
-|   2.5.0   |    24.1.RC3    | 7.3.0.1.231 | 8.0.RC3.beta1       |
-|   2.6.0   |    24.1.RC3    | 7.5.T11.0.B088 |   8.1.RC1        |
-|   2.7.0   |    24.1.RC3    | 7.5.T11.0.B088 |   8.2.RC1        |
+
+<div align="center">
+
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
+
+</div>
 
 ```shell
 cd mindone

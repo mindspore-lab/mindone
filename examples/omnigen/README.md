@@ -32,13 +32,16 @@ Here is the illustrations of OmniGen's capabilities:
 ![demo](https://github.com/itruonghai/mindone-asset/blob/main/omnigen/demo_cases.png?raw=true)
 
 
-## 🏭 Requirements
+## 📦 Requirements
 
-The scripts have been tested on Ascend Atlas 800T A2 machines chips under the following requirements:
 
-| mindspore | ascend driver | firmware | cann toolkit/kernel |
-| --------- | ------------- | -------- | ------------------- |
-| 2.5  | 24.1.RC3 | 7.5.0.1.129 | CANN 8.0.RC3.beta1 |
+<div align="center">
+
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
+
+</div>
 
 #### Installation Tutorials
 

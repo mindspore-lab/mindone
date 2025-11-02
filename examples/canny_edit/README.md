@@ -23,9 +23,15 @@ CannyEdit is a novel training-free framework to support multitask image editing.
 </p>
 
 ## 📦 Requirements
+
+
+<div align="center">
+
 mindspore  |  ascend driver   |cann  |
 |:--:|:--:|:--:|
-| 2.7.0    | >=24.1.RC1 |   >=8.1.RC1 |
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
+
+</div>
 
 Install requirements
 ```shell

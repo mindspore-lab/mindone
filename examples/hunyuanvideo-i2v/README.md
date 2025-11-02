@@ -23,9 +23,9 @@ Here is the development plan of the project:
 
 <div align="center">
 
-| MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
-|:---------:|:-------------:|:-----------:|:-------------------:|
-|   2.5.0   |  24.1.RC2     | 7.5.0.2.220 |  8.0.RC3.beta1      |
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
 </div>
 

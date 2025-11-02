@@ -19,11 +19,16 @@ Here we provide an efficient MindSpore version of [Open-Sora-Plan](https://githu
 | **[2024.03.07]** PKU support training with 128 frames (when sample rate = 3, which is about 13 seconds) of 256x256, or 64 frames (which is about 6 seconds) of 512x512. | class-conditioned training is under-development.|
 
 
-## Requirements
+## 📦 Requirements
 
-| mindspore | ascend driver | firmware    | cann tookit/kernel  |
-|:---------:|:-------------:|:-----------:|:-------------------:|
-|   2.5.0   |  24.1.RC2     | 7.5.0.2.220 |  8.0.RC3.beta1      |
+
+<div align="center">
+
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
+
+</div>
 
 ## 🎥 Demo
 

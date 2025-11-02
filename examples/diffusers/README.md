@@ -5,11 +5,10 @@
 > We've tried to provide a completely consistent interface and usage with the [huggingface/diffusers](https://github.com/huggingface/diffusers).
 > Only necessary changes are made to the [huggingface/diffusers](https://github.com/huggingface/diffusers) to make it seamless for users from torch.
 
-## Requirements
-
-| mindspore  | ascend driver  |  firmware   |cann toolkit/kernel |
-|:----------:|:--------------:|:-----------:|:------------------:|
-|   2.6.0 or 2.7.0    |     24.1RC2    | 7.3.0.1.231 |   8.1.RC1    |
+## 📦 Requirements
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
 ## Quickstart
 

@@ -22,13 +22,16 @@ This repository is built on the models and code released by HPC-AI Tech. We are 
 | **[2024.03.04]** HPC-AI Tech Open-Sora provides training with 46% cost reduction [[blog]](https://hpc-ai.com/blog/open-sora)                                                                                                                                                                                                                                                                                                                                | ✅ Parallel training on Ascend devices                                                          |
 
 
-## Requirements
+## 📦 Requirements
 
-| mindspore | ascend driver |  firmware   | cann toolkit/kernel |
-|:---------:|:-------------:|:-----------:|:-------------------:|
-|   2.5.0   |    24.0.0     | 7.5.0.3.220 |     8.0.0.beta1     |
-|   2.6.0   |   24.1.rc3    | 7.7.0.1.238 |       8.1.RC1       |
-|   2.7.0   |   24.1.rc3    | 7.7.0.1.238 |       8.2.RC1       |
+
+<div align="center">
+
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
+
+</div>
 
 
 
