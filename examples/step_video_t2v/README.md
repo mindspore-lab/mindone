@@ -56,7 +56,7 @@ The following table shows the requirements for running **Step-Video-T2V** model 
 
 mindspore  |  ascend driver   |cann  |
 |:--:|:--:|:--:|
-| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
+| >=2.5.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
 
 

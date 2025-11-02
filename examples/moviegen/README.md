@@ -63,12 +63,12 @@ this project!
 
 mindspore  |  ascend driver   |cann  |
 |:--:|:--:|:--:|
-| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
+| >=2.5.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
 
 
 1. Install
-   [CANN 8.0.0.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.0.beta1)
+   [CANN 8.1.RC1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.1.RC1)
    and MindSpore according to the [official instructions](https://www.mindspore.cn/install).
 2. Install requirements
     ```shell

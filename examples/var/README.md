@@ -16,13 +16,13 @@ VAR, a new generation paradigm that redefines the autoregressive learning on ima
 
 mindspore  |  ascend driver   |cann  |
 |:--:|:--:|:--:|
-| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
+| >=2.5.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
 
 
 ```shell
 cd mindone
-pip install mindone==0.4.0[training]
+pip install mindone==0.4.0
 cd examples/var
 pip install -r requirements.txt
 ```
@@ -72,7 +72,7 @@ bash script/run_train_d16.sh
 
 ### Performance
 
-Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 pynative mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore >=2.5.0 pynative mode.
 
 | model name    |  cards          | batch size      | resolution   |  FA   |  precision |  jit level | graph compile |s/step     | img/s |
 |:-------------:|:------------:|:------------:|:-----------------------:|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|

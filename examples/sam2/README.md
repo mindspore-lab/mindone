@@ -1,6 +1,5 @@
 # SAM 2: Segment Anything in Images and Videos
 
-**English** | [中文](README_CN.md)
 
 This is a MindSpore Implementation of [SAM2](https://github.com/facebookresearch/sam2) from Meta, FAIR.
 
@@ -14,7 +13,6 @@ Segment Anything Model 2 (SAM 2) is a foundation model for image/video visual se
 mindspore  |  ascend driver   |cann  |
 |:--:|:--:|:--:|
 | >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
-
 
 
 1. Install

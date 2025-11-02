@@ -1,10 +1,5 @@
 
 <hr>
-
-
-
-
-
 <p align="center">
   <a href="#2-model-download"><b>📥 Model Download</b></a> |
   <a href="#3-quick-start"><b>⚡ Quick Start</b></a> |
@@ -103,7 +98,7 @@ For the remote gradio demo, you can run with the following command:
 
 On NPU server:
 ```shell
-pip install mindone==0.4.0[gradio]
+pip install mindone==0.4.0
 
 python demo/app_januspro.py
 ```

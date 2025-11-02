@@ -1,6 +1,6 @@
 # Language Segment-Anything
 
-**English** | [中文](README_CN.md)
+
 
 This is a MindSpore Implementation of [Language SAM](https://github.com/luca-medeiros/lang-segment-anything).
 
