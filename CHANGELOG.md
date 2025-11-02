@@ -21,6 +21,17 @@
 - **Architecture Models**: DiffLlama/OLMoE (#1147), LongT5/Longformer (#1234), NLLB-MoE (#1244), mBART (#1195), ELECTRA/Pegasus/X (#1295), SqueezeBERT (#1295), IBert (#1212), Bamba (#1241), FocalNet/RegNet (#1254), MobileNet v1/v2 (#1171), DistilBERT/Funnel/MLLaMA (#1256), Mistral3/Pixtral/ResNet (#1190), BERT Generation/DeiT (#1205), SigLIP2 (#1076)
 - **Examples & Documentation**: BERT Japanese/BERTweet/ByT5/DialogGPT/Falcon3/Flan-T5/PhoBERT/XLM-V (#1328), Depth Anything V2/DiT (#1332), Granite-Vision/MatCha/DePlot (#1334), GLM4V processor (#1349)
 
+#### Diffusers Model Components
+- **Model components library**: Core building blocks for diffusion pipelines
+- **50+ model components**: Transformers, autoencoders, controlnets, and processing modules
+
+**New Model Components:**
+- **Video Transformers**: transformer_qwenimage, transformer_hidream_image, transformer_wan_vace, transformer_skyreels_v2, transformer_chroma, transformer_cosmos, transformer_hunyuan_video_framepack, consisid_transformer_3d
+- **Autoencoders**: autoencoder_kl_qwenimage, autoencoder_kl_cosmos
+- **ControlNets**: controlnet_sana, multicontrolnet_union
+- **Processing Modules**: cache_utils, auto_model, lora processing modules
+- **Integration Components**: Model components for QwenImage, HiDream, Wan-VACE, SkyReels-V2, Chroma, Cosmos, HunyuanVideo, Sana, and other pipelines
+
 #### Diffusers Pipelines
 - **Major upgrade**: Enhanced compatibility with 🤗 diffusers v0.35.1
 - **70+ pipelines supported**: Comprehensive pipeline library for text-to-image, image-to-image, text-to-video, and audio generation
