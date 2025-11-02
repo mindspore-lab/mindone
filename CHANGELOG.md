@@ -7,13 +7,13 @@
 - **mindone.transformers**: Compatible with 🤗 transformers v4.50
 - **MindSpore**: Upgraded to require >=2.6.0
 
-### Added
 
-#### Transformers Models
+
+### mindone.transformers updates
 - **Major upgrade**: Enhanced compatibility with 🤗 transformers v4.50
 - **280+ models supported**: Comprehensive model library including vision, audio, multimodal, and text models
 
-**New Model Additions:**
+#### new models
 - **Vision Models**: FLAVA (#1342), RT-DETR/RT-DETRv2 (#1317), SegGPT (#1318), Table Transformer (#1320), UperNet (#1319), Granite-Vision/MatCha/DePlot (#1334), ViT series/ZoeDepth (#1321), Grounding DINO (#1175), Idefics/Idefics3 (#1159, #1084), Aria (#1089), CLIPSeg (#1242), VideoLlava/VipLllava (#1238), Kosmos-2 (#1295), Pix2Struct (#1295)
 - **Audio Models**: Wav2Vec2-Conformer/BERT (#1312), Seamless-M4T (#1293), Bark (#1313), Speech-Encoder-Decoder (#1281), UniSpeech/UniSpeech-SAT (#1277), Data2Vec (#1273), WavLM (#1323), HuBERT (#1128), CLVP (#1259)
 - **Text/Multilingual Models**: Jamba (#1274), Udop (#1283), Cohere (#1304), GPT-NeoX/Japanese (#1114, #1112), GPT-J/BigCode (#1115, #1113), StableLM (#1070), OLMo/OLMo2 (#1095), ModernBERT/RWKV/Nystromformer/Zamba (#1241), Mamba/Mamba2 (#1162), Phi (#1073), MiniCPM4 (#1053), GLM-4.1V (#1109), Falcon-Mamba (#1176), X-MOD (#1176), Llama3 (#1084)
@@ -21,26 +21,26 @@
 - **Architecture Models**: DiffLlama/OLMoE (#1147), LongT5/Longformer (#1234), NLLB-MoE (#1244), mBART (#1195), ELECTRA/Pegasus/X (#1295), SqueezeBERT (#1295), IBert (#1212), Bamba (#1241), FocalNet/RegNet (#1254), MobileNet v1/v2 (#1171), DistilBERT/Funnel/MLLaMA (#1256), Mistral3/Pixtral/ResNet (#1190), BERT Generation/DeiT (#1205), SigLIP2 (#1076)
 - **Examples & Documentation**: BERT Japanese/BERTweet/ByT5/DialogGPT/Falcon3/Flan-T5/PhoBERT/XLM-V (#1328), Depth Anything V2/DiT (#1332), Granite-Vision/MatCha/DePlot (#1334), GLM4V processor (#1349)
 
-#### mindone.diffusers update
+### mindone.diffusers updates
 - **Major upgrade**: Enhanced compatibility with 🤗 diffusers v0.35.1
 - **70+ pipelines supported**: Comprehensive pipeline library for text-to-image, image-to-image, text-to-video, and audio generation
 - **50+ model components**: Transformers, autoencoders, controlnets, and processing modules as building blocks
 
-**New pipelines:**
+#### new pipelines
 - **Video Generation**: QwenImage (#1288), HiDream (#1360), Wan-VACE (#1148), SkyReels-V2 (#1203), Chroma-Dev (#1157), Sana Sprint Img2Img/VisualCloze (#1145), HunyuanVideo (#1029), Wan (#1021), Lumina2 (#996), LTXCondition (#997), UniDiffuser (#979)
 - **Image Generation**: Amused & Ledits++ (#976), OmniGen & Marigold (#1062), Stable Diffusion Attend & Excite (#1013), SD Unclip/PIA (#958)
 - **Audio Generation**: AudioLDM2 (#981)
 - **Advanced Sampling**: K-diffusion pipelines (#986)
 - **Testing & Documentation**: UniDiffusers test (#1007), 'reuse a pipeline' docs (#989), diffusers mint changes (#992)
 
-**Model components:**
+#### model components
 - **Video Transformers**: transformer_qwenimage, transformer_hidream_image, transformer_wan_vace, transformer_skyreels_v2, transformer_chroma, transformer_cosmos, transformer_hunyuan_video_framepack, consisid_transformer_3d
 - **Autoencoders**: autoencoder_kl_qwenimage, autoencoder_kl_cosmos
 - **ControlNets**: controlnet_sana, multicontrolnet_union
 - **Processing Modules**: cache_utils, auto_model, lora processing modules
 - **Integration Components**: Model components for QwenImage, HiDream, Wan-VACE, SkyReels-V2, Chroma, Cosmos, HunyuanVideo, Sana, and other pipelines
 
-#### Examples Models
+### Examples Models
 - Added Janus model for unified understanding and generation
 - Added Emu3 model for multimodal tasks
 - Added VAR model for class-conditional image generation
@@ -57,7 +57,7 @@
 - Added LangSAM for language-guided segmentation
 - Added MMaDA for multimodal generation
 
-#### PEFT (Parameter-Efficient Fine-Tuning)
+### PEFT (Parameter-Efficient Fine-Tuning)
 - Added mindone.peft and upgraded to v0.15.2 (#1194)
 - Added Qwen2.5-Omni LoRA finetuning script with transformers 4.53.0 (#1218)
 - Fixed lora and lora_scale from each PEFT layer (#1187)
