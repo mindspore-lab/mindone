@@ -40,7 +40,12 @@
 - **Processing Modules**: cache_utils, auto_model, lora processing modules
 - **Integration Components**: Model components for QwenImage, HiDream, Wan-VACE, SkyReels-V2, Chroma, Cosmos, HunyuanVideo, Sana, and other pipelines
 
-### Examples Models
+### mindone.peft
+- Added mindone.peft and upgraded to v0.15.2 (#1194)
+- Added Qwen2.5-Omni LoRA finetuning script with transformers 4.53.0 (#1218)
+- Fixed lora and lora_scale from each PEFT layer (#1187)
+
+### models under examples (mostly with finetune/training scripts)
 - Added Janus model for unified understanding and generation
 - Added Emu3 model for multimodal tasks
 - Added VAR model for class-conditional image generation
@@ -56,11 +61,6 @@
 - Added SAM2 for image segmentation
 - Added LangSAM for language-guided segmentation
 - Added MMaDA for multimodal generation
-
-### PEFT (Parameter-Efficient Fine-Tuning)
-- Added mindone.peft and upgraded to v0.15.2 (#1194)
-- Added Qwen2.5-Omni LoRA finetuning script with transformers 4.53.0 (#1218)
-- Fixed lora and lora_scale from each PEFT layer (#1187)
 
 ### Changed
 - Upgraded mindone.diffusers from v0.34.0 to v0.35.1 (#1299)
