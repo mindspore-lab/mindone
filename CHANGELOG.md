@@ -12,11 +12,14 @@
 #### Transformers Models
 - **Major upgrade**: Enhanced compatibility with 🤗 transformers v4.50
 - **280+ models supported**: Comprehensive model library including vision, audio, multimodal, and text models
-- Added latest model architectures: FLAVA, RT-DETR v2, SegGPT, Table Transformer, UperNet, Jamba, Udop, Cohere
-- Enhanced audio models: Wav2Vec2-Conformer, MusicGen, AST, WavLM series
-- Improved vision capabilities: Granite-Vision, MatCha, DePlot, ViT series, ZoeDepth
-- Added multilingual support: BERT Japanese, BERTweet, XLM-V, PhoBERT examples
-- Extended segmentation models: Nougat for document understanding
+
+**New Model Additions:**
+- **Vision Models**: FLAVA (#1342), RT-DETR/RT-DETRv2 (#1317), SegGPT (#1318), Table Transformer (#1320), UperNet (#1319), Granite-Vision/MatCha/DePlot (#1334), ViT series/ZoeDepth (#1321), Grounding DINO (#1175), Idefics/Idefics3 (#1159, #1084), Aria (#1089), CLIPSeg (#1242), VideoLlava/VipLllava (#1238), Kosmos-2 (#1295), Pix2Struct (#1295)
+- **Audio Models**: Wav2Vec2-Conformer/BERT (#1312), Seamless-M4T (#1293), Bark (#1313), Speech-Encoder-Decoder (#1281), UniSpeech/UniSpeech-SAT (#1277), Data2Vec (#1273), WavLM (#1323), HuBERT (#1128), CLVP (#1259)
+- **Text/Multilingual Models**: Jamba (#1274), Udop (#1283), Cohere (#1304), GPT-NeoX/Japanese (#1114, #1112), GPT-J/BigCode (#1115, #1113), StableLM (#1070), OLMo/OLMo2 (#1095), ModernBERT/RWKV/Nystromformer/Zamba (#1241), Mamba/Mamba2 (#1162), Phi (#1073), MiniCPM4 (#1053), GLM-4.1V (#1109), Falcon-Mamba (#1176), X-MOD (#1176), Llama3 (#1084)
+- **Multimodal Models**: Emu3 (#1233), BLIP/GLM4V/MPT (#1103), InstructBLIP/Video (#1295), BridgeTower (#1253), Aya Vision (#1253), LiLT (#1272), MGP-STR (#1262), TrOCR/TVP (#1297), GOT-OCR-2 (#1245), Segment Anything (SAM) (#1223), ColPali (#1259)
+- **Architecture Models**: DiffLlama/OLMoE (#1147), LongT5/Longformer (#1234), NLLB-MoE (#1244), mBART (#1195), ELECTRA/Pegasus/X (#1295), SqueezeBERT (#1295), IBert (#1212), Bamba (#1241), FocalNet/RegNet (#1254), MobileNet v1/v2 (#1171), DistilBERT/Funnel/MLLaMA (#1256), Mistral3/Pixtral/ResNet (#1190), BERT Generation/DeiT (#1205), SigLIP2 (#1076)
+- **Examples & Documentation**: BERT Japanese/BERTweet/ByT5/DialogGPT/Falcon3/Flan-T5/PhoBERT/XLM-V (#1328), Depth Anything V2/DiT (#1332), Granite-Vision/MatCha/DePlot (#1334), GLM4V processor (#1349)
 
 #### Diffusers Pipelines
 - **Major upgrade**: Enhanced compatibility with 🤗 diffusers v0.35.1
