@@ -2454,6 +2454,18 @@ class PreTrainedModel(
         if "attn_implementation" in kwargs:
             config._attn_implementation = kwargs.pop("attn_implementation")
 
+        transformers_explicit_filename = getattr(config, "transformers_weights", None)
+
+        if transformers_explicit_filename is not None:
+            if not transformers_explicit_filename.endswith(
+                    ".safetensors"
+            ) and not transformers_explicit_filename.endswith(".safetensors.index.json"):
+                raise ValueError(
+                    "The transformers file in the config seems to be incorrect: it is neither a safetensors file "
+                    "(*.safetensors) nor a safetensors index file (*.safetensors.index.json): "
+                    f"{transformers_explicit_filename}"
+                )
+
         # This variable will flag if we're loading a sharded checkpoint. In this case the archive file is just the
         # index of the files.
         is_sharded = False
@@ -2469,7 +2481,12 @@ class PreTrainedModel(
             pretrained_model_name_or_path = str(pretrained_model_name_or_path)
             is_local = os.path.isdir(pretrained_model_name_or_path)
             if is_local:
-                if from_tf and os.path.isfile(
+                if transformers_explicit_filename is not None:
+                    # If the filename is explicitly defined, load this by default.
+                    archive_file = os.path.join(pretrained_model_name_or_path, subfolder,
+                                                transformers_explicit_filename)
+                    is_sharded = transformers_explicit_filename.endswith(".safetensors.index.json")
+                elif from_tf and os.path.isfile(
                     os.path.join(pretrained_model_name_or_path, subfolder, TF_WEIGHTS_NAME + ".index")
                 ):
                     # Load from a TF 1.0 checkpoint in priority if from_tf
@@ -2558,7 +2575,10 @@ class PreTrainedModel(
                 resolved_archive_file = download_url(pretrained_model_name_or_path)
             else:
                 # set correct filename
-                if from_tf:
+                if transformers_explicit_filename is not None:
+                    filename = transformers_explicit_filename
+                    is_sharded = transformers_explicit_filename.endswith(".safetensors.index.json")
+                elif from_tf:
                     filename = TF2_WEIGHTS_NAME
                 elif from_flax:
                     filename = FLAX_WEIGHTS_NAME
