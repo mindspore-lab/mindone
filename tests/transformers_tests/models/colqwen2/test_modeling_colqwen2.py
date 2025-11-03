@@ -46,11 +46,11 @@ class ColQwen2ModelTester:
         num_choices=4,
         # VLM config (Qwen2VLConfig with reduced size)
         vocab_size=99,
-        hidden_size=32,
-        intermediate_size=64,
+        hidden_size=128,
+        intermediate_size=32,
         num_hidden_layers=2,
-        num_attention_heads=4,
-        num_key_value_heads=4,
+        num_attention_heads=8,
+        num_key_value_heads=8,
         bos_token_id=0,
         eos_token_id=1,
         pad_token_id=2,
@@ -58,17 +58,17 @@ class ColQwen2ModelTester:
         image_token_id=4,
         video_token_id=5,
         vision_config={
-                "depth": 2,
-                "in_chans": 3,
-                "hidden_act": "silu",
-                "intermediate_size": 32,
-                "out_hidden_size": 128,
-                "hidden_size": 128,
-                "num_heads": 8,
-                "patch_size": 14,
-                "spatial_patch_size": 14,
-                "spatial_merge_size": 1,
-                "temporal_patch_size": 2,
+            "depth": 2,
+            "in_chans": 3,
+            "hidden_act": "silu",
+            "intermediate_size": 32,
+            "out_hidden_size": 128,
+            "hidden_size": 128,
+            "num_heads": 8,
+            "patch_size": 14,
+            "spatial_patch_size": 14,
+            "spatial_merge_size": 1,
+            "temporal_patch_size": 2,
         },
         # ColQwen2 specific
         embedding_dim=64,
@@ -92,6 +92,10 @@ class ColQwen2ModelTester:
         self.num_hidden_layers = num_hidden_layers
         self.num_attention_heads = num_attention_heads
         self.num_key_value_heads = num_key_value_heads
+        self.rope_scaling = {
+            "mrope_section": [2, 3, 3],
+            "type": "mrope",
+        }  # sum*2=16 = head_dim = hidden_size//num_attention_heads = 128//8=16
         self.vision_config = vision_config
         self.bos_token_id = bos_token_id
         self.eos_token_id = eos_token_id
@@ -131,7 +135,7 @@ class ColQwen2ModelTester:
         input_ids[:, self.num_image_tokens] = self.image_token_id
         input_ids[:, self.num_image_tokens - 1] = self.vision_start_token_id
         inputs_dict = {
-            "pixel_values": pixel_values,
+            # "pixel_values": pixel_values,
             "image_grid_thw": np.array([[1, 1, 1]] * self.batch_size),
             "input_ids": input_ids,
             "attention_mask": attention_mask,
@@ -148,10 +152,14 @@ class ColQwen2ModelTester:
             num_hidden_layers=self.num_hidden_layers,
             num_attention_heads=self.num_attention_heads,
             num_key_value_heads=self.num_key_value_heads,
+            rope_scaling=self.rope_scaling,
+            bos_token_id=self.bos_token_id,
+            eos_token_id=self.eos_token_id,
+            pad_token_id=self.pad_token_id,
+            vision_start_token_id=self.vision_start_token_id,
+            image_token_id=self.image_token_id,
+            video_token_id=self.video_token_id,
             vision_config=self.vision_config,
-            max_position_embeddings=512,
-            initializer_range=self.initializer_range,
-            use_cache=True,
         )
 
         return self.config_class(
