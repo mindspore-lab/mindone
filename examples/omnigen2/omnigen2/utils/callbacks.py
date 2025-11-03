@@ -88,7 +88,7 @@ class VisualizationCallback(Callback):
         t = cb_params.network.network.network.transport.t.to(dtype.float32).asnumpy()
         global_step = cb_params.network.optimizer.global_step.item()
 
-        if global_step / self._frequency != 0:
+        if global_step % self._frequency != 0:
             return
 
         if self._vae.config.scaling_factor is not None:

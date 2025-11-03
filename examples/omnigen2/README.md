@@ -217,7 +217,7 @@ directly or adapt them for your environment.
 > **⚠️ Note on LoRA Checkpoints:**
 > Currently, when training with LoRA, the script saves the entire model's parameters (including the frozen base model
 > weights) in the checkpoint. This is due to a limitation in easily extracting only the LoRA-related parameters when
-> using FSDP. The conversion script in the next step will correctly handle this.
+> using FSDP.
 
 ## Performance
 
