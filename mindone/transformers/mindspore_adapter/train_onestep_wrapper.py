@@ -97,7 +97,7 @@ class LossWithScaleSense(nn.Cell):
 
     def construct(self, *args, **kwargs) -> Tensor:
         loss = self.network(*args, **kwargs)
-        scale_sense =  self.scaler.scale_value
+        scale_sense = self.scaler.scale_value
         loss = loss * scale_sense.to(loss.dtype)
         return loss
 
