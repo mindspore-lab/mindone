@@ -15,13 +15,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
+import logging
 import math
 from collections import OrderedDict
 
+import mindspore as ms
 from mindspore import Tensor, mint, nn
 
+logger = logging.get_logger(__name__)
 
-class PytorchGELUTanh(nn.Cell):
+
+class GELUTanh(nn.Cell):
     """
     A fast C implementation of the tanh approximation of the GeLU activation function. See
     https://huggingface.co/papers/1606.08415.
@@ -30,8 +35,18 @@ class PytorchGELUTanh(nn.Cell):
     match due to rounding errors.
     """
 
+    def __init__(self, use_gelu_tanh_python: bool = False):
+        super().__init__()
+        if use_gelu_tanh_python:
+            self.act = self._gelu_tanh_python
+        else:
+            self.act = functools.partial(mint.nn.functional.gelu, approximate="tanh")
+
+    def _gelu_tanh_python(self, input: Tensor) -> Tensor:
+        return input * 0.5 * (1.0 + mint.tanh(math.sqrt(2.0 / math.pi) * (input + 0.044715 * mint.pow(input, 3.0))))
+
     def construct(self, input: Tensor) -> Tensor:
-        return mint.nn.functional.gelu(input, approximate="tanh")
+        return self.act(input)
 
 
 class NewGELUActivation(nn.Cell):
@@ -68,6 +83,19 @@ class GELUActivation(nn.Cell):
 
     def construct(self, input: Tensor) -> Tensor:
         return self.act(input)
+
+
+class SiLUActivation(nn.Cell):
+    """
+    See Gaussian Error Linear Units (Hendrycks et al., https://arxiv.org/abs/1606.08415) where the SiLU (Sigmoid Linear
+    Unit) was originally introduced and coined, and see Sigmoid-Weighted Linear Units for Neural Network Function
+    Approximation in Reinforcement Learning (Elfwing et al., https://arxiv.org/abs/1702.03118) and Swish: a Self-Gated
+    Activation Function (Ramachandran et al., https://arxiv.org/abs/1710.05941v1) where the SiLU was experimented with
+    later.
+    """
+
+    def construct(self, input: Tensor) -> Tensor:
+        return mint.nn.functional.silu(input)
 
 
 class FastGELUActivation(nn.Cell):
@@ -180,13 +208,55 @@ class ClassInstantier(OrderedDict):
         return cls(**kwargs)
 
 
+class XIELUActivation(nn.Cell):
+    """
+    Applies the xIELU activation function introduced in https://arxiv.org/abs/2411.13010
+
+    If the user has installed the nickjbrowning/XIELU wheel, we import xIELU CUDA
+    Otherwise, we emit a single warning and use xIELU Python
+    """
+
+    def __init__(
+        self,
+        alpha_p_init=0.8,
+        alpha_n_init=0.8,
+        beta=0.5,
+        eps=-1e-6,
+        dtype=ms.bfloat16,
+        with_vector_loads=False,
+    ):
+        super().__init__()
+        self.alpha_p = ms.Parameter(mint.log(mint.expm1(ms.tensor(alpha_p_init, dtype=dtype))).unsqueeze(0))
+        self.alpha_n = ms.Parameter(mint.log(mint.expm1(ms.tensor(alpha_n_init - beta, dtype=dtype))).unsqueeze(0))
+        self.register_buffer("beta", ms.tensor(beta, dtype=dtype))
+        self.register_buffer("eps", ms.tensor(eps, dtype=dtype))
+        self.with_vector_loads = with_vector_loads
+        logger.warning_once(
+            "CUDA-fused xIELU not available (%s) – falling back to a Python version.\n"
+            "CUDA xIELU (experimental), refer to `https://github.com/nickjbrowning/XIELU`"
+        )
+
+    def _xielu_python(self, x: Tensor) -> Tensor:
+        alpha_p = mint.nn.functional.softplus(self.alpha_p)
+        alpha_n = self.beta + mint.nn.functional.softplus(self.alpha_n)
+        return mint.where(
+            x > 0,
+            alpha_p * x * x + self.beta * x,
+            (mint.expm1(mint.min(x, self.eps)) - x) * alpha_n + self.beta * x,
+        )
+
+    def construct(self, input: Tensor) -> Tensor:
+        return self._xielu_python(input)
+
+
 ACT2CLS = {
-    "gelu": mint.nn.GELU,
+    "gelu": GELUActivation,
     "gelu_10": (ClippedGELUActivation, {"min": -10, "max": 10}),
     "gelu_fast": FastGELUActivation,
     "gelu_new": NewGELUActivation,
     "gelu_python": (GELUActivation, {"use_gelu_python": True}),
-    "gelu_pytorch_tanh": PytorchGELUTanh,
+    "gelu_pytorch_tanh": GELUTanh,
+    "gelu_python_tanh": (GELUTanh, {"use_gelu_tanh_python": True}),
     "gelu_accurate": AccurateGELUActivation,
     "laplace": LaplaceActivation,
     "leaky_relu": (nn.LeakyReLU, {"alpha": 0.01}),
@@ -197,10 +267,11 @@ ACT2CLS = {
     "relu2": ReLUSquaredActivation,
     "relu6": mint.nn.ReLU6,
     "sigmoid": mint.nn.Sigmoid,
-    "silu": mint.nn.SiLU,
+    "silu": SiLUActivation,
     "swish": mint.nn.SiLU,
     "tanh": mint.nn.Tanh,
     "prelu": mint.nn.PReLU,
+    "xielu": XIELUActivation,
 }
 ACT2FN = ClassInstantier(ACT2CLS)
 
