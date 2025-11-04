@@ -183,7 +183,7 @@ class ColQwen2Processor(ProcessorMixin):
 
             # Split the pixel_values tensor into a list of tensors, one per image
             pixel_values = list(
-                mint.split(return_data["pixel_values"], offsets.tolist())
+                mint.split(ms.Tensor(return_data["pixel_values"]), offsets.tolist())
             )  # [(num_patches_image_0, pixel_values), ..., (num_patches_image_n, pixel_values)]
 
             # Pad the list of pixel_value tensors to the same length along the sequence dimension
@@ -199,11 +199,14 @@ class ColQwen2Processor(ProcessorMixin):
                 else:
                     batch.append(t)
             return_data["pixel_values"] = mint.stack(batch, dim=0)  # (batch_size, max_num_patches, pixel_values)
-
+            return_data["input_ids"] = ms.Tensor(return_data["input_ids"])
+            if "attention_mask" in return_data:
+                return_data["attention_mask"] = ms.Tensor(return_data["attention_mask"])
             if return_token_type_ids:
                 labels = return_data["input_ids"].masked_fill(return_data["token_type_ids"] == 0, -100)
                 return_data.update({"labels": labels})
 
+            return_data["image_grid_thw"] = ms.Tensor(return_data["image_grid_thw"])
             return return_data
 
         elif text is not None:
