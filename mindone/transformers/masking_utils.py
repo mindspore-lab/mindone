@@ -304,15 +304,15 @@ def sdpa_mask_recent_torch(
 
     # Similar to `kv_arange = mint.arange(start=kv_offset, end=kv_offset + kv_length, device=cache_position.device)`
     # but without data-dependent slicing (i.e. torch.compile friendly)
-    kv_arange = mint.arange(kv_length, device=cache_position.device)
+    kv_arange = mint.arange(kv_length)
     kv_arange += kv_offset
 
     # Potentially add the padding 2D mask
     if padding_mask is not None:
         mask_function = and_masks(mask_function, padding_mask_function(padding_mask))
 
-    batch_arange = mint.arange(batch_size, device=cache_position.device)
-    head_arange = mint.arange(1, device=cache_position.device)
+    batch_arange = mint.arange(batch_size)
+    head_arange = mint.arange(1)
     # This creates the 4D mask easily. Note that we need this context manager as vmap cannot handle slicing a tensor from
     # scalar tensor (it internally calls `.item()` which vmap does not allow, but this context works around it
     # We don't need to add an offset to the mask_function either, as we vmap directly the correct indices for k and kv indices

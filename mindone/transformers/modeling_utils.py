@@ -2458,7 +2458,7 @@ class PreTrainedModel(
 
         if transformers_explicit_filename is not None:
             if not transformers_explicit_filename.endswith(
-                    ".safetensors"
+                ".safetensors"
             ) and not transformers_explicit_filename.endswith(".safetensors.index.json"):
                 raise ValueError(
                     "The transformers file in the config seems to be incorrect: it is neither a safetensors file "
@@ -2483,8 +2483,9 @@ class PreTrainedModel(
             if is_local:
                 if transformers_explicit_filename is not None:
                     # If the filename is explicitly defined, load this by default.
-                    archive_file = os.path.join(pretrained_model_name_or_path, subfolder,
-                                                transformers_explicit_filename)
+                    archive_file = os.path.join(
+                        pretrained_model_name_or_path, subfolder, transformers_explicit_filename
+                    )
                     is_sharded = transformers_explicit_filename.endswith(".safetensors.index.json")
                 elif from_tf and os.path.isfile(
                     os.path.join(pretrained_model_name_or_path, subfolder, TF_WEIGHTS_NAME + ".index")
