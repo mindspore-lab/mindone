@@ -1673,7 +1673,7 @@ class Seq2SeqTSPredictionOutput(ModelOutput):
     """
 
     loss: Optional[ms.Tensor] = None
-    params: Optional[Tuple[ms.Tensor]] = None
+    params: Optional[Tuple[ms.Tensor, ...]] = None
     past_key_values: Optional[EncoderDecoderCache] = None
     decoder_hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     decoder_attentions: Optional[Tuple[ms.Tensor, ...]] = None
