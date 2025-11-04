@@ -199,14 +199,14 @@ class ColQwen2Processor(ProcessorMixin):
                 else:
                     batch.append(t)
             return_data["pixel_values"] = mint.stack(batch, dim=0)  # (batch_size, max_num_patches, pixel_values)
-            return_data["input_ids"] = ms.Tensor(return_data["input_ids"])
-            if "attention_mask" in return_data:
-                return_data["attention_mask"] = ms.Tensor(return_data["attention_mask"])
+
             if return_token_type_ids:
                 labels = return_data["input_ids"].masked_fill(return_data["token_type_ids"] == 0, -100)
                 return_data.update({"labels": labels})
 
-            return_data["image_grid_thw"] = ms.Tensor(return_data["image_grid_thw"])
+            for item in return_data:
+                if not isinstance(return_data[item], ms.Tensor):
+                    return_data[item] = ms.Tensor(return_data[item])
             return return_data
 
         elif text is not None:
