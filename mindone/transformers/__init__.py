@@ -58,6 +58,7 @@ from .models.albert import (
 )
 from .models.align import AlignModel, AlignPreTrainedModel, AlignTextModel, AlignVisionModel
 from .models.altclip import AltCLIPModel, AltCLIPPreTrainedModel, AltCLIPTextModel, AltCLIPVisionModel
+from .models.apertus import ApertusForCausalLM, ApertusForTokenClassification, ApertusModel, ApertusPreTrainedModel
 from .models.aria import (
     AriaForConditionalGeneration,
     AriaPreTrainedModel,
@@ -263,6 +264,7 @@ from .models.bloom import (
     BloomModel,
     BloomPreTrainedModel,
 )
+from .models.blt import BltForCausalLM, BltModel, BltPatcher, BltPreTrainedModel
 from .models.bridgetower import (
     BridgeTowerForContrastiveLearning,
     BridgeTowerForImageAndTextRetrieval,
@@ -863,6 +865,14 @@ from .models.mgp_str import MgpstrForSceneTextRecognition, MgpstrModel, MgpstrPr
 from .models.mimi import MimiModel, MimiPreTrainedModel
 from .models.minicpm4 import MiniCPMForCausalLM, MiniCPMForSequenceClassification, MiniCPMModel
 from .models.minicpmv_4_5 import MiniCPMVImageProcessor, MiniCPMVProcessor, MiniCPMVTokenizerFast
+from .models.ministral import (
+    MinistralForCausalLM,
+    MinistralForQuestionAnswering,
+    MinistralForSequenceClassification,
+    MinistralForTokenClassification,
+    MinistralModel,
+    MinistralPreTrainedModel,
+)
 from .models.mistral import (
     MistralForCausalLM,
     MistralForQuestionAnswering,
