@@ -163,6 +163,7 @@ from . import (
     olmoe,
     oneformer,
     opt,
+    ovis2,
     owlv2,
     owlvit,
     paligemma,
