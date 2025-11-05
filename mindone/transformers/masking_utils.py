@@ -167,6 +167,40 @@ def _vmap_for_bhqkv(mask_function: Callable, bh_indices: bool = True) -> Callabl
         mask_function = ms.vmap(mask_function, in_axes=dims, out_axes=0)
     return mask_function
 
+# We add a patch for `mindspore.vmap` substitution
+def _vmap_patch(mask_function: Callable, batch_size: ms.Tensor, head_dim: ms.Tensor, cache_postion: ms.Tensor, kv_range: ms.Tensor, bh_indices: bool = True) -> Callable:
+    """
+    Used to vmap our mask_functions over the q_idx and kv_idx dimensions of the inputs. Optionally, vmap over
+    the batch and head indices as well if `bh_indices=True`.
+    Using vmap here allows us to keep the performance of vectorized ops, while having a single set of primitive
+    functions between attention interfaces (i.e. between flex and sdpa/eager, FA2 being a bit different).
+
+    Args:
+        mask_function (`Callable`):
+            The mask_function to vmap.
+        batch_size (ms.Tensor):
+        head_dim (ms.Tensor):
+        cache_postion (ms.Tensor):
+        kv_range (ms.Tensor):
+        bh_indices (`bool`, optional):
+            Whether to vmap over the batch and head indices as well, or only q and kv indices.
+
+    Returns:
+        causal_mask (ms.bool_)
+    """
+    q_len = cache_postion.shape[0]
+    kv_len = kv_range.shape[0]
+    causal_mask = mint.zeros((q_len, kv_len), dtype=ms.bool_)
+    for i in range(kv_len):
+        causal_mask[:, i] = mask_function(batch_size, head_dim, cache_postion, kv_range[i])
+    for i in range(q_len):
+        causal_mask[i, :] = mask_function(batch_size, head_dim, cache_postion[i], kv_range)
+
+    if bh_indices:
+        causal_mask = causal_mask[None, None, :, :].broadcast_to((batch_size, -1, -1, -1))
+
+    return causal_mask
+
 
 def prepare_padding_mask(
     attention_mask: Optional[ms.Tensor], kv_length: int, kv_offset: int, _slice: bool = True
@@ -317,7 +351,8 @@ def sdpa_mask_recent_torch(
     # scalar tensor (it internally calls `.item()` which vmap does not allow, but this context works around it
     # We don't need to add an offset to the mask_function either, as we vmap directly the correct indices for k and kv indices
     # with TransformGetItemToIndex():
-    causal_mask = _vmap_for_bhqkv(mask_function)(batch_arange, head_arange, cache_position, kv_arange)
+    # TODO there is a compile problem if using `mindspore vmap`, so a patch is used as substition for this operator
+    causal_mask = _vmap_patch(mask_function, batch_arange, head_arange, cache_position, kv_arange)
 
     return causal_mask
 
@@ -383,7 +418,8 @@ def sdpa_mask_older_torch(
     # as vmap cannot handle slicing a tensor from scalar tensor (it internally calls `.item()` which vmap does not allow
     # However, in more recent version of Pytorch, a trick was introduced to handle it - which is the reason we have
     # `sdpa_mask_recent_torch`, as it allows more general `mask_function`
-    causal_mask = _vmap_for_bhqkv(mask_function, bh_indices=False)(None, None, cache_position, kv_arange)
+    # TODO there is a compile problem if using `mindspore vmap`, so a patch is used as substition for this operator
+    causal_mask = _vmap_patch(mask_function, None, None, cache_position, kv_arange, bh_indices=False)
     causal_mask = causal_mask[None, None, :, :].broadcast_to((batch_size, -1, -1, -1))
     if padding_mask is not None:
         causal_mask = causal_mask * padding_mask[:, None, None, :]
@@ -436,7 +472,8 @@ def _ignore_causal_mask_sdpa(
 
 # We use the version with newer torch whenever possible, as it is more general and can handle arbitrary mask functions
 # (especially mask_function indexing a tensor, such as the padding mask function)
-sdpa_mask = sdpa_mask_older_torch  # TODO: use sdpa_mask_recent_torch orsdpa_mask_older_torch?
+# TODO we do not set sdpa_mask based on torch version like transformers setting, we use `sdpa_mask_recent_torch` directly
+sdpa_mask = sdpa_mask_recent_torch
 
 
 def eager_mask(
