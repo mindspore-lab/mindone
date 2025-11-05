@@ -167,8 +167,16 @@ def _vmap_for_bhqkv(mask_function: Callable, bh_indices: bool = True) -> Callabl
         mask_function = ms.vmap(mask_function, in_axes=dims, out_axes=0)
     return mask_function
 
+
 # We add a patch for `mindspore.vmap` substitution
-def _vmap_patch(mask_function: Callable, batch_size: ms.Tensor, head_dim: ms.Tensor, cache_postion: ms.Tensor, kv_range: ms.Tensor, bh_indices: bool = True) -> Callable:
+def _vmap_patch(
+    mask_function: Callable,
+    batch_size: ms.Tensor,
+    head_dim: ms.Tensor,
+    cache_postion: ms.Tensor,
+    kv_range: ms.Tensor,
+    bh_indices: bool = True,
+) -> Callable:
     """
     Used to vmap our mask_functions over the q_idx and kv_idx dimensions of the inputs. Optionally, vmap over
     the batch and head indices as well if `bh_indices=True`.
@@ -192,12 +200,12 @@ def _vmap_patch(mask_function: Callable, batch_size: ms.Tensor, head_dim: ms.Ten
     kv_len = kv_range.shape[0]
     causal_mask = mint.zeros((q_len, kv_len), dtype=ms.bool_)
     for i in range(kv_len):
-        causal_mask[:, i] = mask_function(batch_size, head_dim, cache_postion, kv_range[i])
+        causal_mask[:, i] = mask_function(batch_size.item(), head_dim.item(), cache_postion, kv_range[i])
     for i in range(q_len):
-        causal_mask[i, :] = mask_function(batch_size, head_dim, cache_postion[i], kv_range)
+        causal_mask[i, :] = mask_function(batch_size.item(), head_dim.item(), cache_postion[i], kv_range)
 
     if bh_indices:
-        causal_mask = causal_mask[None, None, :, :].broadcast_to((batch_size, -1, -1, -1))
+        causal_mask = causal_mask[None, None, :, :].broadcast_to((batch_size.shape[0], -1, -1, -1))
 
     return causal_mask
 
