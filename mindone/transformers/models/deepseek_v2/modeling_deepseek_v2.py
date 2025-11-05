@@ -22,7 +22,7 @@
 import warnings
 from typing import Callable, Optional, Union
 
-from transformers.configuration_deepseek_v2 import DeepseekV2Config
+from transformers import DeepseekV2Config
 
 import mindspore
 from mindspore import mint
@@ -65,7 +65,7 @@ class DeepseekV2MoEGate(mindspore.nn.Cell):
         logits = mint.nn.functional.linear(
             hidden_states.astype(mindspore.float32), self.weight.astype(mindspore.float32), None
         )
-        scores = logits.softmax(dim=-1, dtype=mindspore.float32)
+        scores = logits.softmax(axis=-1, dtype=mindspore.float32)
 
         # select top-k experts
         # greedy method is used for DeepSeek-V2-Lite
@@ -272,8 +272,12 @@ def apply_rotary_emb(
     xk: mindspore.Tensor,
     freqs_cis: mindspore.Tensor,
 ) -> tuple[mindspore.Tensor, mindspore.Tensor]:
-    xq_ = mindspore.ops.view_as_complex(xq.float().reshape(*xq.shape[:-1], -1, 2))
-    xk_ = mindspore.ops.view_as_complex(xk.float().reshape(*xk.shape[:-1], -1, 2))
+    xq_real_reshaped = xq.astype(mindspore.float32).reshape(*xq.shape[:-1], -1, 2)
+    xk_real_reshaped = xk.astype(mindspore.float32).reshape(*xk.shape[:-1], -1, 2)
+
+    complex_op = mindspore.ops.Complex()
+    xq_ = complex_op(xq_real_reshaped[..., 0], xq_real_reshaped[..., 1])
+    xk_ = complex_op(xk_real_reshaped[..., 0], xk_real_reshaped[..., 1])
 
     # Broadcast to [1, 1, seq_len, dim // 2]
     freqs_cis = freqs_cis.unsqueeze(1)

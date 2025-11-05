@@ -132,17 +132,6 @@ class DeepseekVLHybridModelTester:
 
         return config, input_ids, attention_mask, pixel_values, high_res_pixel_values
 
-    def prepare_config_and_inputs_for_common(self):
-        config_and_inputs = self.prepare_config_and_inputs()
-        config, input_ids, attention_mask, pixel_values, high_res_pixel_values = config_and_inputs
-        inputs_dict = {
-            "input_ids": input_ids,
-            "attention_mask": attention_mask,
-            "pixel_values": pixel_values,
-            "high_res_pixel_values": high_res_pixel_values,
-        }
-        return config, inputs_dict
-
 
 model_tester = DeepseekVLHybridModelTester()
 (config, input_ids, attention_mask, pixel_values, high_res_pixel_values) = model_tester.prepare_config_and_inputs()
