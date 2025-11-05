@@ -539,6 +539,7 @@ from .models.flava import (
     FlavaProcessor,
     FlavaTextModel,
 )
+from .models.flex_olmo import FlexOlmoForCausalLM, FlexOlmoModel, FlexOlmoPreTrainedModel
 from .models.fnet import (
     FNetForMaskedLM,
     FNetForMultipleChoice,
