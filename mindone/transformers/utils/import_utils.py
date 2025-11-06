@@ -128,6 +128,7 @@ def is_vision_available():
 def is_pytesseract_available():
     return _pytesseract_available
 
+
 # docstyle-ignore
 AV_IMPORT_ERROR = """
 {0} requires the PyAv library but it was not found in your environment. You can install it with:

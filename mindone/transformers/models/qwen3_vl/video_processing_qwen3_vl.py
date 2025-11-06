@@ -266,7 +266,7 @@ class Qwen3VLVideoProcessor(BaseVideoProcessor):
                 merge_size,
                 patch_size,
             )
-            patches = patches.permute(0, 1, 4, 7, 5, 8, 3, 2, 6, 9)
+            patches = patches.transpose(0, 1, 4, 7, 5, 8, 3, 2, 6, 9)
             flatten_patches = patches.reshape(
                 batch_size,
                 grid_t * grid_h * grid_w,
