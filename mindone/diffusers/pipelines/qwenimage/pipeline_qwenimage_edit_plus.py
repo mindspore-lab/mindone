@@ -416,7 +416,7 @@ class QwenImageEditPlusPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             image_latents = mint.cat(image_latents, dim=0)
         else:
             image_latents = retrieve_latents(self.vae, self.vae.encode(image)[0], sample_mode="argmax")
-            
+
         latents_mean = (
             ms.tensor(self.vae.config.latents_mean).view(1, self.latent_channels, 1, 1, 1).to(image_latents.dtype)
         )
