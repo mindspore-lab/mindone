@@ -216,7 +216,7 @@ class Qwen3VLVideoProcessor(BaseVideoProcessor):
                 for i in range(len(stacked_videos)):
                     stacked_videos_updated.append(
                         self.resize(
-                            stacked_videos,
+                            stacked_videos[i],
                             size=SizeDict(height=resized_height, width=resized_width),
                             interpolation=interpolation,
                         )
