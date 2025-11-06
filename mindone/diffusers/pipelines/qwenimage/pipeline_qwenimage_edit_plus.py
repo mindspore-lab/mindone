@@ -657,7 +657,7 @@ class QwenImageEditPlusPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             batch_size = prompt_embeds.shape[0]
 
         # 3. Preprocess image
-        if image is not None and not (isinstance(image, ms.tensor) and image.size[1] == self.latent_channels):
+        if image is not None and not (isinstance(image, ms.Tensor) and image.size[1] == self.latent_channels):
             if not isinstance(image, list):
                 image = [image]
             condition_image_sizes = []
