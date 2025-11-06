@@ -291,7 +291,7 @@ class Qwen3VLVideoProcessor(BaseVideoProcessor):
         processed_videos = reorder_videos(processed_videos_grouped, grouped_videos_index)
         processed_grids = reorder_videos(processed_grids, grouped_videos_index)
         pixel_values_videos = mint.cat(processed_videos, dim=0)
-        video_grid_thw = ms.Tensor(processed_grids)
+        video_grid_thw = ms.tensor(processed_grids)
         data = {
             "pixel_values_videos": pixel_values_videos,
             "video_grid_thw": video_grid_thw,
