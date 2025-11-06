@@ -120,10 +120,10 @@ class Qwen2RMSNorm(nn.Cell):
 
     def construct(self, hidden_states):
         input_dtype = hidden_states.dtype
-        output, _ = ops.rms_norm(
-            hidden_states.to(ms.float32), self.weight.to(ms.float32), epsilon=self.variance_epsilon
-        )
-        return output.to(input_dtype)
+        hidden_states = hidden_states.to(ms.float32)
+        variance = hidden_states.pow(2).mean(-1, keepdim=True)
+        hidden_states = hidden_states * mint.rsqrt(variance + self.variance_epsilon)
+        return self.weight * hidden_states.to(input_dtype)
 
     def extra_repr(self):
         return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
@@ -254,22 +254,18 @@ class Qwen2_5_VLVisionAttention(nn.Cell):
 
         if self.config._attn_implementation == "flash_attention_2":
             # Flash Attention 2: Use cu_seqlens for variable length attention
-            max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max().item()
-            attn_output, _ = attention_interface(
-                self,
-                query_states,
-                key_states,
-                value_states,
-                attention_mask=None,
-                scaling=self.scaling,
-                dropout=0.0 if not self.training else self.attention_dropout,
-                cu_seq_lens_q=cu_seqlens,
-                cu_seq_lens_k=cu_seqlens,
-                max_length_q=max_seqlen,
-                max_length_k=max_seqlen,
-                is_causal=False,
-                **kwargs,
-            )
+            attn_output = ops.flash_attention_score(
+                query_states.squeeze(0).transpose(0, 1),
+                key_states.squeeze(0).transpose(0, 1),
+                value_states.squeeze(0).transpose(0, 1),
+                self.num_heads,
+                attn_mask=None,
+                actual_seq_qlen=cu_seqlens,
+                actual_seq_kvlen=cu_seqlens,
+                keep_prob=1.0 if not self.training else 1 - self.attention_dropout,
+                scalar_value=self.scaling,
+                input_layout="TND",
+            ).unsqueeze(0)
         else:
             # Other implementations: Process each chunk separately
             lengths = cu_seqlens[1:] - cu_seqlens[:-1]
@@ -1113,7 +1109,7 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
                     llm_pos_ids_list.append(mint.arange(text_len).view(1, -1).expand((3, -1)) + st_idx)
 
                 llm_positions = mint.cat(llm_pos_ids_list, dim=1).reshape(3, -1)
-                position_ids[..., i, attention_mask[i] == 1] = llm_positions
+                position_ids[..., i, attention_mask[i] == 1] = llm_positions.to(dtype=position_ids.dtype)
                 mrope_position_deltas.append(llm_positions.max() + 1 - len(total_input_ids[i]))
             mrope_position_deltas = ms.tensor(mrope_position_deltas).unsqueeze(1)
             return position_ids, mrope_position_deltas
@@ -1278,6 +1274,7 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
                 delta = delta.repeat_interleave(batch_size // delta.shape[0], dim=0)
                 position_ids += delta
 
+        return_dict = kwargs.pop("return_dict", True)
         outputs = self.language_model(
             input_ids=None,
             position_ids=position_ids,
@@ -1287,7 +1284,7 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
             use_cache=use_cache,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
-            return_dict=True,
+            return_dict=return_dict,
             cache_position=cache_position,
             **kwargs,
         )
@@ -1439,6 +1436,7 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
 
+        return_dict = kwargs.pop("return_dict", True)
         outputs = self.model(
             input_ids=input_ids,
             pixel_values=pixel_values,
@@ -1453,7 +1451,7 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
             use_cache=use_cache,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
-            return_dict=True,
+            return_dict=return_dict,
             cache_position=cache_position,
             **kwargs,
         )
@@ -1539,7 +1537,7 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
                 text_positions = mint.arange(input_ids)[None, None, :]
             else:
                 text_positions = model_inputs["position_ids"][None, ...]
-            model_inputs["position_ids"] = mint.cat([text_positions, vision_positions], dim=0)
+            model_inputs["position_ids"] = mint.cat([text_positions, vision_positions.to(text_positions.dtype)], dim=0)
 
         if cache_position[0] != 0:
             model_inputs["pixel_values"] = None
