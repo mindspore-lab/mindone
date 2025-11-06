@@ -234,10 +234,13 @@ class Qwen3VLVideoProcessor(BaseVideoProcessor):
         for shape, stacked_videos in grouped_videos.items():
             resized_height, resized_width = get_image_size(stacked_videos[0], channel_dim=ChannelDimension.FIRST)
 
+            # 'mindspore.dataset.vision.resize' only support 4 dim data
+            stacked_videos = stacked_videos.view(B * T, C, resized_height, resized_width)
             # Fused rescale and normalize
             stacked_videos = self.rescale_and_normalize(
                 stacked_videos, do_rescale, rescale_factor, do_normalize, image_mean, image_std
             )
+            stacked_videos = stacked_videos.view(B, T, C, resized_height, resized_width)
             patches = stacked_videos
 
             # Check that videos have `num_frames` divisible by `temporal_patch_size`
