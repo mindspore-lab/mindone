@@ -12,10 +12,11 @@
 # ==============================================================================
 
 import argparse
-import os
 from pathlib import Path
 
 from hunyuan_image_3.hunyuan import HunyuanImage3ForCausalMM
+
+from mindspore.nn.utils import no_init_parameters
 
 
 def parse_args():
@@ -68,7 +69,7 @@ def parse_args():
     )
     parser.add_argument("--save", type=str, default="image.png", help="Path to save the generated image")
     parser.add_argument("--verbose", type=int, default=0, help="Verbose level")
-    parser.add_argument("--rewrite", type=int, default=1, help="Whether to rewrite the prompt with DeepSeek")
+    parser.add_argument("--rewrite", type=int, default=0, help="Whether to rewrite the prompt with DeepSeek")
     parser.add_argument(
         "--sys-deepseek-prompt",
         type=str,
@@ -83,7 +84,6 @@ def parse_args():
 
 def set_reproducibility(enable, global_seed=None, benchmark=None):
     import mindspore as ms
-    from mindspore import context
 
     if enable:
         # Configure the seed for reproducibility
@@ -124,8 +124,13 @@ def main(args):
         device_map="auto",
         moe_impl=args.moe_impl,
     )
-    model = HunyuanImage3ForCausalMM.from_pretrained(args.model_id, **kwargs)
-    model.load_tokenizer(args.model_id)
+    with no_init_parameters():
+        model = HunyuanImage3ForCausalMM.from_pretrained(args.model_id, **kwargs)
+        model.load_tokenizer(args.model_id)
+
+    # Rewrite prompt with DeepSeek
+    if args.rewrite:
+        raise NotImplementedError("Prompt rewrite is not supported yet.")
 
     image = model.generate_image(
         prompt=args.prompt,

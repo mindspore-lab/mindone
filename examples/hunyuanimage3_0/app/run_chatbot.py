@@ -23,6 +23,8 @@ from app.style import load_css
 from gradio import ChatMessage
 from hunyuan_image_3.system_prompt import t2i_system_prompts
 
+from mindspore.nn import no_init_parameters
+
 # Global vars
 hyi3_pipeline: Optional[HunyuanImage3AppPipeline] = None
 image_cache_dir: Optional[Path] = None
@@ -32,6 +34,7 @@ def default(val, default_val):
     return val if val is not None else default_val
 
 
+@no_init_parameters()
 def load_pipeline(args):
     """Load the HunyuanImage-3 pipeline"""
     global hyi3_pipeline
