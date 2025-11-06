@@ -196,16 +196,24 @@ def _vmap_patch(
     Returns:
         causal_mask (ms.bool_)
     """
+    bs = batch_size.shape[0]
+    h = head_dim.shape[0]
     q_len = cache_postion.shape[0]
     kv_len = kv_range.shape[0]
-    causal_mask = mint.zeros((q_len, kv_len), dtype=ms.bool_)
-    for i in range(kv_len):
-        causal_mask[:, i] = mask_function(batch_size.item(), head_dim.item(), cache_postion, kv_range[i])
-    for i in range(q_len):
-        causal_mask[i, :] = mask_function(batch_size.item(), head_dim.item(), cache_postion[i], kv_range)
-
     if bh_indices:
-        causal_mask = causal_mask[None, None, :, :].broadcast_to((batch_size.shape[0], -1, -1, -1))
+        causal_mask = mint.zeros((bs, h, q_len, kv_len), dtype=ms.bool_)
+        for i in range(bs):
+            for j in range(kv_len):
+                causal_mask[i, :, :, j] = mask_function(batch_size[i], head_dim, cache_postion, kv_range[j])
+        for i in range(bs):
+            for j in range(q_len):
+                causal_mask[i, :, j, :] = mask_function(batch_size[i], head_dim, cache_postion[j], kv_range)
+    else:
+        causal_mask = mint.zeros((q_len, kv_len), dtype=ms.bool_)
+        for i in range(kv_len):
+            causal_mask[:, i] = mask_function(batch_size.item(), head_dim.item(), cache_postion, kv_range[i])
+        for i in range(q_len):
+            causal_mask[i, :] = mask_function(batch_size.item(), head_dim.item(), cache_postion[i], kv_range)
 
     return causal_mask
 
