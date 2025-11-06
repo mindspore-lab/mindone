@@ -1005,6 +1005,7 @@ from .models.nystromformer import (
 )
 from .models.olmo import OlmoForCausalLM, OlmoModel, OlmoPreTrainedModel
 from .models.olmo2 import Olmo2ForCausalLM, Olmo2Model, Olmo2PreTrainedModel
+from .models.olmo3 import Olmo3ForCausalLM, Olmo3Model, Olmo3PreTrainedModel
 from .models.olmoe import OlmoeForCausalLM, OlmoeModel, OlmoePreTrainedModel
 from .models.oneformer import (
     OneFormerForUniversalSegmentation,
