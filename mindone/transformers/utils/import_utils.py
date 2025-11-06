@@ -128,6 +128,14 @@ def is_vision_available():
 def is_pytesseract_available():
     return _pytesseract_available
 
+# docstyle-ignore
+AV_IMPORT_ERROR = """
+{0} requires the PyAv library but it was not found in your environment. You can install it with:
+```
+pip install av
+```
+Please note that you may need to restart your runtime after installation.
+"""
 
 MINDSPORE_IMPORT_ERROR_WITH_TF = """
 {0} requires the MindSpore library but it was not found in your environment.
@@ -162,6 +170,7 @@ VISION_IMPORT_ERROR = """
 
 BACKENDS_MAPPING = OrderedDict(
     [
+        ("av", (is_av_available, AV_IMPORT_ERROR)),
         ("mindspore", (is_mindspore_available, MINDSPORE_IMPORT_ERROR_WITH_TF)),
         ("pandas", (is_pandas_available, PANDAS_IMPORT_ERROR)),
         ("pytesseract", (is_pytesseract_available, PYTESSERACT_IMPORT_ERROR)),
