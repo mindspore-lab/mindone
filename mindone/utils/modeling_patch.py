@@ -40,7 +40,7 @@ def patch_nn_default_dtype(dtype=ms.float32, force=False):
                     setattr(attr, "__init__", _new_init)
 
 
-def restore_nn_default_dtype():
+def unpatch_nn_default_dtype():
     """
     Manually restore the original __init__ of all patched nn / mint.nn Cells.
     """

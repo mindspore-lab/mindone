@@ -35,7 +35,6 @@ from huggingface_hub.utils import EntryNotFoundError
 
 import mindspore as ms
 from mindspore import nn, ops
-from mindspore.ops import Cast
 
 from ...safetensors.mindspore import load as safe_load
 from ..utils import (
@@ -51,7 +50,8 @@ from ..utils import (
 )
 
 logger = logging.get_logger(__name__)
-cpu_cast = Cast().set_device("CPU")
+ms.Parameter._data = ms.Tensor.data
+ms.Parameter.data_ptr = ms.Tensor.data_ptr
 
 _CLASS_REMAPPING_DICT = {
     "Transformer2DModel": {
@@ -146,11 +146,11 @@ def _load_state_dict_into_model(
                 if keep_in_fp32_modules is not None and any(
                     module_to_keep_in_fp32 in k.split(".") for module_to_keep_in_fp32 in keep_in_fp32_modules
                 ):
-                    state_dict[k] = ms.Parameter(cpu_cast(v.data, ms.float32), name=k)
+                    v._data = v.to(device="CPU", dtype=ms.float32)
                 else:
-                    state_dict[k] = ms.Parameter(cpu_cast(v.data, local_state[k].dtype), name=k)
+                    v._data = v.to(device="CPU", dtype=local_state[k].dtype)
             else:
-                state_dict[k] = ms.Parameter(cpu_cast(v.data, local_state[k].dtype), name=k)
+                v._data = v.to(device="CPU", dtype=local_state[k].dtype)
         else:
             pass  # unexpect key keeps origin dtype
     cm = silence_mindspore_logger() if is_sharded else nullcontext()

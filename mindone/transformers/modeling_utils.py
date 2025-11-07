@@ -62,7 +62,8 @@ import mindspore as ms
 from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.nn import CrossEntropyLoss, Identity
 from mindspore.nn.utils import no_init_parameters
-from mindspore.ops import Cast
+
+from mindone.utils.modeling_patch import patch_nn_default_dtype, unpatch_nn_default_dtype
 
 from .activations import get_activation
 from .generation.utils import GenerationMixin
@@ -81,7 +82,6 @@ from .mindspore_utils import (  # noqa: F401
     prune_linear_layer,
 )
 from .modeling_attn_mask_utils import dtype_to_min
-from .modeling_patch import patch_nn_default_dtype, restore_nn_default_dtype
 from .utils.generic import _CAN_RECORD_REGISTRY, OutputRecorder
 from .utils.import_utils import is_sdpa_available
 
@@ -113,7 +113,8 @@ VLMS = [
 ]
 
 logger = logging.get_logger(__name__)
-cpu_cast = Cast().set_device("CPU")
+ms.Parameter._data = ms.Tensor.data
+ms.Parameter.data_ptr = ms.Tensor.data_ptr
 
 _init_weights = True
 
@@ -377,7 +378,7 @@ def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_shar
     local_state = {v.name: v for k, v in model_to_load.parameters_and_names()}
     for k, v in state_dict.items():
         if k in local_state:
-            state_dict[k] = ms.Parameter(cpu_cast(v.data, local_state[k].dtype), name=k)
+            v._data = v.to(device="CPU", dtype=local_state[k].dtype)
         else:
             pass  # unexpect key keeps origin dtype
     cm = silence_mindspore_logger() if is_sharded else nullcontext()
@@ -514,17 +515,17 @@ class ModuleUtilsMixin:
     def to(self, dtype: Optional[ms.Type] = None):
         for p in self.get_parameters():
             if p.dtype != dtype:
-                p.set_dtype(dtype)
+                p._data = p.to(device="CPU", dtype=dtype)
         return self
 
     def float(self):
         for p in self.get_parameters():
-            p.set_dtype(ms.float32)
+            p._data = p.to(device="CPU", dtype=ms.float32)
         return self
 
     def half(self):
         for p in self.get_parameters():
-            p.set_dtype(ms.float16)
+            p._data = p.to(device="CPU", dtype=ms.float16)
         return self
 
     @property
@@ -1162,12 +1163,12 @@ class PreTrainedModel(
         if "attn_implementation" in kwargs:
             config._attn_implementation = kwargs.pop("attn_implementation")
 
+        if mindspore_dtype is not None:
+            patch_nn_default_dtype(dtype=mindspore_dtype, force=True)
         with no_init_parameters():
-            if mindspore_dtype is not None:
-                patch_nn_default_dtype(dtype=mindspore_dtype, force=True)
             model = cls(config, **kwargs)
-            if mindspore_dtype is not None:
-                restore_nn_default_dtype()
+        if mindspore_dtype is not None:
+            unpatch_nn_default_dtype()
 
         # We cannot set default mindspore dtype. So we need to cast model weights after creating.
         if mindspore_dtype is not None:
@@ -2763,12 +2764,12 @@ class PreTrainedModel(
 
         config = copy.deepcopy(config)  # We do not want to modify the config inplace in from_pretrained.
 
+        if mindspore_dtype is not None:
+            patch_nn_default_dtype(dtype=mindspore_dtype, force=True)
         with no_init_parameters():
-            if mindspore_dtype is not None:
-                patch_nn_default_dtype(dtype=mindspore_dtype, force=True)
             model = cls(config, *model_args, **model_kwargs)
-            if mindspore_dtype is not None:
-                restore_nn_default_dtype()
+        if mindspore_dtype is not None:
+            unpatch_nn_default_dtype()
 
         # Make sure to tie the weights correctly
         model.tie_weights()
