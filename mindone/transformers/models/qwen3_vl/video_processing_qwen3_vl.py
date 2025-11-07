@@ -229,7 +229,7 @@ class Qwen3VLVideoProcessor(BaseVideoProcessor):
                     stacked_videos_updated.append(
                         ms.tensor(
                             resize(
-                                stacked_videos[i],
+                                stacked_videos[i].asnumpy(),
                                 size=(resized_height, resized_width),
                                 resample=interpolation,
                             )
