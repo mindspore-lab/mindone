@@ -363,7 +363,8 @@ class Encoder(nn.Cell):
         super().__init__()
         if block_out_channels[-1] % (2 * z_channels) != 0:
             raise ValueError(
-                f"block_out_channels[-1 has to be divisible by 2 * out_channels, you have block_out_channels = {block_out_channels[-1]} and out_channels = {z_channels}"
+                "block_out_channels[-1 has to be divisible by 2 * out_channels, you have block_out_channels = "
+                f"{block_out_channels[-1]} and out_channels = {z_channels}"
             )
 
         self.in_channels = in_channels
@@ -400,7 +401,7 @@ class Encoder(nn.Cell):
                 block_in_channel = block_out_channel
 
         # middle blocks
-        self.mid_block = MidBlock(in_channels=block_out_channels[-1], out_channels=1)
+        self.mid_block = MidBlock(in_channels=block_out_channels[-1], num_layers=1)
 
         # output blocks / layers
         self.norm_out = mint.nn.GroupNorm(num_groups=32, num_channels=block_out_channels[-1], eps=1e-6, affine=True)
@@ -561,7 +562,7 @@ class AutoencoderKLConv3D(ModelMixin, ConfigMixin):
         only_encoder: bool = False,     # only build encoder for saving memory
         only_decoder: bool = False,     # only build decoder for saving memory
     ):
-    # fmt: on
+        # fmt: on
         super().__init__()
         self.ffactor_spatial = ffactor_spatial
         self.ffactor_temporal = ffactor_temporal
@@ -604,7 +605,6 @@ class AutoencoderKLConv3D(ModelMixin, ConfigMixin):
         self.tile_overlap_factor = 0.25
 
         # recompute function?
-
 
     def _set_gradient_checkpointing(self, module, value=False):
         raise NotImplementedError

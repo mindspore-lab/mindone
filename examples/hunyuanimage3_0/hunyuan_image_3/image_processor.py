@@ -20,7 +20,7 @@ from typing import Tuple
 from PIL import Image
 from transformers import Siglip2ImageProcessorFast
 
-from mindspore.dataset import transforms
+from mindspore.dataset import transforms, vision
 
 from .tokenizer_wrapper import ImageInfo, JointImageInfo, ResolutionGroup
 
@@ -57,8 +57,8 @@ class HunyuanImage3ImageProcessor(object):
         self.reso_group = ResolutionGroup(base_size=config.image_base_size)
         self.vae_processor = transforms.Compose(
             [
-                transforms.ToTensor(),
-                transforms.Normalize([0.5], [0.5], is_hwc=False),  # transform to [-1, 1]
+                vision.transforms.ToTensor(),
+                vision.transforms.Normalize([0.5], [0.5], is_hwc=False),  # transform to [-1, 1]
             ]
         )
         self.vision_encoder_processor = Siglip2ImageProcessorFast.from_dict(config.vit_processor)

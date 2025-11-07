@@ -32,6 +32,7 @@
 
 from typing import Optional, Tuple, Union
 
+from transformers.models.siglip2.configuration_siglip2 import Siglip2Config, Siglip2VisionConfig
 from transformers.utils import add_start_docstrings_to_model_forward, replace_return_docstrings
 
 import mindspore as ms
@@ -62,15 +63,15 @@ class Siglip2VisionEmbeddings(nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.embed_dim = config.hidden_size
-        self.patch_size = config.patch_size
+        self.embed_dim = config["hidden_size"]
+        self.patch_size = config["patch_size"]
 
         self.patch_embedding = mint.nn.Linear(
-            config.num_channels * self.patch_size * self.patch_size,
+            config["num_channels"] * self.patch_size * self.patch_size,
             self.embed_dim,
         )
 
-        self.num_patches = config.num_patches
+        self.num_patches = config["num_patches"]
         self.position_embedding_size = int(self.num_patches**0.5)
         self.position_embedding = mint.nn.Embedding(self.num_patches, self.embed_dim)
 
@@ -169,8 +170,8 @@ class Siglip2Attention(nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.embed_dim = config.hidden_size
-        self.num_heads = config.num_attention_heads
+        self.embed_dim = config["hidden_size"]
+        self.num_heads = config["num_attention_heads"]
         self.head_dim = self.embed_dim // self.num_heads
         if self.head_dim * self.num_heads != self.embed_dim:
             raise ValueError(
@@ -178,7 +179,7 @@ class Siglip2Attention(nn.Cell):
                 f" {self.num_heads})."
             )
         self.scale = self.head_dim**-0.5
-        self.dropout = config.attention_dropout
+        self.dropout = config["attention_dropout"]
 
         self.k_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
         self.v_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
@@ -248,9 +249,9 @@ class Siglip2MLP(nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.activation_fn = ACT2FN[config.hidden_act]
-        self.fc1 = mint.nn.Linear(config.hidden_size, config.intermediate_size)
-        self.fc2 = mint.nn.Linear(config.intermediate_size, config.hidden_size)
+        self.activation_fn = ACT2FN[config["hidden_act"]]
+        self.fc1 = mint.nn.Linear(config["hidden_size"], config["intermediate_size"])
+        self.fc2 = mint.nn.Linear(config["intermediate_size"], config["hidden_size"])
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         hidden_states = self.fc1(hidden_states)
@@ -261,19 +262,20 @@ class Siglip2MLP(nn.Cell):
 
 SIGLIP2_ATTENTION_CLASSES = {
     "eager": Siglip2Attention,
+    "flash_attention_2": Siglip2Attention,  # keep consistent with original code
     "sdpa": Siglip2SdpaAttention,  # Not supported
 }
 
 
 # Copied from mindone.transformers.models.siglip2.modeling_siglip2.Siglip2EncoderLayer
-class Siglip2EncoderLayer(nn.Module):
+class Siglip2EncoderLayer(nn.Cell):
     def __init__(self, config: Siglip2Config):
         super().__init__()
-        self.embed_dim = config.hidden_size
-        self.self_attn = SIGLIP2_ATTENTION_CLASSES[config._attn_implementation](config=config)
-        self.layer_norm1 = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
+        self.embed_dim = config["hidden_size"]
+        self.self_attn = SIGLIP2_ATTENTION_CLASSES[config["_attn_implementation"]](config=config)
+        self.layer_norm1 = mint.nn.LayerNorm(self.embed_dim, eps=config["layer_norm_eps"])
         self.mlp = Siglip2MLP(config)
-        self.layer_norm2 = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
+        self.layer_norm2 = mint.nn.LayerNorm(self.embed_dim, eps=config["layer_norm_eps"])
 
     # Ignore copy
     def construct(
@@ -318,7 +320,7 @@ class Siglip2EncoderLayer(nn.Module):
 # Copied from mindone.transformers.models.siglip2.modeling_siglip2.Siglip2Encoder
 class Siglip2Encoder(nn.Cell):
     """
-    Transformer encoder consisting of `config.num_hidden_layers` self attention layers. Each layer is a
+    Transformer encoder consisting of `config["num_hidden_layers"]` self attention layers. Each layer is a
     [`Siglip2EncoderLayer`].
 
     Args:
@@ -328,7 +330,7 @@ class Siglip2Encoder(nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.layers = nn.CellList([Siglip2EncoderLayer(config) for _ in range(config.num_hidden_layers)])
+        self.layers = nn.CellList([Siglip2EncoderLayer(config) for _ in range(config["num_hidden_layers"])])
         self.gradient_checkpointing = False
 
     # Ignore copy
@@ -362,11 +364,11 @@ class Siglip2Encoder(nn.Cell):
             return_dict (`bool`, *optional*):
                 Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
         """
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
+        output_attentions = output_attentions if output_attentions is not None else self.config["output_attentions"]
         output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config["output_hidden_states"]
         )
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        return_dict = return_dict if return_dict is not None else self.config["use_return_dict"]
 
         encoder_states = () if output_hidden_states else None
         all_attentions = () if output_attentions else None
@@ -409,11 +411,11 @@ class Siglip2MultiheadAttentionPoolingHead(nn.Cell):
     def __init__(self, config):
         super().__init__()
 
-        self.probe = Parameter(mint.randn(1, 1, config.hidden_size))
-        self.attention = MultiheadAttention(config.hidden_size, config.num_attention_heads, batch_first=True)
-        self.layernorm = mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.probe = Parameter(mint.randn(1, 1, config["hidden_size"]))
+        self.attention = MultiheadAttention(config["hidden_size"], config["num_attention_heads"], batch_first=True)
+        self.layernorm = mint.nn.LayerNorm(config["hidden_size"], eps=config["layer_norm_eps"])
         self.mlp = Siglip2MLP(config)
-        self.num_heads = config.num_attention_heads
+        self.num_heads = config["num_attention_heads"]
 
     def construct(self, hidden_state: ms.Tensor, attention_mask: Optional[ms.Tensor] = None):
         batch_size = hidden_state.shape[0]
@@ -457,15 +459,15 @@ class Siglip2VisionTransformer(nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        embed_dim = config.hidden_size
+        embed_dim = config["hidden_size"]
 
         self.embeddings = Siglip2VisionEmbeddings(config)
         self.encoder = Siglip2Encoder(config)
-        self.post_layernorm = mint.nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)
-        self.use_head = True if not hasattr(config, "vision_use_head") else config.vision_use_head
+        self.post_layernorm = mint.nn.LayerNorm(embed_dim, eps=config["layer_norm_eps"])
+        self.use_head = True if not hasattr(config, "vision_use_head") else config["vision_use_head"]
         if self.use_head:
             self.head = Siglip2MultiheadAttentionPoolingHead(config)
-        self._use_flash_attention_2 = config._attn_implementation == "flash_attention_2"
+        self._use_flash_attention_2 = config["_attn_implementation"] == "flash_attention_2"
 
     @add_start_docstrings_to_model_forward(SIGLIP2_VISION_INPUTS_DOCSTRING)
     @replace_return_docstrings(output_type=BaseModelOutputWithPooling, config_class=Siglip2VisionConfig)
@@ -482,11 +484,11 @@ class Siglip2VisionTransformer(nn.Cell):
         Returns:
 
         """
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
+        output_attentions = output_attentions if output_attentions is not None else self.config["output_attentions"]
         output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config["output_hidden_states"]
         )
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        return_dict = return_dict if return_dict is not None else self.config["use_return_dict"]
 
         hidden_states = self.embeddings(pixel_values, spatial_shapes)
 
@@ -524,18 +526,18 @@ class LightProjector(nn.Cell):
         config = Config(config)
         super().__init__()
 
-        if config.projector_type == "linear":
-            modules = mint.nn.Linear(config.input_dim, config.n_embed)
+        if config["projector_type"] == "linear":
+            modules = mint.nn.Linear(config["input_dim"], config["n_embed"])
 
-        elif config.projector_type == "mlp_gelu":
-            modules = [mint.nn.Linear(config.input_dim, config.n_embed)]
-            for _ in range(1, config.depth):
+        elif config["projector_type"] == "mlp_gelu":
+            modules = [mint.nn.Linear(config["input_dim"], config["n_embed"])]
+            for _ in range(1, config["depth"]):
                 modules.append(mint.nn.GELU())
-                modules.append(mint.nn.Linear(config.n_embed, config.n_embed))
+                modules.append(mint.nn.Linear(config["n_embed"], config["n_embed"]))
             modules = nn.SequentialCell(*modules)
 
         else:
-            raise ValueError(f"Unknown projector type: {config.projector_type}")
+            raise ValueError(f"Unknown projector type: {config['projector_type']}")
 
         self.layers = modules
 

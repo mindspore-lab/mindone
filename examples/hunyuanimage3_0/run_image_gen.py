@@ -26,9 +26,9 @@ def parse_args():
     parser.add_argument(
         "--attn-impl",
         type=str,
-        default="sdpa",
+        default="flash_attention_2",
         choices=["sdpa", "flash_attention_2"],
-        help="Attention implementation. 'flash_attention_2' requires flash attention to be installed.",
+        help="Attention implementation. 'sdpa' is not supported yet.",
     )
     parser.add_argument(
         "--moe-impl",
@@ -120,8 +120,8 @@ def main(args):
 
     kwargs = dict(
         attn_implementation=args.attn_impl,
-        torch_dtype="auto",
-        device_map="auto",
+        mindspore_dtype="auto",
+        # device_map="auto",
         moe_impl=args.moe_impl,
     )
     with no_init_parameters():

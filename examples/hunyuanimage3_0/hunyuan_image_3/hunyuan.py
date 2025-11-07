@@ -38,13 +38,14 @@ from mindone.transformers.generation.utils import ALL_CACHE_NAMES, GenerationCon
 from mindone.transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from mindone.transformers.modeling_utils import PreTrainedModel
 from mindone.transformers.utils import is_flash_attn_2_available  # Ascend
+from mindone.utils.version_control import check_valid_flash_attention
 
 if TYPE_CHECKING:
     from transformers.generation.streamers import BaseStreamer
 
 try:
     import flashinfer
-except Exception as e:
+except ImportError:
     flashinfer = None
 
 from .autoencoder_kl_3d import AutoencoderKLConv3D
@@ -58,8 +59,10 @@ from .tokenizer_wrapper import ImageInfo, JointImageInfo, TokenizerWrapper
 logger = logging.get_logger(__name__)
 
 
-if is_flash_attn_2_available():
-    from flash_attn import flash_attn_func
+FLASH_IS_AVAILABLE = is_flash_attn_2_available and check_valid_flash_attention()
+
+if FLASH_IS_AVAILABLE:
+    from mindone.models.modules.flash_attention import MSFlashAttention
 
 # Type aliases
 BatchRaggedImages = Union[ms.Tensor, List[Union[ms.Tensor, List[ms.Tensor]]]]
@@ -163,11 +166,11 @@ def conv_nd(dims, *args, **kwargs):
     Create a 1D, 2D, or 3D convolution module.
     """
     if dims == 1:
-        return nn.Conv1d(*args, **kwargs)
+        return mint.nn.Conv1d(*args, **kwargs)
     elif dims == 2:
-        return nn.Conv2d(*args, **kwargs)
+        return mint.nn.Conv2d(*args, **kwargs)
     elif dims == 3:
-        return nn.Conv3d(*args, **kwargs)
+        return mint.nn.Conv3d(*args, **kwargs)
     raise ValueError(f"unsupported dimensions: {dims}")
 
 
@@ -196,7 +199,7 @@ def zero_module(module):
     Zero out the parameters of a module and return it.
     """
     for p in module.get_parameters():
-        p.detach().zero_()
+        p.zero_()
     return module
 
 
@@ -207,7 +210,7 @@ def normalization(channels, **kwargs):
     :param channels: number of input channels.
     :return: a nn.Cell for normalization.
     """
-    return nn.GroupNorm(32, channels, **kwargs)
+    return mint.nn.GroupNorm(32, channels, **kwargs)
 
 
 def topkgating(
@@ -566,8 +569,10 @@ class TimestepEmbedder(nn.Cell):
             act_layer(),
             mint.nn.Linear(hidden_size, out_size, bias=True, **factory_kwargs),
         )
-        nn.init.normal_(self.mlp[0].weight, std=0.02)
-        nn.init.normal_(self.mlp[2].weight, std=0.02)
+        self.mlp[0].weight.normal_(std=0.02)
+        self.mlp[2].weight.normal_(std=0.02)
+        # nn.init.normal_(self.mlp[0].weight, std=0.02)
+        # nn.init.normal_(self.mlp[2].weight, std=0.02)
 
     def construct(self, t):
         t_freq = timestep_embedding(t, self.frequency_embedding_size, self.max_period).type(self.mlp[0].weight.dtype)
@@ -1380,6 +1385,7 @@ class HunyuanImage3FlashAttention2(HunyuanImage3SDPAAttention):
         v_fa = value_states.to(target_dtype).transpose(1, 2).contiguous()
 
         mode = kwargs.get("mode", "gen_text")
+        flash_attn_func = MSFlashAttention
         # For gen_text and gen_image, we need to handle the attention differently
         # with nvtx.range("attention"):
         if mode == "gen_text":
@@ -1551,7 +1557,7 @@ class HunyuanImage3PreTrainedModel(PreTrainedModel):
             module.weight.data.normal_(mean=0.0, std=std)
             if module.bias is not None:
                 module.bias.data.zero_()
-        elif isinstance(module, nn.Embedding):
+        elif isinstance(module, mint.nn.Embedding):
             module.weight.data.normal_(mean=0.0, std=std)
             if module.padding_idx is not None:
                 module.weight.data[module.padding_idx].zero_()
@@ -1637,7 +1643,7 @@ class HunyuanImage3Model(HunyuanImage3PreTrainedModel):
         self.padding_idx = config.pad_token_id
         self.vocab_size = config.vocab_size
         self.add_classification_head = config.add_classification_head
-        self.wte = nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)
+        self.wte = mint.nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)
         self.layers = nn.CellList(
             [HunyuanImage3DecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]
         )
@@ -2255,7 +2261,6 @@ class HunyuanImage3ForCausalMM(HunyuanImage3PreTrainedModel, GenerationMixin):
     ):
         # 1. Sanity check
         self.check_inputs(prompt, message_list)
-        device = default(device, self.device)
 
         # 2. Format inputs
         batch_message_list = message_list
