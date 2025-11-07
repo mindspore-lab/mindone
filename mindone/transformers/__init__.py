@@ -1592,6 +1592,7 @@ if version.parse(transformers.__version__) >= version.parse("4.57.0"):
         Qwen3VLPreTrainedModel,
         Qwen3VLProcessor,
         Qwen3VLTextModel,
+        Qwen3VLVideoProcessor,
         Qwen3VLVisionModel,
     )
     from .models.qwen3_vl_moe import (
