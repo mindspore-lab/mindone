@@ -116,7 +116,7 @@ def randn_tensor(
     else:
         latents = torch.randn(shape, generator=generator, device=rand_device, dtype=dtype, layout=layout).to(device)
 
-    return ms.Tensor(latents.float().numpy(), dtype=ms_dtype)
+    return ms.tensor(latents.float().numpy(), dtype=ms_dtype)
 
 
 def get_module(module_path):
@@ -204,6 +204,16 @@ def randn_tensor_replace(randn_tensor_func: Callable):
         maybe_vaes,
     )
 
+    diag_gauss_dist = next(
+        (
+            cls
+            for name, cls in inspect.getmembers(
+                sys.modules["mindone.diffusers.models.autoencoders.vae"], inspect.isclass
+            )
+            if name == "DiagonalGaussianDistribution"
+        ),
+    )
+
     for _, pipeline in pipelines:
         if hasattr(sys.modules[pipeline.__module__], "randn_tensor"):
             sys.modules[pipeline.__module__].randn_tensor = randn_tensor_func
@@ -213,9 +223,10 @@ def randn_tensor_replace(randn_tensor_func: Callable):
             sys.modules[scheduler.__module__].randn_tensor = randn_tensor_func
 
     for _, vae in vaes:
-        vae = vae()
-        if hasattr(vae, "diag_gauss_dist"):
-            sys.modules[vae.diag_gauss_dist.__module__].randn_tensor = randn_tensor_func
+        if hasattr(sys.modules[vae.__module__], "randn_tensor"):
+            sys.modules[vae.__module__].randn_tensor = randn_tensor_func
+
+    sys.modules[diag_gauss_dist.__module__].randn_tensor = randn_tensor_func
 
 
 class PipelineTesterMixin:

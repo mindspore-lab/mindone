@@ -19,7 +19,7 @@ import mindspore as ms
 from mindspore import mint
 
 from ..configuration_utils import register_to_config
-from .guider_utils import BaseGuidance, rescale_noise_cfg
+from .guider_utils import BaseGuidance, GuiderOutput, rescale_noise_cfg
 
 if TYPE_CHECKING:
     from ..modular_pipelines.modular_pipeline import BlockState
@@ -54,7 +54,7 @@ def project(v0: ms.Tensor, v1: ms.Tensor, upcast_to_double: bool = True) -> Tupl
 def build_image_from_pyramid(pyramid: List[ms.Tensor]) -> ms.Tensor:
     """
     Recovers the data space latents from the Laplacian pyramid frequency space. Implementation from the paper
-    (Algorihtm 2).
+    (Algorithm 2).
     """
     # pyramid shapes: [[B, C, H, W], [B, C, H/2, W/2], ...]
     img = pyramid[-1]
@@ -142,6 +142,7 @@ class FrequencyDecoupledGuidance(BaseGuidance):
         stop: Union[float, List[float], Tuple[float]] = 1.0,
         guidance_rescale_space: str = "data",
         upcast_to_double: bool = True,
+        enabled: bool = True,
     ):
         if not _CAN_USE_KORNIA:
             raise ImportError(
@@ -153,7 +154,7 @@ class FrequencyDecoupledGuidance(BaseGuidance):
         # Set start to earliest start for any freq component and stop to latest stop for any freq component
         min_start = start if isinstance(start, float) else min(start)
         max_stop = stop if isinstance(stop, float) else max(stop)
-        super().__init__(min_start, max_stop)
+        super().__init__(min_start, max_stop, enabled)
 
         self.guidance_scales = guidance_scales
         self.levels = len(guidance_scales)
@@ -208,20 +209,15 @@ class FrequencyDecoupledGuidance(BaseGuidance):
                 f"({len(self.guidance_scales)})"
             )
 
-    def prepare_inputs(
-        self, data: "BlockState", input_fields: Optional[Dict[str, Union[str, Tuple[str, str]]]] = None
-    ) -> List["BlockState"]:
-        if input_fields is None:
-            input_fields = self._input_fields
-
+    def prepare_inputs(self, data: Dict[str, Tuple[ms.Tensor, ms.Tensor]]) -> List["BlockState"]:
         tuple_indices = [0] if self.num_conditions == 1 else [0, 1]
         data_batches = []
-        for i in range(self.num_conditions):
-            data_batch = self._prepare_batch(input_fields, data, tuple_indices[i], self._input_predictions[i])
+        for tuple_idx, input_prediction in zip(tuple_indices, self._input_predictions):
+            data_batch = self._prepare_batch(data, tuple_idx, input_prediction)
             data_batches.append(data_batch)
         return data_batches
 
-    def construct(self, pred_cond: ms.Tensor, pred_uncond: Optional[ms.Tensor] = None) -> ms.Tensor:
+    def construct(self, pred_cond: ms.Tensor, pred_uncond: Optional[ms.Tensor] = None) -> GuiderOutput:
         pred = None
 
         if not self._is_fdg_enabled():
@@ -268,7 +264,7 @@ class FrequencyDecoupledGuidance(BaseGuidance):
             if self.guidance_rescale_space == "data" and self.guidance_rescale[0] > 0.0:
                 pred = rescale_noise_cfg(pred, pred_cond, self.guidance_rescale[0])
 
-        return pred, {}
+        return GuiderOutput(pred=pred, pred_cond=pred_cond, pred_uncond=pred_uncond)
 
     @property
     def is_conditional(self) -> bool:

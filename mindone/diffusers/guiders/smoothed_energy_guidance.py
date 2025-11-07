@@ -20,7 +20,7 @@ import mindspore as ms
 from ..configuration_utils import register_to_config
 from ..hooks import HookRegistry
 from ..hooks.smoothed_energy_guidance_utils import SmoothedEnergyGuidanceConfig, _apply_smoothed_energy_guidance_hook
-from .guider_utils import BaseGuidance, rescale_noise_cfg
+from .guider_utils import BaseGuidance, GuiderOutput, rescale_noise_cfg
 
 if TYPE_CHECKING:
     from ..modular_pipelines.modular_pipeline import BlockState
@@ -91,8 +91,9 @@ class SmoothedEnergyGuidance(BaseGuidance):
         use_original_formulation: bool = False,
         start: float = 0.0,
         stop: float = 1.0,
+        enabled: bool = True,
     ):
-        super().__init__(start, stop)
+        super().__init__(start, stop, enabled)
 
         self.guidance_scale = guidance_scale
         self.seg_guidance_scale = seg_guidance_scale
@@ -152,12 +153,7 @@ class SmoothedEnergyGuidance(BaseGuidance):
             for hook_name in self._seg_layer_hook_names:
                 registry.remove_hook(hook_name, recurse=True)
 
-    def prepare_inputs(
-        self, data: "BlockState", input_fields: Optional[Dict[str, Union[str, Tuple[str, str]]]] = None
-    ) -> List["BlockState"]:
-        if input_fields is None:
-            input_fields = self._input_fields
-
+    def prepare_inputs(self, data: Dict[str, Tuple[ms.Tensor, ms.Tensor]]) -> List["BlockState"]:
         if self.num_conditions == 1:
             tuple_indices = [0]
             input_predictions = ["pred_cond"]
@@ -170,8 +166,8 @@ class SmoothedEnergyGuidance(BaseGuidance):
             tuple_indices = [0, 1, 0]
             input_predictions = ["pred_cond", "pred_uncond", "pred_cond_seg"]
         data_batches = []
-        for i in range(self.num_conditions):
-            data_batch = self._prepare_batch(input_fields, data, tuple_indices[i], input_predictions[i])
+        for tuple_idx, input_prediction in zip(tuple_indices, input_predictions):
+            data_batch = self._prepare_batch(data, tuple_idx, input_prediction)
             data_batches.append(data_batch)
         return data_batches
 
@@ -180,7 +176,7 @@ class SmoothedEnergyGuidance(BaseGuidance):
         pred_cond: ms.Tensor,
         pred_uncond: Optional[ms.Tensor] = None,
         pred_cond_seg: Optional[ms.Tensor] = None,
-    ) -> ms.Tensor:
+    ) -> GuiderOutput:
         pred = None
 
         if not self._is_cfg_enabled() and not self._is_seg_enabled():
@@ -202,7 +198,7 @@ class SmoothedEnergyGuidance(BaseGuidance):
         if self.guidance_rescale > 0.0:
             pred = rescale_noise_cfg(pred, pred_cond, self.guidance_rescale)
 
-        return pred, {}
+        return GuiderOutput(pred=pred, pred_cond=pred_cond, pred_uncond=pred_uncond)
 
     @property
     def is_conditional(self) -> bool:
