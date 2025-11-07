@@ -12,17 +12,12 @@
 
 ### Installation:
 ```
-git clone https://github.com/mindspore-lab/mindone.git -b hf-transformers-4.54
+git clone https://github.com/mindspore-lab/mindone.git
 cd mindone
 pip install -e .
 cd ..
 
-# compile newest transformers whl because qwen3-vl(transformers v4.57.dev.0) haven't released
-git clone https://github.com/huggingface/transformers.git
-cd transformers
-git reset --hard d0af4269ec260b9c4aeeda24c346a469e44799e1
-pip install -e .
-cd ..
+pip install transformers==4.57.0
 
 cd mindone/examples/transformers/qwen3_vl
 ```
