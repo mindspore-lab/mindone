@@ -168,6 +168,51 @@ def _vmap_for_bhqkv(mask_function: Callable, bh_indices: bool = True) -> Callabl
     return mask_function
 
 
+# We add a patch for `mindspore.vmap` substitution
+def _vmap_patch(
+    mask_function: Callable,
+    batch_size: ms.Tensor,
+    head_dim: ms.Tensor,
+    cache_postion: ms.Tensor,
+    kv_range: ms.Tensor,
+    bh_indices: bool = True,
+) -> Callable:
+    """
+    Used to vmap our mask_functions over the q_idx and kv_idx dimensions of the inputs. Optionally, vmap over
+    the batch and head indices as well if `bh_indices=True`.
+    Using vmap here allows us to keep the performance of vectorized ops, while having a single set of primitive
+    functions between attention interfaces (i.e. between flex and sdpa/eager, FA2 being a bit different).
+
+    Args:
+        mask_function (`Callable`):
+            The mask_function to vmap.
+        batch_size (ms.Tensor):
+        head_dim (ms.Tensor):
+        cache_postion (ms.Tensor):
+        kv_range (ms.Tensor):
+        bh_indices (`bool`, optional):
+            Whether to vmap over the batch and head indices as well, or only q and kv indices.
+
+    Returns:
+        causal_mask (ms.bool_)
+    """
+    bs = batch_size.shape[0]
+    h = head_dim.shape[0]
+    q_len = cache_postion.shape[0]
+    kv_len = kv_range.shape[0]
+    if bh_indices:
+        causal_mask = mint.zeros((bs, h, q_len, kv_len), dtype=ms.bool_)
+        for i in range(bs):
+            for j in range(kv_len):
+                causal_mask[i, :, :, j] = mask_function(batch_size[i], head_dim, cache_postion, kv_range[j].item())
+    else:
+        causal_mask = mint.zeros((q_len, kv_len), dtype=ms.bool_)
+        for i in range(kv_len):
+            causal_mask[:, i] = mask_function(batch_size, head_dim, cache_postion, kv_range[i].item())
+
+    return causal_mask
+
+
 def prepare_padding_mask(
     attention_mask: Optional[ms.Tensor], kv_length: int, kv_offset: int, _slice: bool = True
 ) -> Optional[ms.Tensor]:
@@ -304,20 +349,21 @@ def sdpa_mask_recent_torch(
 
     # Similar to `kv_arange = mint.arange(start=kv_offset, end=kv_offset + kv_length, device=cache_position.device)`
     # but without data-dependent slicing (i.e. torch.compile friendly)
-    kv_arange = mint.arange(kv_length, device=cache_position.device)
+    kv_arange = mint.arange(kv_length)
     kv_arange += kv_offset
 
     # Potentially add the padding 2D mask
     if padding_mask is not None:
         mask_function = and_masks(mask_function, padding_mask_function(padding_mask))
 
-    batch_arange = mint.arange(batch_size, device=cache_position.device)
-    head_arange = mint.arange(1, device=cache_position.device)
+    batch_arange = mint.arange(batch_size)
+    head_arange = mint.arange(1)
     # This creates the 4D mask easily. Note that we need this context manager as vmap cannot handle slicing a tensor from
     # scalar tensor (it internally calls `.item()` which vmap does not allow, but this context works around it
     # We don't need to add an offset to the mask_function either, as we vmap directly the correct indices for k and kv indices
     # with TransformGetItemToIndex():
-    causal_mask = _vmap_for_bhqkv(mask_function)(batch_arange, head_arange, cache_position, kv_arange)
+    # TODO there is a compile problem if using `mindspore vmap`, so a patch is used as substition for this operator
+    causal_mask = _vmap_patch(mask_function, batch_arange, head_arange, cache_position, kv_arange)
 
     return causal_mask
 
@@ -383,7 +429,8 @@ def sdpa_mask_older_torch(
     # as vmap cannot handle slicing a tensor from scalar tensor (it internally calls `.item()` which vmap does not allow
     # However, in more recent version of Pytorch, a trick was introduced to handle it - which is the reason we have
     # `sdpa_mask_recent_torch`, as it allows more general `mask_function`
-    causal_mask = _vmap_for_bhqkv(mask_function, bh_indices=False)(None, None, cache_position, kv_arange)
+    # TODO there is a compile problem if using `mindspore vmap`, so a patch is used as substition for this operator
+    causal_mask = _vmap_patch(mask_function, None, None, cache_position, kv_arange, bh_indices=False)
     causal_mask = causal_mask[None, None, :, :].broadcast_to((batch_size, -1, -1, -1))
     if padding_mask is not None:
         causal_mask = causal_mask * padding_mask[:, None, None, :]
@@ -436,7 +483,8 @@ def _ignore_causal_mask_sdpa(
 
 # We use the version with newer torch whenever possible, as it is more general and can handle arbitrary mask functions
 # (especially mask_function indexing a tensor, such as the padding mask function)
-sdpa_mask = sdpa_mask_older_torch  # TODO: use sdpa_mask_recent_torch orsdpa_mask_older_torch?
+# TODO we do not set sdpa_mask based on torch version like transformers setting, we use `sdpa_mask_recent_torch` directly
+sdpa_mask = sdpa_mask_recent_torch
 
 
 def eager_mask(
@@ -669,6 +717,8 @@ def create_causal_mask(
     cache_position: ms.Tensor,
     past_key_values: Optional[Cache],
     position_ids: Optional[ms.Tensor] = None,
+    or_mask_function: Optional[Callable] = None,
+    and_mask_function: Optional[Callable] = None,
 ) -> Optional[Union[ms.Tensor, BlockMask]]:
     """
     Create a standard causal mask based on the attention implementation used (stored in the config). If `past_key_values`
@@ -717,18 +767,17 @@ def create_causal_mask(
     # TODO: cyril -> probably revisit and remove this, but a lot of tests rely on it
     allow_is_causal_skip = not past_key_values.is_compileable if past_key_values is not None else True
 
-    # TODO there is a compile problem during and_masks/or_masks func used as mask_factory_function, Comment this part firstly
-    # # If we detected packing format
-    # if packed_sequence_mask is not None:
-    #     mask_factory_function = and_masks(mask_factory_function, packed_sequence_mask_function(packed_sequence_mask))
-    #     allow_is_causal_skip = False
-    # # Allow slight deviations from causal mask
-    # if or_mask_function is not None:
-    #     mask_factory_function = or_masks(mask_factory_function, or_mask_function)
-    #     allow_is_causal_skip = False
-    # if and_mask_function is not None:
-    #     mask_factory_function = and_masks(mask_factory_function, and_mask_function)
-    #     allow_is_causal_skip = False
+    # If we detected packing format
+    if packed_sequence_mask is not None:
+        mask_factory_function = and_masks(mask_factory_function, packed_sequence_mask_function(packed_sequence_mask))
+        allow_is_causal_skip = False
+    # Allow slight deviations from causal mask
+    if or_mask_function is not None:
+        mask_factory_function = or_masks(mask_factory_function, or_mask_function)
+        allow_is_causal_skip = False
+    if and_mask_function is not None:
+        mask_factory_function = and_masks(mask_factory_function, and_mask_function)
+        allow_is_causal_skip = False
 
     # We now create the mask
     causal_mask = mask_interface(
@@ -806,18 +855,17 @@ def create_sliding_window_causal_mask(
     # Do not allow skip if we are compiling (this is to match BC)
     # TODO: cyril -> probably revisit and remove this, but a lot of tests rely on it
     allow_is_causal_skip = not past_key_values.is_compileable if past_key_values is not None else True
-    # # TODO there is a compile problem during and_masks/or_masks func used as mask_factory_function, Comment this part firstly
-    # # If we detected packing format
-    # if packed_sequence_mask is not None:
-    #     mask_factory_function = and_masks(mask_factory_function, packed_sequence_mask_function(packed_sequence_mask))
-    #     allow_is_causal_skip = False
-    # # Allow slight deviations from sliding causal mask
-    # if or_mask_function is not None:
-    #     mask_factory_function = or_masks(mask_factory_function, or_mask_function)
-    #     allow_is_causal_skip = False
-    # if and_mask_function is not None:
-    #     mask_factory_function = and_masks(mask_factory_function, and_mask_function)
-    #     allow_is_causal_skip = False
+    # If we detected packing format
+    if packed_sequence_mask is not None:
+        mask_factory_function = and_masks(mask_factory_function, packed_sequence_mask_function(packed_sequence_mask))
+        allow_is_causal_skip = False
+    # Allow slight deviations from sliding causal mask
+    if or_mask_function is not None:
+        mask_factory_function = or_masks(mask_factory_function, or_mask_function)
+        allow_is_causal_skip = False
+    if and_mask_function is not None:
+        mask_factory_function = and_masks(mask_factory_function, and_mask_function)
+        allow_is_causal_skip = False
 
     # We now create the mask
     causal_mask = mask_interface(

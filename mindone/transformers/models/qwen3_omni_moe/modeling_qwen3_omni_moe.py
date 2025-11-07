@@ -62,7 +62,7 @@ from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
 from ...utils import can_return_tuple
-from ...utils.generic import OutputRecorder, TransformersKwargs, check_model_inputs
+from ...utils.generic import OutputRecorder, TransformersKwargs
 
 
 @auto_docstring
@@ -110,7 +110,8 @@ class Qwen3OmniMoePreTrainedModelForConditionalGeneration(Qwen3OmniMoePreTrained
             sequence_length (`int`):
                 The sequence length being processed.
             target_length (`int`):
-                The target length: when generating with static cache, the mask should be as long as the static cache, to account for the 0 padding, the part of the cache that is not filled yet.
+                The target length: when generating with static cache, the mask should be as long as the static cache,
+                to account for the 0 padding, the part of the cache that is not filled yet.
             dtype (`ms.Type`):
                 The dtype to use for the 4D attention mask.
             min_dtype (`float`):
@@ -228,9 +229,12 @@ class Qwen3OmniMoePreTrainedModelForConditionalGeneration(Qwen3OmniMoePreTrained
                 Width: 2 patches, dividing each frame horizontally.
                 We also have some important parameters:
                 fps (Frames Per Second): The video's frame rate, set to 1. This means one frame is processed each second.
-                tokens_per_second: This is a crucial parameter. It dictates how many "time-steps" or "temporal tokens" are conceptually packed into a one-second interval of the video. In this case, we have 25 tokens per second. So each second of the video will be represented with 25 separate time points. It essentially defines the temporal granularity.
+                tokens_per_second: This is a crucial parameter. It dictates how many "time-steps" or "temporal tokens" are
+                conceptually packed into a one-second interval of the video. In this case, we have 25 tokens per second.
+                So each second of the video will be represented with 25 separate time points. It essentially defines the temporal granularity.
                 temporal_patch_size: The number of frames that compose one temporal patch. Here, it's 2 frames.
-                interval: The step size for the temporal position IDs, calculated as tokens_per_second * temporal_patch_size / fps. In this case, 25 * 2 / 1 = 50. This means that each temporal patch will be have a difference of 50 in the temporal position IDs.
+                interval: The step size for the temporal position IDs, calculated as tokens_per_second * temporal_patch_size / fps.
+                In this case, 25 * 2 / 1 = 50. This means that each temporal patch will be have a difference of 50 in the temporal position IDs.
                 input_ids: [V V V V V V V V V V V V T T T T T], here V is for vision.
                 vision temporal position_ids: [0, 0, 0, 0, 50, 50, 50, 50, 100, 100, 100, 100]
                 vision height position_ids: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1]
@@ -519,7 +523,6 @@ class Qwen3OmniMoeAudioAttention(nn.Cell):
         query_states = query_states.transpose(0, 1).unsqueeze(0)
         key_states = key_states.transpose(0, 1).unsqueeze(0)
         value_states = value_states.transpose(0, 1).unsqueeze(0)
-        max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
 
         attention_interface: Callable = eager_attention_forward
         if self.config._attn_implementation != "eager":
@@ -877,7 +880,6 @@ class Qwen3OmniMoeVisionAttention(nn.Cell):
 
         if self.config._attn_implementation == "flash_attention_2":
             # Flash Attention 2: Use cu_seqlens for variable length attention
-            max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
             attn_output, _ = attention_interface(
                 self,
                 query_states,
@@ -886,10 +888,6 @@ class Qwen3OmniMoeVisionAttention(nn.Cell):
                 attention_mask=None,
                 scaling=self.scaling,
                 dropout=0.0 if not self.training else self.attention_dropout,
-                cu_seq_lens_q=cu_seqlens,
-                cu_seq_lens_k=cu_seqlens,
-                max_length_q=max_seqlen,
-                max_length_k=max_seqlen,
                 is_causal=False,
                 **kwargs,
             )
@@ -1468,7 +1466,6 @@ class Qwen3OmniMoeThinkerTextAttention(nn.Cell):
             attention_mask,
             dropout=0.0 if not self.training else self.attention_dropout,
             scaling=self.scaling,
-            sliding_window=self.sliding_window,  # diff with Llama
             **kwargs,
         )
 
@@ -1694,6 +1691,9 @@ class Qwen3OmniMoeThinkerTextModel(Qwen3OmniMoePreTrainedModel):
 
         # decoder layers
         for layer_idx, decoder_layer in enumerate(self.layers):
+            if output_hidden_states:
+                all_hidden_states += (hidden_states,)
+
             layer_outputs = decoder_layer(
                 hidden_states,
                 attention_mask=attention_mask,
@@ -1845,10 +1845,6 @@ class Qwen3OmniMoeThinkerForConditionalGeneration(Qwen3OmniMoePreTrainedModelFor
 
     def __init__(self, config):
         super().__init__(config)
-        config.audio_config.mindspore_dtype = config.mindspore_dtype
-        config.vision_config.mindspore_dtype = config.mindspore_dtype
-        config.text_config.mindspore_dtype = config.mindspore_dtype
-
         self.audio_tower = Qwen3OmniMoeAudioEncoder._from_config(config.audio_config)
         self.visual = Qwen3OmniMoeVisionEncoder._from_config(config.vision_config)
         self.vocab_size = config.text_config.vocab_size
@@ -2033,7 +2029,8 @@ class Qwen3OmniMoeThinkerForConditionalGeneration(Qwen3OmniMoePreTrainedModelFor
         >>> processor = Qwen3OmniMoeProcessor.from_pretrained("Qwen/Qwen2.5-Omni-7B")
 
         >>> conversations = [
-        >>>         {'role': 'system', 'content': 'You are a helpful voice chat bot, and please respond to me in a casual conversation manner using random voice.'},
+        >>>         {'role': 'system', 'content': 'You are a helpful voice chat bot, and please respond to me'
+        >>>          'in a casual conversation manner using random voice.'},
         >>>         {"role": "user", "content": [
         >>>             {"type": "image", "image_url": "https://www.ilankelman.org/stopsigns/australia.jpg"},
         >>>             {"type": "audio", "audio_url": "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen2-Audio/audio/glass-breaking-151256.mp3"},
@@ -2344,7 +2341,6 @@ class Qwen3OmniMoeTalkerCodePredictorAttention(nn.Cell):
             attention_mask,
             dropout=0.0 if not self.training else self.attention_dropout,
             scaling=self.scaling,
-            sliding_window=self.sliding_window,  # diff with Llama
             **kwargs,
         )
 
@@ -2479,7 +2475,6 @@ class Qwen3OmniMoeTalkerCodePredictorModel(Qwen3OmniMoePreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-
     @auto_docstring
     def construct(
         self,
@@ -2535,6 +2530,9 @@ class Qwen3OmniMoeTalkerCodePredictorModel(Qwen3OmniMoePreTrainedModel):
         all_hidden_states = () if output_hidden_states else None
 
         for decoder_layer in self.layers[: self.config.num_hidden_layers]:
+            if output_hidden_states:
+                all_hidden_states += (hidden_states,)
+
             hidden_states = decoder_layer(
                 hidden_states,
                 attention_mask=causal_mask_mapping[decoder_layer.attention_type],
@@ -2864,7 +2862,6 @@ class Qwen3OmniMoeTalkerModel(Qwen3OmniMoePreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-
     @auto_docstring
     def construct(
         self,
@@ -2936,6 +2933,9 @@ class Qwen3OmniMoeTalkerModel(Qwen3OmniMoePreTrainedModel):
 
         # decoder layers
         for layer_idx, decoder_layer in enumerate(self.layers):
+            if output_hidden_states:
+                all_hidden_states += (hidden_states,)
+
             layer_outputs = decoder_layer(
                 hidden_states,
                 attention_mask=attention_mask,
@@ -2993,9 +2993,6 @@ class Qwen3OmniMoeTalkerForConditionalGeneration(Qwen3OmniMoeThinkerTextPreTrain
 
     def __init__(self, config: Qwen3OmniMoeTalkerConfig):
         super().__init__(config)
-        config.text_config.mindspore_dtype = config.mindspore_dtype
-        config.code_predictor_config.mindspore_dtype = config.mindspore_dtype
-
         self.model = Qwen3OmniMoeTalkerModel._from_config(config.text_config)
         self.vocab_size = config.text_config.vocab_size
         self.router_aux_loss_coef = config.text_config.router_aux_loss_coef
@@ -3199,7 +3196,8 @@ class Qwen3OmniMoeTalkerForConditionalGeneration(Qwen3OmniMoeThinkerTextPreTrain
             predictor_result = self.code_predictor.generate(
                 inputs_embeds=mint.cat((past_hidden, last_id_hidden), dim=1),
                 max_new_tokens=self.config.num_code_groups - 1,
-                do_sample=True,
+                # TODO we set do_sample=False here to avoid results from 2 card would mismatch
+                do_sample=False,
                 top_k=50,
                 top_p=0.8,
                 output_hidden_states=True,
@@ -3410,7 +3408,6 @@ class Qwen3OmniMoeCode2WavAttention(nn.Cell):
             attention_mask,
             dropout=0.0 if not self.training else self.attention_dropout,
             scaling=self.scaling,
-            sliding_window=self.sliding_window,  # diff with Llama
             **kwargs,
         )
 
@@ -3556,7 +3553,6 @@ class Qwen3OmniMoeCode2WavTransformerModel(Qwen3OmniMoePreTrainedModel):
 
         # Initialize weights and apply final processing
         self.post_init()
-
 
     @auto_docstring
     def construct(
@@ -3780,10 +3776,6 @@ class Qwen3OmniMoeForConditionalGeneration(Qwen3OmniMoePreTrainedModel, Generati
 
     def __init__(self, config: Qwen3OmniMoeConfig):
         super().__init__(config)
-        # TODO right now mindspore_dtype is needed to be set in all sub_configs, "torch_dtype-->dtype" is needed to be updated in v4.57.1
-        config.mindspore_dtype = config.dtype
-        config.thinker_config.mindspore_dtype = config.dtype
-
         self.thinker = Qwen3OmniMoeThinkerForConditionalGeneration._from_config(config.thinker_config)
         self.has_talker = config.enable_audio_output
         if self.has_talker:
@@ -3791,9 +3783,6 @@ class Qwen3OmniMoeForConditionalGeneration(Qwen3OmniMoePreTrainedModel, Generati
         self.post_init()
 
     def enable_talker(self):
-        self.config.talker_config.mindspore_dtype = self.config.dtype
-        self.config.code2wav_config.mindspore_dtype = self.config.dtype
-
         self.talker = Qwen3OmniMoeTalkerForConditionalGeneration._from_config(self.config.talker_config)
         self.code2wav = Qwen3OmniMoeCode2Wav._from_config(self.config.code2wav_config)
 

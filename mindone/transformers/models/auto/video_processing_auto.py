@@ -28,7 +28,7 @@ import transformers
 from packaging import version
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import get_class_from_dynamic_module, resolve_trust_remote_code
-from transformers.utils import CONFIG_NAME, VIDEO_PROCESSOR_NAME, cached_file, is_torchvision_available, logging
+from transformers.utils import CONFIG_NAME, VIDEO_PROCESSOR_NAME, cached_file, logging
 
 from ...video_processing_utils import BaseVideoProcessor
 from .auto_factory import _LazyAutoMapping
@@ -57,10 +57,6 @@ if version.parse(transformers.__version__) >= version.parse("4.57.0"):
 
 for model_type, video_processors in VIDEO_PROCESSOR_MAPPING_NAMES.items():
     fast_video_processor_class = video_processors
-
-    # If the torchvision is not available, we set it to None
-    if not is_torchvision_available():
-        fast_video_processor_class = None
 
     VIDEO_PROCESSOR_MAPPING_NAMES[model_type] = fast_video_processor_class
 
