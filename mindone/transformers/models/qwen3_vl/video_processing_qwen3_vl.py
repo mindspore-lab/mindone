@@ -24,6 +24,7 @@ import mindspore as ms
 from mindspore import mint
 
 from ...feature_extraction_utils import BatchFeature
+from ...image_transforms import resize
 from ...image_utils import ChannelDimension, PILImageResampling, SizeDict, get_image_size
 from ...processing_utils import Unpack, VideosKwargs
 from ...utils import TensorType
@@ -226,10 +227,12 @@ class Qwen3VLVideoProcessor(BaseVideoProcessor):
                 stacked_videos_updated = []
                 for i in range(len(stacked_videos)):
                     stacked_videos_updated.append(
-                        self.resize(
-                            stacked_videos[i],
-                            size=SizeDict(height=resized_height, width=resized_width),
-                            interpolation=interpolation,
+                        ms.tensor(
+                            resize(
+                                stacked_videos[i],
+                                size=(resized_height, resized_width),
+                                resample=interpolation,
+                            )
                         )
                     )
                 stacked_videos_updated = mint.stack(stacked_videos_updated)
