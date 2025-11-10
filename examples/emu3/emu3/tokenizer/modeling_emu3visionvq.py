@@ -138,14 +138,14 @@ class Emu3VisionVQResnetTemporalBlock(nn.Cell):
         stride = (1, 1, 1)
         kernel_size = (3, 3, 3)
 
-        self.norm1 = nn.BatchNorm3d(in_channels)
+        self.norm1 = mint.nn.BatchNorm3d(in_channels)
         self.conv1 = Emu3VisionVQCausalConv3d(
             in_channels,
             out_channels,
             kernel_size=kernel_size,
             stride=stride,
         )
-        self.norm2 = nn.BatchNorm3d(out_channels)
+        self.norm2 = mint.nn.BatchNorm3d(out_channels)
         self.dropout = nn.Dropout(p=dropout)
         self.conv2 = Emu3VisionVQCausalConv3d(
             out_channels,
@@ -702,9 +702,9 @@ class Emu3VisionVQPretrainedModel(MSPreTrainedModel):
         elif isinstance(module, (nn.BatchNorm2d, nn.GroupNorm)):
             module.gamma.set_data(initializer(Constant(1), module.gamma.shape, module.gamma.dtype))
             module.beta.set_data(initializer(Constant(0), module.beta.shape, module.beta.dtype))
-        elif isinstance(module, nn.BatchNorm3d):
-            module.bn2d.gamma.set_data(initializer(Constant(1), module.bn2d.gamma.shape, module.bn2d.gamma.dtype))
-            module.bn2d.beta.set_data(initializer(Constant(0), module.bn2d.beta.shape, module.bn2d.beta.dtype))
+        elif isinstance(module, mint.nn.BatchNorm3d):
+            module.weight.set_data(initializer(Constant(1), module.weight.shape, module.weight.dtype))
+            module.bias.set_data(initializer(Constant(0), module.bias.shape, module.bias.dtype))
 
 
 class Emu3VisionVQModel(Emu3VisionVQPretrainedModel):
