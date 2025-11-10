@@ -137,6 +137,7 @@ _import_structure = {
         "Kandinsky3Img2ImgPipeline",
         "Kandinsky3Pipeline",
     ],
+    "kandinsky5": ["Kandinsky5T2VPipeline"],
     "kolors": [
         "KolorsPipeline",
         "KolorsImg2ImgPipeline",
@@ -384,6 +385,7 @@ if TYPE_CHECKING:
         KandinskyV22PriorPipeline,
     )
     from .kandinsky3 import Kandinsky3Img2ImgPipeline, Kandinsky3Pipeline
+    from .kandinsky5 import Kandinsky5T2VPipeline
     from .kolors import KolorsImg2ImgPipeline, KolorsPipeline
     from .latent_consistency_models import LatentConsistencyModelImg2ImgPipeline, LatentConsistencyModelPipeline
     from .latent_diffusion import LDMSuperResolutionPipeline, LDMTextToImagePipeline
