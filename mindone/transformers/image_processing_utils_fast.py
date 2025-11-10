@@ -212,7 +212,7 @@ class BaseImageProcessorFast(BaseImageProcessor):
         self.crop_size = get_size_dict(crop_size, param_name="crop_size") if crop_size is not None else None
         pad_size = kwargs.pop("pad_size", self.pad_size)
         self.pad_size = get_size_dict(size=pad_size, param_name="pad_size") if pad_size is not None else None
-        
+
         for key in self.valid_kwargs.__annotations__:
             kwarg = kwargs.pop(key, None)
             if kwarg is not None:
@@ -666,7 +666,9 @@ class BaseImageProcessorFast(BaseImageProcessor):
         # Checking PILImageResampling will fail with error `TypeError: isinstance() arg 2 must be a type or tuple of types`.
         resample = kwargs.pop("resample")
         kwargs["interpolation"] = (
-            pil_mindspore_interpolation_mapping[resample] if isinstance(resample, (PILImageResampling, int)) else resample
+            pil_mindspore_interpolation_mapping[resample]
+            if isinstance(resample, (PILImageResampling, int))
+            else resample
         )
 
         return kwargs
