@@ -309,8 +309,8 @@ class ModernBertAttention(nn.Cell):
         else:
             self.local_attention = (-1, -1)
 
-        if self.local_attention != (-1, -1):
-            rope_theta = config.global_rope_theta if config.local_rope_theta is None else config.local_rope_theta
+        # if self.local_attention != (-1, -1):
+        #     rope_theta = config.global_rope_theta if config.local_rope_theta is None else config.local_rope_theta
 
         self.rotary_emb = ModernBertRotaryEmbedding(config=config)
 
