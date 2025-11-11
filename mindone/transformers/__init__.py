@@ -454,6 +454,13 @@ from .models.distilbert import (
     DistilBertModel,
     DistilBertPreTrainedModel,
 )
+from .models.donut import (
+    DonutFeatureExtractor,
+    DonutImageProcessor,
+    DonutProcessor,
+    DonutSwinModel,
+    DonutSwinPreTrainedModel,
+)
 from .models.dpr import (
     DPRContextEncoder,
     DPRPretrainedContextEncoder,
