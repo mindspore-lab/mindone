@@ -166,6 +166,7 @@ from . import (
     owlv2,
     owlvit,
     paligemma,
+    parakeet,
     pegasus,
     pegasus_x,
     perceiver,
