@@ -3057,7 +3057,7 @@ class PreTrainedModel(
         if state_dict is not None:
             # Whole checkpoint
             # checkpoint mapping from pt to hf
-            matching = [s for s in key_renaming_mapping.keys() if "LayerNorm.gamma" in s]
+            matching = key_renaming_mapping.keys()
             if matching:
                 # Fix the key names when model weight names contain LayerNorm.gamma/LayerNorm.beta
                 state_dict = {key_renaming_mapping[k]: v for k, v in state_dict.items() if k in key_renaming_mapping}
@@ -3090,7 +3090,7 @@ class PreTrainedModel(
             for shard_file in resolved_archive_file:
                 state_dict = load_state_dict(shard_file)
                 # checkpoint mapping from pt to hf
-                matching = [s for s in key_renaming_mapping.keys() if "LayerNorm.gamma" in s]
+                matching = key_renaming_mapping.keys()
                 if matching:
                     # Fix the key names when model weight names contain LayerNorm.gamma/LayerNorm.beta
                     state_dict = {
