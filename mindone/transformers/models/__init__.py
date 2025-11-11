@@ -19,6 +19,7 @@ from packaging import version
 
 from . import (
     albert,
+    arcee,
     aria,
     audio_spectrogram_transformer,
     auto,
