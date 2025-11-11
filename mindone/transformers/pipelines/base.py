@@ -46,7 +46,7 @@ GenericTensor = Union[List["GenericTensor"], "ms.Tensor"]
 
 if is_mindspore_available():
     import mindspore as ms
-    from mindspore import ops
+    from mindspore import mint
     from mindspore.dataset import Dataset, GeneratorDataset
 
     from ..models.auto.modeling_auto import AutoModel
@@ -64,7 +64,7 @@ if TYPE_CHECKING:
 logger = logging.get_logger(__name__)
 
 
-def no_collate_fn(items, BatchInfo):
+def no_collate_fn(items):
     if len(items) != 1:
         raise ValueError("This collate_fn is meant to be used with batch_size=1")
     return items[0]
@@ -77,15 +77,15 @@ def _pad(items, key, padding_value, padding_side):
         shape = items[0][key].shape
         dim = len(shape)
         if dim == 1:
-            # We have a list of 1-dim mindspore tensors, which can be stacked without padding
-            return ops.cat([item[key] for item in items], axis=0)
+            # We have a list of 1-dim ms tensors, which can be stacked without padding
+            return mint.cat([item[key] for item in items], dim=0)
         if key in ["pixel_values", "image"]:
             # This is probable image so padding shouldn't be necessary
             # B, C, H, W
-            return ops.cat([item[key] for item in items], axis=0)
+            return mint.cat([item[key] for item in items], dim=0)
         elif dim == 4 and key == "input_features":
             # this is probably a mel spectrogram batched
-            return ops.cat([item[key] for item in items], axis=0)
+            return mint.cat([item[key] for item in items], dim=0)
         max_length = max(item[key].shape[1] for item in items)
         min_length = min(item[key].shape[1] for item in items)
         dtype = items[0][key].dtype
@@ -94,12 +94,12 @@ def _pad(items, key, padding_value, padding_side):
             if max_length == min_length:
                 # Bypass for `ImageGPT` which doesn't provide a padding value, yet
                 # we can consistently pad since the size should be matching
-                return ops.cat([item[key] for item in items], axis=0)
-            tensor = ops.zeros((batch_size, max_length), dtype=dtype) + padding_value
+                return mint.cat([item[key] for item in items], dim=0)
+            tensor = mint.zeros((batch_size, max_length), dtype=dtype) + padding_value
         elif dim == 3:
-            tensor = ops.zeros((batch_size, max_length, shape[-1]), dtype=dtype) + padding_value
+            tensor = mint.zeros((batch_size, max_length, shape[-1]), dtype=dtype) + padding_value
         elif dim == 4:
-            tensor = ops.zeros((batch_size, max_length, shape[-2], shape[-1]), dtype=dtype) + padding_value
+            tensor = mint.zeros((batch_size, max_length, shape[-2], shape[-1]), dtype=dtype) + padding_value
 
         for i, item in enumerate(items):
             if dim == 2:
@@ -123,7 +123,7 @@ def _pad(items, key, padding_value, padding_side):
         return [item[key] for item in items]
 
 
-def pad_collate_fn(tokenizer, feature_extractor, BatchInfo):
+def pad_collate_fn(tokenizer, feature_extractor):
     # Tokenizer
     t_padding_side = None
     # Feature extractor
@@ -165,7 +165,7 @@ def pad_collate_fn(tokenizer, feature_extractor, BatchInfo):
         # input_values, input_pixels, input_ids, ...
         padded = {}
         for key in keys:
-            if key in {"input_ids"}:
+            if key == "input_ids":
                 # ImageGPT uses a feature extractor
                 if tokenizer is None and feature_extractor is not None:
                     _padding_value = f_padding_value
@@ -189,7 +189,7 @@ def pad_collate_fn(tokenizer, feature_extractor, BatchInfo):
 def infer_framework_load_model(
     model,
     config: AutoConfig,
-    model_classes: Optional[Dict[str, Tuple[type]]] = None,
+    model_classes: Optional[dict[str, tuple[type]]] = None,
     task: Optional[str] = None,
     framework: Optional[str] = None,
     **model_kwargs,
@@ -859,9 +859,6 @@ class Pipeline(_ScikitCompat, PushToHubMixin):
         modelcard: Optional[ModelCard] = None,
         framework: Optional[str] = None,
         task: str = "",
-        args_parser: ArgumentHandler = None,
-        device: Union[int] = None,
-        mindspore_dtype: Optional[Union[str, "ms.dtype"]] = None,
         binary_output: bool = False,
         **kwargs,
     ):
@@ -878,13 +875,7 @@ class Pipeline(_ScikitCompat, PushToHubMixin):
         self.framework = framework
 
         # `accelerate` device map
-        hf_device_map = getattr(self.model, "hf_device_map", None)
-
-        if hf_device_map is not None and device is not None:
-            raise ValueError(
-                "The model has been loaded with `accelerate` and therefore cannot be moved to a specific device. Please "
-                "discard the `device` argument when creating your pipeline object."
-            )
+        # hf_device_map = getattr(self.model, "hf_device_map", None)
 
         # if device is None:
         #     if hf_device_map is not None:
@@ -1071,6 +1062,13 @@ class Pipeline(_ScikitCompat, PushToHubMixin):
         Scikit / Keras interface to transformers' pipelines. This method will forward to __call__().
         """
         return self(X)
+
+    @property
+    def dtype(self) -> Optional["ms.dtype"]:
+        """
+        Dtype of the model (if it's mindspore model), `None` otherwise.
+        """
+        return getattr(self.model, "dtype", None)
 
     @property
     def mindspore_dtype(self) -> Optional["ms.dtype"]:
