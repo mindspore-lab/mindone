@@ -22,3 +22,4 @@ from .modeling_qwen3_vl import (
     Qwen3VLVisionModel,
 )
 from .processing_qwen3_vl import Qwen3VLProcessor
+from .video_processing_qwen3_vl import Qwen3VLVideoProcessor

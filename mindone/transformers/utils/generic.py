@@ -834,20 +834,20 @@ def check_model_inputs(func):
                         specs = OutputRecorder(target_class=specs, index=index)
                     capture_tasks.append((key, specs))
 
-            for name, module in self.named_modules():
+            for name, module in self.cells_and_names():
                 for key, specs in capture_tasks:
                     if isinstance(module, specs.target_class):
                         if specs.layer_name is not None and specs.layer_name not in name:
                             continue
                         # Monkey patch forward
-                        original_forward = module.forward
-                        module.forward = make_capture_wrapper(module, original_forward, key, specs.index)
+                        original_forward = module.construct
+                        module.construct = make_capture_wrapper(module, original_forward, key, specs.index)
                         monkey_patched_layers.append((module, original_forward))
 
         outputs = func(self, *args, **kwargs)
         # Restore original forward methods
         for module, original_forward in monkey_patched_layers:
-            module.forward = original_forward
+            module.construct = original_forward
 
         # Inject collected outputs into model output
         for key in collected_outputs:
