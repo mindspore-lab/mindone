@@ -27,14 +27,16 @@ from transformers.utils import ModelOutput, add_start_docstrings, add_start_docs
 
 import mindspore as ms
 import mindspore.mint.nn.functional as F
-from mindspore import Parameter, mint, nn
+from mindspore import Parameter, mint, nn, ops
 
 # from torch.cuda import nvtx
+from mindone.models.utils import normal_, zeros_
 from mindone.transformers.activations import ACT2FN
 from mindone.transformers.cache_utils import Cache, StaticCache
 from mindone.transformers.generation.logits_process import LogitsProcessorList
 from mindone.transformers.generation.stopping_criteria import StoppingCriteriaList
 from mindone.transformers.generation.utils import ALL_CACHE_NAMES, GenerationConfig, GenerationMixin
+from mindone.transformers.modeling_attn_mask_utils import _prepare_4d_causal_attention_mask
 from mindone.transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from mindone.transformers.modeling_utils import PreTrainedModel
 from mindone.transformers.utils import is_flash_attn_2_available  # Ascend
@@ -199,7 +201,7 @@ def zero_module(module):
     Zero out the parameters of a module and return it.
     """
     for p in module.get_parameters():
-        p.zero_()
+        zeros_(p)
     return module
 
 
@@ -271,8 +273,8 @@ def topkgating(
 
     # Create mask out of indices.
     # Shape: [tokens_per_group * num_selected_experts, num_experts].
-    expert_mask = F.one_hot(expert_index, num_experts).to(ms.int32)
-    exp_counts = mint.sum(expert_mask, dim=0).detach()
+    expert_mask = F.one_hot(expert_index, num_experts).to(ms.int64)
+    exp_counts = mint.sum(expert_mask, dim=0)
 
     # Experts have a fixed capacity that we cannot exceed. A token's priority
     # within the expert's buffer is given by the masked, cumulative capacity of
@@ -295,10 +297,10 @@ def topkgating(
     # the range [0, expert_capacity).
     # Shape: [tokens_per_group, num_experts, expert_capacity].
     valid_mask = mint.logical_and(token_priority >= 0, token_priority < expert_capacity)
-    token_priority = mint.masked_fill(token_priority, ~valid_mask, 0)
+    token_priority = ops.masked_fill(token_priority, ~valid_mask, 0)
     dispatch_mask = F.one_hot(token_priority, expert_capacity).to(ms.bool_)
-    valid_mask = valid_mask.unsqueeze(-1).expand(-1, -1, expert_capacity)
-    dispatch_mask = mint.masked_fill(dispatch_mask, ~valid_mask, 0)
+    valid_mask = valid_mask.unsqueeze(-1).expand((-1, -1, expert_capacity))
+    dispatch_mask = ops.masked_fill(dispatch_mask, ~valid_mask, 0)
 
     # The combine array will be used for combining expert outputs, scaled by the
     # router probabilities. Shape: [num_groups, tokens_per_group, num_experts,
@@ -569,8 +571,8 @@ class TimestepEmbedder(nn.Cell):
             act_layer(),
             mint.nn.Linear(hidden_size, out_size, bias=True, **factory_kwargs),
         )
-        self.mlp[0].weight.normal_(std=0.02)
-        self.mlp[2].weight.normal_(std=0.02)
+        normal_(self.mlp[0].weight, mean=0.0, std=0.02)
+        normal_(self.mlp[2].weight, mean=0.0, std=0.02)
         # nn.init.normal_(self.mlp[0].weight, std=0.02)
         # nn.init.normal_(self.mlp[2].weight, std=0.02)
 
@@ -962,10 +964,11 @@ class HunyuanStaticCache(StaticCache):
             else:
                 assert cache_position.dim() == 2, f"multiple batch dims not yet {cache_position.shape=}"
                 batch_size, idx_size = cache_position.shape
-                assert batch_size == k_out.size(0)
-                assert batch_size == v_out.size(0)
-                assert batch_size == key_states.size(0)
-                assert batch_size == value_states.size(0)
+                assert batch_size == k_out.shape[0]
+                assert batch_size == v_out.shape[0]
+                assert batch_size == key_states.shape[0]
+                assert batch_size == value_states.shape[0]
+
                 for i in range(batch_size):
                     unbatched_dim = 1
                     k_out[i].index_copy_(unbatched_dim, cache_position[i], key_states[i])
@@ -1340,7 +1343,7 @@ class HunyuanImage3FlashAttention2(HunyuanImage3SDPAAttention):
                 output_attentions=output_attentions,
             )
 
-        bsz, q_len, _ = hidden_states.size()
+        bsz, q_len, _ = hidden_states.shape
 
         qkv_states = self.qkv_proj(hidden_states)
         qkv_states = qkv_states.reshape(
@@ -1363,9 +1366,11 @@ class HunyuanImage3FlashAttention2(HunyuanImage3SDPAAttention):
         query_states = query_states.to(value_states.dtype)
         key_states = key_states.to(value_states.dtype)
 
+        # past_key_values_length = 0
         if past_key_value is not None:
             cache_kwargs = {"cache_position": position_ids}
             key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
+            # past_key_values_length = past_key_value.get_usable_length(q_len)
 
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
@@ -1380,19 +1385,33 @@ class HunyuanImage3FlashAttention2(HunyuanImage3SDPAAttention):
 
         target_dtype = key_states.dtype if key_states.dtype in [ms.bfloat16, ms.float16] else ms.bfloat16
 
-        q_fa = query_states.to(target_dtype).transpose(1, 2).contiguous()
-        k_fa = key_states.to(target_dtype).transpose(1, 2).contiguous()
-        v_fa = value_states.to(target_dtype).transpose(1, 2).contiguous()
+        # q_fa = query_states.to(target_dtype).transpose(1, 2).contiguous()
+        # k_fa = key_states.to(target_dtype).transpose(1, 2).contiguous()
+        # v_fa = value_states.to(target_dtype).transpose(1, 2).contiguous()
+        q_fa = query_states.to(target_dtype).contiguous()
+        k_fa = key_states.to(target_dtype).contiguous()
+        v_fa = value_states.to(target_dtype).contiguous()
 
         mode = kwargs.get("mode", "gen_text")
-        flash_attn_func = MSFlashAttention
+
+        # NOTE: MSFlashAttention needs shape of BNSD ==> [batch_size,  num_heads, sequence_length, head_dim]
+        flash_attn_func = MSFlashAttention(
+            head_dim=self.head_dim,
+            head_num=self.num_heads,
+            attention_dropout=self.attention_dropout,
+            input_layout="BNSD",
+            dtype=target_dtype,
+        )
+
         # For gen_text and gen_image, we need to handle the attention differently
         # with nvtx.range("attention"):
         if mode == "gen_text":
             if attention_mask is None:
-                attn_output = flash_attn_func(q_fa, k_fa, v_fa, causal=False)  # decode attention
+                # attn_output = flash_attn_func(q_fa, k_fa, v_fa, mask=False)  # decode attention
+                attn_output = flash_attn_func(q_fa, k_fa, v_fa)  # decode attention
             else:
-                attn_output = flash_attn_func(q_fa, k_fa, v_fa, causal=True)  # prefill attention
+                # attn_output = flash_attn_func(q_fa, k_fa, v_fa, mask=True)  # prefill attention
+                attn_output = flash_attn_func(q_fa, k_fa, v_fa, mask=attention_mask)  # prefill attention
         else:  # image attention
             gen_timestep_scatter_index: Optional[ms.Tensor] = kwargs.get("gen_timestep_scatter_index", None)
             assert (
@@ -1407,25 +1426,67 @@ class HunyuanImage3FlashAttention2(HunyuanImage3SDPAAttention):
                 raise ValueError("When gen_image, `first_step` must be provided.")
             if first_step:
                 casual_len = timestep_index + 1
-                text_query_states = q_fa[:, :casual_len, :, :]
-                text_key_states = k_fa[:, :casual_len, :, :]
-                text_value_states = v_fa[:, :casual_len, :, :]
-                text_attn_output = flash_attn_func(text_query_states, text_key_states, text_value_states, causal=True)
-                image_query_states = q_fa[:, casual_len:, :, :]
-                image_attn_output = flash_attn_func(image_query_states, k_fa, v_fa, causal=False)
-                attn_output = mint.cat((text_attn_output, image_attn_output), dim=1)
+                # text_query_states = q_fa[:, :casual_len, :, :]
+                # text_key_states = k_fa[:, :casual_len, :, :]
+                # text_value_states = v_fa[:, :casual_len, :, :]
+                # text_attn_output = flash_attn_func(text_query_states, text_key_states, text_value_states, causal=True)
+                text_query_states = q_fa[:, :, :casual_len, :]
+                text_key_states = k_fa[:, :, :casual_len, :]
+                text_value_states = v_fa[:, :, :casual_len, :]
+
+                B, _, S, _ = text_query_states.shape
+                attention_mask = _prepare_4d_causal_attention_mask(
+                    attention_mask=None,
+                    input_shape=(B, S),
+                    inputs_embeds=hidden_states.to(ms.float16),
+                    past_key_values_length=0,
+                )
+
+                text_attn_output = flash_attn_func(
+                    text_query_states, text_key_states, text_value_states, mask=attention_mask
+                )
+                # image_query_states = q_fa[:, casual_len:, :, :]
+                # image_attn_output = flash_attn_func(image_query_states, k_fa, v_fa, causal=False)
+                image_query_states = q_fa[:, :, casual_len:, :]
+                image_attn_output = flash_attn_func(image_query_states, k_fa, v_fa)
+
+                # attn_output = mint.cat((text_attn_output, image_attn_output), dim=1)
+                attn_output = mint.cat(
+                    (text_attn_output, image_attn_output), dim=2
+                )  # the shape is changed from BSND -> BNSD
             else:
                 casual_len = timestep_index + 1
-                timestep_query_states = q_fa[:, 0:1, :, :]
-                timestep_key_states = k_fa[:, :casual_len, :, :]
-                timestep_value_states = v_fa[:, :casual_len, :, :]
-                timestep_attn_output = flash_attn_func(
-                    timestep_query_states, timestep_key_states, timestep_value_states, causal=True
-                )
-                image_query_states = q_fa[:, 1:, :, :]
-                image_attn_output = flash_attn_func(image_query_states, k_fa, v_fa, causal=False)
-                attn_output = mint.cat((timestep_attn_output, image_attn_output), dim=1)
+                # timestep_query_states = q_fa[:, 0:1, :, :]
+                # timestep_key_states = k_fa[:, :casual_len, :, :]
+                # timestep_value_states = v_fa[:, :casual_len, :, :]
+                # timestep_attn_output = flash_attn_func(
+                #     timestep_query_states, timestep_key_states, timestep_value_states, causal=True
+                # )
+                timestep_query_states = q_fa[:, :, 0:1, :]
+                timestep_key_states = k_fa[:, :, :casual_len, :]
+                timestep_value_states = v_fa[:, :, :casual_len, :]
 
+                B, _, S, _ = timestep_query_states.shape
+                attention_mask = _prepare_4d_causal_attention_mask(
+                    attention_mask=None,
+                    input_shape=(B, S),
+                    inputs_embeds=hidden_states.to(ms.float16),
+                    past_key_values_length=0,
+                )
+
+                timestep_attn_output = flash_attn_func(
+                    timestep_query_states, timestep_key_states, timestep_value_states, mask=attention_mask
+                )
+                # image_query_states = q_fa[:, 1:, :, :]
+                # image_attn_output = flash_attn_func(image_query_states, k_fa, v_fa, causal=False)
+                image_query_states = q_fa[:, :, 1:, :]
+                image_attn_output = flash_attn_func(image_query_states, k_fa, v_fa)
+                # attn_output = mint.cat((timestep_attn_output, image_attn_output), dim=1)
+                attn_output = mint.cat(
+                    (timestep_attn_output, image_attn_output), dim=2
+                )  # the shape is changed from BSND -> BNSD
+
+        attn_output = attn_output.transpose(1, 2)  # shape BNSD -> BSND
         attn_output = attn_output.reshape(bsz, q_len, -1)
 
         attn_output = self.o_proj(attn_output)
@@ -1554,13 +1615,13 @@ class HunyuanImage3PreTrainedModel(PreTrainedModel):
     def _init_weights(self, module):
         std = self.config.initializer_range
         if isinstance(module, mint.nn.Linear):
-            module.weight.data.normal_(mean=0.0, std=std)
+            normal_(module.weight.data, mean=0.0, std=std)
             if module.bias is not None:
-                module.bias.data.zero_()
+                zeros_(module.bias.data)
         elif isinstance(module, mint.nn.Embedding):
-            module.weight.data.normal_(mean=0.0, std=std)
+            normal_(module.weight.data, mean=0.0, std=std)
             if module.padding_idx is not None:
-                module.weight.data[module.padding_idx].zero_()
+                module.weight.data[module.padding_idx] = 0
 
 
 Hunyuan_INPUTS_DOCSTRING = r"""
@@ -2385,7 +2446,7 @@ class HunyuanImage3ForCausalMM(HunyuanImage3PreTrainedModel, GenerationMixin):
             max_cache_len = output.tokens.shape[1] + default(max_new_tokens, self.generation_config.max_length)
         cache = HunyuanStaticCache(
             config=self.config,
-            batch_size=batch_size * cfg_factor[mode],
+            max_batch_size=batch_size * cfg_factor[mode],
             max_cache_len=max_cache_len,
             dtype=ms.bfloat16,
             dynamic=mode == "gen_text",
@@ -2393,7 +2454,7 @@ class HunyuanImage3ForCausalMM(HunyuanImage3PreTrainedModel, GenerationMixin):
 
         # 7. Build position ids
         batch_input_pos = mint.arange(0, output.tokens.shape[1], dtype=ms.int64)[None].expand(
-            batch_size * cfg_factor[mode], -1
+            (batch_size * cfg_factor[mode], -1)
         )  # use expand to share indices to save memory
 
         # 8. Build model input kwargs
@@ -2428,6 +2489,7 @@ class HunyuanImage3ForCausalMM(HunyuanImage3PreTrainedModel, GenerationMixin):
             tokenizer_output=output,
             batch_gen_image_info=batch_gen_image_info,
             generator=generator,
+            seeds=seeds,  # np.random.Generator cannot access the original seed as torch.Generator using initial_seed()
             # generation config
             eos_token_id=stop_token_id[bot_task],
             max_new_tokens=max_new_tokens,
@@ -2450,7 +2512,7 @@ class HunyuanImage3ForCausalMM(HunyuanImage3PreTrainedModel, GenerationMixin):
         batch_image_slices = [
             tokenizer_output.joint_image_slices[i] + tokenizer_output.gen_image_slices[i] for i in range(bsz)
         ]
-        attention_mask = mint.ones(seq_len, seq_len, dtype=ms.bool_).tril(diagonal=0).repeat(bsz, 1, 1)
+        attention_mask = mint.ones((seq_len, seq_len), dtype=ms.bool_).tril(diagonal=0).repeat(bsz, 1, 1)
         for i in range(bsz):
             for j, image_slice in enumerate(batch_image_slices[i]):
                 attention_mask[i, image_slice, image_slice] = True
@@ -2577,6 +2639,7 @@ class HunyuanImage3ForCausalMM(HunyuanImage3PreTrainedModel, GenerationMixin):
         negative_prompt_attention_mask: Optional[ms.Tensor] = None,
         use_model_defaults: Optional[bool] = None,
         generator: Optional[List[np.random.Generator]] = None,
+        seeds: Optional[List[int]] = None,
         verbose: int = 0,
         **kwargs,
     ):
@@ -2597,7 +2660,9 @@ class HunyuanImage3ForCausalMM(HunyuanImage3PreTrainedModel, GenerationMixin):
                 if generator is not None:
                     info_list.extend(
                         [
-                            ("seed", [g.initial_seed() for g in generator]),
+                            # np.random.Generator cannot access the original seed as torch.Generator using initial_seed()
+                            # ("seed", [g.initial_seed() for g in generator]),
+                            ("seed", [seed for seed in seeds]),
                         ]
                     )
                 info_list.extend(

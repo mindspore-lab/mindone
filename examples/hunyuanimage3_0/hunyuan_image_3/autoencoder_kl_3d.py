@@ -162,6 +162,7 @@ class ResnetBlock(nn.Cell):
 
     def construct(self, x):
         # Apply shortcut connection
+        print(f"ResnetBlock {x.dtype}")
         residual = x
 
         # First normalization and activation
