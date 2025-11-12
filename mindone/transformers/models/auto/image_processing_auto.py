@@ -74,6 +74,7 @@ else:
             ("owlvit", ("OwlViTImageProcessor",)),
             ("qwen2_5_vl", ("Qwen2VLImageProcessor",)),
             ("sam", ("SamImageProcessor",)),
+            ("sam2",("Sam2ImageProcessorFast",)),
             ("segformer", ("SegformerImageProcessor",)),
             ("siglip", ("SiglipImageProcessor", "SiglipImageProcessorFast")),
             ("videomae", ("VideoMAEImageProcessor",)),
