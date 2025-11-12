@@ -13,7 +13,7 @@ def find_tied_parameters(model: "nn.Cell", **kwargs):
     </Tip>
 
     Args:
-        model (`torch.nn.Module`): The model to inspect.
+        model (`mindspore.nn.Cell`): The model to inspect.
 
     Returns:
         list[list[str]]: A list of lists of parameter names being all tied together.
@@ -33,11 +33,11 @@ def find_tied_parameters(model: "nn.Cell", **kwargs):
     """
 
     # get ALL model parameters and their names
-    all_named_parameters = dict(model.named_parameters(remove_duplicate=False))
+    all_named_parameters = dict(model.name_cells())
 
     # get ONLY unique named parameters,
     # if parameter is tied and have multiple names, it will be included only once
-    no_duplicate_named_parameters = dict(model.named_parameters(remove_duplicate=True))
+    no_duplicate_named_parameters = dict(model.name_cells())
 
     # the difference of the two sets will give us the tied parameters
     tied_param_names = set(all_named_parameters.keys()) - set(no_duplicate_named_parameters.keys())
