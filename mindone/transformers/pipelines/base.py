@@ -46,7 +46,7 @@ GenericTensor = Union[list["GenericTensor"], "ms.Tensor"]
 
 if is_mindspore_available() or TYPE_CHECKING:
     import mindspore as ms
-    from mindspore import ops
+    from mindspore import mint
     from mindspore.dataset import Dataset, GeneratorDataset
 
     from ..models.auto.modeling_auto import AutoModel
@@ -77,15 +77,15 @@ def _pad(items, key, padding_value, padding_side):
         shape = items[0][key].shape
         dim = len(shape)
         if dim == 1:
-            # We have a list of 1-dim mindspore tensors, which can be stacked without padding
-            return ops.cat([item[key] for item in items], axis=0)
+            # We have a list of 1-dim ms tensors, which can be stacked without padding
+            return mint.cat([item[key] for item in items], dim=0)
         if key in ["pixel_values", "image"]:
             # This is probable image so padding shouldn't be necessary
             # B, C, H, W
-            return ops.cat([item[key] for item in items], axis=0)
+            return mint.cat([item[key] for item in items], dim=0)
         elif dim == 4 and key == "input_features":
             # this is probably a mel spectrogram batched
-            return ops.cat([item[key] for item in items], axis=0)
+            return mint.cat([item[key] for item in items], dim=0)
         max_length = max(item[key].shape[1] for item in items)
         min_length = min(item[key].shape[1] for item in items)
         dtype = items[0][key].dtype
@@ -94,12 +94,12 @@ def _pad(items, key, padding_value, padding_side):
             if max_length == min_length:
                 # Bypass for `ImageGPT` which doesn't provide a padding value, yet
                 # we can consistently pad since the size should be matching
-                return ops.cat([item[key] for item in items], axis=0)
-            tensor = ops.zeros((batch_size, max_length), dtype=dtype) + padding_value
+                return mint.cat([item[key] for item in items], dim=0)
+            tensor = mint.zeros((batch_size, max_length), dtype=dtype) + padding_value
         elif dim == 3:
-            tensor = ops.zeros((batch_size, max_length, shape[-1]), dtype=dtype) + padding_value
+            tensor = mint.zeros((batch_size, max_length, shape[-1]), dtype=dtype) + padding_value
         elif dim == 4:
-            tensor = ops.zeros((batch_size, max_length, shape[-2], shape[-1]), dtype=dtype) + padding_value
+            tensor = mint.zeros((batch_size, max_length, shape[-2], shape[-1]), dtype=dtype) + padding_value
 
         for i, item in enumerate(items):
             if dim == 2:
