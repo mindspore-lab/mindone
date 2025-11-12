@@ -867,7 +867,7 @@ class GenerationMixin:
         if self.config.is_encoder_decoder and encoder_outputs is not None:
             # make dummy input_ids with value -100, as a sanity check ensuring that they won't be used for encoding
             shape = encoder_outputs.last_hidden_state.shape[:-1]
-            return mint.ones(shape, dtype=ms.int32) * -100
+            return mint.ones(shape, dtype=ms.int64) * -100
 
         # If there is some tensor in `model_kwargs`, we can infer the batch size from it. This is helpful with
         # soft-prompting or in multimodal implementations built on top of decoder-only language models.
@@ -878,12 +878,12 @@ class GenerationMixin:
                 break
 
         if "inputs_embeds" in model_kwargs:
-            return mint.ones((batch_size, 0), dtype=ms.int32)
+            return mint.ones((batch_size, 0), dtype=ms.int64)
 
         if bos_token_id is None:
             raise ValueError("`bos_token_id` has to be defined when no `input_ids` are provided.")
 
-        return mint.ones((batch_size, 1), dtype=ms.int32) * bos_token_id
+        return mint.ones((batch_size, 1), dtype=ms.int64) * bos_token_id
 
     def _prepare_attention_mask_for_generation(
         self,
@@ -899,7 +899,7 @@ class GenerationMixin:
             inputs_tensor = model_kwargs["input_ids"]
 
         # No information for attention mask inference -> return default attention mask
-        default_attention_mask = mint.ones(inputs_tensor.shape[:2], dtype=ms.int32)
+        default_attention_mask = mint.ones(inputs_tensor.shape[:2], dtype=ms.int64)
         if pad_token_id is None:
             return default_attention_mask
 
@@ -981,7 +981,7 @@ class GenerationMixin:
                 )
             decoder_start_token_id = decoder_start_token_id.view(-1, 1)
         else:
-            decoder_start_token_id = mint.ones((batch_size, 1), dtype=ms.int32) * decoder_start_token_id
+            decoder_start_token_id = mint.ones((batch_size, 1), dtype=ms.int64) * decoder_start_token_id
 
         # 3. Encoder-decoder models expect the `decoder_input_ids` to start with a special token. Let's ensure that.
         # no user input -> use decoder_start_token_id as decoder_input_ids
@@ -2990,7 +2990,7 @@ class GenerationMixin:
         # keep track of which sequences are already finished
         batch_size, cur_len = input_ids.shape
         this_peer_finished = False
-        unfinished_sequences = mint.ones(batch_size, dtype=ms.int32)
+        unfinished_sequences = mint.ones(batch_size, dtype=ms.int64)
         model_kwargs = self._get_initial_cache_position(input_ids, model_kwargs)
 
         model_forward = self.__call__
@@ -3112,7 +3112,6 @@ class GenerationMixin:
             # finished sentences should have their next token be a padding token
             if has_eos_stopping_criteria:
                 next_tokens = next_tokens * unfinished_sequences + pad_token_id * (1 - unfinished_sequences)
-            next_tokens = next_tokens.to(ms.int32)
 
             # update generated ids, model inputs, and length for next step
             input_ids = mint.cat([input_ids, next_tokens[:, None]], dim=-1)
