@@ -1620,7 +1620,8 @@ class HammingDiversityLogitsProcessor(LogitsProcessor):
 
     def __init__(self, diversity_penalty: float, num_beams: int, num_beam_groups: int):
         logger.warning_once(
-            "`HammingDiversityLogitsProcessor` is deprecated and will be removed in v4.62.0, as constrained beam search has been moved to the Hub: https://hf.co/transformers-community/constrained-beam-search."
+            "`HammingDiversityLogitsProcessor` is deprecated and will be removed in v4.62.0, "
+            "as constrained beam search has been moved to the Hub: https://hf.co/transformers-community/constrained-beam-search."
         )
         if not isinstance(diversity_penalty, float) or (not diversity_penalty > 0.0):
             raise ValueError("`diversity_penalty` should be a float strictly larger than 0.")

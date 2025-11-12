@@ -27,8 +27,8 @@ import mindspore as ms
 from mindspore import mint, nn
 from mindspore import numpy as mnp
 
-from ..mindspore_utils import prune_linear_layer
 from ..mindspore_adapter import dtype_to_min
+from ..mindspore_utils import prune_linear_layer
 
 if is_sklearn_available():
     from sklearn.metrics import roc_curve
@@ -1080,9 +1080,7 @@ class PromptLookupCandidateGenerator(CandidateGenerator):
                     #    candidate token is forbidden and we don't want to generate it.
                     if self.logits_processor is not None:
                         sequence_with_candidate = input_ids
-                        fake_input_logits = mint.ones(
-                            (bsz, self.vocab_size), dtype=ms.float32
-                        )
+                        fake_input_logits = mint.ones((bsz, self.vocab_size), dtype=ms.float32)
                         for candidate_idx, new_candidate_token in enumerate(chosen_ids):
                             fake_output_logits = self.logits_processor(sequence_with_candidate, fake_input_logits)
                             fake_candidate_logits = fake_output_logits[0, new_candidate_token]

@@ -169,7 +169,8 @@ class BeamSearchScorer(BeamScorer):
         max_length: Optional[int] = None,
     ):
         logger.warning_once(
-            "`BeamSearchScorer` is deprecated and will be removed in v4.62.0, as constrained beam search has been moved to the Hub: https://hf.co/transformers-community/constrained-beam-search."
+            "`BeamSearchScorer` is deprecated and will be removed in v4.62.0, as constrained beam search has been moved to the Hub: "
+            "https://hf.co/transformers-community/constrained-beam-search."
         )
         self.num_beams = num_beams
         self.length_penalty = length_penalty
@@ -455,7 +456,8 @@ class ConstrainedBeamSearchScorer(BeamScorer):
         max_length: Optional[int] = None,
     ):
         logger.warning_once(
-            "`ConstrainedBeamSearchScorer` is deprecated and will be removed in v4.62.0, as constrained beam search has been moved to the Hub: https://hf.co/transformers-community/constrained-beam-search."
+            "`ConstrainedBeamSearchScorer` is deprecated and will be removed in v4.62.0, "
+            "as constrained beam search has been moved to the Hub: https://hf.co/transformers-community/constrained-beam-search."
         )
         self.num_beams = num_beams
         self.length_penalty = length_penalty
@@ -906,7 +908,8 @@ class BeamHypotheses:
         Initialize n-best list of hypotheses.
         """
         logger.warning_once(
-            "`BeamHypotheses` is deprecated and will be removed in v4.62.0, as constrained beam search has been moved to the Hub: https://hf.co/transformers-community/constrained-beam-search."
+            "`BeamHypotheses` is deprecated and will be removed in v4.62.0, as constrained beam search has been moved to the Hub: "
+            "https://hf.co/transformers-community/constrained-beam-search."
         )
         self.length_penalty = length_penalty
         self.early_stopping = early_stopping

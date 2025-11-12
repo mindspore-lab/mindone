@@ -1680,12 +1680,14 @@ class GenerationMixin:
             if self.config.get_text_config().vocab_size == assistant_model.config.get_text_config().vocab_size:
                 if "assistant_tokenizer" in generation_mode_kwargs:
                     raise ValueError(
-                        f"`assistant_tokenizer` is not required when the main and assistant models use the same tokenizer. Please omit `assistant_tokenizer` from `generate()` {doc_reference}."
+                        f"`assistant_tokenizer` is not required when the main and assistant models use the same tokenizer. "
+                        f"Please omit `assistant_tokenizer` from `generate()` {doc_reference}."
                     )
             else:
                 if "tokenizer" not in generation_mode_kwargs or "assistant_tokenizer" not in generation_mode_kwargs:
                     raise ValueError(
-                        f"The main and assistant models have different tokenizers. Please provide `tokenizer` and `assistant_tokenizer` to `generate()` {doc_reference}."
+                        f"The main and assistant models have different tokenizers. "
+                        f"Please provide `tokenizer` and `assistant_tokenizer` to `generate()` {doc_reference}."
                     )
 
     def _validate_model_kwargs(self, model_kwargs: dict[str, Any]):
@@ -3817,7 +3819,7 @@ class GenerationMixin:
         if generation_config.cache_implementation in ["static", "hybrid", "sliding_window"] or (
             "past_key_values" in model_kwargs
             and hasattr(model_kwargs["past_key_values"], "layers")
-            and any(getattr(l, "is_compileable", False) for l in model_kwargs["past_key_values"].layers)
+            and any(getattr(layer, "is_compileable", False) for layer in model_kwargs["past_key_values"].layers)
         ):
             raise ValueError("assisted generate is not supported with Static cache classes`")
         # Get the candidate generator, given the parameterization

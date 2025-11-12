@@ -26,7 +26,6 @@ import traceback
 import types
 import warnings
 from abc import ABC, abstractmethod
-from collections import UserDict
 from contextlib import contextmanager
 from os.path import abspath, exists
 from typing import TYPE_CHECKING, Any, Optional, Union

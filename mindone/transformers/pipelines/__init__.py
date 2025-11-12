@@ -18,7 +18,7 @@
 import os
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union, overload
 
 from huggingface_hub import model_info
 from transformers.configuration_utils import PretrainedConfig
@@ -112,7 +112,7 @@ if is_mindspore_available():
 if TYPE_CHECKING:
     from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
 
-    from ..modeling_utils import MSPreTrainedModel
+    from ..modeling_utils import PreTrainedModel
 
 
 logger = logging.get_logger(__name__)
@@ -394,55 +394,285 @@ def clean_custom_task(task_info):
 #            below and run `python utils/check_pipeline_typing.py --fix_and_overwrite` to update the file.
 #                🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨
 
-from typing import Literal, overload
+
+@overload
+def pipeline(task: Literal[None], model: Optional[Union[str, "PreTrainedModel"]] = None,
+             config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+             feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
+             image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None,
+             framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True,
+             token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto",
+             trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None,
+             pipeline_class: Optional[Any] = None, **kwargs: Any) -> Pipeline: ...
 
 
 @overload
-def pipeline(task: Literal[None], model: Optional[Union[str, "PreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> Pipeline: ...
+def pipeline(task: Literal["depth-estimation"], model: Optional[Union[str, "PreTrainedModel"]] = None,
+             config: Optional[Union[str, PretrainedConfig]] = None,
+             tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+             feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
+             image_processor: Optional[Union[str, BaseImageProcessor]] = None,
+             processor: Optional[Union[str, ProcessorMixin]] = None,
+             framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True,
+             token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto",
+             trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None,
+             pipeline_class: Optional[Any] = None, **kwargs: Any) -> DepthEstimationPipeline: ...
+
+
 @overload
-def pipeline(task: Literal["depth-estimation"], model: Optional[Union[str, "PreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> DepthEstimationPipeline: ...
+def pipeline(task: Literal["document-question-answering"], model: Optional[Union[str, "PreTrainedModel"]] = None,
+             config: Optional[Union[str, PretrainedConfig]] = None,
+             tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+             feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
+             image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None,
+             framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True,
+             token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto",
+             trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None,
+             pipeline_class: Optional[Any] = None, **kwargs: Any) -> DocumentQuestionAnsweringPipeline: ...
+
+
 @overload
-def pipeline(task: Literal["document-question-answering"], model: Optional[Union[str, "PreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> DocumentQuestionAnsweringPipeline: ...
+def pipeline(task: Literal["feature-extraction"], model: Optional[Union[str, "PreTrainedModel"]] = None,
+             config: Optional[Union[str, PretrainedConfig]] = None,
+             tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+             feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
+             image_processor: Optional[Union[str, BaseImageProcessor]] = None,
+             processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None,
+             revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None,
+             dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None,
+             model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> FeatureExtractionPipeline: ...
+
+
 @overload
-def pipeline(task: Literal["feature-extraction"], model: Optional[Union[str, "PreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> FeatureExtractionPipeline: ...
+def pipeline(task: Literal["fill-mask"], model: Optional[Union[str, "PreTrainedModel"]] = None,
+             config: Optional[Union[str, PretrainedConfig]] = None,
+             tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+             feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
+             image_processor: Optional[Union[str, BaseImageProcessor]] = None,
+             processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None,
+             revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None,
+             dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None,
+             model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> FillMaskPipeline: ...
+
+
 @overload
-def pipeline(task: Literal["fill-mask"], model: Optional[Union[str, "PreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> FillMaskPipeline: ...
+def pipeline(task: Literal["image-classification"], model: Optional[Union[str, "PreTrainedModel"]] = None,
+             config: Optional[Union[str, PretrainedConfig]] = None,
+             tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+             feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
+             image_processor: Optional[Union[str, BaseImageProcessor]] = None,
+             processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None,
+             revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None,
+             dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None,
+             model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ImageClassificationPipeline: ...
+
+
 @overload
-def pipeline(task: Literal["image-classification"], model: Optional[Union[str, "PreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ImageClassificationPipeline: ...
+def pipeline(task: Literal["image-feature-extraction"], model: Optional[Union[str, "PreTrainedModel"]] = None,
+             config: Optional[Union[str, PretrainedConfig]] = None,
+             tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+             feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
+             image_processor: Optional[Union[str, BaseImageProcessor]] = None,
+             processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None,
+             revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None,
+             dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None,
+             model_kwargs: Optional[dict[str, Any]] = None,
+             pipeline_class: Optional[Any] = None, **kwargs: Any) -> ImageFeatureExtractionPipeline: ...
+
+
 @overload
-def pipeline(task: Literal["image-feature-extraction"], model: Optional[Union[str, "PreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ImageFeatureExtractionPipeline: ...
+def pipeline(task: Literal["image-segmentation"], model: Optional[Union[str, "PreTrainedModel"]] = None,
+             config: Optional[Union[str, PretrainedConfig]] = None,
+             tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+             feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
+             image_processor: Optional[Union[str, BaseImageProcessor]] = None,
+             processor: Optional[Union[str, ProcessorMixin]] = None,
+             framework: Optional[str] = None, revision: Optional[str] = None,
+             use_fast: bool = True, token: Optional[Union[str, bool]] = None,
+             dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None,
+             model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ImageSegmentationPipeline: ...
+
+
 @overload
-def pipeline(task: Literal["image-segmentation"], model: Optional[Union[str, "PreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ImageSegmentationPipeline: ...
+def pipeline(task: Literal["image-text-to-text"], model: Optional[Union[str, "PreTrainedModel"]] = None,
+             config: Optional[Union[str, PretrainedConfig]] = None,
+             tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+             feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
+             image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None,
+             framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True,
+             token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto",
+             trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None,
+             pipeline_class: Optional[Any] = None, **kwargs: Any) -> ImageTextToTextPipeline: ...
+
+
 @overload
-def pipeline(task: Literal["image-text-to-text"], model: Optional[Union[str, "PreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ImageTextToTextPipeline: ...
+def pipeline(task: Literal["image-to-image"], model: Optional[Union[str, "PreTrainedModel"]] = None,
+             config: Optional[Union[str, PretrainedConfig]] = None,
+             tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+             feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
+             image_processor: Optional[Union[str, BaseImageProcessor]] = None,
+             processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None,
+             revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None,
+             dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None,
+             model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ImageToImagePipeline: ...
+
+
 @overload
-def pipeline(task: Literal["image-to-image"], model: Optional[Union[str, "PreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ImageToImagePipeline: ...
+def pipeline(task: Literal["image-to-text"], model: Optional[Union[str, "PreTrainedModel"]] = None,
+             config: Optional[Union[str, PretrainedConfig]] = None,
+             tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+             feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
+             image_processor: Optional[Union[str, BaseImageProcessor]] = None,
+             processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None,
+             revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None,
+             dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None,
+             model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ImageToTextPipeline: ...
+
+
 @overload
-def pipeline(task: Literal["image-to-text"], model: Optional[Union[str, "PreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ImageToTextPipeline: ...
+def pipeline(task: Literal["object-detection"], model: Optional[Union[str, "PreTrainedModel"]] = None,
+             config: Optional[Union[str, PretrainedConfig]] = None,
+             tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+             feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
+             image_processor: Optional[Union[str, BaseImageProcessor]] = None,
+             processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None,
+             revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None,
+             dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None,
+             model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ObjectDetectionPipeline: ...
+
+
 @overload
-def pipeline(task: Literal["object-detection"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ObjectDetectionPipeline: ...
+def pipeline(task: Literal["question-answering"], model: Optional[Union[str, "PreTrainedModel"]] = None,
+             config: Optional[Union[str, PretrainedConfig]] = None,
+             tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+             feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
+             image_processor: Optional[Union[str, BaseImageProcessor]] = None,
+             processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None,
+             revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None,
+             dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None,
+             model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> QuestionAnsweringPipeline: ...
+
+
 @overload
-def pipeline(task: Literal["question-answering"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> QuestionAnsweringPipeline: ...
+def pipeline(task: Literal["table-question-answering"], model: Optional[Union[str, "PreTrainedModel"]] = None,
+             config: Optional[Union[str, PretrainedConfig]] = None,
+             tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+             feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
+             image_processor: Optional[Union[str, BaseImageProcessor]] = None,
+             processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None,
+             revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None,
+             dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None,
+             model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> TableQuestionAnsweringPipeline: ...
+
+
 @overload
-def pipeline(task: Literal["table-question-answering"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> TableQuestionAnsweringPipeline: ...
+def pipeline(task: Literal["text-classification"], model: Optional[Union[str, "PreTrainedModel"]] = None,
+             config: Optional[Union[str, PretrainedConfig]] = None,
+             tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+             feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
+             image_processor: Optional[Union[str, BaseImageProcessor]] = None,
+             processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None,
+             revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None,
+             dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None,
+             model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> TextClassificationPipeline: ...
+
+
 @overload
-def pipeline(task: Literal["text-classification"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> TextClassificationPipeline: ...
+def pipeline(task: Literal["text-generation"], model: Optional[Union[str, "PreTrainedModel"]] = None,
+             config: Optional[Union[str, PretrainedConfig]] = None,
+             tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+             feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
+             image_processor: Optional[Union[str, BaseImageProcessor]] = None,
+             processor: Optional[Union[str, ProcessorMixin]] = None,
+             framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True,
+             token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto",
+             trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None,
+             pipeline_class: Optional[Any] = None, **kwargs: Any) -> TextGenerationPipeline: ...
+
+
 @overload
-def pipeline(task: Literal["text-generation"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> TextGenerationPipeline: ...
+def pipeline(task: Literal["text2text-generation"], model: Optional[Union[str, "PreTrainedModel"]] = None,
+             config: Optional[Union[str, PretrainedConfig]] = None,
+             tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+             feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
+             image_processor: Optional[Union[str, BaseImageProcessor]] = None,
+             processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None,
+             revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None,
+             dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None,
+             model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> Text2TextGenerationPipeline: ...
+
+
 @overload
-def pipeline(task: Literal["text2text-generation"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> Text2TextGenerationPipeline: ...
+def pipeline(task: Literal["token-classification"], model: Optional[Union[str, "PreTrainedModel"]] = None,
+             config: Optional[Union[str, PretrainedConfig]] = None,
+             tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+             feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
+             image_processor: Optional[Union[str, BaseImageProcessor]] = None,
+             processor: Optional[Union[str, ProcessorMixin]] = None,
+             framework: Optional[str] = None, revision: Optional[str] = None,
+             use_fast: bool = True, token: Optional[Union[str, bool]] = None,
+             dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None,
+             model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> TokenClassificationPipeline: ...
+
+
 @overload
-def pipeline(task: Literal["token-classification"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> TokenClassificationPipeline: ...
+def pipeline(task: Literal["video-classification"], model: Optional[Union[str, "PreTrainedModel"]] = None,
+             config: Optional[Union[str, PretrainedConfig]] = None,
+             tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+             feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
+             image_processor: Optional[Union[str, BaseImageProcessor]] = None,
+             processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None,
+             revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None,
+             dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None,
+             model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> VideoClassificationPipeline: ...
+
+
 @overload
-def pipeline(task: Literal["video-classification"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> VideoClassificationPipeline: ...
+def pipeline(task: Literal["visual-question-answering"], model: Optional[Union[str, "PreTrainedModel"]] = None,
+             config: Optional[Union[str, PretrainedConfig]] = None,
+             tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+             feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
+             image_processor: Optional[Union[str, BaseImageProcessor]] = None,
+             processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None,
+             revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None,
+             dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None,
+             model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> VisualQuestionAnsweringPipeline: ...
+
+
 @overload
-def pipeline(task: Literal["visual-question-answering"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> VisualQuestionAnsweringPipeline: ...
+def pipeline(task: Literal["zero-shot-classification"], model: Optional[Union[str, "PreTrainedModel"]] = None,
+             config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+             feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
+             image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None,
+             framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True,
+             token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto",
+             trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None,
+             pipeline_class: Optional[Any] = None, **kwargs: Any) -> ZeroShotClassificationPipeline: ...
+
+
 @overload
-def pipeline(task: Literal["zero-shot-classification"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ZeroShotClassificationPipeline: ...
+def pipeline(task: Literal["zero-shot-image-classification"], model: Optional[Union[str, "PreTrainedModel"]] = None,
+             config: Optional[Union[str, PretrainedConfig]] = None,
+             tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+             feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
+             image_processor: Optional[Union[str, BaseImageProcessor]] = None,
+             processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None,
+             revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None,
+             dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None,
+             model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ZeroShotImageClassificationPipeline: ...
+
+
 @overload
-def pipeline(task: Literal["zero-shot-image-classification"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ZeroShotImageClassificationPipeline: ...
-@overload
-def pipeline(task: Literal["zero-shot-object-detection"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ZeroShotObjectDetectionPipeline: ...
+def pipeline(task: Literal["zero-shot-object-detection"], model: Optional[Union[str, "PreTrainedModel"]] = None,
+             config: Optional[Union[str, PretrainedConfig]] = None,
+             tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+             feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
+             image_processor: Optional[Union[str, BaseImageProcessor]] = None,
+             processor: Optional[Union[str, ProcessorMixin]] = None,
+             framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True,
+             token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto",
+             trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None,
+             pipeline_class: Optional[Any] = None, **kwargs: Any) -> ZeroShotObjectDetectionPipeline: ...
 
 #                🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨
 #                       The part of the file above was automatically generated from the code.
@@ -453,7 +683,7 @@ def pipeline(task: Literal["zero-shot-object-detection"], model: Optional[Union[
 
 def pipeline(
     task: Optional[str] = None,
-    model: Optional[Union[str, "MSPreTrainedModel"]] = None,
+    model: Optional[Union[str, "PreTrainedModel"]] = None,
     config: Optional[Union[str, PretrainedConfig]] = None,
     tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
     feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
