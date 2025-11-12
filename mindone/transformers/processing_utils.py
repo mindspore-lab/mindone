@@ -1640,9 +1640,6 @@ class ProcessorMixin(PushToHubMixin):
                     ]
                     videos.extend(video_fnames)
 
-                    for fname in image_fnames:
-                        images.append(load_image(fname))
-
                     # Audio models do not accept nested list of audios (yet!) so we construct a flat input audio list
                     if not mm_load_kwargs["load_audio_from_video"]:
                         for fname in audio_fnames:
