@@ -41,7 +41,7 @@ from .image_processing_utils import BatchFeature, get_size_dict
 from .image_processing_utils_fast import BaseImageProcessorFast
 from .image_utils import ChannelDimension, SizeDict, validate_kwargs
 from .processing_utils import Unpack, VideosKwargs
-from .utils import TensorType, is_mindspore_available, is_vision_available, logging
+from .utils import TensorType, is_mindspore_available, logging
 from .video_utils import (
     VideoInput,
     VideoMetadata,

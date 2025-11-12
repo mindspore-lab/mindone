@@ -6,6 +6,8 @@ from ..utils import is_vision_available, requires_backends
 from .base import GenericTensor, Pipeline
 
 if is_vision_available():
+    from PIL import Image
+
     from ..image_utils import load_image
 
 

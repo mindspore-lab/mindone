@@ -28,6 +28,7 @@ from mindspore import mint, nn
 from mindspore import numpy as mnp
 
 from ..mindspore_utils import prune_linear_layer
+from ..mindspore_adapter import dtype_to_min
 
 if is_sklearn_available():
     from sklearn.metrics import roc_curve
@@ -1039,7 +1040,7 @@ class PromptLookupCandidateGenerator(CandidateGenerator):
         Return:
             `ms.Tensor` of shape `(num_candidates, candidate_length)`: The candidate sequences to be tried.
         """
-        bs, input_length = input_ids.shape
+        bsz, input_length = input_ids.shape
 
         # Don't generate more than `max_length - 1` candidates since the target model generates one extra token.
         if self.max_length == input_length + 1:
@@ -1079,18 +1080,18 @@ class PromptLookupCandidateGenerator(CandidateGenerator):
                     #    candidate token is forbidden and we don't want to generate it.
                     if self.logits_processor is not None:
                         sequence_with_candidate = input_ids
-                        fake_input_logits = torch.ones(
-                            (bsz, self.vocab_size), device=input_ids.device, dtype=torch.float32
+                        fake_input_logits = mint.ones(
+                            (bsz, self.vocab_size), dtype=ms.float32
                         )
                         for candidate_idx, new_candidate_token in enumerate(chosen_ids):
                             fake_output_logits = self.logits_processor(sequence_with_candidate, fake_input_logits)
                             fake_candidate_logits = fake_output_logits[0, new_candidate_token]
                             # next candidate token is forbidden -> crop chosen_ids accordingly
-                            if fake_candidate_logits in (-float("Inf"), torch.finfo(fake_candidate_logits.dtype).min):
+                            if fake_candidate_logits in (-float("Inf"), dtype_to_min(fake_candidate_logits.dtype)):
                                 chosen_ids = chosen_ids[:candidate_idx]
                                 break
                             else:
-                                sequence_with_candidate = torch.cat(
+                                sequence_with_candidate = mint.cat(
                                     (input_ids, chosen_ids[: candidate_idx + 1].unsqueeze(0)), dim=1
                                 )
                         # no valid candidate tokens -> look for a different match
