@@ -1093,15 +1093,6 @@ class ProcessorMixin(PushToHubMixin):
             except json.JSONDecodeError:
                 raise OSError(f"It looks like the config file at '{resolved_processor_file}' is not a valid JSON file.")
 
-        try:
-            # Load processor dict
-            with open(resolved_processor_file, encoding="utf-8") as reader:
-                text = reader.read()
-            processor_dict = json.loads(text)
-
-        except json.JSONDecodeError:
-            raise OSError(f"It looks like the config file at '{resolved_processor_file}' is not a valid JSON file.")
-
         if is_local:
             logger.info(f"loading configuration file {resolved_processor_file}")
         else:
