@@ -66,8 +66,8 @@ from .image_segmentation import ImageSegmentationPipeline
 from .image_text_to_text import ImageTextToTextPipeline
 from .image_to_image import ImageToImagePipeline
 from .image_to_text import ImageToTextPipeline
-from .mask_generation import MaskGenerationPipeline
 from .keypoint_matching import KeypointMatchingPipeline
+from .mask_generation import MaskGenerationPipeline
 from .object_detection import ObjectDetectionPipeline
 from .question_answering import QuestionAnsweringArgumentHandler, QuestionAnsweringPipeline
 from .table_question_answering import TableQuestionAnsweringPipeline

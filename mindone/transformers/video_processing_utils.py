@@ -57,7 +57,7 @@ from .video_utils import (
 if is_mindspore_available():
     import mindspore as ms
     from mindspore import mint
-    from mindspore.mint.nn.functional import F
+    import mindspore.mint.nn.functional as F
 
 
 logger = logging.get_logger(__name__)
