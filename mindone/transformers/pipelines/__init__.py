@@ -18,12 +18,12 @@
 import os
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from huggingface_hub import model_info
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import get_class_from_dynamic_module
-from transformers.models.auto.tokenization_auto import TOKENIZER_MAPPING, AutoTokenizer
+from transformers.models.auto.tokenization_auto import AutoTokenizer
 from transformers.tokenization_utils import PreTrainedTokenizer
 from transformers.utils import (
     CONFIG_NAME,
@@ -35,15 +35,15 @@ from transformers.utils import (
     logging,
 )
 
-from mindone.transformers.models.auto.feature_extraction_auto import FEATURE_EXTRACTOR_MAPPING, AutoFeatureExtractor
-from mindone.transformers.models.auto.image_processing_auto import IMAGE_PROCESSOR_MAPPING, AutoImageProcessor
-from mindone.transformers.models.auto.processing_auto import PROCESSOR_MAPPING, AutoProcessor
+from mindone.transformers.models.auto.feature_extraction_auto import AutoFeatureExtractor
+from mindone.transformers.models.auto.image_processing_auto import AutoImageProcessor
+from mindone.transformers.models.auto.processing_auto import AutoProcessor
 
 from ..feature_extraction_utils import PreTrainedFeatureExtractor
 from ..image_processing_utils import BaseImageProcessor
 from ..models.auto.configuration_auto import AutoConfig
 from ..processing_utils import ProcessorMixin
-from ..utils import is_mindspore_available
+from ..utils import is_mindspore_available, is_pyctcdecode_available
 from .base import (
     ArgumentHandler,
     CsvPipelineDataFormat,
@@ -67,6 +67,7 @@ from .image_text_to_text import ImageTextToTextPipeline
 from .image_to_image import ImageToImagePipeline
 from .image_to_text import ImageToTextPipeline
 from .mask_generation import MaskGenerationPipeline
+from .keypoint_matching import KeypointMatchingPipeline
 from .object_detection import ObjectDetectionPipeline
 from .question_answering import QuestionAnsweringArgumentHandler, QuestionAnsweringPipeline
 from .table_question_answering import TableQuestionAnsweringPipeline
@@ -92,6 +93,7 @@ if is_mindspore_available():
         AutoModelForImageSegmentation,
         AutoModelForImageTextToText,
         AutoModelForImageToImage,
+        AutoModelForKeypointMatching,
         AutoModelForMaskedLM,
         AutoModelForMaskGeneration,
         AutoModelForObjectDetection,
@@ -281,34 +283,19 @@ SUPPORTED_TASKS = {
         "default": {"model": {"ms": ("caidas/swin2SR-classical-sr-x2-64", "cee1c92")}},
         "type": "image",
     },
+    "keypoint-matching": {
+        "impl": KeypointMatchingPipeline,
+        "tf": (),
+        "pt": (AutoModelForKeypointMatching,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("magic-leap-community/superglue_outdoor", "f4041f8")}},
+        "type": "image",
+    },
 }
-
-NO_FEATURE_EXTRACTOR_TASKS = set()
-NO_IMAGE_PROCESSOR_TASKS = set()
-NO_TOKENIZER_TASKS = set()
-
-# Those model configs are special, they are generic over their task, meaning
-# any tokenizer/feature_extractor might be use for a given model so we cannot
-# use the statically defined TOKENIZER_MAPPING and FEATURE_EXTRACTOR_MAPPING to
-# see if the model defines such objects or not.
-MULTI_MODEL_AUDIO_CONFIGS = {"SpeechEncoderDecoderConfig"}
-MULTI_MODEL_VISION_CONFIGS = {"VisionEncoderDecoderConfig", "VisionTextDualEncoderConfig"}
-for task, values in SUPPORTED_TASKS.items():
-    if values["type"] == "text":
-        NO_FEATURE_EXTRACTOR_TASKS.add(task)
-        NO_IMAGE_PROCESSOR_TASKS.add(task)
-    elif values["type"] in {"image", "video"}:
-        NO_TOKENIZER_TASKS.add(task)
-    elif values["type"] in {"audio"}:
-        NO_TOKENIZER_TASKS.add(task)
-        NO_IMAGE_PROCESSOR_TASKS.add(task)
-    elif values["type"] != "multimodal":
-        raise ValueError(f"SUPPORTED_TASK {task} contains invalid type {values['type']}")
 
 PIPELINE_REGISTRY = PipelineRegistry(supported_tasks=SUPPORTED_TASKS, task_aliases=TASK_ALIASES)
 
 
-def get_supported_tasks() -> List[str]:
+def get_supported_tasks() -> list[str]:
     """
     Returns a list of supported task strings.
     """
@@ -342,7 +329,7 @@ def get_task(model: str, token: Optional[str] = None, **deprecated_kwargs) -> st
     return task
 
 
-def check_task(task: str) -> Tuple[str, Dict, Any]:
+def check_task(task: str) -> tuple[str, dict, Any]:
     """
     Checks an incoming task string, to validate it's correct and return the default Pipeline and Model classes, and
     default models if they exist.
@@ -383,7 +370,7 @@ def check_task(task: str) -> Tuple[str, Dict, Any]:
     Returns:
         (normalized_task: `str`, task_defaults: `dict`, task_options: (`tuple`, None)) The normalized task name
         (removed alias and options). The actual dictionary required to initialize the pipeline and some extra task
-        options for parametrized tasks like "translation_XX_to_YY"
+        options for parametrized tasks like "translation_xx_to_yy"
 
 
     """
@@ -406,8 +393,74 @@ def clean_custom_task(task_info):
     return task_info, None
 
 
+# <generated-code>
+# fmt: off
+#                🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨
+#                       The part of the file below was automatically generated from the code.
+#           Do NOT edit this part of the file manually as any edits will be overwritten by the generation
+#           of the file. If any change should be done, please apply the changes to the `pipeline` function
+#            below and run `python utils/check_pipeline_typing.py --fix_and_overwrite` to update the file.
+#                🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨
+
+from typing import Literal, overload
+
+
+@overload
+def pipeline(task: Literal[None], model: Optional[Union[str, "PreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> Pipeline: ...
+@overload
+def pipeline(task: Literal["depth-estimation"], model: Optional[Union[str, "PreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> DepthEstimationPipeline: ...
+@overload
+def pipeline(task: Literal["document-question-answering"], model: Optional[Union[str, "PreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> DocumentQuestionAnsweringPipeline: ...
+@overload
+def pipeline(task: Literal["feature-extraction"], model: Optional[Union[str, "PreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> FeatureExtractionPipeline: ...
+@overload
+def pipeline(task: Literal["fill-mask"], model: Optional[Union[str, "PreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> FillMaskPipeline: ...
+@overload
+def pipeline(task: Literal["image-classification"], model: Optional[Union[str, "PreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ImageClassificationPipeline: ...
+@overload
+def pipeline(task: Literal["image-feature-extraction"], model: Optional[Union[str, "PreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ImageFeatureExtractionPipeline: ...
+@overload
+def pipeline(task: Literal["image-segmentation"], model: Optional[Union[str, "PreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ImageSegmentationPipeline: ...
+@overload
+def pipeline(task: Literal["image-text-to-text"], model: Optional[Union[str, "PreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ImageTextToTextPipeline: ...
+@overload
+def pipeline(task: Literal["image-to-image"], model: Optional[Union[str, "PreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ImageToImagePipeline: ...
+@overload
+def pipeline(task: Literal["image-to-text"], model: Optional[Union[str, "PreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ImageToTextPipeline: ...
+@overload
+def pipeline(task: Literal["object-detection"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ObjectDetectionPipeline: ...
+@overload
+def pipeline(task: Literal["question-answering"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> QuestionAnsweringPipeline: ...
+@overload
+def pipeline(task: Literal["table-question-answering"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> TableQuestionAnsweringPipeline: ...
+@overload
+def pipeline(task: Literal["text-classification"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> TextClassificationPipeline: ...
+@overload
+def pipeline(task: Literal["text-generation"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> TextGenerationPipeline: ...
+@overload
+def pipeline(task: Literal["text2text-generation"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> Text2TextGenerationPipeline: ...
+@overload
+def pipeline(task: Literal["token-classification"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> TokenClassificationPipeline: ...
+@overload
+def pipeline(task: Literal["video-classification"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> VideoClassificationPipeline: ...
+@overload
+def pipeline(task: Literal["visual-question-answering"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> VisualQuestionAnsweringPipeline: ...
+@overload
+def pipeline(task: Literal["zero-shot-classification"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ZeroShotClassificationPipeline: ...
+@overload
+def pipeline(task: Literal["zero-shot-image-classification"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ZeroShotImageClassificationPipeline: ...
+@overload
+def pipeline(task: Literal["zero-shot-object-detection"], model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None, config: Optional[Union[str, PretrainedConfig]] = None, tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None, feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None, image_processor: Optional[Union[str, BaseImageProcessor]] = None, processor: Optional[Union[str, ProcessorMixin]] = None, framework: Optional[str] = None, revision: Optional[str] = None, use_fast: bool = True, token: Optional[Union[str, bool]] = None, dtype: Optional[Union[str, "ms.Type"]] = "auto", trust_remote_code: Optional[bool] = None, model_kwargs: Optional[dict[str, Any]] = None, pipeline_class: Optional[Any] = None, **kwargs: Any) -> ZeroShotObjectDetectionPipeline: ...
+
+#                🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨
+#                       The part of the file above was automatically generated from the code.
+#                🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨
+# fmt: on
+# </generated-code>
+
+
 def pipeline(
-    task: str = None,
+    task: Optional[str] = None,
     model: Optional[Union[str, "MSPreTrainedModel"]] = None,
     config: Optional[Union[str, PretrainedConfig]] = None,
     tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
@@ -418,13 +471,11 @@ def pipeline(
     revision: Optional[str] = None,
     use_fast: bool = True,
     token: Optional[Union[str, bool]] = None,
-    device: Optional[Union[int, str]] = None,
-    device_map=None,
-    mindspore_dtype=None,
+    dtype=None,
     trust_remote_code: Optional[bool] = None,
-    model_kwargs: Dict[str, Any] = None,
+    model_kwargs: Optional[dict[str, Any]] = None,
     pipeline_class: Optional[Any] = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> Pipeline:
     """
     Utility factory method to build a [`Pipeline`].
@@ -543,7 +594,7 @@ def pipeline(
             Whether or not to use a Fast tokenizer if possible (a [`PreTrainedTokenizerFast`]).
         use_auth_token (`str` or *bool*, *optional*):
             The token to use as HTTP bearer authorization for remote files. If `True`, will use the token generated
-            when running `huggingface-cli login` (stored in `~/.huggingface`).
+            when running `hf auth login` (stored in `~/.huggingface`).
 
         mindspore_dtype (`str` or `mindspore.Type`, *optional*):
             Sent directly as `model_kwargs` (just a simpler shortcut) to use the available precision for this model
@@ -552,10 +603,10 @@ def pipeline(
             Whether or not to allow for custom code defined on the Hub in their own modeling, configuration,
             tokenization or even pipeline files. This option should only be set to `True` for repositories you trust
             and in which you have read the code, as it will execute code present on the Hub on your local machine.
-        model_kwargs (`Dict[str, Any]`, *optional*):
+        model_kwargs (`dict[str, Any]`, *optional*):
             Additional dictionary of keyword arguments passed along to the model's `from_pretrained(...,
             **model_kwargs)` function.
-        kwargs (`Dict[str, Any]`, *optional*):
+        kwargs (`dict[str, Any]`, *optional*):
             Additional keyword arguments passed along to the specific pipeline init (see the documentation for the
             corresponding pipeline class for possible values).
 
@@ -650,18 +701,18 @@ def pipeline(
 
     # Config is the primordial information item.
     # Instantiate config if needed
+    adapter_path = None
     if isinstance(config, str):
         config = AutoConfig.from_pretrained(
             config, _from_pipeline=task, code_revision=code_revision, **hub_kwargs, **model_kwargs
         )
         hub_kwargs["_commit_hash"] = config._commit_hash
     elif config is None and isinstance(model, str):
-        # Check for an adapter file in the model path if PEFT is available
-
         config = AutoConfig.from_pretrained(
             model, _from_pipeline=task, code_revision=code_revision, **hub_kwargs, **model_kwargs
         )
         hub_kwargs["_commit_hash"] = config._commit_hash
+    hub_kwargs["_commit_hash"] = config._commit_hash
 
     custom_tasks = {}
     if config is not None and len(getattr(config, "custom_pipelines", {})) > 0:
@@ -685,7 +736,6 @@ def pipeline(
 
     # Retrieve the task
     if task in custom_tasks:
-        normalized_task = task
         targeted_task, task_options = clean_custom_task(custom_tasks[task])
         if pipeline_class is None:
             if not trust_remote_code:
@@ -721,27 +771,29 @@ def pipeline(
             config = AutoConfig.from_pretrained(model, _from_pipeline=task, **hub_kwargs, **model_kwargs)
             hub_kwargs["_commit_hash"] = config._commit_hash
 
-    if device_map is not None:
-        if "device_map" in model_kwargs:
-            raise ValueError(
-                'You cannot use both `pipeline(... device_map=..., model_kwargs={"device_map":...})` as those'
-                " arguments might conflict, use only one.)"
-            )
-        if device is not None:
-            logger.warning(
-                "Both `device` and `device_map` are specified. `device` will override `device_map`. You"
-                " will most likely encounter unexpected behavior. Please remove `device` and keep `device_map`."
-            )
-        model_kwargs["device_map"] = device_map
-    if mindspore_dtype is not None:
+    # BC for the `mindspore_dtype` argument
+    if (mindspore_dtype := kwargs.get("mindspore_dtype")) is not None:
+        logger.warning_once("`mindspore_dtype` is deprecated! Use `dtype` instead!")
+        # If both are provided, keep `dtype`
+        dtype = mindspore_dtype if dtype == "auto" else dtype
+    if "mindspore_dtype" in model_kwargs or "dtype" in model_kwargs:
         if "mindspore_dtype" in model_kwargs:
+            logger.warning_once("`mindspore_dtype` is deprecated! Use `dtype` instead!")
+        # If the user did not explicitly provide `dtype` (i.e. the function default "auto" is still
+        # present) but a value is supplied inside `model_kwargs`, we silently defer to the latter instead of
+        # raising. This prevents false positives like providing `dtype` only via `model_kwargs` while the
+        # top-level argument keeps its default value "auto".
+        if dtype == "auto":
+            dtype = None
+        else:
             raise ValueError(
-                'You cannot use both `pipeline(... mindspore_dtype=..., model_kwargs={"mindspore_dtype":...})` as those'
+                'You cannot use both `pipeline(... dtype=..., model_kwargs={"dtype":...})` as those'
                 " arguments might conflict, use only one.)"
             )
-        if isinstance(mindspore_dtype, str) and hasattr(ms, mindspore_dtype):
-            mindspore_dtype = getattr(ms, mindspore_dtype)
-        model_kwargs["mindspore_dtype"] = mindspore_dtype
+    if dtype is not None:
+        if isinstance(dtype, str) and hasattr(ms, dtype):
+            dtype = getattr(ms, dtype)
+        model_kwargs["dtype"] = dtype
 
     model_name = model if isinstance(model, str) else None
 
@@ -750,7 +802,7 @@ def pipeline(
     if isinstance(model, str) or framework is None:
         model_classes = {"ms": targeted_task["ms"]}
         framework, model = infer_framework_load_model(
-            model,
+            adapter_path if adapter_path is not None else model,
             model_classes=model_classes,
             config=config,
             framework=framework,
@@ -759,202 +811,169 @@ def pipeline(
             **model_kwargs,
         )
 
-    model_config = model.config
     hub_kwargs["_commit_hash"] = model.config._commit_hash
 
-    load_tokenizer = type(model_config) in TOKENIZER_MAPPING or model_config.tokenizer_class is not None
-    load_feature_extractor = type(model_config) in FEATURE_EXTRACTOR_MAPPING or feature_extractor is not None
-    load_image_processor = type(model_config) in IMAGE_PROCESSOR_MAPPING or image_processor is not None
-    load_processor = type(model_config) in PROCESSOR_MAPPING or processor is not None
+    # Check which preprocessing classes the pipeline uses
+    # None values indicate optional classes that the pipeline can run without, we don't raise errors if loading fails
+    load_tokenizer = pipeline_class._load_tokenizer
+    load_feature_extractor = pipeline_class._load_feature_extractor
+    load_image_processor = pipeline_class._load_image_processor
+    load_processor = pipeline_class._load_processor
 
-    # Check that pipeline class required loading
-    load_tokenizer = load_tokenizer and pipeline_class._load_tokenizer
-    load_feature_extractor = load_feature_extractor and pipeline_class._load_feature_extractor
-    load_image_processor = load_image_processor and pipeline_class._load_image_processor
-    load_processor = load_processor and pipeline_class._load_processor
+    if load_tokenizer or load_tokenizer is None:
+        try:
+            # Try to infer tokenizer from model or config name (if provided as str)
+            if tokenizer is None:
+                if isinstance(model_name, str):
+                    tokenizer = model_name
+                elif isinstance(config, str):
+                    tokenizer = config
+                else:
+                    # Impossible to guess what is the right tokenizer here
+                    raise Exception(
+                        "Impossible to guess which tokenizer to use. "
+                        "Please provide a PreTrainedTokenizer class or a path/identifier to a pretrained tokenizer."
+                    )
 
-    # If `model` (instance of `PretrainedModel` instead of `str`) is passed (and/or same for config), while
-    # `image_processor` or `feature_extractor` is `None`, the loading will fail. This happens particularly for some
-    # vision tasks when calling `pipeline()` with `model` and only one of the `image_processor` and `feature_extractor`.
-    # TODO: we need to make `NO_IMAGE_PROCESSOR_TASKS` and `NO_FEATURE_EXTRACTOR_TASKS` more robust to avoid such issue.
-    # This block is only temporarily to make CI green.
-    if load_image_processor and load_feature_extractor:
-        load_feature_extractor = False
+            # Instantiate tokenizer if needed
+            if isinstance(tokenizer, (str, tuple)):
+                if isinstance(tokenizer, tuple):
+                    # For tuple we have (tokenizer name, {kwargs})
+                    use_fast = tokenizer[1].pop("use_fast", use_fast)
+                    tokenizer_identifier = tokenizer[0]
+                    tokenizer_kwargs = tokenizer[1]
+                else:
+                    tokenizer_identifier = tokenizer
+                    tokenizer_kwargs = model_kwargs.copy()
+                    tokenizer_kwargs.pop("torch_dtype", None), tokenizer_kwargs.pop("dtype", None)
 
-    if (
-        tokenizer is None
-        and not load_tokenizer
-        and normalized_task not in NO_TOKENIZER_TASKS
-        # Using class name to avoid importing the real class.
-        and (
-            model_config.__class__.__name__ in MULTI_MODEL_AUDIO_CONFIGS
-            or model_config.__class__.__name__ in MULTI_MODEL_VISION_CONFIGS
-        )
-    ):
-        # This is a special category of models, that are fusions of multiple models
-        # so the model_config might not define a tokenizer, but it seems to be
-        # necessary for the task, so we're force-trying to load it.
-        load_tokenizer = True
-    if (
-        image_processor is None
-        and not load_image_processor
-        and normalized_task not in NO_IMAGE_PROCESSOR_TASKS
-        # Using class name to avoid importing the real class.
-        and model_config.__class__.__name__ in MULTI_MODEL_VISION_CONFIGS
-    ):
-        # This is a special category of models, that are fusions of multiple models
-        # so the model_config might not define a tokenizer, but it seems to be
-        # necessary for the task, so we're force-trying to load it.
-        load_image_processor = True
-    if (
-        feature_extractor is None
-        and not load_feature_extractor
-        and normalized_task not in NO_FEATURE_EXTRACTOR_TASKS
-        # Using class name to avoid importing the real class.
-        and model_config.__class__.__name__ in MULTI_MODEL_AUDIO_CONFIGS
-    ):
-        # This is a special category of models, that are fusions of multiple models
-        # so the model_config might not define a tokenizer, but it seems to be
-        # necessary for the task, so we're force-trying to load it.
-        load_feature_extractor = True
-
-    if task in NO_TOKENIZER_TASKS:
-        # These will never require a tokenizer.
-        # the model on the other hand might have a tokenizer, but
-        # the files could be missing from the hub, instead of failing
-        # on such repos, we just force to not load it.
-        load_tokenizer = False
-
-    if task in NO_FEATURE_EXTRACTOR_TASKS:
-        load_feature_extractor = False
-    if task in NO_IMAGE_PROCESSOR_TASKS:
-        load_image_processor = False
-
-    if load_tokenizer:
-        # Try to infer tokenizer from model or config name (if provided as str)
-        if tokenizer is None:
-            if isinstance(model_name, str):
-                tokenizer = model_name
-            elif isinstance(config, str):
-                tokenizer = config
+                tokenizer = AutoTokenizer.from_pretrained(
+                    tokenizer_identifier, use_fast=use_fast, _from_pipeline=task, **hub_kwargs, **tokenizer_kwargs
+                )
+        except Exception as e:
+            if load_tokenizer:
+                raise e
             else:
-                # Impossible to guess what is the right tokenizer here
-                raise Exception(
-                    "Impossible to guess which tokenizer to use. "
-                    "Please provide a PreTrainedTokenizer class or a path/identifier to a pretrained tokenizer."
+                tokenizer = None
+
+    if load_image_processor or load_image_processor is None:
+        try:
+            # Try to infer image processor from model or config name (if provided as str)
+            if image_processor is None:
+                if isinstance(model_name, str):
+                    image_processor = model_name
+                elif isinstance(config, str):
+                    image_processor = config
+                # Backward compatibility, as `feature_extractor` used to be the name
+                # for `ImageProcessor`.
+                elif feature_extractor is not None and isinstance(feature_extractor, BaseImageProcessor):
+                    image_processor = feature_extractor
+                else:
+                    # Impossible to guess what is the right image_processor here
+                    raise Exception(
+                        "Impossible to guess which image processor to use. "
+                        "Please provide a PreTrainedImageProcessor class or a path/identifier "
+                        "to a pretrained image processor."
+                    )
+
+            # Instantiate image_processor if needed
+            if isinstance(image_processor, (str, tuple)):
+                image_processor = AutoImageProcessor.from_pretrained(
+                    image_processor, _from_pipeline=task, **hub_kwargs, **model_kwargs
+                )
+        except Exception as e:
+            if load_image_processor:
+                raise e
+            else:
+                image_processor = None
+
+    if load_feature_extractor or load_feature_extractor is None:
+        try:
+            # Try to infer feature extractor from model or config name (if provided as str)
+            if feature_extractor is None:
+                if isinstance(model_name, str):
+                    feature_extractor = model_name
+                elif isinstance(config, str):
+                    feature_extractor = config
+                else:
+                    # Impossible to guess what is the right feature_extractor here
+                    raise Exception(
+                        "Impossible to guess which feature extractor to use. "
+                        "Please provide a PreTrainedFeatureExtractor class or a path/identifier "
+                        "to a pretrained feature extractor."
+                    )
+
+            # Instantiate feature_extractor if needed
+            if isinstance(feature_extractor, (str, tuple)):
+                feature_extractor = AutoFeatureExtractor.from_pretrained(
+                    feature_extractor, _from_pipeline=task, **hub_kwargs, **model_kwargs
                 )
 
-        # Instantiate tokenizer if needed
-        if isinstance(tokenizer, (str, tuple)):
-            if isinstance(tokenizer, tuple):
-                # For tuple we have (tokenizer name, {kwargs})
-                use_fast = tokenizer[1].pop("use_fast", use_fast)
-                tokenizer_identifier = tokenizer[0]
-                tokenizer_kwargs = tokenizer[1]
-            else:
-                tokenizer_identifier = tokenizer
-                tokenizer_kwargs = model_kwargs.copy()
-                tokenizer_kwargs.pop("mindspore_dtype", None)
+                if (
+                    feature_extractor._processor_class
+                    and feature_extractor._processor_class.endswith("WithLM")
+                    and isinstance(model_name, str)
+                ):
+                    try:
+                        import kenlm  # to trigger `ImportError` if not installed
+                        from pyctcdecode import BeamSearchDecoderCTC
 
-            tokenizer = AutoTokenizer.from_pretrained(
-                tokenizer_identifier, use_fast=use_fast, _from_pipeline=task, **hub_kwargs, **tokenizer_kwargs
-            )
+                        if os.path.isdir(model_name) or os.path.isfile(model_name):
+                            decoder = BeamSearchDecoderCTC.load_from_dir(model_name)
+                        else:
+                            language_model_glob = os.path.join(
+                                BeamSearchDecoderCTC._LANGUAGE_MODEL_SERIALIZED_DIRECTORY, "*"
+                            )
+                            alphabet_filename = BeamSearchDecoderCTC._ALPHABET_SERIALIZED_FILENAME
+                            allow_patterns = [language_model_glob, alphabet_filename]
+                            decoder = BeamSearchDecoderCTC.load_from_hf_hub(model_name, allow_patterns=allow_patterns)
 
-    if load_image_processor:
-        # Try to infer image processor from model or config name (if provided as str)
-        if image_processor is None:
-            if isinstance(model_name, str):
-                image_processor = model_name
-            elif isinstance(config, str):
-                image_processor = config
-            # Backward compatibility, as `feature_extractor` used to be the name
-            # for `ImageProcessor`.
-            elif feature_extractor is not None and isinstance(feature_extractor, BaseImageProcessor):
-                image_processor = feature_extractor
-            else:
-                # Impossible to guess what is the right image_processor here
-                raise Exception(
-                    "Impossible to guess which image processor to use. "
-                    "Please provide a PreTrainedImageProcessor class or a path/identifier "
-                    "to a pretrained image processor."
-                )
-
-        # Instantiate image_processor if needed
-        if isinstance(image_processor, (str, tuple)):
-            image_processor = AutoImageProcessor.from_pretrained(
-                image_processor, _from_pipeline=task, **hub_kwargs, **model_kwargs
-            )
-
-    if load_feature_extractor:
-        # Try to infer feature extractor from model or config name (if provided as str)
-        if feature_extractor is None:
-            if isinstance(model_name, str):
-                feature_extractor = model_name
-            elif isinstance(config, str):
-                feature_extractor = config
-            else:
-                # Impossible to guess what is the right feature_extractor here
-                raise Exception(
-                    "Impossible to guess which feature extractor to use. "
-                    "Please provide a PreTrainedFeatureExtractor class or a path/identifier "
-                    "to a pretrained feature extractor."
-                )
-
-        # Instantiate feature_extractor if needed
-        if isinstance(feature_extractor, (str, tuple)):
-            feature_extractor = AutoFeatureExtractor.from_pretrained(
-                feature_extractor, _from_pipeline=task, **hub_kwargs, **model_kwargs
-            )
-
-            if (
-                feature_extractor._processor_class
-                and feature_extractor._processor_class.endswith("WithLM")
-                and isinstance(model_name, str)
-            ):
-                try:
-                    import kenlm  # to trigger `ImportError` if not installed
-                    from pyctcdecode import BeamSearchDecoderCTC
-
-                    if os.path.isdir(model_name) or os.path.isfile(model_name):
-                        decoder = BeamSearchDecoderCTC.load_from_dir(model_name)
-                    else:
-                        language_model_glob = os.path.join(
-                            BeamSearchDecoderCTC._LANGUAGE_MODEL_SERIALIZED_DIRECTORY, "*"
+                        kwargs["decoder"] = decoder
+                    except ImportError as e:
+                        logger.warning(
+                            f"Could not load the `decoder` for {model_name}. Defaulting to raw CTC. Error: {e}"
                         )
-                        alphabet_filename = BeamSearchDecoderCTC._ALPHABET_SERIALIZED_FILENAME
-                        allow_patterns = [language_model_glob, alphabet_filename]
-                        decoder = BeamSearchDecoderCTC.load_from_hf_hub(model_name, allow_patterns=allow_patterns)
+                        if not is_kenlm_available():
+                            logger.warning("Try to install `kenlm`: `pip install kenlm")
 
-                    kwargs["decoder"] = decoder
-                except ImportError as e:
-                    logger.warning(f"Could not load the `decoder` for {model_name}. Defaulting to raw CTC. Error: {e}")
-                    if not is_kenlm_available():
-                        logger.warning("Try to install `kenlm`: `pip install kenlm")
-
-    if load_processor:
-        # Try to infer processor from model or config name (if provided as str)
-        if processor is None:
-            if isinstance(model_name, str):
-                processor = model_name
-            elif isinstance(config, str):
-                processor = config
+                        if not is_pyctcdecode_available():
+                            logger.warning("Try to install `pyctcdecode`: `pip install pyctcdecode")
+        except Exception as e:
+            if load_feature_extractor:
+                raise e
             else:
-                # Impossible to guess what is the right processor here
-                raise Exception(
-                    "Impossible to guess which processor to use. "
-                    "Please provide a processor instance or a path/identifier "
-                    "to a processor."
-                )
+                feature_extractor = None
 
-        # Instantiate processor if needed
-        if isinstance(processor, (str, tuple)):
-            processor = AutoProcessor.from_pretrained(processor, _from_pipeline=task, **hub_kwargs, **model_kwargs)
-            if not isinstance(processor, ProcessorMixin):
-                raise TypeError(
-                    "Processor was loaded, but it is not an instance of `ProcessorMixin`. "
-                    f"Got type `{type(processor)}` instead. Please check that you specified "
-                    "correct pipeline task for the model and model has processor implemented and saved."
-                )
+    if load_processor or load_processor is None:
+        try:
+            # Try to infer processor from model or config name (if provided as str)
+            if processor is None:
+                if isinstance(model_name, str):
+                    processor = model_name
+                elif isinstance(config, str):
+                    processor = config
+                else:
+                    # Impossible to guess what is the right processor here
+                    raise Exception(
+                        "Impossible to guess which processor to use. "
+                        "Please provide a processor instance or a path/identifier "
+                        "to a processor."
+                    )
+
+            # Instantiate processor if needed
+            if isinstance(processor, (str, tuple)):
+                processor = AutoProcessor.from_pretrained(processor, _from_pipeline=task, **hub_kwargs, **model_kwargs)
+                if not isinstance(processor, ProcessorMixin):
+                    raise TypeError(
+                        "Processor was loaded, but it is not an instance of `ProcessorMixin`. "
+                        f"Got type `{type(processor)}` instead. Please check that you specified "
+                        "correct pipeline task for the model and model has processor implemented and saved."
+                    )
+        except Exception as e:
+            if load_processor:
+                raise e
+            else:
+                processor = None
 
     if task == "translation" and model.config.task_specific_params:
         for key in model.config.task_specific_params:
@@ -972,14 +991,11 @@ def pipeline(
     if feature_extractor is not None:
         kwargs["feature_extractor"] = feature_extractor
 
-    if mindspore_dtype is not None:
-        kwargs["mindspore_dtype"] = mindspore_dtype
+    if dtype is not None:
+        kwargs["dtype"] = dtype
 
     if image_processor is not None:
         kwargs["image_processor"] = image_processor
-
-    if device is not None:
-        kwargs["device"] = device
 
     if processor is not None:
         kwargs["processor"] = processor

@@ -405,11 +405,11 @@ class RepetitionPenaltyLogitsProcessor(LogitsProcessor):
         self.penalty = penalty
         self.prompt_ignore_length = prompt_ignore_length
         self.logits_indices = None
-        self.cumulative_seqlens_q = None
+        self.cu_seq_lens_q = None
 
-    def set_continuous_batching_context(self, logits_indices: ms.Tensor, cumulative_seqlens_q: ms.Tensor):
+    def set_continuous_batching_context(self, logits_indices: ms.Tensor, cu_seq_lens_q: ms.Tensor):
         self.logits_indices = logits_indices
-        self.cumulative_seqlens_q = cumulative_seqlens_q
+        self.cu_seq_lens_q = cu_seq_lens_q
 
     @add_start_docstrings(LOGITS_PROCESSOR_INPUTS_DOCSTRING)
     def __call__(self, input_ids: ms.Tensor, scores: ms.Tensor) -> ms.Tensor:
@@ -417,14 +417,14 @@ class RepetitionPenaltyLogitsProcessor(LogitsProcessor):
             input_ids = input_ids[:, self.prompt_ignore_length :]
 
         if scores.dim() == 3:
-            if self.logits_indices is not None and self.cumulative_seqlens_q is not None:
+            if self.logits_indices is not None and self.cu_seq_lens_q is not None:
                 batch_size, seq_len, vocab_size = scores.shape
                 last_positions = self.logits_indices
                 last_scores = scores[0, last_positions, :]
 
                 # Prepare token mask
                 token_mask = mint.zeros_like(last_scores, dtype=ms.bool_)
-                cu_seq_lens = self.cumulative_seqlens_q
+                cu_seq_lens = self.cu_seq_lens_q
                 lengths = cu_seq_lens[1:] - cu_seq_lens[:-1]
                 seq_indices = mint.repeat_interleave(mint.arange(len(lengths)), lengths)
                 token_mask[seq_indices, input_ids] = True
@@ -1320,13 +1320,13 @@ class SequenceBiasLogitsProcessor(LogitsProcessor):
                 f"`sequence_bias` has to be a non-empty dictionary, or non-empty list of lists but is {sequence_bias}."
             )
         if isinstance(sequence_bias, dict) and any(
-            not isinstance(sequence_ids, tuple) for sequence_ids in sequence_bias.keys()
+            not isinstance(sequence_ids, tuple) for sequence_ids in sequence_bias
         ):
             raise ValueError(f"`sequence_bias` has to be a dict with tuples as keys, but is {sequence_bias}.")
         if isinstance(sequence_bias, dict) and any(
             any((not isinstance(token_id, (int, np.integer)) or token_id < 0) for token_id in sequence_ids)
             or len(sequence_ids) == 0
-            for sequence_ids in sequence_bias.keys()
+            for sequence_ids in sequence_bias
         ):
             raise ValueError(
                 f"Each key in `sequence_bias` has to be a non-empty tuple of positive integers, but is "
@@ -1619,6 +1619,9 @@ class HammingDiversityLogitsProcessor(LogitsProcessor):
     """
 
     def __init__(self, diversity_penalty: float, num_beams: int, num_beam_groups: int):
+        logger.warning_once(
+            "`HammingDiversityLogitsProcessor` is deprecated and will be removed in v4.62.0, as constrained beam search has been moved to the Hub: https://hf.co/transformers-community/constrained-beam-search."
+        )
         if not isinstance(diversity_penalty, float) or (not diversity_penalty > 0.0):
             raise ValueError("`diversity_penalty` should be a float strictly larger than 0.")
         self._diversity_penalty = diversity_penalty
@@ -2425,7 +2428,7 @@ class UnbatchedClassifierFreeGuidanceLogitsProcessor(LogitsProcessor):
         model,
         unconditional_ids: Optional[ms.Tensor] = None,
         unconditional_attention_mask: Optional[ms.Tensor] = None,
-        use_cache: Optional[bool] = True,
+        use_cache: bool = True,
     ):
         self.guidance_scale = guidance_scale
         self.model = model
