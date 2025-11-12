@@ -16,9 +16,10 @@
 # limitations under the License.
 
 import functools
-import logging
 import math
 from collections import OrderedDict
+
+from transformers.utils import logging
 
 import mindspore as ms
 from mindspore import Tensor, mint, nn

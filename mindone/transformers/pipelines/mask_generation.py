@@ -1,16 +1,11 @@
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Optional, Union, overload
 
-
 from ..image_utils import load_image
-from ..utils import (
-    is_mindspore_available,
-    logging)
-from .base import ChunkPipeline, build_pipeline_init_args
-
+from ..utils import is_mindspore_available, logging
+from .base import ChunkPipeline
 
 if is_mindspore_available():
-    import mindspore as ms
     from mindspore import mint
 
     from ..models.auto.modeling_auto import MODEL_FOR_MASK_GENERATION_MAPPING_NAMES
@@ -19,6 +14,7 @@ if TYPE_CHECKING:
     from PIL import Image
 
 logger = logging.get_logger(__name__)
+
 
 class MaskGenerationPipeline(ChunkPipeline):
     """
@@ -79,7 +75,6 @@ class MaskGenerationPipeline(ChunkPipeline):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-
         self.check_model_type(MODEL_FOR_MASK_GENERATION_MAPPING_NAMES)
 
     def _sanitize_parameters(self, **kwargs):
@@ -121,12 +116,12 @@ class MaskGenerationPipeline(ChunkPipeline):
         return preprocess_kwargs, forward_params, postprocess_kwargs
 
     @overload
-    def __call__(self, image: Union[str, "Image.Image"], *args: Any, **kwargs: Any) -> dict[str, Any]: ...
+    def __call__(self, image: Union[str, "Image.Image"], *args: Any, **kwargs: Any) -> dict[str, Any]:
+        ...
 
     @overload
-    def __call__(
-        self, image: Union[list[str], list["Image.Image"]], *args: Any, **kwargs: Any
-    ) -> list[dict[str, Any]]: ...
+    def __call__(self, image: Union[list[str], list["Image.Image"]], *args: Any, **kwargs: Any) -> list[dict[str, Any]]:
+        ...
 
     def __call__(
         self, image: Union[str, "Image.Image", list[str], list["Image.Image"]], *args: Any, **kwargs: Any
@@ -191,7 +186,6 @@ class MaskGenerationPipeline(ChunkPipeline):
 
         if self.framework == "ms":
             model_inputs = model_inputs.to(self.dtype)
-
 
             inference_context = self.get_inference_context()
             with inference_context():
