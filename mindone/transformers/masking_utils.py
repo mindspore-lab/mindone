@@ -179,6 +179,8 @@ def prepare_padding_mask(
     if attention_mask is not None:
         # Pad it if necesary
         if (padding_length := kv_length + kv_offset - attention_mask.shape[-1]) > 0:
+            if isinstance(padding_length, ms.Tensor):
+                padding_length = padding_length.item()
             local_padding_mask = mint.nn.functional.pad(attention_mask, (0, padding_length))
         # For flex, we should not slice them, only use an offset
         if _slice:
