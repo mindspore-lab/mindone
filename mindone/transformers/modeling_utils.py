@@ -1593,7 +1593,7 @@ class PreTrainedModel(
         Recursively (for all submodels) tie all the weights of the model.
         """
         # Note that `self` is included in `self.modules` so we also apply to current PreTrainedModel with this call
-        for module in self.modules():
+        for name, module in self.cells_and_names():
             # If it's a PreTrainedModel, may need to tie the embeddings and/or encoder/decoder weights
             if isinstance(module, PreTrainedModel):
                 module.tie_embeddings_and_encoder_decoder()
