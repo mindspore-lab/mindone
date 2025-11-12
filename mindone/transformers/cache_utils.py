@@ -218,10 +218,10 @@ class DynamicLayer(CacheLayerMixin):
 
     is_sliding = False
 
-    def lazy_initialization(self, key_states: ms.Tensor):
-        self.dtype = key_states.dtype
-        self.keys = ms.tensor([], dtype=self.dtype)
-        self.values = ms.tensor([], dtype=self.dtype)
+    # FIXME "mindspore.mint.cat" does not support operation between tensor shape like (0,) and (b, h, s, d)
+    def lazy_initialization(self, key_states: ms.Tensor, value_states: ms.Tensor):
+        self.keys = key_states
+        self.values = value_states
         self.is_initialized = True
 
     def update(
@@ -246,10 +246,10 @@ class DynamicLayer(CacheLayerMixin):
         """
         # Lazy initialization
         if not self.is_initialized:
-            self.lazy_initialization(key_states)
-
-        self.keys = mint.cat([self.keys, key_states], dim=-2)
-        self.values = mint.cat([self.values, value_states], dim=-2)
+            self.lazy_initialization(key_states, value_states)
+        else:
+            self.keys = mint.cat([self.keys, key_states], dim=-2)
+            self.values = mint.cat([self.values, value_states], dim=-2)
         return self.keys, self.values
 
     def get_mask_sizes(self, cache_position: ms.Tensor) -> tuple[int, int]:
