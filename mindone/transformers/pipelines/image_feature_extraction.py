@@ -1,6 +1,6 @@
 # This code is adapted from https://github.com/huggingface/transformers
 # with modifications to run transformers on mindspore.
-from typing import Dict
+from typing import Any, Union
 
 from ..utils import is_vision_available, requires_backends
 from .base import GenericTensor, Pipeline
@@ -34,6 +34,11 @@ class ImageFeatureExtractionPipeline(Pipeline):
     [huggingface.co/models](https://huggingface.co/models).
     """
 
+    _load_processor = False
+    _load_image_processor = True
+    _load_feature_extractor = False
+    _load_tokenizer = False
+
     def _sanitize_parameters(self, image_processor_kwargs=None, return_tensors=None, pool=None, **kwargs):
         preprocess_params = {} if image_processor_kwargs is None else image_processor_kwargs
 
@@ -48,12 +53,12 @@ class ImageFeatureExtractionPipeline(Pipeline):
 
         return preprocess_params, {}, postprocess_params
 
-    def preprocess(self, image, timeout=None, **image_processor_kwargs) -> Dict[str, GenericTensor]:
+    def preprocess(self, image, timeout=None, **image_processor_kwargs) -> dict[str, GenericTensor]:
         image = load_image(image, timeout=timeout)
         try:
             model_inputs = self.image_processor(image, return_tensors=self.framework, **image_processor_kwargs)
             if self.framework == "ms":
-                model_inputs = model_inputs.to(self.mindspore_dtype)
+                model_inputs = model_inputs.to(self.dtype)
         except ValueError:
             # for transformer image processor compatibility,
             # FIXME: consider to drop this branch if all processors are migrated to mindone.transformers in future
@@ -63,7 +68,7 @@ class ImageFeatureExtractionPipeline(Pipeline):
             model_inputs = self.image_processor(image, return_tensors="np", **image_processor_kwargs)
             if self.framework == "ms":
                 for k, v in model_inputs.items():
-                    model_inputs[k] = ms.tensor(v, dtype=self.mindspore_dtype)
+                    model_inputs[k] = ms.tensor(v, dtype=self.dtype)
 
         return model_inputs
 
@@ -89,12 +94,12 @@ class ImageFeatureExtractionPipeline(Pipeline):
         if self.framework == "ms":
             return outputs.float().tolist()
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: Union[str, "Image.Image", list["Image.Image"], list[str]], **kwargs: Any) -> list[Any]:
         """
         Extract the features of the input(s).
 
         Args:
-            images (`str`, `List[str]`, `PIL.Image` or `List[PIL.Image]`):
+            images (`str`, `list[str]`, `PIL.Image` or `list[PIL.Image]`):
                 The pipeline handles three types of images:
 
                 - A string containing a http link pointing to an image
