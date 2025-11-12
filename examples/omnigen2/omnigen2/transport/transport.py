@@ -2,7 +2,7 @@
 import enum
 import math
 import random
-from typing import Callable, Optional
+from typing import Callable
 
 import numpy as np
 
@@ -57,20 +57,25 @@ class Transport:
         seq_len,
         dynamic_time_shift: bool = False,
         time_shift_version: str = "v1",
+        rank: int = 0,
+        world_size: int = 1,
     ):
         path_options = {PathType.LINEAR: path.ICPlan, PathType.GVP: path.GVPCPlan, PathType.VP: path.VPCPlan}
 
         self.loss_type = loss_type
         self.model_type = model_type
         self.path_sampler = path_options[path_type]()
-        self.train_eps = train_eps
-        self.sample_eps = sample_eps
+        self.rank = rank
+        self.world_size = world_size
 
         self.snr_type = snr_type
         self.do_shift = do_shift
         self.seq_len = seq_len
         self.dynamic_time_shift = dynamic_time_shift
         self.time_shift_version = time_shift_version
+        self.t0, self.t1 = self.check_interval(train_eps, sample_eps)
+        self.t = None  # record current time during sampling for use in the `BinLossCallback`
+        self.pred_images = None  # predicted images for the `VisualizationCallback`
 
     def prior_logp(self, z):
         """
@@ -85,8 +90,7 @@ class Transport:
     def check_interval(
         self, train_eps, sample_eps, *, diffusion_form="SBDM", sde=False, reverse=False, eval=False, last_step_size=0.0
     ):
-        t0 = 0
-        t1 = 1
+        t0, t1 = 0, 1
         eps = train_eps if not eval else sample_eps
         if type(self.path_sampler) in [path.VPCPlan]:
             t1 = 1 - eps if (not sde or last_step_size == 0) else 1 - last_step_size
@@ -111,7 +115,7 @@ class Transport:
             x0 = [mint.randn_like(img_start) for img_start in x1]
         else:
             x0 = mint.randn_like(x1)
-        t0, t1 = self.check_interval(self.train_eps, self.sample_eps)
+        t0, t1 = self.t0, self.t1
 
         if self.snr_type.startswith("uniform"):
             assert t0 == 0.0 and t1 == 1.0, "not implemented."
@@ -189,40 +193,26 @@ class Transport:
         b = y1 - m * x1
         return lambda x: m * x + b
 
-    def training_losses(
-        self,
-        model,
-        x1,
-        model_kwargs=None,
-        process_index: Optional[int] = None,
-        num_processes: Optional[int] = None,
-        reduction: str = "mean",
-    ):
+    def training_losses(self, model, x1, model_kwargs=None, reduction: str = "mean"):
         """Loss for training the score model
         Args:
         - model: backbone model; could be score, noise, or velocity
         - x1: datapoint
         - model_kwargs: additional arguments for the model
         """
-
-        terms = {}
-
         if model_kwargs is None:
             model_kwargs = {}
-        t, x0, x1 = self.sample(x1, process_index, num_processes)
+        t, x0, x1 = self.sample(x1, self.rank, self.world_size)
         t, xt, ut = self.path_sampler.plan(t, x0, x1)
-
-        terms = {}
-        terms["t"] = t
-        terms["xt"] = xt
+        self.t = t  # record current time during sampling for use in the `BinLossCallback`
 
         if "cond" in model_kwargs:
             conds = model_kwargs.pop("cond")
             xt = [mint.cat([x, cond], dim=0) if cond is not None else x for x, cond in zip(xt, conds)]
         model_output = model(xt, t, **model_kwargs)
         B = len(x0)
+        self.pred_images = xt + (1 - t) * model_output
 
-        terms["pred"] = model_output
         if self.model_type == ModelType.VELOCITY:
             if isinstance(x1, (list, tuple)):
                 assert len(model_output) == len(ut) == len(x1)
@@ -230,7 +220,7 @@ class Transport:
                     assert (
                         model_output[i].shape == ut[i].shape == x1[i].shape
                     ), f"{model_output[i].shape} {ut[i].shape} {x1[i].shape}"
-                terms["task_loss"] = mint.stack(
+                task_loss = mint.stack(
                     [
                         mint.nn.functional.mse_loss(ut[i].float(), model_output[i].float(), reduction=reduction)
                         for i in range(B)
@@ -238,13 +228,11 @@ class Transport:
                     dim=0,
                 )
             else:
-                terms["task_loss"] = mean_flat(((model_output - ut) ** 2))
+                task_loss = mean_flat(((model_output - ut) ** 2))
         else:
             raise NotImplementedError
 
-        terms["loss"] = terms["task_loss"]
-        terms["t"] = t
-        return terms
+        return task_loss
 
     def get_drift(self):
         """member function for obtaining the drift of the probability flow ODE"""

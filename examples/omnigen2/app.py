@@ -18,13 +18,12 @@ from omnigen2.schedulers.scheduling_flow_match_euler_discrete import FlowMatchEu
 from omnigen2.utils.img_util import create_collage
 from PIL import Image
 from tqdm import tqdm
-from transformers import Qwen2_5_VLProcessor
 
 from mindspore import dtype
 from mindspore.nn import no_init_parameters
 
 from mindone.diffusers import AutoencoderKL
-from mindone.transformers import Qwen2_5_VLForConditionalGeneration
+from mindone.transformers import Qwen2_5_VLForConditionalGeneration, Qwen2_5_VLProcessor
 
 NEGATIVE_PROMPT = (
     "(((deformed))), blurry, over saturation, bad anatomy, disfigured, poorly drawn face, mutation, mutated,"
@@ -314,36 +313,16 @@ def main(args):
                     width_input = gr.Slider(label="Width", minimum=256, maximum=2048, value=1024, step=128)
                 with gr.Row(equal_height=True):
                     text_guidance_scale_input = gr.Slider(
-                        label="Text Guidance Scale",
-                        minimum=1.0,
-                        maximum=8.0,
-                        value=5.0,
-                        step=0.1,
+                        label="Text Guidance Scale", minimum=1.0, maximum=8.0, value=5.0, step=0.1
                     )
 
                     image_guidance_scale_input = gr.Slider(
-                        label="Image Guidance Scale",
-                        minimum=1.0,
-                        maximum=3.0,
-                        value=2.0,
-                        step=0.1,
+                        label="Image Guidance Scale", minimum=1.0, maximum=3.0, value=2.0, step=0.1
                     )
                 with gr.Row(equal_height=True):
-                    cfg_range_start = gr.Slider(
-                        label="CFG Range Start",
-                        minimum=0.0,
-                        maximum=1.0,
-                        value=0.0,
-                        step=0.1,
-                    )
+                    cfg_range_start = gr.Slider(label="CFG Range Start", minimum=0.0, maximum=1.0, value=0.0, step=0.1)
 
-                    cfg_range_end = gr.Slider(
-                        label="CFG Range End",
-                        minimum=0.0,
-                        maximum=1.0,
-                        value=1.0,
-                        step=0.1,
-                    )
+                    cfg_range_end = gr.Slider(label="CFG Range End", minimum=0.0, maximum=1.0, value=1.0, step=0.1)
 
                 def adjust_end_slider(start_val, end_val):
                     return max(start_val, end_val)
@@ -370,28 +349,16 @@ def main(args):
                     num_inference_steps = gr.Slider(label="Inference Steps", minimum=20, maximum=100, value=50, step=1)
                 with gr.Row(equal_height=True):
                     num_images_per_prompt = gr.Slider(
-                        label="Number of images per prompt",
-                        minimum=1,
-                        maximum=4,
-                        value=1,
-                        step=1,
+                        label="Number of images per prompt", minimum=1, maximum=4, value=1, step=1
                     )
 
                     seed_input = gr.Slider(label="Seed", minimum=-1, maximum=2147483647, value=0, step=1)
                 with gr.Row(equal_height=True):
                     max_input_image_side_length = gr.Slider(
-                        label="max_input_image_side_length",
-                        minimum=256,
-                        maximum=2048,
-                        value=2048,
-                        step=256,
+                        label="max_input_image_side_length", minimum=256, maximum=2048, value=2048, step=256
                     )
                     max_pixels = gr.Slider(
-                        label="max_pixels",
-                        minimum=256 * 256,
-                        maximum=1536 * 1536,
-                        value=1024 * 1024,
-                        step=256 * 256,
+                        label="max_pixels", minimum=256 * 256, maximum=1536 * 1536, value=1024 * 1024, step=256 * 256
                     )
 
             with gr.Column():
