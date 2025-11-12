@@ -29,7 +29,10 @@ _STRING_2_DTYPE = {
     "bool": ms.bool_,
 }
 
-
+_MIN_INT8 = ms.tensor(np.iinfo(np.int8).min, dtype=ms.int8)
+_MIN_INT16 = ms.tensor(np.iinfo(np.int16).min, dtype=ms.int16)
+_MIN_INT32 = ms.tensor(np.iinfo(np.int32).min, dtype=ms.int32)
+_MIN_INT64 = ms.tensor(np.iinfo(np.int64).min, dtype=ms.int64)
 _MIN_FP16 = ms.tensor(np.finfo(np.float16).min, dtype=ms.float16)
 _MIN_FP32 = ms.tensor(np.finfo(np.float32).min, dtype=ms.float32)
 _MIN_FP64 = ms.tensor(np.finfo(np.float64).min, dtype=ms.float64)
@@ -41,6 +44,10 @@ _MAX_BF16 = ms.tensor(float.fromhex("0x1.fe00000000000p+127"), dtype=ms.bfloat16
 
 
 _DTYPE_2_MIN = {
+    ms.int8: _MIN_INT8,
+    ms.int16: _MIN_INT16,
+    ms.int32: _MIN_INT32,
+    ms.int64: _MIN_INT64,
     ms.float16: _MIN_FP16,
     ms.float32: _MIN_FP32,
     ms.float64: _MIN_FP64,
