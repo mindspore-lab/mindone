@@ -30,7 +30,6 @@ from typing import Any, Callable, MutableMapping, Optional, Union
 
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import custom_object_save
-from transformers.generation.configuration_utils import CompileConfig, GenerationConfig
 from transformers.safetensors_conversion import auto_conversion
 from transformers.utils import (
     ADAPTER_SAFE_WEIGHTS_NAME,
@@ -62,6 +61,8 @@ from transformers.utils.hub import convert_file_size_to_int, get_checkpoint_shar
 import mindspore as ms
 from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.nn import CrossEntropyLoss, Identity
+
+from mindone.transformers.generation.configuration_utils import CompileConfig, GenerationConfig
 
 from .activations import get_activation
 from .generation.utils import GenerationMixin
