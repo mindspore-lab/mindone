@@ -45,13 +45,13 @@ EXAMPLE_DOC_STRING = """
 
 # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion_img2img.retrieve_latents
 def retrieve_latents(
-    vae, encoder_output: ms.tensor, generator: Optional[np.random.Generator] = None, sample_mode: str = "sample"
+    vae, encoder_output: ms.Tensor, generator: Optional[np.random.Generator] = None, sample_mode: str = "sample"
 ):
     if sample_mode == "sample":
         return vae.diag_gauss_dist.sample(encoder_output, generator=generator)
     elif sample_mode == "argmax":
         return vae.diag_gauss_dist.mode(encoder_output)
-    # This brach is not needed because the encoder_output type is ms.tensor as per AutoencoderKLOuput change
+    # This brach is not needed because the encoder_output type is ms.Tensor as per AutoencoderKLOuput change
     # elif hasattr(encoder_output, "latents"):
     #     return encoder_output.latents
     else:
@@ -98,7 +98,7 @@ def retrieve_timesteps(
             `num_inference_steps` and `timesteps` must be `None`.
 
     Returns:
-        `Tuple[ms.tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and the
+        `Tuple[ms.Tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and the
         second element is the number of inference steps.
     """
     if timesteps is not None and sigmas is not None:
@@ -192,7 +192,7 @@ class QwenImageInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         self.default_sample_size = 128
 
     # Copied from diffusers.pipelines.qwenimage.pipeline_qwenimage.QwenImagePipeline._extract_masked_hidden
-    def _extract_masked_hidden(self, hidden_states: ms.tensor, mask: ms.tensor):
+    def _extract_masked_hidden(self, hidden_states: ms.Tensor, mask: ms.Tensor):
         bool_mask = mask.bool()
         valid_lengths = bool_mask.sum(dim=1)
         selected = hidden_states[bool_mask]
@@ -238,7 +238,7 @@ class QwenImageInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         return prompt_embeds, encoder_attention_mask
 
     # Copied from diffusers.pipelines.qwenimage.pipeline_qwenimage_img2img.QwenImageImg2ImgPipeline._encode_vae_image
-    def _encode_vae_image(self, image: ms.tensor, generator: np.random.Generator):
+    def _encode_vae_image(self, image: ms.Tensor, generator: np.random.Generator):
         if isinstance(generator, list):
             image_latents = [
                 retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0]) for i in range(image.shape[0])
@@ -275,8 +275,8 @@ class QwenImageInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         self,
         prompt: Union[str, List[str]],
         num_images_per_prompt: int = 1,
-        prompt_embeds: Optional[ms.tensor] = None,
-        prompt_embeds_mask: Optional[ms.tensor] = None,
+        prompt_embeds: Optional[ms.Tensor] = None,
+        prompt_embeds_mask: Optional[ms.Tensor] = None,
         max_sequence_length: int = 1024,
     ):
         r"""
@@ -286,7 +286,7 @@ class QwenImageInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                 prompt to be encoded
             num_images_per_prompt (`int`):
                 number of images that should be generated per prompt
-            prompt_embeds (`ms.tensor`, *optional*):
+            prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting. If not
                 provided, text embeddings will be generated from `prompt` input argument.
         """
@@ -614,14 +614,14 @@ class QwenImageInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         strength: float = 0.6,
         num_inference_steps: int = 50,
         sigmas: Optional[List[float]] = None,
-        guidance_scale: float = 1.0,
+        guidance_scale: Optional[float] = None,
         num_images_per_prompt: int = 1,
         generator: Optional[Union[np.random.Generator, List[np.random.Generator]]] = None,
-        latents: Optional[ms.tensor] = None,
-        prompt_embeds: Optional[ms.tensor] = None,
-        prompt_embeds_mask: Optional[ms.tensor] = None,
-        negative_prompt_embeds: Optional[ms.tensor] = None,
-        negative_prompt_embeds_mask: Optional[ms.tensor] = None,
+        latents: Optional[ms.Tensor] = None,
+        prompt_embeds: Optional[ms.Tensor] = None,
+        prompt_embeds_mask: Optional[ms.Tensor] = None,
+        negative_prompt_embeds: Optional[ms.Tensor] = None,
+        negative_prompt_embeds_mask: Optional[ms.Tensor] = None,
         output_type: Optional[str] = "pil",
         return_dict: bool = True,
         attention_kwargs: Optional[Dict[str, Any]] = None,
@@ -640,22 +640,27 @@ class QwenImageInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                 The prompt or prompts not to guide the image generation. If not defined, one has to pass
                 `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `true_cfg_scale` is
                 not greater than `1`).
-            image (`ms.tensor`, `PIL.Image.Image`, `np.ndarray`, `List[ms.tensor]`, `List[PIL.Image.Image]`, or `List[np.ndarray]`):
+            image (`ms.Tensor`, `PIL.Image.Image`, `np.ndarray`, `List[ms.Tensor]`, `List[PIL.Image.Image]`, or `List[np.ndarray]`):
                 `Image`, numpy array or tensor representing an image batch to be used as the starting point. For both
-                numpy array and pytorch tensor, the expected value range is between `[0, 1]` If it's a tensor or a list
+                numpy array and mindspore tensor, the expected value range is between `[0, 1]` If it's a tensor or a list
                 or tensors, the expected shape should be `(B, C, H, W)` or `(C, H, W)`. If it is a numpy array or a
                 list of arrays, the expected shape should be `(B, H, W, C)` or `(H, W, C)` It can also accept image
                 latents as `image`, but if passing latents directly it is not encoded again.
             true_cfg_scale (`float`, *optional*, defaults to 1.0):
-                When > 1.0 and a provided `negative_prompt`, enables true classifier-free guidance.
-            mask_image (`ms.tensor`, `PIL.Image.Image`, `np.ndarray`, `List[ms.tensor]`, `List[PIL.Image.Image]`, or `List[np.ndarray]`):
+                Guidance scale as defined in [Classifier-Free Diffusion
+                Guidance](https://huggingface.co/papers/2207.12598). `true_cfg_scale` is defined as `w` of equation 2.
+                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Classifier-free guidance is enabled by
+                setting `true_cfg_scale > 1` and a provided `negative_prompt`. Higher guidance scale encourages to
+                generate images that are closely linked to the text `prompt`, usually at the expense of lower image
+                quality.
+            mask_image (`ms.Tensor`, `PIL.Image.Image`, `np.ndarray`, `List[ms.Tensor]`, `List[PIL.Image.Image]`, or `List[np.ndarray]`):
                 `Image`, numpy array or tensor representing an image batch to mask `image`. White pixels in the mask
                 are repainted while black pixels are preserved. If `mask_image` is a PIL image, it is converted to a
-                single channel (luminance) before use. If it's a numpy array or pytorch tensor, it should contain one
-                color channel (L) instead of 3, so the expected shape for pytorch tensor would be `(B, 1, H, W)`, `(B,
+                single channel (luminance) before use. If it's a numpy array or mindspore tensor, it should contain one
+                color channel (L) instead of 3, so the expected shape for mindspore tensor would be `(B, 1, H, W)`, `(B,
                 H, W)`, `(1, H, W)`, `(H, W)`. And for numpy array would be for `(B, H, W, 1)`, `(B, H, W)`, `(H, W,
                 1)`, or `(H, W)`.
-            mask_image_latent (`ms.tensor`, `List[ms.tensor]`):
+            mask_image_latent (`ms.Tensor`, `List[ms.Tensor]`):
                 `Tensor` representing an image batch to mask `image` generated by VAE. If not provided, the mask
                 latents tensor will ge generated by `mask_image`.
             height (`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor):
@@ -683,24 +688,28 @@ class QwenImageInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                 their `set_timesteps` method. If not defined, the default behavior when `num_inference_steps` is passed
                 will be used.
             guidance_scale (`float`, *optional*, defaults to 3.5):
-                Guidance scale as defined in [Classifier-Free Diffusion
-                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.
-                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting
-                `guidance_scale > 1`. Higher guidance scale encourages to generate images that are closely linked to
-                the text `prompt`, usually at the expense of lower image quality.
+                A guidance scale value for guidance distilled models. Unlike the traditional classifier-free guidance
+                where the guidance scale is applied during inference through noise prediction rescaling, guidance
+                distilled models take the guidance scale directly as an input parameter during forward pass. Guidance
+                scale is enabled by setting `guidance_scale > 1`. Higher guidance scale encourages to generate images
+                that are closely linked to the text `prompt`, usually at the expense of lower image quality. This
+                parameter in the pipeline is there to support future guidance-distilled models when they come up. It is
+                ignored when not using guidance distilled models. To enable traditional classifier-free guidance,
+                please pass `true_cfg_scale > 1.0` and `negative_prompt` (even an empty negative prompt like " " should
+                enable classifier-free guidance computations).
             num_images_per_prompt (`int`, *optional*, defaults to 1):
                 The number of images to generate per prompt.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
                 One or a list of [numpy generator(s)](https://numpy.org/doc/stable/reference/random/generator.html)
                 to make generation deterministic.
-            latents (`ms.tensor`, *optional*):
+            latents (`ms.Tensor`, *optional*):
                 Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
                 generation. Can be used to tweak the same generation with different prompts. If not provided, a latents
                 tensor will be generated by sampling using the supplied random `generator`.
-            prompt_embeds (`ms.tensor`, *optional*):
+            prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting. If not
                 provided, text embeddings will be generated from `prompt` input argument.
-            negative_prompt_embeds (`ms.tensor`, *optional*):
+            negative_prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated negative text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt
                 weighting. If not provided, negative_prompt_embeds will be generated from `negative_prompt` input
                 argument.
@@ -784,6 +793,16 @@ class QwenImageInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         has_neg_prompt = negative_prompt is not None or (
             negative_prompt_embeds is not None and negative_prompt_embeds_mask is not None
         )
+
+        if true_cfg_scale > 1 and not has_neg_prompt:
+            logger.warning(
+                f"true_cfg_scale is passed as {true_cfg_scale}, but classifier-free guidance is not enabled since no negative_prompt is provided."
+            )
+        elif true_cfg_scale <= 1 and has_neg_prompt:
+            logger.warning(
+                " negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1"
+            )
+
         do_true_cfg = true_cfg_scale > 1 and has_neg_prompt
         prompt_embeds, prompt_embeds_mask = self.encode_prompt(
             prompt=prompt,
@@ -868,10 +887,17 @@ class QwenImageInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         self._num_timesteps = len(timesteps)
 
         # handle guidance
-        if self.transformer.config.guidance_embeds:
+        if self.transformer.config.guidance_embeds and guidance_scale is None:
+            raise ValueError("guidance_scale is required for guidance-distilled model.")
+        elif self.transformer.config.guidance_embeds:
             guidance = mint.full([1], guidance_scale, dtype=ms.float32)
             guidance = guidance.expand((latents.shape[0],))
-        else:
+        elif not self.transformer.config.guidance_embeds and guidance_scale is not None:
+            logger.warning(
+                f"guidance_scale is passed as {guidance_scale}, but ignored since the model is not guidance-distilled."
+            )
+            guidance = None
+        elif not self.transformer.config.guidance_embeds and guidance_scale is None:
             guidance = None
 
         if self.attention_kwargs is None:

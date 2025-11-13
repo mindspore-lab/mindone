@@ -46,6 +46,7 @@ _import_structure = {
         "HunyuanDiT2DControlNetModel",
         "HunyuanDiT2DMultiControlNetModel",
     ],
+    "controlnets.controlnet_qwenimage": ["QwenImageControlNetModel", "QwenImageMultiControlNetModel"],
     "controlnets.controlnet_sana": ["SanaControlNetModel"],
     "controlnets.controlnet_sd3": ["SD3ControlNetModel", "SD3MultiControlNetModel"],
     "controlnets.controlnet_sparsectrl": ["SparseControlNetModel"],
