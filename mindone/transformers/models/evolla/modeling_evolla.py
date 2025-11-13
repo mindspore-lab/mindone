@@ -1697,6 +1697,7 @@ class EvollaForProteinText2Text(EvollaPreTrainedModel, GenerationMixin):
 
         ```python
         >>> from mindone.transformers import EvollaProcessor, EvollaForProteinText2Text
+        >>> import mindspore as ms
         >>> model = EvollaForProteinText2Text.from_pretrained("westlake-repl/Evolla-10B-DPO-hf")
         >>> processor = EvollaProcessor.from_pretrained("westlake-repl/Evolla-10B-DPO-hf")
 
