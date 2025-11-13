@@ -56,7 +56,6 @@ from .video_utils import (
 
 if is_mindspore_available():
     import mindspore as ms
-    import mindspore.mint.nn.functional as F
     from mindspore import mint
 
 

@@ -3304,7 +3304,7 @@ class PreTrainedModel(
             or getattr(self, "_last_compile_config", default_config) != compile_config
         ):
             self._last_compile_config = compile_config
-            self._compiled_call = ms.jit(self.__call__, **compile_config.to_dict())
+            self._compiled_call = ms.jit(self, **compile_config.to_dict())
         return self._compiled_call
 
     def _adjust_missing_and_unexpected_keys(
