@@ -39,6 +39,7 @@ from .feature_extraction_sequence_utils import SequenceFeatureExtractor
 
 # Feature Extractor
 from .feature_extraction_utils import BatchFeature, FeatureExtractionMixin
+from .generation import CompileConfig
 from .image_processing_base import ImageProcessingMixin
 from .image_processing_utils import BaseImageProcessor
 from .image_processing_utils_fast import BaseImageProcessorFast
