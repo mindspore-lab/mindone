@@ -1710,7 +1710,8 @@ class EvollaForProteinText2Text(EvollaPreTrainedModel, GenerationMixin):
             {"role": "user", "content": question},
         ]
 
-        >>> inputs = processor(proteins=[protein_information], messages_list=[message], return_tensors="pt", padding="longest")
+        >>> inputs = processor(proteins=[protein_information], messages_list=[message], return_tensors="np", padding="longest")
+        >>> inputs = {key: ms.Tensor(value) for key, value in inputs.items()}
         >>> outputs = model.generate(**inputs)
 
         >>> print(processor.batch_decode(outputs, skip_special_tokens=True))
