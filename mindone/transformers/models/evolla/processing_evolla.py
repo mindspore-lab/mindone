@@ -79,7 +79,7 @@ class EvollaProcessor(ProcessorMixin):
         sa_tokens = self.protein_tokenizer.batch_encode_plus(
             sa_sequences, return_tensors="np", truncation=True, max_length=protein_max_length, padding=True
         )
-        return ms.Tensor(sa_tokens)
+        return sa_tokens
 
     def process_text(
         self,
@@ -103,7 +103,7 @@ class EvollaProcessor(ProcessorMixin):
             truncation=True,
             max_length=text_max_length,
         )
-        return ms.Tensor(prompt_inputs)
+        return prompt_inputs
 
     def __call__(
         self,
@@ -185,14 +185,28 @@ class EvollaProcessor(ProcessorMixin):
 
         text_tokens = self.process_text(messages_list, text_max_length)
 
-        return BatchFeature(
-            data={
-                "protein_input_ids": sa_tokens["input_ids"],
-                "protein_attention_mask": sa_tokens["attention_mask"],
-                "input_ids": text_tokens["input_ids"],
-                "attention_mask": text_tokens["attention_mask"],
-            }
-        )
+        return_tensors = kwargs.get("return_tensors", "np")
+
+        if return_tensors == "np":
+            return BatchFeature(
+                data={
+                    "protein_input_ids": sa_tokens["input_ids"],
+                    "protein_attention_mask": sa_tokens["attention_mask"],
+                    "input_ids": text_tokens["input_ids"],
+                    "attention_mask": text_tokens["attention_mask"],
+                }
+            )
+        elif return_tensors == "ms":
+            return BatchFeature(
+                data={
+                    "protein_input_ids": ms.Tensor(sa_tokens["input_ids"]),
+                    "protein_attention_mask": ms.Tensor(sa_tokens["attention_mask"]),
+                    "input_ids": ms.Tensor(text_tokens["input_ids"]),
+                    "attention_mask": ms.Tensor(text_tokens["attention_mask"]),
+                }
+            )
+        else:
+            raise ValueError(f"Invalid return_tensors: {return_tensors}")
 
     def batch_decode(self, *args, **kwargs):
         return self.tokenizer.batch_decode(*args, **kwargs)
