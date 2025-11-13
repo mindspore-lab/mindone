@@ -233,6 +233,9 @@ class MaskGenerationPipeline(ChunkPipeline):
         max_hole_area=None,
         max_sprinkle_area=None,
     ):
+        # for mindspore dataset create_iterator() here.
+        model_inputs = model_inputs["item"]
+
         input_boxes = model_inputs.pop("input_boxes")
         is_last = model_inputs.pop("is_last")
         original_sizes = model_inputs.pop("original_sizes").tolist()
@@ -294,7 +297,8 @@ class MaskGenerationPipeline(ChunkPipeline):
         for model_output in model_outputs:
             all_scores.append(model_output.pop("iou_scores"))
             all_masks.extend(model_output.pop("masks"))
-            all_boxes.append(model_output.pop("boxes"))
+            # notes: for primitive [concat] in mindspore, the input tensors should have same types. cast to floats here.
+            all_boxes.append(model_output.pop("boxes").float())
 
         all_scores = mint.cat(all_scores)
         all_boxes = mint.cat(all_boxes)
