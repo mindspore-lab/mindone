@@ -26,14 +26,19 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, is_dataclass
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
-from .. import __version__
 from transformers.configuration_utils import PretrainedConfig
-from ..utils import (
-    ExplicitEnum,
-    is_mindspore_available,
+from transformers.utils import (
+    GENERATION_CONFIG_NAME,
+    PushToHubMixin,
+    cached_file,
+    download_url,
+    extract_commit_hash,
+    is_remote_url,
+    logging,
 )
-from transformers.utils import (GENERATION_CONFIG_NAME, PushToHubMixin, cached_file, download_url, extract_commit_hash, is_remote_url, logging)
 
+from .. import __version__
+from ..utils import GENERATION_CONFIG_NAME, ExplicitEnum, is_mindspore_available
 
 if TYPE_CHECKING:
     from ..modeling_utils import PreTrainedModel
@@ -1250,10 +1255,12 @@ class BaseWatermarkingConfig(ABC):
                 setattr(self, key, value)
 
     @abstractmethod
-    def validate(self): ...
+    def validate(self):
+        ...
 
     @abstractmethod
-    def construct_processor(self, vocab_size): ...
+    def construct_processor(self, vocab_size):
+        ...
 
 
 @dataclass
@@ -1421,6 +1428,7 @@ class SynthIDTextWatermarkingConfig(BaseWatermarkingConfig):
             skip_first_ngram_calls=self.skip_first_ngram_calls,
             debug_mode=self.debug_mode,
         )
+
 
 @dataclass
 class CompileConfig:

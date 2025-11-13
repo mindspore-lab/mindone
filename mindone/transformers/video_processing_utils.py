@@ -39,7 +39,7 @@ from transformers.utils import (
 
 from .image_processing_utils import BatchFeature, get_size_dict
 from .image_processing_utils_fast import BaseImageProcessorFast
-from .image_utils import ChannelDimension, SizeDict, validate_kwargs, pil_to_tensor
+from .image_utils import ChannelDimension, SizeDict, pil_to_tensor, validate_kwargs
 from .processing_utils import Unpack, VideosKwargs
 from .utils import TensorType, is_mindspore_available, logging
 from .video_utils import (

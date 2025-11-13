@@ -33,13 +33,6 @@ from transformers.dynamic_module_utils import (
     get_class_in_module,
     resolve_trust_remote_code,
 )
-from mindone.transformers.generation.configuration_utils import (
-    ALL_STATIC_CACHE_IMPLEMENTATIONS,
-    DEPRECATED_STATIC_CACHE_IMPLEMENTATIONS,
-    STATIC_CACHE_IMPLEMENTATIONS,
-    GenerationConfig,
-    GenerationMode,
-)
 from transformers.tokenization_utils import ExtensionsTrie
 from transformers.utils.generic import ModelOutput
 
@@ -71,6 +64,13 @@ from mindone.transformers.generation.candidate_generator import (
     UniversalSpeculativeDecodingGenerator,
     _prepare_attention_mask,
     _prepare_token_type_ids,
+)
+from mindone.transformers.generation.configuration_utils import (
+    ALL_STATIC_CACHE_IMPLEMENTATIONS,
+    DEPRECATED_STATIC_CACHE_IMPLEMENTATIONS,
+    STATIC_CACHE_IMPLEMENTATIONS,
+    GenerationConfig,
+    GenerationMode,
 )
 from mindone.transformers.generation.logits_process import (
     EncoderNoRepeatNGramLogitsProcessor,
