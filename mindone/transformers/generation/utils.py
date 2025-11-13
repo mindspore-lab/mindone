@@ -33,7 +33,7 @@ from transformers.dynamic_module_utils import (
     get_class_in_module,
     resolve_trust_remote_code,
 )
-from transformers.generation.configuration_utils import (
+from mindone.transformers.generation.configuration_utils import (
     ALL_STATIC_CACHE_IMPLEMENTATIONS,
     DEPRECATED_STATIC_CACHE_IMPLEMENTATIONS,
     STATIC_CACHE_IMPLEMENTATIONS,
