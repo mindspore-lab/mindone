@@ -38,7 +38,7 @@ from transformers.utils.chat_template_utils import render_jinja_template
 
 from .audio_utils import AudioInput, load_audio
 from .feature_extraction_utils import BatchFeature
-from .image_utils import ChannelDimension, ImageInput, is_vision_available, load_image
+from .image_utils import ChannelDimension, ImageInput, is_vision_available
 from .video_utils import VideoInput, VideoMetadata
 
 if is_vision_available():
