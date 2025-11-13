@@ -2389,7 +2389,7 @@ class GenerationMixin:
             return False
 
         # Base logic
-        valid_hardware = ms.get_context("mode") == 0 or bool(
+        valid_hardware = bool(
             generation_config.compile_config is not None and generation_config.compile_config._compile_all_devices
         )
         using_compilable_cache = (
