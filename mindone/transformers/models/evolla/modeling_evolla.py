@@ -1697,8 +1697,8 @@ class EvollaForProteinText2Text(EvollaPreTrainedModel, GenerationMixin):
 
         ```python
         >>> from mindone.transformers import EvollaProcessor, EvollaForProteinText2Text
-        >>> model = EvollaForProteinText2Text.from_pretrained("westlake/Evolla-10B-hf")
-        >>> processor = EvollaProcessor.from_pretrained("westlake/Evolla-10B-hf")
+        >>> model = EvollaForProteinText2Text.from_pretrained("westlake-repl/Evolla-10B-DPO-hf")
+        >>> processor = EvollaProcessor.from_pretrained("westlake-repl/Evolla-10B-DPO-hf")
 
         >>> protein_information = {
             "aa_seq": "your amino acid sequence",
