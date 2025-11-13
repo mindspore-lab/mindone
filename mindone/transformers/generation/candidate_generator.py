@@ -36,7 +36,7 @@ if is_sklearn_available():
 from .logits_process import LogitsProcessorList, MinLengthLogitsProcessor, SuppressTokensLogitsProcessor
 
 if TYPE_CHECKING:
-    from transformers.configuration_utils import GenerationConfig
+    from mindone.transformers.configuration_utils import GenerationConfig
     from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
     from ..modeling_utils import PreTrainedModel
