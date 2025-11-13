@@ -42,7 +42,7 @@ from mindone.utils.config import str2bool
 def parse_args():
     parser = argparse.ArgumentParser("Commandline arguments for running HunyuanImage-3 locally")
     parser.add_argument("--prompt", type=str, required=True, help="Prompt to run")
-    parser.add_argument("--model_id", type=str, default="./HunyuanImage-3", help="Path to the model")
+    parser.add_argument("--model-id", type=str, default="./HunyuanImage-3", help="Path to the model")
     parser.add_argument(
         "--attn-impl",
         type=str,
@@ -119,7 +119,7 @@ def parse_args():
         "--amp-level",
         type=str,
         choices=["O0", "O1", "O2", "auto"],
-        default="O2",
+        default="auto",
         help="determine auto mixed precision level. only effective when enable_ms_amp is True",
     )
     parser.add_argument(
@@ -276,17 +276,19 @@ def main(args):
 
     if args.enable_ms_amp and dtype != ms.float32:
         print(f"Use MS auto mixed precision for model, amp_level: {args.amp_level}")
+        if hasattr(model, "vae") and model.vae is not None:
+            model.vae = auto_mixed_precision(
+                model.vae, amp_level="O2", dtype=dtype, custom_fp32_cells=[ms.mint.nn.GroupNorm]
+            )
+            print("Use MS auto mixed precision for model.vae, amp_level: O2")
+
         if args.amp_level == "auto":
             ms.amp.auto_mixed_precision(model, amp_level=args.amp_level, dtype=dtype)
         else:
+            # OOM risk
             whitelist_ops = [ms.mint.nn.GroupNorm]
             print("custom fp32 cell for vae: ", whitelist_ops)
             model = auto_mixed_precision(model, amp_level=args.amp_level, dtype=dtype, custom_fp32_cells=whitelist_ops)
-        # if hasattr(model, 'vae') and model.vae is not None:
-        #     model.vae = auto_mixed_precision(
-        #         model.vae, amp_level="O2", dtype=dtype, custom_fp32_cells=[ms.mint.nn.GroupNorm]
-        #     )
-        #     print("Use MS auto mixed precision for model.vae, amp_level: O2")
 
     # Rewrite prompt with DeepSeek
     if args.rewrite:

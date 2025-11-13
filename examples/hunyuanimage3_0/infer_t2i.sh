@@ -1,17 +1,18 @@
 #!/bin/bash
 export TOKENIZERS_PARALLELISM=False
-export ASCEND_RT_VISIBLE_DEVICES=1,2,3,4,5,6,7
+export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 
 # Distributed training configuration
 MASTER_ADDR=${MASTER_ADDR:-"127.0.0.1"}
 MASTER_PORT=${MASTER_PORT:-$(shuf -i 20001-29999 -n 1)}
-NPROC_PER_NODE=${WORLD_SIZE:-7}
+NPROC_PER_NODE=${WORLD_SIZE:-8}
 
 # Model configuration
 llm="/data6/hunyuanimage3_0"  # Using HuggingFace model ID
 
 # Training entry point
-entry_file="run_image_gen.py"
+# entry_file="run_image_gen.py"
+entry_file="run_image_gen_torchrandn.py"
 
 # Checkpoint configuration
 # lora_dir=./output
@@ -22,6 +23,7 @@ prompt="A brown and white dog is running on the grass"
 seed=0
 verbose=1
 enable_amp="True"
+image_size=""
 
 # Inference arguments
 # args="
@@ -37,10 +39,11 @@ msrun --worker_num=${NPROC_PER_NODE} \
     --log_dir="logs/infer" \
     --join=True \
     ${entry_file} \
-    --model_id "${llm}" \
+    --model-id "${llm}" \
     --save "${image_path}" \
     --prompt "${prompt}" \
     --seed "${seed}" \
     --verbose "${verbose}" \
     --enable-ms-amp "${enable_amp}"\
+    --image-size "${image_size}"\
     --reproduce

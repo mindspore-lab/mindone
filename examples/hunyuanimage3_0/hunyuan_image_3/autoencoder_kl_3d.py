@@ -17,19 +17,24 @@
 
 import math
 import random
+from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
 import numpy as np
 
 import mindspore as ms
 import mindspore.mint.nn.functional as F
-from mindspore import mint, nn, ops
+from mindspore import mint, nn
 
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
 from mindone.diffusers.models.activations import get_activation
-from mindone.diffusers.models.autoencoders.vae import DecoderOutput, DiagonalGaussianDistribution
+
+# from mindone.diffusers.models.autoencoders.vae import DecoderOutput, DiagonalGaussianDistribution
 from mindone.diffusers.models.modeling_outputs import AutoencoderKLOutput
 from mindone.diffusers.models.modeling_utils import ModelMixin
+from mindone.diffusers.utils import BaseOutput
+from mindone.diffusers.utils.mindspore_utils import randn_tensor
+from mindone.transformers.mindspore_adapter import scaled_dot_product_attention
 
 # from einops import rearrange
 
@@ -47,6 +52,80 @@ from mindone.diffusers.models.modeling_utils import ModelMixin
 #         return torch.utils.checkpoint.checkpoint(create_custom_forward(module), *inputs, use_reentrant=False)
 #     else:
 #         return module(*inputs)
+
+
+class DiagonalGaussianDistribution(object):
+    def __init__(self, parameters: ms.Tensor, deterministic: bool = False):
+        if parameters.ndim == 3:
+            dim = 2  # (B, L, C)
+        elif parameters.ndim == 5 or parameters.ndim == 4:
+            dim = 1  # (B, C, T, H ,W) / (B, C, H, W)
+        else:
+            raise NotImplementedError
+        self.parameters = parameters
+        self.mean, self.logvar = mint.chunk(parameters, 2, dim=dim)
+        self.logvar = mint.clamp(self.logvar, -30.0, 20.0)
+        self.deterministic = deterministic
+        self.std = mint.exp(0.5 * self.logvar)
+        self.var = mint.exp(self.logvar)
+        if self.deterministic:
+            self.var = self.std = mint.zeros_like(self.mean, dtype=self.parameters.dtype)
+
+    def sample(self, generator: Optional[np.random.Generator] = None) -> ms.Tensor:
+        # make sure sample is on the same device as the parameters and has same dtype
+        sample = randn_tensor(
+            self.mean.shape,
+            generator=generator,
+            dtype=self.parameters.dtype,
+        )
+        x = self.mean + self.std * sample
+        return x
+
+    def kl(self, other: "DiagonalGaussianDistribution" = None) -> ms.Tensor:
+        if self.deterministic:
+            return ms.Tensor([0.0])
+        else:
+            reduce_dim = list(range(1, self.mean.ndim))
+            if other is None:
+                return 0.5 * mint.sum(
+                    mint.pow(self.mean, 2) + self.var - 1.0 - self.logvar,
+                    dim=reduce_dim,
+                )
+            else:
+                return 0.5 * mint.sum(
+                    mint.pow(self.mean - other.mean, 2) / other.var
+                    + self.var / other.var
+                    - 1.0
+                    - self.logvar
+                    + other.logvar,
+                    dim=reduce_dim,
+                )
+
+    def nll(self, sample: ms.Tensor, dims: Tuple[int, ...] = [1, 2, 3]) -> ms.Tensor:
+        if self.deterministic:
+            return ms.Tensor([0.0])
+        logtwopi = np.log(2.0 * np.pi)
+        return 0.5 * mint.sum(
+            logtwopi + self.logvar + mint.pow(sample - self.mean, 2) / self.var,
+            dim=dims,
+        )
+
+    def mode(self) -> ms.Tensor:
+        return self.mean
+
+
+@dataclass
+class DecoderOutput(BaseOutput):
+    r"""
+    Output of decoding method.
+
+    Args:
+        sample (`ms.tensor` of shape `(batch_size, num_channels, height, width)`):
+            The decoded output sample from the last layer of the model.
+    """
+
+    sample: ms.tensor
+    posterior: Optional[DiagonalGaussianDistribution] = None
 
 
 class Conv3d(mint.nn.Conv3d):
@@ -103,10 +182,10 @@ class AttnBlock(nn.Cell):
 
         self.norm = mint.nn.GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
 
-        self.q = Conv3d(in_channels, in_channels, kernel_size=1)
-        self.k = Conv3d(in_channels, in_channels, kernel_size=1)
-        self.v = Conv3d(in_channels, in_channels, kernel_size=1)
-        self.proj_out = Conv3d(in_channels, in_channels, kernel_size=1)
+        self.to_q = Conv3d(in_channels, in_channels, kernel_size=1)
+        self.to_k = Conv3d(in_channels, in_channels, kernel_size=1)
+        self.to_v = Conv3d(in_channels, in_channels, kernel_size=1)
+        self.proj = Conv3d(in_channels, in_channels, kernel_size=1)
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         identity = x
@@ -117,18 +196,28 @@ class AttnBlock(nn.Cell):
         key = self.to_k(x)
         value = self.to_v(x)
 
-        batch_size, channels, height, width = query.shape
-        query = query.permute(0, 2, 3, 1).reshape(batch_size, height * width, channels).contiguous()
-        key = key.permute(0, 2, 3, 1).reshape(batch_size, height * width, channels).contiguous()
-        value = value.permute(0, 2, 3, 1).reshape(batch_size, height * width, channels).contiguous()
+        batch_size, channels, frame, height, width = query.shape  # (1, 1024, 1, 76, 52)
+        query = query.permute(0, 2, 3, 4, 1).reshape(batch_size, 1, frame * height * width, channels).contiguous()
+        key = key.permute(0, 2, 3, 4, 1).reshape(batch_size, 1, frame * height * width, channels).contiguous()
+        value = value.permute(0, 2, 3, 4, 1).reshape(batch_size, 1, frame * height * width, channels).contiguous()
+
+        """
+        # Head dim must <= 768, but got 1024 (channels)
+        num_heads = 16
+        head_dim = channels // num_heads
+        query = query.reshape(batch_size, -1, num_heads, head_dim)  # (B, S, num_heads, head_dim)
+        key = key.reshape(batch_size, -1, num_heads, head_dim)
+        value = value.reshape(batch_size, -1, num_heads, head_dim)
+        x = ops.flash_attention_score(
+            query, key, value, num_heads, scalar_value=1 / math.sqrt(head_dim), input_layout="BSND"
+        )
+        x = x.reshape(batch_size, 1, frame * height * width, channels)
+        """
 
         # apply attention
-        # x = F.scaled_dot_product_attention(query, key, value)
-        x = ops.flash_attention_score(
-            query, key, value, scalar_value=1 / math.sqrt(query.shape[-1]), input_layout="BNSD"
-        )
+        x = scaled_dot_product_attention(query, key, value)
 
-        x = x.reshape(batch_size, height, width, channels).permute(0, 3, 1, 2)
+        x = x.squeeze(1).reshape(batch_size, frame, height, width, channels).permute(0, 4, 1, 2, 3)
         # output projection
         x = self.proj(x)
 
@@ -162,7 +251,6 @@ class ResnetBlock(nn.Cell):
 
     def construct(self, x):
         # Apply shortcut connection
-        print(f"ResnetBlock {x.dtype}")
         residual = x
 
         # First normalization and activation
@@ -467,7 +555,8 @@ class Decoder(nn.Cell):
         super().__init__()
         if block_out_channels[0] % z_channels != 0:
             raise ValueError(
-                f"block_out_channels[0] should be divisible by z_channels but has block_out_channels[0] = {block_out_channels[0]} and z_channels = {z_channels}"
+                "block_out_channels[0] should be divisible by z_channels but has block_out_channels[0] = "
+                f"{block_out_channels[0]} and z_channels = {z_channels}"
             )
 
         self.z_channels = z_channels
@@ -902,7 +991,7 @@ class AutoencoderKLConv3D(ModelMixin, ConfigMixin):
             decoded_slices = [self._decode(z_slice) for z_slice in z.split(1)]
             decoded = mint.cat(decoded_slices)
         else:
-            decoded = self._decode(z)[0]
+            decoded = self._decode(z).sample
 
         if z.shape[-3] == 1:
             decoded = decoded[:, :, -1:]
@@ -944,11 +1033,11 @@ class AutoencoderKLConv3D(ModelMixin, ConfigMixin):
         sample_posterior: bool = False,
         return_dict: bool = True
     ):
-        posterior = self.encode(sample)[0]
+        posterior = self.encode(sample).latent_dist
         if sample_posterior:
-            z = self.diag_gauss_dist.sample(posterior)
+            z = posterior.sample()
         else:
-            z = self.diag_gauss_dist.mode(posterior)
+            z = posterior.mode()
 
         dec = self.decode(z, return_dict=return_dict)
 
