@@ -982,7 +982,7 @@ class Sam2TwoWayTransformer(nn.Cell):
         self.final_attn_token_to_image = Sam2Attention(config)
         self.layer_norm_final_attn = mint.nn.LayerNorm(config.hidden_size)
 
-    def forward(
+    def construct(
         self,
         point_embeddings: Tensor,
         image_embeddings: Tensor,
