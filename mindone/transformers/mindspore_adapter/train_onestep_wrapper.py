@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Dict, Literal, Optional
 
 import mindspore as ms
 from mindspore import ParallelMode, Tensor, context, nn, ops
@@ -119,7 +119,7 @@ class TrainOneStepWrapper(nn.Cell):
         optimizer: nn.Optimizer,
         ema: nn.Cell = None,
         drop_overflow_step: bool = True,
-        scaler: str = "default",
+        scaler: Literal["default", "static", "auto", "dynamic", "none"] = "default",
         scaler_config: Dict = {},
         gradient_accumulation_steps: int = 1,
         clip_grad: str = "none",
