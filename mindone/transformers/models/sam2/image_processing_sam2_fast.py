@@ -149,7 +149,7 @@ def _batched_mask_to_box(masks: "ms.Tensor"):
 
 def _is_box_near_crop_edge(boxes, crop_box, orig_box, atol=20.0):
     """Filter masks at the edge of a crop, but not at the edge of the original image."""
-    crop_box_torch = ms.tensor(crop_box, dtype=ms.float, device=boxes.device)
+    crop_box_torch = ms.tensor(crop_box, dtype=ms.float)
     orig_box_torch = ms.tensor(orig_box, dtype=ms.float, device=boxes.device)
 
     left, top, _, _ = crop_box
