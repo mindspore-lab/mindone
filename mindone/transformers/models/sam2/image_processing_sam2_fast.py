@@ -695,7 +695,7 @@ class Sam2ImageProcessorFast(BaseImageProcessorFast):
         Apply non-overlapping constraints to the object scores in pred_masks. Here we
         keep only the highest scoring object at each spatial location in pred_masks.
         """
-        batch_size = pred_masks.size(0)
+        batch_size = pred_masks.shape[0]
         if batch_size == 1:
             return pred_masks
 
