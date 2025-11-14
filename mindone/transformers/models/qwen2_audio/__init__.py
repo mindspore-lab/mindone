@@ -15,3 +15,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .modeling_qwen2_audio import Qwen2AudioEncoder, Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel
+from .processing_qwen2_audio import Qwen2AudioProcessor

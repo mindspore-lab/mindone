@@ -42,11 +42,16 @@ if TYPE_CHECKING:
     # the transformers package is used with Microsoft's Pylance language server.
     VIDEO_PROCESSOR_MAPPING_NAMES: OrderedDict[str, tuple[Optional[str], Optional[str]]] = OrderedDict()
 else:
-    VIDEO_PROCESSOR_MAPPING_NAMES = OrderedDict()
+    VIDEO_PROCESSOR_MAPPING_NAMES = OrderedDict(
+        [
+            ("qwen2_vl", "Qwen2VLVideoProcessor"),
+        ]
+    )
 
 if version.parse(transformers.__version__) >= version.parse("4.57.0"):
     VIDEO_PROCESSOR_MAPPING_NAMES.update(
         [
+            ("qwen3_omni_moe", "Qwen2VLVideoProcessor"),
             ("qwen3_vl", "Qwen3VLVideoProcessor"),
             ("qwen3_vl_moe", "Qwen3VLVideoProcessor"),
         ]

@@ -1109,7 +1109,12 @@ from .models.qwen2_5_vl import (
     Qwen2_5_VLPreTrainedModel,
     Qwen2_5_VLProcessor,
 )
-from .models.qwen2_audio import Qwen2AudioEncoder, Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel
+from .models.qwen2_audio import (
+    Qwen2AudioEncoder,
+    Qwen2AudioForConditionalGeneration,
+    Qwen2AudioPreTrainedModel,
+    Qwen2AudioProcessor,
+)
 from .models.qwen2_moe import (
     Qwen2MoeForCausalLM,
     Qwen2MoeForQuestionAnswering,
@@ -1124,6 +1129,7 @@ from .models.qwen2_vl import (
     Qwen2VLImageProcessorFast,
     Qwen2VLModel,
     Qwen2VLPreTrainedModel,
+    Qwen2VLVideoProcessor,
 )
 from .models.rag import RagModel, RagPreTrainedModel, RagSequenceForGeneration, RagTokenForGeneration
 from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
@@ -1439,6 +1445,7 @@ from .models.wavlm import (
     WavLMPreTrainedModel,
 )
 from .models.whisper import (
+    WhisperFeatureExtractor,
     WhisperForAudioClassification,
     WhisperForCausalLM,
     WhisperForConditionalGeneration,
@@ -1578,6 +1585,7 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     from .models.vjepa2 import VJEPA2ForVideoClassification, VJEPA2Model, VJEPA2PreTrainedModel
 
 if version.parse(transformers.__version__) >= version.parse("4.57.0"):
+    from .models.qwen3_omni_moe import *
     from .models.qwen3_vl import (
         Qwen3VLForConditionalGeneration,
         Qwen3VLModel,

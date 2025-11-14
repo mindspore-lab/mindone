@@ -1320,6 +1320,8 @@ if version.parse(transformers.__version__) >= version.parse("4.57.0"):
         {("qwen3_vl", "Qwen3VLForConditionalGeneration"), ("qwen3_vl_moe", "Qwen3VLMoeForConditionalGeneration")}
     )
 
+    MODEL_FOR_TEXT_TO_WAVEFORM_MAPPING_NAMES.update({("qwen3_omni_moe", "Qwen3OmniMoeForConditionalGeneration")})
+
 MODEL_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, MODEL_MAPPING_NAMES)
 MODEL_FOR_PRETRAINING_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, MODEL_FOR_PRETRAINING_MAPPING_NAMES)
 MODEL_WITH_LM_HEAD_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, MODEL_WITH_LM_HEAD_MAPPING_NAMES)
