@@ -1091,7 +1091,7 @@ class Sam2MaskDecoder(nn.Cell):
         self.dynamic_multimask_stability_delta = config.dynamic_multimask_stability_delta
         self.dynamic_multimask_stability_thresh = config.dynamic_multimask_stability_thresh
 
-    def forward(
+    def construct(
         self,
         image_embeddings: ms.Tensor,
         image_positional_embeddings: ms.Tensor,
