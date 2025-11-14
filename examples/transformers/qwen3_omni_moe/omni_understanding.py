@@ -25,8 +25,8 @@ def generate(args):
     model.thinker = shard_fn(model.thinker)
     model.talker = shard_fn(model.talker)
 
-    min_pixels = 128 * 8 * 8
-    max_pixels = 768 * 8 * 8
+    min_pixels = 56 * 56
+    max_pixels = 14 * 14 * 768
     processor = Qwen3OmniMoeProcessor.from_pretrained(args.model_name, min_pixels=min_pixels, max_pixels=max_pixels)
 
     conversation = [

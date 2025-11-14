@@ -26,7 +26,7 @@ cd examples/transformers/qwen3_omni_moe
 ```
 
 ## **Notice**  
-Please adjust min_pixel and max_pixel of processor if raising OOM error.
+Note that adjusting `min_pixels` and `max_pixels` trades off between memory and accuracy. Please adjust min_pixel and max_pixel of processor if raising OOM error.
 
 ## Quick Start
 
@@ -75,8 +75,8 @@ model = Qwen3OmniMoeForConditionalGeneration.from_pretrained(
 shard_fn = partial(prepare_network, zero_stage=3, optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP)
 model = shard_fn(model)
 
-min_pixels = 128 * 8 * 8
-max_pixels = 768 * 8 * 8
+min_pixels = 56 * 56
+max_pixels = 14 * 14 * 768
 processor = Qwen3OmniMoeProcessor.from_pretrained(MODEL_PATH, min_pixels=min_pixels, max_pixels=max_pixels)
 
 conversation = [
@@ -139,7 +139,7 @@ if audio is not None:
 
 Text generation Outputs:
 ```
-['The image displays four luxury cars-a Rolls-Royce, a Range Rover, a Ferrari, and a Porsche-while the audio captures a person coughing.']
+['The image displays four luxury cars-a Rolls-Royce, a Porsche, a Ferrari and a Mercedes-Benz SUV-while the audio captures a person coughing.']
 ```
 
 If `return_audio=True` is set, besides that above text generation results, a piece of audio that explains the image and audio would be generated.
