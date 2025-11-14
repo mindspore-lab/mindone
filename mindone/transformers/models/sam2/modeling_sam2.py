@@ -697,7 +697,7 @@ class Sam2PositionalEmbedding(nn.Cell):
         if input_shape is not None:
             coordinates[:, :, :, 0] = coordinates[:, :, :, 0] / input_shape[1]
             coordinates[:, :, :, 1] = coordinates[:, :, :, 1] / input_shape[0]
-        coordinates.to(ms.float32)
+        coordinates = coordinates.to(ms.float32)
 
         # assuming coords are in [0, 1]^2 square and have d_1 x ... x d_n x 2 shape
         coordinates = 2 * coordinates - 1
