@@ -21,7 +21,13 @@
 import numpy as np
 import pytest
 import torch
-from transformers import Sam2Config, Sam2MaskDecoderConfig, Sam2PromptEncoderConfig, Sam2VisionConfig, Sam2HieraDetConfig
+from transformers import (
+    Sam2Config,
+    Sam2HieraDetConfig,
+    Sam2MaskDecoderConfig,
+    Sam2PromptEncoderConfig,
+    Sam2VisionConfig,
+)
 
 import mindspore as ms
 
