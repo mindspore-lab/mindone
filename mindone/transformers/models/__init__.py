@@ -201,6 +201,7 @@ from . import (
     sam,
     seamless_m4t,
     seamless_m4t_v2,
+    seed_oss,
     segformer,
     seggpt,
     sew,
