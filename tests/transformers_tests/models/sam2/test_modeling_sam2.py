@@ -149,7 +149,7 @@ class Sam2ModelTester:
         self.mask_decoder_tester = Sam2MaskDecoderTester()
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_tensor([self.batch_size, self.num_channels, self.image_size, self.image_size])
+        pixel_values = floats_numpy([self.batch_size, self.num_channels, self.image_size, self.image_size])
         config = self.get_config()
 
         return config, pixel_values
