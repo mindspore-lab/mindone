@@ -68,6 +68,7 @@ PROCESSOR_MAPPING_NAMES = OrderedDict(
         ("pop2piano", "Pop2PianoProcessor"),
         ("qwen2_5_vl", "Qwen2_5_VLProcessor"),
         ("sam", "SamProcessor"),
+        ("sam2","Sam2Processor"),
         ("seamless_m4t", "SeamlessM4TProcessor"),
         ("siglip", "SiglipProcessor"),
     ]
