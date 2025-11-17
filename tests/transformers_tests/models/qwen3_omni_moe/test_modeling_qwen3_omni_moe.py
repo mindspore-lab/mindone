@@ -1,4 +1,4 @@
-"""Adapted from https://github.com/huggingface/transformers/tree/main/tests/models/qwen2_5_omni/test_modeling_qwen2_5_omni.py."""
+"""Adapted from https://github.com/huggingface/transformers/tree/main/tests/models/qwen3_omni_moe/test_modeling_qwen3_omni_moe.py."""
 
 # This module contains test cases that are defined in the `.test_cases.py` file, structured as lists or tuples like
 #     [name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map].
@@ -10,7 +10,7 @@
 # In cases where models have unique initialization procedures or require testing with specialized output formats,
 # it is necessary to develop distinct, dedicated test cases.
 
-# NOTE: install transformers by `pip install transformers==4.53.0`
+# NOTE: install transformers by `pip install transformers==4.57.0`
 
 import inspect
 

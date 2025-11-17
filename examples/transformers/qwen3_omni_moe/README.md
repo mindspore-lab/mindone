@@ -139,7 +139,7 @@ if audio is not None:
 
 Text generation Outputs:
 ```
-['The image displays four luxury cars-a Rolls-Royce, a Porsche, a Ferrari and a Mercedes-Benz SUV-while the audio captures a person coughing.']
+['The image displays four luxury cars-a Rolls-Royce, a Mercedes-Benz SUV, a Ferrari convertible and a Porsche 911-while the audio captures a person coughing.']
 ```
 
 If `return_audio=True` is set, besides that above text generation results, a piece of audio that explains the image and audio would be generated.
