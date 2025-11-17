@@ -175,7 +175,7 @@ if transformers.__version__ >= "4.57.0":
                 ]
             )
             pixel_grid_thw = np.array(
-                [[1, self.image_size / patch_size, self.image_size / patch_size]] * self.batch_size
+                [[1, self.image_size / patch_size, self.image_size / patch_size]] * self.batch_size, dtype=np.int64
             )
             input_features_values = floats_numpy(
                 [self.batch_size, self.audio_config["num_mel_bins"], self.feat_seq_length]
@@ -221,7 +221,7 @@ if transformers.__version__ >= "4.57.0":
             attention_mask[:, :1] = 0
 
             # Audio token placeholders should be wrapped in start and end token ids
-            audio_feat_length = ((self.feat_seq_length - 1) // 2 + 1 - 2) // 2 + 1
+            audio_feat_length = (((self.feat_seq_length - 1) // 2 + 1 - 1) // 2 + 1 - 1) // 2 + 1
             input_ids[:, 1] = thinker_config.audio_start_token_id
             input_ids[:, 2 : (2 + audio_feat_length)] = thinker_config.audio_token_id
             input_ids[:, 2 + audio_feat_length] = thinker_config.audio_end_token_id
@@ -265,6 +265,18 @@ if transformers.__version__ >= "4.57.0":
             },
             {
                 "last_hidden_state": 0,
+            },
+        ],
+        [
+            "Qwen3OmniMoeThinkerForConditionalGeneration",
+            "transformers.Qwen3OmniMoeThinkerForConditionalGeneration",
+            "mindone.transformers.Qwen3OmniMoeThinkerForConditionalGeneration",
+            (thinker_config,),
+            {},
+            (),
+            thinker_inputs_dict,
+            {
+                "logits": 0,
             },
         ],
     ]
