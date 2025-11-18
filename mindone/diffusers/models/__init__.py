@@ -90,6 +90,7 @@ _import_structure = {
     "transformers.transformer_skyreels_v2": ["SkyReelsV2Transformer3DModel"],
     "transformers.transformer_temporal": ["TransformerTemporalModel"],
     "transformers.transformer_wan": ["WanTransformer3DModel"],
+    "transformers.transformer_wan_animate": ["WanAnimateTransformer3DModel"],
     "transformers.transformer_wan_vace": ["WanVACETransformer3DModel"],
     "unets.unet_1d": ["UNet1DModel"],
     "unets.unet_2d": ["UNet2DModel"],
@@ -179,6 +180,7 @@ if TYPE_CHECKING:
         T5FilmDecoder,
         Transformer2DModel,
         TransformerTemporalModel,
+        WanAnimateTransformer3DModel,
         WanTransformer3DModel,
         WanVACETransformer3DModel,
     )
