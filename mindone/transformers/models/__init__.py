@@ -253,6 +253,7 @@ from . import (
     wav2vec2_conformer,
     wavlm,
     x_clip,
+    xcodec,
     xglm,
     xlm,
     xlm_roberta,
