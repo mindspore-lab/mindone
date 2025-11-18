@@ -43,7 +43,7 @@ from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...utils import ModelOutput
 from ..auto import AutoModel
 from mindone.transformers.generation import GenerationMixin
-from .configuration_sam2 import (
+from transformers import (
     Sam2Config,
     Sam2HieraDetConfig,
     Sam2MaskDecoderConfig,
@@ -226,7 +226,6 @@ class Sam2VisionNeck(nn.Cell):
                     scale_factor=2.0,
                     mode="nearest",
                     align_corners=None,
-                    antialias=False,
                 ).to(lateral_features.dtype)
                 prev_features = lateral_features + top_down_features
 
@@ -270,7 +269,7 @@ def do_pool(x: ms.Tensor, query_stride: Optional[int] = None) -> ms.Tensor:
     query_stride = tuple(query_stride)
     input_dtype = x.dtype
     x = x.to(ms.float32)
-    x = nn.functional.max_pool2d(x, kernel_size=query_stride, stride=query_stride, ceil_mode=False)
+    x = mint.nn.functional.max_pool2d(x, kernel_size=query_stride, stride=query_stride, ceil_mode=False)
     # (B, C, H', W') -> (B, H', W', C)
     x = x.to(input_dtype)
     x = x.permute(0, 2, 3, 1)
@@ -586,10 +585,10 @@ class Sam2HieraDetModel(Sam2PreTrainedModel, GenerationMixin):
         self.patch_embed = Sam2PatchEmbeddings(config)
         # Windowed positional embedding (https://huggingface.co/papers/2311.05613)
         self.pos_embed = ms.Parameter(
-            mint.zeros(1, config.hidden_size, *config.window_positional_embedding_background_size)
+            mint.zeros((1, config.hidden_size, *config.window_positional_embedding_background_size))
         )
         self.pos_embed_window = ms.Parameter(
-            mint.zeros(1, config.hidden_size, config.window_size_per_stage[0], config.window_size_per_stage[0])
+            mint.zeros((1, config.hidden_size, config.window_size_per_stage[0], config.window_size_per_stage[0]))
         )
         self.stage_ends = (np.cumsum(config.blocks_per_stage) - 1).tolist()
         self.blocks = nn.CellList()
@@ -697,7 +696,7 @@ class Sam2PositionalEmbedding(nn.Cell):
         if input_shape is not None:
             coordinates[:, :, :, 0] = coordinates[:, :, :, 0] / input_shape[1]
             coordinates[:, :, :, 1] = coordinates[:, :, :, 1] / input_shape[0]
-        coordinates = coordinates.to(ms.float32)
+        coordinates.to(ms.float32)
 
         # assuming coords are in [0, 1]^2 square and have d_1 x ... x d_n x 2 shape
         coordinates = 2 * coordinates - 1
@@ -787,7 +786,7 @@ class Sam2PromptEncoder(nn.Cell):
         corner_embedding[:, :, 2, :] = self.not_a_point_embed.weight.expand_as(corner_embedding[:, :, 2, :])
         return corner_embedding
 
-    def forward(
+    def construct(
         self,
         input_points: Optional[Tuple[ms.Tensor, ms.Tensor]],
         input_labels: Optional[ms.Tensor],
@@ -1271,7 +1270,7 @@ class Sam2Model(Sam2PreTrainedModel, GenerationMixin):
     def __init__(self, config: Sam2Config):
         super().__init__(config)
         self.shared_image_embedding = Sam2PositionalEmbedding(config.prompt_encoder_config)
-        self.vision_encoder = Sam2VisionModel.from_config(config.vision_config)
+        self.vision_encoder = Sam2VisionModel(config.vision_config)
         self.prompt_encoder = Sam2PromptEncoder(config.prompt_encoder_config)
         # The module using it is not a PreTrainedModel subclass so we need this
         config.mask_decoder_config._attn_implementation = config._attn_implementation
@@ -1281,7 +1280,7 @@ class Sam2Model(Sam2PreTrainedModel, GenerationMixin):
         self.backbone_feature_sizes = config.vision_config.backbone_feature_sizes
         # a single token to indicate no memory embedding from previous frames
         self.hidden_dim = config.vision_config.fpn_hidden_size
-        self.no_memory_embedding = ms.Parameter(mint.zeros(1, 1, self.hidden_dim))
+        self.no_memory_embedding = ms.Parameter(mint.zeros((1, 1, self.hidden_dim)))
 
         self.post_init()
 
@@ -1292,7 +1291,7 @@ class Sam2Model(Sam2PreTrainedModel, GenerationMixin):
     def get_image_wide_positional_embeddings(self) -> ms.Tensor:
         size = self.prompt_encoder.image_embedding_size
         target_dtype = self.shared_image_embedding.positional_embedding.dtype
-        grid = mint.ones(size, dtype=target_dtype)
+        grid = mint.ones((size), dtype=target_dtype)
         y_embed = grid.cumsum(dim=0) - 0.5
         x_embed = grid.cumsum(dim=1) - 0.5
         y_embed = y_embed / size[0]
@@ -1412,7 +1411,7 @@ class Sam2Model(Sam2PreTrainedModel, GenerationMixin):
         image_embeddings (`ms.Tensor` of shape `(batch_size, output_channels, window_size, window_size)`):
             Image embeddings, this is used by the mask decoder to generate masks and iou scores. For more memory
             efficient computation, users can first retrieve the image embeddings using the `get_image_embeddings`
-            method, and then feed them to the `forward` method instead of feeding the `pixel_values`.
+            method, and then feed them to the `construct` method instead of feeding the `pixel_values`.
         multimask_output (`bool`, *optional*):
             In the original implementation and paper, the model always outputs 3 masks per image (or per point / per
             bounding box if relevant). However, it is possible to just output a single mask, that corresponds to the
@@ -1455,14 +1454,14 @@ class Sam2Model(Sam2PreTrainedModel, GenerationMixin):
             ]
 
         if input_points is not None and input_labels is None:
-            input_labels = mint.ones_like(input_points[:, :, :, 0], dtype=ms.int, device=input_points.device)
+            input_labels = mint.ones_like(input_points[:, :, :, 0], dtype=ms.int)
 
         if input_points is None and input_boxes is None:
             # If no points are provide, pad with an empty point (with label -1)
             input_points = mint.zeros(
-                batch_size, 1, 1, 2, dtype=image_embeddings[-1].dtype, device=image_embeddings[-1].device
+                (batch_size, 1, 1, 2), dtype=image_embeddings[-1].dtype
             )
-            input_labels = -mint.ones(batch_size, 1, 1, dtype=ms.int32, device=image_embeddings[-1].device)
+            input_labels = -mint.ones((batch_size, 1, 1), dtype=ms.int32)
 
         if input_masks is not None:
             # If mask_inputs is provided, downsize it into low-res mask input if needed
