@@ -619,7 +619,7 @@ class GenerationMixin:
             and kwargs.get(position_ids_key) is None
             and position_ids_key in set(inspect.signature(self.construct).parameters.keys())
         ):
-            position_ids = attention_mask.to(ms.int32).cumsum(-1) - 1
+            position_ids = attention_mask.to(ms.int64).cumsum(-1) - 1
             position_ids.masked_fill_(attention_mask == 0, 1)
             kwargs[position_ids_key] = position_ids  # placed in kwargs for further processing (see below)
 
@@ -914,7 +914,7 @@ class GenerationMixin:
             mnp.isin(element=eos_token_id, test_elements=pad_token_id).any()
         )
         can_infer_attention_mask = is_pad_token_in_inputs * is_pad_token_not_equal_to_eos_token_id
-        attention_mask_from_padding = inputs_tensor.ne(pad_token_id).to(ms.int32)
+        attention_mask_from_padding = inputs_tensor.ne(pad_token_id).to(ms.int64)
 
         attention_mask = (
             attention_mask_from_padding * can_infer_attention_mask + default_attention_mask * ~can_infer_attention_mask
@@ -1953,13 +1953,13 @@ class GenerationMixin:
             return model_kwargs
         # the lines below are equivalent to `mint.arange` [0,1,2,3, .., input_shape-1]
         if "inputs_embeds" in model_kwargs and not self.config.is_encoder_decoder:
-            cache_position = mint.ones_like(model_kwargs["inputs_embeds"][0, :, 0], dtype=ms.int32).cumsum(0) - 1
+            cache_position = mint.ones_like(model_kwargs["inputs_embeds"][0, :, 0], dtype=ms.int64).cumsum(0) - 1
         elif "decoder_inputs_embeds" in model_kwargs and self.config.is_encoder_decoder:
             cache_position = (
-                mint.ones_like(model_kwargs["decoder_inputs_embeds"][0, :, 0], dtype=ms.int32).cumsum(0) - 1
+                mint.ones_like(model_kwargs["decoder_inputs_embeds"][0, :, 0], dtype=ms.int64).cumsum(0) - 1
             )
         else:
-            cache_position = mint.ones_like(input_ids[0, :], dtype=ms.int32).cumsum(0) - 1
+            cache_position = mint.ones_like(input_ids[0, :], dtype=ms.int64).cumsum(0) - 1
 
         if model_kwargs.get("past_key_values") is not None:
             cache = model_kwargs["past_key_values"]
@@ -1981,7 +1981,7 @@ class GenerationMixin:
                 max_len = cache_position.shape[0]
                 if valid_len < max_len:
                     cache_position = cache_position[:valid_len]
-                    cache_position = mint.cat([cache_position, mint.zeros(max_len - valid_len, dtype=ms.int32)])
+                    cache_position = mint.cat([cache_position, mint.zeros(max_len - valid_len, dtype=ms.int64)])
 
         model_kwargs["cache_position"] = cache_position
         return model_kwargs
@@ -2257,7 +2257,7 @@ class GenerationMixin:
         def _tensor_or_none(token):
             if token is None or isinstance(token, ms.Tensor):
                 return token
-            return ms.Tensor(token, dtype=ms.int32)
+            return ms.tensor(token, dtype=ms.int64)
 
         bos_token_tensor = _tensor_or_none(generation_config.bos_token_id)
         eos_token_tensor = _tensor_or_none(generation_config.eos_token_id)
@@ -2327,9 +2327,9 @@ class GenerationMixin:
         emb_length = inputs_embeds.shape[-1] if inputs_embeds is not None else 0
         ignore_label_index = 0
 
-        padded_input_ids = mint.zeros((bs, max_length), dtype=ms.int32)
-        padded_labels = ops.full((bs, max_length), ignore_label_index, dtype=ms.int32)
-        padded_position_ids = mint.zeros((bs, max_length), dtype=ms.int32)
+        padded_input_ids = mint.zeros((bs, max_length), dtype=ms.int64)
+        padded_labels = ops.full((bs, max_length), ignore_label_index, dtype=ms.int64)
+        padded_position_ids = mint.zeros((bs, max_length), dtype=ms.int64)
         padded_attention_mask = mint.zeros((bs, max_length), dtype=ms.bool_)
 
         padded_inputs_embeds = (
@@ -2349,7 +2349,7 @@ class GenerationMixin:
         cur_len = int(attention_mask.sum(-1).max())
 
         if position_ids is None:
-            position_ids = mint.arange(0, cur_len, dtype=ms.int32)
+            position_ids = mint.arange(0, cur_len, dtype=ms.int64)
         if labels is None:
             labels = ops.full(
                 (
