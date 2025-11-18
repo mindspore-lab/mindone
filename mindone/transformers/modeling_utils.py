@@ -3173,6 +3173,7 @@ class PreTrainedModel(
                 loading_task_model_from_base_state_dict,
                 loading_base_model_from_task_state_dict,
                 ignore_mismatched_sizes,
+                prefix,
             )
             error_msgs = _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_sharded=False)
         else:
