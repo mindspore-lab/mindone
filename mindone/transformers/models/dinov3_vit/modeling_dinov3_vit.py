@@ -27,8 +27,7 @@ from typing import Callable, Optional
 
 import numpy as np
 import mindspore as ms
-from mindspore import mint
-from mindspore.mint import nn
+from mindspore import mint, nn
 
 from ...activations import ACT2FN
 from ...modeling_layers import GradientCheckpointingLayer
@@ -39,8 +38,6 @@ from ...utils import TransformersKwargs
 from ...utils.generic import check_model_inputs
 from mindone.models.utils import trunc_normal_
 from transformers.models.dinov3_vit.configuration_dinov3_vit import DINOv3ViTConfig
-from transformers.utils import auto_docstring
-
 
 
 class DINOv3ViTEmbeddings(nn.Cell):
