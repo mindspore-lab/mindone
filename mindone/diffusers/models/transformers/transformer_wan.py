@@ -19,13 +19,15 @@ import math
 from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import mint, nn
 from mindspore.common.initializer import Zero
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
 from ...utils import deprecate, logging
+from .._modeling_parallel import ContextParallelInput, ContextParallelOutput
 from ..attention import AttentionMixin, AttentionModuleMixin, FeedForward
+from ..attention_dispatch import dispatch_attention_fn
 from ..cache_utils import CacheMixin
 from ..embeddings import PixArtAlphaTextProjection, TimestepEmbedding, Timesteps, get_1d_rotary_pos_embed
 from ..layers_compat import unflatten
@@ -66,6 +68,9 @@ def _get_added_kv_projections(attn: "WanAttention", encoder_hidden_states_img: m
 
 
 class WanAttnProcessor:
+    _attention_backend = None
+    _parallel_config = None
+
     def __call__(
         self,
         attn: "WanAttention",
@@ -120,14 +125,28 @@ class WanAttnProcessor:
             key_img = unflatten(key_img, 2, (attn.heads, -1))
             value_img = unflatten(value_img, 2, (attn.heads, -1))
 
-            hidden_states_img = attn.scaled_dot_product_attention(
-                query, key_img, value_img, attn_mask=None, dropout_p=0.0, is_causal=False
+            hidden_states_img = dispatch_attention_fn(
+                query,
+                key_img,
+                value_img,
+                attn_mask=None,
+                dropout_p=0.0,
+                is_causal=False,
+                backend=self._attention_backend,
+                parallel_config=self._parallel_config,
             )
             hidden_states_img = hidden_states_img.flatten(2, 3)
             hidden_states_img = hidden_states_img.type_as(query)
 
-        hidden_states = attn.scaled_dot_product_attention(
-            query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
+        hidden_states = dispatch_attention_fn(
+            query,
+            key,
+            value,
+            attn_mask=attention_mask,
+            dropout_p=0.0,
+            is_causal=False,
+            backend=self._attention_backend,
+            parallel_config=self._parallel_config,
         )
         hidden_states = hidden_states.flatten(2, 3)
         hidden_states = hidden_states.type_as(query)
@@ -173,7 +192,6 @@ class WanAttention(nn.Cell, AttentionModuleMixin):
         self.added_kv_proj_dim = added_kv_proj_dim
         self.cross_attention_dim_head = cross_attention_dim_head
         self.kv_inner_dim = self.inner_dim if cross_attention_dim_head is None else cross_attention_dim_head * heads
-        self.scale = dim_head**-0.5
 
         self.to_q = mint.nn.Linear(dim, self.inner_dim, bias=True)
         self.to_k = mint.nn.Linear(dim, self.kv_inner_dim, bias=True)
@@ -196,60 +214,6 @@ class WanAttention(nn.Cell, AttentionModuleMixin):
         self.is_cross_attention = cross_attention_dim_head is not None
 
         self.set_processor(processor)
-
-    def scaled_dot_product_attention(
-        self,
-        query: ms.Tensor,
-        key: ms.Tensor,
-        value: ms.Tensor,
-        attn_mask: Optional[ms.Tensor] = None,
-        dropout_p: float = 0.0,
-        is_causal: bool = False,
-        scale: Optional[float] = None,
-    ):
-        query, key, value = (x.permute(0, 2, 1, 3) for x in (query, key, value))
-        if query.dtype in (ms.float16, ms.bfloat16):
-            out = self.flash_attention_op(query, key, value, attn_mask, keep_prob=1 - dropout_p, scale=scale)
-        else:
-            out = self.flash_attention_op(
-                query.to(ms.float16),
-                key.to(ms.float16),
-                value.to(ms.float16),
-                attn_mask,
-                keep_prob=1 - dropout_p,
-                scale=scale,
-            ).to(query.dtype)
-        return out.permute(0, 2, 1, 3)
-
-    def flash_attention_op(
-        self,
-        query: ms.Tensor,
-        key: ms.Tensor,
-        value: ms.Tensor,
-        attn_mask: Optional[ms.Tensor] = None,
-        keep_prob: float = 1.0,
-        scale: Optional[float] = None,
-    ):
-        # For most scenarios, qkv has been processed into a BNSD layout before sdp
-        input_layout = "BNSD"
-        head_num = query.shape[1]
-
-        # In case qkv is 3-dim after `head_to_batch_dim`
-        if query.ndim == 3:
-            input_layout = "BSH"
-            head_num = 1
-
-        # process `attn_mask` as logic is different between PyTorch and Mindspore
-        # In MindSpore, False indicates retention and True indicates discard, in PyTorch it is the opposite
-        if attn_mask is not None:
-            attn_mask = mint.logical_not(attn_mask) if attn_mask.dtype == ms.bool_ else attn_mask.bool()
-            attn_mask = mint.broadcast_to(
-                attn_mask, (attn_mask.shape[0], attn_mask.shape[1], query.shape[-2], key.shape[-2])
-            )[:, :1, :, :]
-
-        return ops.operations.nn_ops.FlashAttentionScore(
-            head_num=head_num, keep_prob=keep_prob, scale_value=scale or self.scale, input_layout=input_layout
-        )(query, key, value, None, None, None, attn_mask)[3]
 
     def fuse_projections(self):
         if getattr(self, "fused_projections", False):
@@ -291,6 +255,7 @@ class WanAttention(nn.Cell, AttentionModuleMixin):
 
         self.fused_projections = True
 
+    @ms._no_grad()
     def unfuse_projections(self):
         if not getattr(self, "fused_projections", False):
             return
@@ -403,10 +368,16 @@ class WanRotaryPosEmbed(nn.Cell):
 
         h_dim = w_dim = 2 * (attention_head_dim // 6)
         t_dim = attention_head_dim - h_dim - w_dim
+
+        self.t_dim = t_dim
+        self.h_dim = h_dim
+        self.w_dim = w_dim
+
         freqs_dtype = ms.float64
 
         freqs_cos = []
         freqs_sin = []
+
         for dim in [t_dim, h_dim, w_dim]:
             freq_cos, freq_sin = get_1d_rotary_pos_embed(
                 dim,
@@ -427,11 +398,7 @@ class WanRotaryPosEmbed(nn.Cell):
         p_t, p_h, p_w = self.patch_size
         ppf, pph, ppw = num_frames // p_t, height // p_h, width // p_w
 
-        split_sizes = [
-            self.attention_head_dim - 2 * (self.attention_head_dim // 3),
-            self.attention_head_dim // 3,
-            self.attention_head_dim // 3,
-        ]
+        split_sizes = [self.t_dim, self.h_dim, self.w_dim]
 
         freqs_cos = self.freqs_cos.split(split_sizes, dim=1)
         freqs_sin = self.freqs_sin.split(split_sizes, dim=1)
@@ -591,11 +558,27 @@ class WanTransformer3DModel(
     _keep_in_fp32_modules = ["time_embedder", "scale_shift_table", "norm1", "norm2", "norm3"]
     _keys_to_ignore_on_load_unexpected = ["norm_added_q"]
     _repeated_blocks = ["WanTransformerBlock"]
+    _cp_plan = {
+        "rope": {
+            0: ContextParallelInput(split_dim=1, expected_dims=4, split_output=True),
+            1: ContextParallelInput(split_dim=1, expected_dims=4, split_output=True),
+        },
+        "blocks.0": {
+            "hidden_states": ContextParallelInput(split_dim=1, expected_dims=3, split_output=False),
+        },
+        "blocks.*": {
+            "encoder_hidden_states": ContextParallelInput(split_dim=1, expected_dims=3, split_output=False),
+        },
+        "proj_out": ContextParallelOutput(gather_dim=1, expected_dims=3),
+        "": {
+            "timestep": ContextParallelInput(split_dim=1, expected_dims=2, split_output=False),
+        },
+    }
 
     @register_to_config
     def __init__(
         self,
-        patch_size: Tuple[int] = (1, 2, 2),
+        patch_size: Tuple[int, ...] = (1, 2, 2),
         num_attention_heads: int = 40,
         attention_head_dim: int = 128,
         in_channels: int = 16,
