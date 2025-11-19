@@ -53,6 +53,8 @@ from ..utils import (
     logging,
 )
 from ..utils.hub_utils import PushToHubMixin, load_or_create_model_card, populate_model_card
+from ._modeling_parallel import ContextParallelConfig, ContextParallelModelPlan, ParallelConfig
+from .layers_compat import DeviceMesh
 from .model_loading_utils import (
     _fetch_index_file,
     _fetch_index_file_legacy,
@@ -181,6 +183,8 @@ class ModelMixin(nn.Cell, PushToHubMixin):
     _skip_layerwise_casting_patterns = None
     _supports_group_offloading = True
     _repeated_blocks = []
+    _parallel_config = None
+    _cp_plan = None
 
     def __init__(self):
         super().__init__()
@@ -678,6 +682,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         use_safetensors = kwargs.pop("use_safetensors", None)
         dduf_entries: Optional[Dict[str, DDUFEntry]] = kwargs.pop("dduf_entries", None)
         disable_mmap = kwargs.pop("disable_mmap", False)
+        parallel_config: Optional[Union[ParallelConfig, ContextParallelConfig]] = kwargs.pop("parallel_config", None)
 
         is_parallel_loading_enabled = HF_ENABLE_PARALLEL_LOADING
         if is_parallel_loading_enabled:
@@ -902,6 +907,9 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         # Set model in evaluation mode to deactivate DropOut modules by default
         model.set_train(False)
 
+        if parallel_config is not None:
+            model.enable_parallelism(config=parallel_config)
+
         if output_loading_info:
             return model, loading_info
 
@@ -954,6 +962,75 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             raise ValueError(
                 f"Regional compilation failed because {repeated_blocks} classes are not found in the model. "
             )
+
+    def enable_parallelism(
+        self,
+        *,
+        config: Union[ParallelConfig, ContextParallelConfig],
+        cp_plan: Optional[Dict[str, ContextParallelModelPlan]] = None,
+    ):
+        from ..hooks.context_parallel import apply_context_parallel
+        from .attention import AttentionModuleMixin
+        from .attention_processor import Attention, MochiAttention
+
+        logger.warning(
+            "`enable_parallelism` is an experimental feature. The API may change in the future and breaking changes may be introduced at any time without warning."
+        )
+
+        if isinstance(config, ContextParallelConfig):
+            config = ParallelConfig(context_parallel_config=config)
+
+        if not mint.distributed.is_initialized():
+            raise RuntimeError("mint.distributed must be initialized before calling `enable_parallelism`.")
+
+        rank = mint.distributed.get_rank()
+        world_size = mint.distributed.get_world_size()
+        device_type = "Ascend"
+        device_count = ms.device_context.ascend.device_count()
+        rank = mint.distributed.get_rank()
+        ms.set_device(device_type, rank % device_count)
+        device = ms.get_current_device()
+
+        cp_mesh = None
+        if config.context_parallel_config is not None:
+            cp_config = config.context_parallel_config
+            if cp_config.ring_degree < 1 or cp_config.ulysses_degree < 1:
+                raise ValueError("`ring_degree` and `ulysses_degree` must be greater than or equal to 1.")
+            if cp_config.ring_degree > 1 and cp_config.ulysses_degree > 1:
+                raise ValueError(
+                    "Unified Ulysses-Ring attention is not yet supported. Please set either `ring_degree` or `ulysses_degree` to 1."
+                )
+            if cp_config.ring_degree * cp_config.ulysses_degree > world_size:
+                raise ValueError(
+                    f"The product of `ring_degree` ({cp_config.ring_degree}) and `ulysses_degree` ({cp_config.ulysses_degree}) must not exceed the world size ({world_size})."
+                )
+            cp_mesh = DeviceMesh(
+                device_type=device_type,
+                mesh_shape=(cp_config.ring_degree, cp_config.ulysses_degree),
+                mesh_dim_names=("ring", "ulysses"),
+            )
+
+        config.setup(rank, world_size, device, cp_mesh=cp_mesh)
+
+        if cp_plan is None and self._cp_plan is None:
+            raise ValueError(
+                "`cp_plan` must be provided either as an argument or set in the model's `_cp_plan` attribute."
+            )
+        cp_plan = cp_plan if cp_plan is not None else self._cp_plan
+
+        if config.context_parallel_config is not None:
+            apply_context_parallel(self, config.context_parallel_config, cp_plan)
+
+        self._parallel_config = config
+
+        attention_classes = (Attention, MochiAttention, AttentionModuleMixin)
+        for _, module in self.cells_and_names():
+            if not isinstance(module, attention_classes):
+                continue
+            processor = module.processor
+            if processor is None or not hasattr(processor, "_parallel_config"):
+                continue
+            processor._parallel_config = config
 
     @classmethod
     def _load_pretrained_model(
