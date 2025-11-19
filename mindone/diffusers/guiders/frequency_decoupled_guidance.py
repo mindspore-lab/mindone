@@ -19,7 +19,7 @@ import mindspore as ms
 from mindspore import mint
 
 from ..configuration_utils import register_to_config
-from .guider_utils import BaseGuidance, rescale_noise_cfg
+from .guider_utils import BaseGuidance, GuiderOutput, rescale_noise_cfg
 
 if TYPE_CHECKING:
     from ..modular_pipelines.modular_pipeline import BlockState
@@ -221,7 +221,7 @@ class FrequencyDecoupledGuidance(BaseGuidance):
             data_batches.append(data_batch)
         return data_batches
 
-    def construct(self, pred_cond: ms.Tensor, pred_uncond: Optional[ms.Tensor] = None) -> ms.Tensor:
+    def construct(self, pred_cond: ms.Tensor, pred_uncond: Optional[ms.Tensor] = None) -> GuiderOutput:
         pred = None
 
         if not self._is_fdg_enabled():
@@ -268,7 +268,7 @@ class FrequencyDecoupledGuidance(BaseGuidance):
             if self.guidance_rescale_space == "data" and self.guidance_rescale[0] > 0.0:
                 pred = rescale_noise_cfg(pred, pred_cond, self.guidance_rescale[0])
 
-        return pred, {}
+        return GuiderOutput(pred=pred, pred_cond=pred_cond, pred_uncond=pred_uncond)
 
     @property
     def is_conditional(self) -> bool:
