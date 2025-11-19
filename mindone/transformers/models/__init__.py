@@ -64,6 +64,7 @@ from . import (
     diffllama,
     dinov2,
     dinov2_with_registers,
+    dinov3_vit,
     distilbert,
     dpr,
     dpt,

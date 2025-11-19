@@ -445,6 +445,7 @@ from .models.dinov2_with_registers import (
     Dinov2WithRegistersModel,
     Dinov2WithRegistersPreTrainedModel,
 )
+from .models.dinov3_vit import DINOv3ViTModel, DINOv3ViTPreTrainedModel
 from .models.distilbert import (
     DistilBertForMaskedLM,
     DistilBertForMultipleChoice,
