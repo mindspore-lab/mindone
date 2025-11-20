@@ -278,6 +278,8 @@ class Qwen3PageAttention(Qwen3Attention):
         self.num_attention_heads = config.num_attention_heads
         self.num_key_value_heads = config.num_key_value_heads
 
+        self.is_first_iteration = True
+
         self.infer_attention = InferAttention(
             config.num_attention_heads,
             self.head_dim,
@@ -290,13 +292,11 @@ class Qwen3PageAttention(Qwen3Attention):
             next_tokens=0,
             block_size=32,
             num_blocks=1024,
-            is_dynamic=True,
+            is_dynamic=True if not self.is_first_iteration else False,
             use_flash_attention=True,
             rotary_cos_format=2,
             compute_dtype=compute_dtype,
         )
-
-        self.is_first_iteration = True
 
     def construct(
         self,
@@ -898,20 +898,22 @@ class Qwen3ForCausalLM(Qwen3PreTrainedModel, GenerationMixin):
         if self.config._attn_implementation == "paged_attention":
             compute_dtype = str_to_dtype(config.mindspore_dtype)
 
+            self.is_first_iteration = True
+
             self.freqs_mgr = FreqsMgr(
                 head_dim=getattr(config, "head_dim", config.hidden_size // config.num_attention_heads),
                 seq_length=config.max_position_embeddings,
                 max_position_embedding=config.max_position_embeddings,
                 rotary_dtype=compute_dtype,
                 theta=config.rope_theta,
-                is_dynamic=True,
+                is_dynamic=True if not self.is_first_iteration else False,
             )
 
             self.casual_mask = LowerTriangularMaskWithDynamic(
                 seq_length=config.max_position_embeddings,
                 batch_size=1,
                 compute_type=compute_dtype,
-                is_dynamic=True,
+                is_dynamic=True if not self.is_first_iteration else False,
                 pad_token_id=config.pad_token_id,
                 use_flash_attention=True,
                 use_attn_mask_compression=False,
@@ -919,8 +921,6 @@ class Qwen3ForCausalLM(Qwen3PreTrainedModel, GenerationMixin):
                 seq_split_num=1,
                 chunk_prefill=False,
             )
-
-            self.is_first_iteration = True
 
         # Initialize weights and apply final processing
         self.post_init()
