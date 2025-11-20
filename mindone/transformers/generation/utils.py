@@ -1947,7 +1947,7 @@ class GenerationMixin:
 
         return generation_config, model_kwargs
 
-    def _get_initial_cache_position(self, input_ids, model_kwargs):
+    def _get_initial_cache_position(self, seq_length, model_kwargs):
         """Calculates `cache_position` for the pre-fill stage based on `input_ids` and optionally past length"""
         if "cache_position" in model_kwargs and model_kwargs["cache_position"] is not None:
             return model_kwargs
@@ -1959,7 +1959,7 @@ class GenerationMixin:
                 mint.ones_like(model_kwargs["decoder_inputs_embeds"][0, :, 0], dtype=ms.int64).cumsum(0) - 1
             )
         else:
-            cache_position = mint.ones_like(input_ids[0, :], dtype=ms.int64).cumsum(0) - 1
+            cache_position = mint.ones_like(seq_length, dtype=ms.int64).cumsum(0) - 1
 
         if model_kwargs.get("past_key_values") is not None:
             cache = model_kwargs["past_key_values"]
@@ -2989,7 +2989,7 @@ class GenerationMixin:
         batch_size, cur_len = input_ids.shape
         this_peer_finished = False
         unfinished_sequences = mint.ones(batch_size, dtype=ms.int64)
-        model_kwargs = self._get_initial_cache_position(input_ids, model_kwargs)
+        model_kwargs = self._get_initial_cache_position(cur_len, model_kwargs)
 
         model_forward = self.__call__
         compile_forward = self._valid_auto_compile_criteria(model_kwargs, generation_config)
@@ -3510,7 +3510,7 @@ class GenerationMixin:
             dim=0,
         )
 
-        model_kwargs = self._get_initial_cache_position(input_ids, model_kwargs)
+        model_kwargs = self._get_initial_cache_position(cur_len, model_kwargs)
 
         # (joao) feature lost in the refactor. Probably won't implement, hurts readbility with minimal gains (there
         # are newer low-memory alternatives like the offloaded cache)
