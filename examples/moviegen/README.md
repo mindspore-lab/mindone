@@ -59,21 +59,20 @@ this project!
 |                                                                                                                                                                                                                                                                                    <video src="https://github.com/user-attachments/assets/e5558081-8710-4474-a522-a19a573a22e4" />                                                                                                                                                                                                                                                                                    |                                                                                                                                                                                        <video src="https://github.com/user-attachments/assets/d4625360-75f4-489a-893d-e4341b644be1" />                                                                                                                                                                                        |
 | <details><summary>Caption</summary>The video showcases a serene aerial view of a mountainous landscape, consistently blanketed in snow and clouds throughout its duration. The foreground prominently features rugged, snow-capped peaks with jagged rock formations piercing through the pristine white snow. The background is consistently filled with a vast expanse of billowing clouds, interspersed with patches of blue sky above. The overall scene maintains a sense of tranquility and natural beauty, highlighting the grandeur of the mountainous terrain without any noticeable changes in the composition or perspective of the aerial view.</details> | <details><summary>Caption</summary>The video begins with a serene winter landscape featuring a frozen body of water in the foreground. The ice-covered surface is smooth and reflective, with patches of exposed water visible. In the background, a dense forest of evergreen trees lines the far shore, their branches covered in snow. The scene is hazy, with a grayish tint suggesting overcast or foggy conditions, maintaining a wintry ambiance throughout.</details> |  
 
-## Requirements
+## 📦 Requirements
 
-<div align="center">
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.5.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
-|    MindSpore     | Ascend Driver |  Firmware   | CANN toolkit/kernel |
-|:----------------:|:-------------:|:-----------:|:-------------------:|
-| 2.5.0 and higher |    24.0.0     | 7.5.0.3.220 |     8.0.0.beta1     |
 
-</div>
 
 1. Install
-   [CANN 8.0.0.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.0.beta1)
+   [CANN 8.1.RC1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.1.RC1)
    and MindSpore according to the [official instructions](https://www.mindspore.cn/install).
 2. Install requirements
     ```shell
+    cd examples/moviegen
     pip install -r requirements.txt
     ```
 

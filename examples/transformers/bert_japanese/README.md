@@ -28,6 +28,16 @@ There are models with two different tokenization methods:
 To use *MecabTokenizer*, you should `pip install fugashi unidic_lite`.
 See [details on cl-tohoku repository](https://github.com/cl-tohoku/bert-japanese).
 
+## 📦 Requirements
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
+
+
+
+
+## Quick Start
+
 Example of using a model with MeCab and WordPiece tokenization:
 
 ```python

@@ -1,7 +1,3 @@
-<div align="center">
-<h1>🚀 Wan: Open and Advanced Large-Scale Video Generative Models </h1>
-
-</div>
 
 In this repository, we present an efficient MindSpore implementation of [Wan2.1](https://github.com/Wan-Video/Wan2.1). This repository is built on the models and code released by the Alibaba Wan group. We are grateful for their exceptional work and generous contribution to open source.
 
@@ -78,24 +74,20 @@ prompt: Summer beach vacation style, a white cat wearing sunglasses sits on a su
 
 ## Quickstart
 
-###  Requirements
+## 📦 Requirements
 
-The code is tested in the following environments
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
-| mindspore | ascend driver | firmware    | cann tookit/kernel |
-| :-------: | :-----------: | :---------: | :----------------: |
-| 2.6.0     |  25.0.RC1.1   | 7.7.0.1.231 | 8.1.RC1            |
-| 2.7.0     |  25.2.0       | 7.7.0.6.236 | 8.2.RC1            |
+
 
 ### Installation
-Clone the repo:
-```
-git clone https://github.com/mindspore-lab/mindone
-cd mindone/examples/wan2_1
-```
 
 Install dependencies:
 ```
+pip install mindone==0.4.0
+cd examples/wan2_1
 pip install -r requirements.txt
 ```
 

@@ -1,6 +1,6 @@
 # Language Segment-Anything
 
-**English** | [中文](README_CN.md)
+
 
 This is a MindSpore Implementation of [Language SAM](https://github.com/luca-medeiros/lang-segment-anything).
 
@@ -11,26 +11,24 @@ Language SAM is built on Meta model, Segment Anything Model 2, and the Grounding
 
 ## 📦 Requirements
 
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
-<div align="center">
 
-| MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
-|:---------:|:-------------:|:-----------:|:-------------------:|
-| 2.6.0/2.7.0 | 24.1.RC3.b080  | 7.5.T11.0.B088 | 8.1.RC1 |
-
-</div>
 
 1. Install
    [CANN 8.1.RC1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.1.RC1)
    and MindSpore according to the [official instructions](https://www.mindspore.cn/install).
 2. Install requirements
     ```shell
+    cd examples/lang_sam
     pip install -r requirements.txt
     ```
 3. Install mindone
     ```
     cd mindone
-    pip install -e .
+    pip install mindone==0.4.0
     ```
     Try `python -c "import mindone"`. If no error occurs, the installation is successful.
 

@@ -1,14 +1,3 @@
-<div align="center">
-    <h1>
-    Spark-TTS
-    </h1>
-    <p>
-    A MindSpore implementation for inference of <br>
-    <b><em>Spark-TTS: An Efficient LLM-Based Text-to-Speech Model with Single-Stream Decoupled Speech Tokens</em></b>
-    </p>
-    <p>
-    <img src="src/logo/SparkTTS.jpg" alt="Spark-TTS Logo" style="width: 200px; height: 200px;">
-</div>
 
 ## Spark-TTS 🔥
 
@@ -39,22 +28,19 @@ Spark-TTS is an advanced text-to-speech system that uses the power of large lang
 
 - **[2025-04-08]** MindSpore implementation of SparkTTS inference is now supported.
 
-## 🔧 Dependencies and Installation
+## 📦 Requirements
 
-| mindspore  | ascend driver  |  firmware   |cann toolkit/kernel |
-|:----------:|:--------------:|:-----------:|:------------------:|
-|   2.6.0    |    24.1.RC3    | 7.5.T11.0.B088 |   8.1.RC1     |
-|   2.7.0    |    24.1.RC3    | 7.5.T11.0.B088 |   8.2.RC1     |
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
+
+
+
+## 🔧 Dependencies and Installation
 
 To install other dependent packages:
 ```bash
-git clone https://github.com/mindspore-lab/mindone.git
-
-# install mindone
-cd mindone
-pip install -e .
-
-# install requirements
+pip install mindone==0.4.0
 cd examples/sparktts
 pip install -r requirements.txt
 ```

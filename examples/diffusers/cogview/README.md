@@ -15,9 +15,9 @@
 
 ### Dependencies and Installation
 
-| mindspore  | ascend driver  |  firmware   | cann toolkit/kernel |
-|:----------:|:--------------:|:-----------:|:------------------:|
-|   2.6.0 or 2.7.0    |     24.1RC2    | 7.3.0.1.231 |   8.1.RC1    |
+| mindspore   |  ascend driver   |cann  |
+|:--:         |:--:              |:--:  |
+| >=2.6.0 | >=24.1.RC1       | >=8.1.RC1 |
 
 To install other dependent packages:
 
@@ -25,13 +25,11 @@ To install other dependent packages:
 git clone https://github.com/mindspore-lab/mindone
 
 # install mindone
-cd mindone
-pip install -e .
+pip install mindone==0.4.0
 # NOTE: transformers requires >=4.46.0
 
 cd examples/diffusers/cogview
 ```
-
 
 ## Quick Start
 

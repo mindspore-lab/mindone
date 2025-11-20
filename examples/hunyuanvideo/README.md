@@ -25,20 +25,24 @@ Here is the development plan of the project:
 
 ## 📦 Requirements
 
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
-<div align="center">
 
 | MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
 |:---------:|:-------------:|:-----------:|:-------------------:|
-|   2.5.0   |  24.1.RC2     | 7.5.0.2.220 |  8.0.RC3.beta1      |
+|   2.6.0   |  24.1.RC2     | 7.5.0.2.220 |       8.1.RC1       |
+|   2.7.0   |  24.1.RC2     | 7.5.0.2.220 |       8.2.RC1       |
 
 </div>
 
 1. Install
-   [CANN 8.0.RC3.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC3.beta1)
+   [CANN 8.2.RC1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1)
    and MindSpore according to the [official instructions](https://www.mindspore.cn/install).
 2. Install requirements
     ```shell
+    cd examples/hunyuanvideo
     pip install -r requirements.txt
     ```
     In case `decord` package is not available, try `pip install eva-decord`.
@@ -126,24 +130,17 @@ range: 0.1–0.15).
 
 | Resolution | Length | Inference Steps |   Mode   | SP | Vanilla (s) | TeaCache (s)</br>𝝳=0.1 | Speedup | TeaCache (s)</br>𝝳=0.15 | Speedup |
 |:----------:|:------:|:---------------:|:--------:|:--:|:-----------:|:-----------------------:|:-------:|:------------------------:|:-------:|
-|  544x960   |  129   |       50        |  Graph   | -  |    1790     |          1083           |  1.65x  |           757            |  2.36x  |
-|  544x960   |  129   |       50        | PyNative | -  |    1778     |          1067           |  1.67x  |           746            |  2.38x  |
-|  544x960   |  129   |       50        |  Graph   | 8  |     239     |           145           |  1.65x  |           102            |  2.34x  |
-|  544x960   |  129   |       50        | PyNative | 8  |     236     |           143           |  1.65x  |           101            |  2.34x  |
+|  544x960   |  129   |       50        |  Graph   | -  |    1711     |          1088           |  1.57x  |           801            |  2.13x  |
+|  544x960   |  129   |       50        | PyNative | -  |    1529     |           920           |  1.66x  |            658           |  2.32x  |
+|  544x960   |  129   |       50        |  Graph   | 8  |     424     |           363           |  1.16x  |           308            |  1.4x  |
+|  544x960   |  129   |       50        | PyNative | 8  |     311     |           249           |  1.24x  |           207            |  1.5x  |
 
 > [!NOTE]
 > The measured time includes only the backbone denoising steps, excluding VAE decoding.
+> The performance data in the table was generated under MindSpore 2.7.
 
 ##### Evaluation
 
-<div align="center">
-
-| Method                  | LPIPS ↓ | SSIM ↑ | PSNR ↑ |
-|-------------------------|---------|--------|--------|
-| TeaCache-slow (𝝳=0.1)  | 0.1263  | 0.8383 | 26.05  |
-| TeaCache-fast (𝝳=0.15) | 0.1676  | 0.8010 | 24.49  |
-
-</div>
 
 > [!NOTE]
 > The above metrics were collected from 12 randomly selected prompts.
