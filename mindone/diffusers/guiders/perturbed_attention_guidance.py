@@ -21,7 +21,7 @@ from ..configuration_utils import register_to_config
 from ..hooks import HookRegistry, LayerSkipConfig
 from ..hooks.layer_skip import _apply_layer_skip_hook
 from ..utils import get_logger
-from .guider_utils import BaseGuidance, rescale_noise_cfg
+from .guider_utils import BaseGuidance, GuiderOutput, rescale_noise_cfg
 
 if TYPE_CHECKING:
     from ..modular_pipelines.modular_pipeline import BlockState
@@ -198,7 +198,7 @@ class PerturbedAttentionGuidance(BaseGuidance):
         pred_cond: ms.Tensor,
         pred_uncond: Optional[ms.Tensor] = None,
         pred_cond_skip: Optional[ms.Tensor] = None,
-    ) -> ms.Tensor:
+    ) -> GuiderOutput:
         pred = None
 
         if not self._is_cfg_enabled() and not self._is_slg_enabled():
@@ -220,7 +220,7 @@ class PerturbedAttentionGuidance(BaseGuidance):
         if self.guidance_rescale > 0.0:
             pred = rescale_noise_cfg(pred, pred_cond, self.guidance_rescale)
 
-        return pred, {}
+        return GuiderOutput(pred=pred, pred_cond=pred_cond, pred_uncond=pred_uncond)
 
     @property
     # Copied from diffusers.guiders.skip_layer_guidance.SkipLayerGuidance.is_conditional
