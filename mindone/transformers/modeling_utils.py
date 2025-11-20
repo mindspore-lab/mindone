@@ -87,7 +87,7 @@ from .utils.import_utils import is_sdpa_available
 if is_safetensors_available():
     from safetensors import safe_open
 
-    # from mindone.safetensors.mindspore import load_file as safe_load_file
+    from mindone.safetensors.mindspore import load_file as safe_load_file
     from mindone.safetensors.mindspore import save_file as safe_save_file
 
 # DO NOT MODIFY, KEPT FOR BC ONLY
@@ -166,24 +166,28 @@ def _convert_state_dict(m, state_dict_pt, prefix=""):
         return state_dict_pt
     pt2ms_mappings = _get_pt2ms_mappings(m)
     state_dict_ms = {}
+    length = len(prefix) + 1
+    model_ckpt_key = m.state_dict().keys()
+    mapping_key = pt2ms_mappings.keys()
     while state_dict_pt:
         name_pt, data_pt = state_dict_pt.popitem()
-        name_ms, data_mapping = pt2ms_mappings.get(name_pt, (name_pt, lambda x: x))
+        if pt2ms_mappings:
+            if name_pt in mapping_key or name_pt in model_ckpt_key:
+                name_ms, data_mapping = pt2ms_mappings.get(name_pt)
+            # When model name and state dict name match and state dict name has prefix, state dict name would be sliced
+            elif name_pt[length:] in mapping_key or name_pt[length:] in model_ckpt_key:
+                name_ms, data_mapping = pt2ms_mappings.get(name_pt[length:], (name_pt[length:], lambda x: x))
+            # When model name and state dict name match and model name has prefix, prefix would be added to state dict name
+            elif ".".join([prefix, name_pt]) in mapping_key or ".".join([prefix, name_pt]) in model_ckpt_key:
+                name_ms, data_mapping = pt2ms_mappings.get(
+                    ".".join([prefix, name_pt]), (".".join([prefix, name_pt]), lambda x: x)
+                )
+            else:
+                name_ms, data_mapping = pt2ms_mappings.get(name_pt, (name_pt, lambda x: x))
         data_ms = data_mapping(data_pt)
         if name_ms is not None:
             state_dict_ms[name_ms] = data_ms
 
-    length = len(prefix) + 1
-    model_ckpt_key = m.state_dict().keys()
-    for key in list(state_dict_ms.keys()):
-        # When model name and state dict name match and state dict name has prefix, state dict name would be sliced
-        if key[length:] in model_ckpt_key:
-            data_ms = state_dict_ms.pop(key)
-            state_dict_ms[key[length:]] = data_ms
-        # When model name and state dict name match and model name has prefix, prefix would be added to state dict name
-        elif ".".join([prefix, key]) in model_ckpt_key:
-            data_ms = state_dict_ms.pop(key)
-            state_dict_ms[".".join([prefix, key])] = data_ms
     return state_dict_ms
 
 
@@ -329,7 +333,12 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike]):
                     f"The safetensors archive passed at {checkpoint_file} does not contain the valid metadata. Make sure "
                     "you save your model with the `save_pretrained` method."
                 )
-            return ms.load_checkpoint(checkpoint_file, format="safetensors")
+            try:
+                return ms.load_checkpoint(checkpoint_file, format="safetensors")
+            # somtimes model weight with metadata can not pass the verification for "mindspore.load_checkpoint",
+            # therefore we use "safe_load_file" to load weights
+            except ValueError:
+                return safe_load_file(checkpoint_file)
         else:
             raise NotImplementedError(
                 f"Only supports deserialization of weights file in safetensors format, but got {checkpoint_file}"
