@@ -912,6 +912,9 @@ class PreTrainedModel(
     # Has support for a `QuantoQuantizedCache` instance as `past_key_values`
     _supports_quantized_cache = False
 
+    # tensor parallel degree to which model is sharded to.
+    _tp_size = None
+
     # This flag signal that the model can be used as an efficient backend in TGI and vLLM
     # In practice, it means that they support attention interface functions, fully pass the kwargs
     # through all modules up to the Attention layer, can slice logits with Tensor, and have a default TP plan
@@ -2847,6 +2850,14 @@ class PreTrainedModel(
             return model, loading_info
 
         return model
+
+    @property
+    def tp_size(self):
+        """
+        Returns the model's tensor parallelism degree.
+        """
+        # if None, the model didn't undergo tensor parallel sharding
+        return self._tp_size
 
     @staticmethod
     def _fix_state_dict_key_on_load(key: str) -> tuple[str, bool]:

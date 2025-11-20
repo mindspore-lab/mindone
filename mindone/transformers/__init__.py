@@ -503,6 +503,14 @@ from .models.esm import (
     EsmModel,
     EsmPreTrainedModel,
 )
+from .models.exaone4 import (
+    Exaone4ForCausalLM,
+    Exaone4ForQuestionAnswering,
+    Exaone4ForSequenceClassification,
+    Exaone4ForTokenClassification,
+    Exaone4Model,
+    Exaone4PreTrainedModel,
+)
 from .models.falcon import (
     FalconForCausalLM,
     FalconForQuestionAnswering,
