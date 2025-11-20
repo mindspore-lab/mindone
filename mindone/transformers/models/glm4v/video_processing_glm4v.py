@@ -18,6 +18,8 @@ import math
 from typing import Optional, Union
 
 import numpy as np
+from transformers.utils import add_start_docstrings
+
 import mindspore as ms
 from mindspore import mint
 
@@ -33,7 +35,6 @@ from ...image_utils import (
 )
 from ...processing_utils import Unpack, VideosKwargs
 from ...utils import TensorType
-from transformers.utils import add_start_docstrings
 from ...video_processing_utils import BASE_VIDEO_PROCESSOR_DOCSTRING, BaseVideoProcessor
 from ...video_utils import VideoMetadata, group_videos_by_shape, reorder_videos
 from .image_processing_glm4v import smart_resize

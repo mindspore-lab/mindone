@@ -16,34 +16,23 @@
 
 from typing import Optional, Union
 
+from transformers.utils import auto_docstring
+
 import mindspore as ms
 from mindspore import mint
 from mindspore.dataset.vision import Inter as InterpolationMode
 
-from ...image_processing_utils import (
-    BatchFeature,
-)
+from ...image_processing_utils import BatchFeature
 from ...image_processing_utils_fast import (
     BaseImageProcessorFast,
     DefaultFastImageProcessorKwargs,
     group_images_by_shape,
     reorder_images,
 )
-from ...image_utils import (
-    OPENAI_CLIP_MEAN,
-    OPENAI_CLIP_STD,
-    ImageInput,
-    PILImageResampling,
-    SizeDict,
-)
+from ...image_utils import OPENAI_CLIP_MEAN, OPENAI_CLIP_STD, ImageInput, PILImageResampling, SizeDict
 from ...processing_utils import Unpack
-from ...utils import (
-    TensorType,
-    logging,
-)
-from transformers.utils import auto_docstring
+from ...utils import TensorType, logging
 from .image_processing_glm4v import smart_resize
-
 
 logger = logging.get_logger(__name__)
 
