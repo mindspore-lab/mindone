@@ -61,6 +61,7 @@ from . import (
     deprecated,
     depth_anything,
     depth_pro,
+    dia,
     diffllama,
     dinov2,
     dinov2_with_registers,
