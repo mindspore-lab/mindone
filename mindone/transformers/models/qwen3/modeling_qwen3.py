@@ -944,7 +944,7 @@ class Qwen3ForCausalLM(Qwen3PreTrainedModel, GenerationMixin):
         return self.model
 
     def enable_dynamic_shape(self):
-        input_ids = Tensor(shape=[None, None], dtype=ms.int32)
+        input_ids = Tensor(shape=[None, None], dtype=ms.int64)
         position_ids = Tensor(shape=[None, None], dtype=ms.int64)
         attention_mask = Tensor(shape=[None, None], dtype=ms.int64)
         past_key_values = None
