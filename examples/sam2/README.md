@@ -1,6 +1,5 @@
 # SAM 2: Segment Anything in Images and Videos
 
-**English** | [中文](README_CN.md)
 
 This is a MindSpore Implementation of [SAM2](https://github.com/facebookresearch/sam2) from Meta, FAIR.
 
@@ -11,26 +10,23 @@ Segment Anything Model 2 (SAM 2) is a foundation model for image/video visual se
 
 ## 📦 Requirements
 
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
-<div align="center">
-
-| MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
-|:---------:|:-------------:|:-----------:|:-------------------:|
-| 2.6.0/2.7.0 | 24.1.RC3.b080  | 7.5.T11.0.B088 | 8.1.RC1 |
-
-</div>
 
 1. Install
    [CANN 8.1.RC1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.1.RC1)
    and MindSpore according to the [official instructions](https://www.mindspore.cn/install).
 2. Install requirements
     ```shell
+    cd examples/sam2
     pip install -r requirements.txt
     ```
 3. Install mindone
     ```
     cd mindone
-    pip install -e .
+    pip install mindone==0.4.0
     ```
     Try `python -c "import mindone"`. If no error occurs, the installation is successful.
 

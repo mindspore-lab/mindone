@@ -20,12 +20,12 @@ The `qwenvl` directory contains the following components:
 - `data_qwen_packed.py`: Packed data processing module for QwenVL models
 - `rope2d.py`: Provide RoPE implementation
 
-## Requirements
+## 📦 Requirements
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
-## Requirements:
-|mindspore |	ascend driver | firmware | cann tookit/kernel|
-|--- | --- | --- | --- |
-|2.7.0 | 24.1RC3 | 7.3.0.1.231 | 8.2.RC1 |
+
 
 ## Custom Dataset Configuration
 

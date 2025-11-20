@@ -25,8 +25,10 @@ Here is the development plan of the project:
 
 ## 📦 Requirements
 
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
-<div align="center">
 
 | MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
 |:---------:|:-------------:|:-----------:|:-------------------:|
@@ -40,6 +42,7 @@ Here is the development plan of the project:
    and MindSpore according to the [official instructions](https://www.mindspore.cn/install).
 2. Install requirements
     ```shell
+    cd examples/hunyuanvideo
     pip install -r requirements.txt
     ```
     In case `decord` package is not available, try `pip install eva-decord`.
@@ -138,14 +141,6 @@ range: 0.1–0.15).
 
 ##### Evaluation
 
-<div align="center">
-
-| Method                  | LPIPS ↓ | SSIM ↑ | PSNR ↑ |
-|-------------------------|---------|--------|--------|
-| TeaCache-slow (𝝳=0.1)  | 0.1263  | 0.8383 | 26.05  |
-| TeaCache-fast (𝝳=0.15) | 0.1676  | 0.8010 | 24.49  |
-
-</div>
 
 > [!NOTE]
 > The above metrics were collected from 12 randomly selected prompts.

@@ -1,23 +1,5 @@
 
 <hr>
-
-<div align="center">
-<h1>🚀 Janus-Series: Unified Multimodal Understanding and Generation Models</h1>
-
-</div>
-
-
-<div align="center">
-
-  <a href="LICENSE-CODE">
-    <img alt="Code License" src="https://img.shields.io/badge/Code_License-MIT-f5de53?&color=f5de53">
-  </a>
-  <a href="LICENSE-MODEL">
-    <img alt="Model License" src="https://img.shields.io/badge/Model_License-Model_Agreement-f5de53?&color=f5de53">
-  </a>
-</div>
-
-
 <p align="center">
   <a href="#2-model-download"><b>📥 Model Download</b></a> |
   <a href="#3-quick-start"><b>⚡ Quick Start</b></a> |
@@ -44,9 +26,6 @@ Generation with Data and Model Scaling</b></a>
 
 **Janus-Pro** is an advanced version of the previous work Janus. Specifically, Janus-Pro incorporates (1) an optimized training strategy, (2) expanded training data, and (3) scaling to larger model size. With these improvements, Janus-Pro achieves significant advancements in both multimodal understanding and text-to-image instruction-following capabilities, while also enhancing the stability of text-to-image generation.
 
-<div align="center">
-<img alt="image" src="https://github.com/user-attachments/assets/b1ca9876-08a5-4833-bc9a-2ba771269886" style="width:90%;">
-</div>
 
 
 ## 2. Model Download
@@ -75,14 +54,13 @@ huggingface-cli download deepseek-ai/Janus-Pro-7B --revision refs/pr/110 --local
 
 ## 3. Quick Start
 
-### Requirments
+## 📦 Requirements
 
-The code is tested in the following environments
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
-| mindspore | ascend driver | firmware    | cann tookit/kernel |
-| :-------: | :-----------: | :---------: | :----------------: |
-| 2.6.0     |  25.0.RC1.1   | 7.7.0.1.231 | 8.1.RC1            |
-| 2.7.0     |  25.2.0       | 7.7.0.6.236 | 8.2.RC1            |
+
 
 
 ### Installation
@@ -90,7 +68,7 @@ The code is tested in the following environments
 On the basis of `Python >= 3.8` environment, install the necessary dependencies by running the following command:
 
 ```shell
-pip install -e .
+pip install mindone==0.4.0
 ```
 
 
@@ -120,7 +98,7 @@ For the remote gradio demo, you can run with the following command:
 
 On NPU server:
 ```shell
-pip install -e .[gradio]
+pip install mindone==0.4.0
 
 python demo/app_januspro.py
 ```

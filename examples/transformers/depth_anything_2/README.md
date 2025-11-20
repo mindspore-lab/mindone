@@ -13,16 +13,16 @@ The abstract from the paper is the following:
 
 ## Get Started
 
-### Requirements:
-| mindspore   | 	ascend driver | firmware       | cann toolkit/kernel|
-|-------------|----------------|----------------| --- |
-| 2.6.0|  24.1.RC3 | 7.5.T11.0 | 8.1.RC1|
+## 📦 Requirements
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
-### Installation:
-```
+
+
 git clone https://github.com/mindspore-lab/mindone.git
 cd mindone
-pip install -e .
+pip install mindone==0.4.0
 ```
 
 ## Quick Start

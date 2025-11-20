@@ -20,20 +20,18 @@ Here is the development plan of the project:
 
 ## 📦 Requirements
 
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
-<div align="center">
 
-| MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
-|:---------:|:-------------:|:-----------:|:-------------------:|
-|   2.5.0   |  24.1.RC2     | 7.5.0.2.220 |  8.0.RC3.beta1      |
-
-</div>
 
 1. Install
    [CANN 8.0.RC3.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC3.beta1)
    and MindSpore according to the [official instructions](https://www.mindspore.cn/install).
 2. Install requirements
     ```shell
+    cd examples/hunyuanvideo-i2v
     pip install -r requirements.txt
     ```
     In case `decord` package is not available, try `pip install eva-decord`.

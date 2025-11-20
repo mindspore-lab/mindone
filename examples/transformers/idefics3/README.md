@@ -15,19 +15,18 @@ The abstract from the paper is the following:
 
 # Get Started
 
-## Requirements:
-|mindspore | ascend driver | firmware | cann tookit/kernel|
-|--- |--- | ---| --- |
-|2.5.0 | 24.1.RC3 | 7.5.T11.0 | 8.0.0.beta1|
-|2.6.0 | 24.1.RC3 | 7.5.T11.0 | 8.0.0.beta1|
+## 📦 Requirements
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
+
+
 
 ## Quick Start
 
-### Installation:
-```
 git clone https://github.com/mindspore-lab/mindone.git
 cd mindone
-pip install -e .
+pip install mindone==0.4.0
 cd examples/transformers/idefics3
 ```
 

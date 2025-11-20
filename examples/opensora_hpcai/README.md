@@ -22,13 +22,13 @@ This repository is built on the models and code released by HPC-AI Tech. We are 
 | **[2024.03.04]** HPC-AI Tech Open-Sora provides training with 46% cost reduction [[blog]](https://hpc-ai.com/blog/open-sora)                                                                                                                                                                                                                                                                                                                                | ✅ Parallel training on Ascend devices                                                          |
 
 
-## Requirements
+## 📦 Requirements
 
-| mindspore | ascend driver |  firmware   | cann toolkit/kernel |
-|:---------:|:-------------:|:-----------:|:-------------------:|
-|   2.5.0   |    24.0.0     | 7.5.0.3.220 |     8.0.0.beta1     |
-|   2.6.0   |   24.1.rc3    | 7.7.0.1.238 |       8.1.RC1       |
-|   2.7.0   |   24.1.rc3    | 7.7.0.1.238 |       8.2.RC1       |
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.5.0    | >=24.1.RC1 |   >=8.1.RC1 |
+
+
 
 
 
@@ -191,13 +191,14 @@ Other useful documents and links are listed below.
 
 ## Installation
 
-1. Please install MindSpore 2.5.0 according to the [MindSpore official website](https://www.mindspore.cn/install/) and
-   install [CANN 8.0.0.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.0.beta1)
+1. Please install MindSpore 2.7.0 according to the [MindSpore official website](https://www.mindspore.cn/install/) and
+   install [CANN 8.1.RC1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.1.RC1)
    as recommended by the official installation website.
 
 2. Install requirements
 
 ```shell
+cd examples/opensora_hpcai
 pip install -r requirements.txt
 ```
 
@@ -397,7 +398,7 @@ text_emb.neg_clip_dir=assets/texts/clip_77_neg
 We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step and
 the total sampling time of a video.
 
-Experiments are conducted on Ascend Atlas 800T A2 machines with MindSpore 2.5.0 in PyNative mode.
+Experiments are conducted on Ascend Atlas 800T A2 machines with MindSpore >=2.6.0 in PyNative mode.
 
 |  Model Name   | Stage | Cards | Batch Size |    Resolution    | Precision | Step | s/image | s/video |                       Recipe                       |
 |:-------------:|:-----:|:-----:|:----------:|:----------------:|:---------:|:----:|:-------:|:-------:|:--------------------------------------------------:|
