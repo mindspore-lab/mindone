@@ -72,7 +72,7 @@ else:
             ("oneformer", ("OneFormerImageProcessor",)),
             ("owlv2", ("Owlv2ImageProcessor",)),
             ("owlvit", ("OwlViTImageProcessor",)),
-            ("qwen2_5_vl", ("Qwen2VLImageProcessor",)),
+            ("qwen2_5_vl", ("Qwen2VLImageProcessor", "Qwen2VLImageProcessorFast")),
             ("sam", ("SamImageProcessor",)),
             ("segformer", ("SegformerImageProcessor",)),
             ("siglip", ("SiglipImageProcessor", "SiglipImageProcessorFast")),
