@@ -515,17 +515,26 @@ class ModuleUtilsMixin:
     def to(self, dtype: Optional[ms.Type] = None):
         for p in self.get_parameters():
             if p.dtype != dtype:
-                p._data = p.to(device="CPU", dtype=dtype)
+                try:
+                    p._data = p.to(device="CPU", dtype=dtype)
+                except RuntimeError:
+                    p.set_dtype(dtype)
         return self
 
     def float(self):
         for p in self.get_parameters():
-            p._data = p.to(device="CPU", dtype=ms.float32)
+            try:
+                p._data = p.to(device="CPU", dtype=ms.float32)
+            except RuntimeError:
+                p.set_dtype(ms.float32)
         return self
 
     def half(self):
         for p in self.get_parameters():
-            p._data = p.to(device="CPU", dtype=ms.float16)
+            try:
+                p._data = p.to(device="CPU", dtype=ms.float16)
+            except RuntimeError:
+                p.set_dtype(ms.float16)
         return self
 
     @property
