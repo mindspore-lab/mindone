@@ -1959,7 +1959,7 @@ class GenerationMixin:
                 mint.ones_like(model_kwargs["decoder_inputs_embeds"][0, :, 0], dtype=ms.int64).cumsum(0) - 1
             )
         else:
-            cache_position = mint.ones_like(seq_length, dtype=ms.int64).cumsum(0) - 1
+            cache_position = mint.ones(seq_length, dtype=ms.int64).cumsum(0) - 1
 
         if model_kwargs.get("past_key_values") is not None:
             cache = model_kwargs["past_key_values"]
