@@ -945,15 +945,15 @@ class Qwen3ForCausalLM(Qwen3PreTrainedModel, GenerationMixin):
 
     def enable_dynamic_shape(self):
         input_ids = Tensor(shape=[None, None], dtype=ms.int32)
-        position_ids = Tensor(shape=[None, None], dtype=ms.int32)
-        attention_mask = Tensor(shape=[None, None], dtype=ms.int32)
+        position_ids = Tensor(shape=[None, None], dtype=ms.int64)
+        attention_mask = Tensor(shape=[None, None], dtype=ms.int64)
         past_key_values = None
         inputs_embeds = None
         labels = None
         use_cache = False
         output_attentions = False
         output_hidden_states = False
-        cache_position = None
+        cache_position = Tensor(shape=[None], dtype=ms.int64)
         block_tables = Tensor(shape=[None, None], dtype=ms.int32)
         slot_mapping = Tensor(shape=[None], dtype=ms.int32)
         batch_valid_length = ms.mutable(Tensor(shape=[None], dtype=ms.int32))
