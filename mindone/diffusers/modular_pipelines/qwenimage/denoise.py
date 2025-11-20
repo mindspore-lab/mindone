@@ -84,7 +84,9 @@ class QwenImageEditLoopBeforeDenoiser(ModularPipelineBlocks):
                 "image_latents",
                 required=True,
                 type_hint=ms.Tensor,
-                description="The initial image latents to use for the denoising process. Can be encoded in vae_encoder step and packed in prepare_image_latents step.",
+                description=(
+                    "The initial image latents to use for the denoising process. Can be encoded in vae_encoder step and packed in prepare_image_latents step."
+                ),
             ),
         ]
 
@@ -236,27 +238,19 @@ class QwenImageLoopDenoiser(ModularPipelineBlocks):
         ]
 
     def __call__(self, components: QwenImageModularPipeline, block_state: BlockState, i: int, t: ms.Tensor):
-        guider_inputs = {
-            "encoder_hidden_states": (
-                getattr(block_state, "prompt_embeds", None),
-                getattr(block_state, "negative_prompt_embeds", None),
-            ),
-            "encoder_hidden_states_mask": (
-                getattr(block_state, "prompt_embeds_mask", None),
-                getattr(block_state, "negative_prompt_embeds_mask", None),
-            ),
-            "txt_seq_lens": (
-                getattr(block_state, "txt_seq_lens", None),
-                getattr(block_state, "negative_txt_seq_lens", None),
-            ),
+        guider_input_fields = {
+            "encoder_hidden_states": ("prompt_embeds", "negative_prompt_embeds"),
+            "encoder_hidden_states_mask": ("prompt_embeds_mask", "negative_prompt_embeds_mask"),
+            "txt_seq_lens": ("txt_seq_lens", "negative_txt_seq_lens"),
         }
 
         components.guider.set_state(step=i, num_inference_steps=block_state.num_inference_steps, timestep=t)
-        guider_state = components.guider.prepare_inputs(guider_inputs)
+        guider_state = components.guider.prepare_inputs(block_state, guider_input_fields)
 
         for guider_state_batch in guider_state:
             components.guider.prepare_models(components.transformer)
-            cond_kwargs = {input_name: getattr(guider_state_batch, input_name) for input_name in guider_inputs.keys()}
+            cond_kwargs = guider_state_batch.as_dict()
+            cond_kwargs = {k: v for k, v in cond_kwargs.items() if k in guider_input_fields}
 
             # YiYi TODO: add cache context
             guider_state_batch.noise_pred = components.transformer(
@@ -333,27 +327,19 @@ class QwenImageEditLoopDenoiser(ModularPipelineBlocks):
         ]
 
     def __call__(self, components: QwenImageModularPipeline, block_state: BlockState, i: int, t: ms.Tensor):
-        guider_inputs = {
-            "encoder_hidden_states": (
-                getattr(block_state, "prompt_embeds", None),
-                getattr(block_state, "negative_prompt_embeds", None),
-            ),
-            "encoder_hidden_states_mask": (
-                getattr(block_state, "prompt_embeds_mask", None),
-                getattr(block_state, "negative_prompt_embeds_mask", None),
-            ),
-            "txt_seq_lens": (
-                getattr(block_state, "txt_seq_lens", None),
-                getattr(block_state, "negative_txt_seq_lens", None),
-            ),
+        guider_input_fields = {
+            "encoder_hidden_states": ("prompt_embeds", "negative_prompt_embeds"),
+            "encoder_hidden_states_mask": ("prompt_embeds_mask", "negative_prompt_embeds_mask"),
+            "txt_seq_lens": ("txt_seq_lens", "negative_txt_seq_lens"),
         }
 
         components.guider.set_state(step=i, num_inference_steps=block_state.num_inference_steps, timestep=t)
-        guider_state = components.guider.prepare_inputs(guider_inputs)
+        guider_state = components.guider.prepare_inputs(block_state, guider_input_fields)
 
         for guider_state_batch in guider_state:
             components.guider.prepare_models(components.transformer)
-            cond_kwargs = {input_name: getattr(guider_state_batch, input_name) for input_name in guider_inputs.keys()}
+            cond_kwargs = guider_state_batch.as_dict()
+            cond_kwargs = {k: v for k, v in cond_kwargs.items() if k in guider_input_fields}
 
             # YiYi TODO: add cache context
             guider_state_batch.noise_pred = components.transformer(
@@ -370,8 +356,8 @@ class QwenImageEditLoopDenoiser(ModularPipelineBlocks):
 
         guider_output = components.guider(guider_state)
 
-        pred = guider_output.pred[:, : block_state.latents.size(1)]
-        pred_cond = guider_output.pred_cond[:, : block_state.latents.size(1)]
+        pred = guider_output.pred[:, : block_state.latents.shape[1]]
+        pred_cond = guider_output.pred_cond[:, : block_state.latents.shape[1]]
 
         # apply guidance rescale
         pred_cond_norm = ms.mint.norm(pred_cond, dim=-1, keepdim=True)

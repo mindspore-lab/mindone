@@ -16,7 +16,7 @@
 # limitations under the License.
 
 import inspect
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 import numpy as np
 
@@ -133,6 +133,7 @@ class QwenImagePrepareLatentsStep(ModularPipelineBlocks):
     @property
     def inputs(self) -> List[InputParam]:
         return [
+            InputParam("latents"),
             InputParam(name="height"),
             InputParam(name="width"),
             InputParam(name="num_images_per_prompt", default=1),
@@ -141,7 +142,9 @@ class QwenImagePrepareLatentsStep(ModularPipelineBlocks):
                 name="batch_size",
                 required=True,
                 type_hint=int,
-                description="Number of prompts, the final batch size of model inputs should be batch_size * num_images_per_prompt. Can be generated in input step.",
+                description=(
+                    "Number of prompts, the final batch size of model inputs should be batch_size * num_images_per_prompt. Can be generated in input step."
+                ),
             ),
             InputParam(
                 name="dtype",
@@ -196,8 +199,9 @@ class QwenImagePrepareLatentsStep(ModularPipelineBlocks):
                 f" size of {batch_size}. Make sure the batch size matches the length of the generators."
             )
 
-        block_state.latents = randn_tensor(shape, generator=block_state.generator, dtype=block_state.dtype)
-        block_state.latents = components.pachifier.pack_latents(block_state.latents)
+        if block_state.latents is None:
+            block_state.latents = randn_tensor(shape, generator=block_state.generator, dtype=block_state.dtype)
+            block_state.latents = components.pachifier.pack_latents(block_state.latents)
 
         self.set_block_state(state, block_state)
         return components, state
@@ -208,7 +212,10 @@ class QwenImagePrepareLatentsWithStrengthStep(ModularPipelineBlocks):
 
     @property
     def description(self) -> str:
-        return "Step that adds noise to image latents for image-to-image/inpainting. Should be run after set_timesteps, prepare_latents. Both noise and image latents should alreadybe patchified."
+        return (
+            "Step that adds noise to image latents for image-to-image/inpainting. Should be run after set_timesteps"
+            ", prepare_latents. Both noise and image latents should alreadybe patchified."
+        )
 
     @property
     def expected_components(self) -> List[ComponentSpec]:
@@ -481,7 +488,7 @@ class QwenImageSetTimestepsWithStrengthStep(ModularPipelineBlocks):
 
 # other inputs for denoiser
 
-## RoPE inputs for denoiser
+# RoPE inputs for denoiser
 
 
 class QwenImageRoPEInputsStep(ModularPipelineBlocks):
@@ -536,8 +543,7 @@ class QwenImageRoPEInputsStep(ModularPipelineBlocks):
                     block_state.width // components.vae_scale_factor // 2,
                 )
             ]
-            * block_state.batch_size
-        ]
+        ] * block_state.batch_size
         block_state.txt_seq_lens = (
             block_state.prompt_embeds_mask.sum(dim=1).tolist() if block_state.prompt_embeds_mask is not None else None
         )
@@ -627,7 +633,7 @@ class QwenImageEditRoPEInputsStep(ModularPipelineBlocks):
         return components, state
 
 
-## ControlNet inputs for denoiser
+# ControlNet inputs for denoiser
 class QwenImageControlNetBeforeDenoiserStep(ModularPipelineBlocks):
     model_name = "qwenimage"
 

@@ -29,10 +29,7 @@ class QwenImagePachifier(ConfigMixin):
     config_name = "config.json"
 
     @register_to_config
-    def __init__(
-        self,
-        patch_size: int = 2,
-    ):
+    def __init__(self, patch_size: int = 2):
         super().__init__()
 
     def pack_latents(self, latents):
@@ -157,7 +154,8 @@ class QwenImageEditModularPipeline(ModularPipeline, QwenImageLoraLoaderMixin):
 
     default_blocks_name = "QwenImageEditAutoBlocks"
 
-    # YiYi TODO: qwen edit should not provide default height/width, should be derived from the resized input image (after adjustment) produced by the resize step.
+    # YiYi TODO: qwen edit should not provide default height/width, should be derived from the resized input image (after adjustment)
+    # produced by the resize step.
     @property
     def default_height(self):
         return self.default_sample_size * self.vae_scale_factor

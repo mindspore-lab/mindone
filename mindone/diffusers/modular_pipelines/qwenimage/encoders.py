@@ -52,7 +52,10 @@ def get_qwen_prompt_embeds(
     text_encoder,
     tokenizer,
     prompt: Union[str, List[str]] = None,
-    prompt_template_encode: str = "<|im_start|>system\nDescribe the image by detailing the color, shape, size, texture, quantity, text, spatial relationships of the objects and background:<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n",
+    prompt_template_encode: str = (
+        "<|im_start|>system\nDescribe the image by detailing the color, shape, size, texture, quantity, text, spatial "
+        "relationships of the objects and background:<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n"
+    ),
     prompt_template_encode_start_idx: int = 34,
     tokenizer_max_length: int = 1024,
 ):
@@ -73,7 +76,7 @@ def get_qwen_prompt_embeds(
 
     split_hidden_states = _extract_masked_hidden(hidden_states, ms.tensor(txt_tokens.attention_mask))
     split_hidden_states = [e[drop_idx:] for e in split_hidden_states]
-    attn_mask_list = [mint.ones(e.sjape[0], dtype=ms.int64) for e in split_hidden_states]
+    attn_mask_list = [mint.ones(e.shape[0], dtype=ms.int64) for e in split_hidden_states]
     max_seq_len = max([e.shape[0] for e in split_hidden_states])
     prompt_embeds = mint.stack(
         [mint.cat([u, u.new_zeros((max_seq_len - u.shape[0], u.shape[1]))]) for u in split_hidden_states]
@@ -90,7 +93,11 @@ def get_qwen_prompt_embeds_edit(
     processor,
     prompt: Union[str, List[str]] = None,
     image: Optional[ms.Tensor] = None,
-    prompt_template_encode: str = "<|im_start|>system\nDescribe the key features of the input image (color, shape, size, texture, objects, background), then explain how the user's text instruction should alter or modify the image. Generate a new image that meets the user's requirements while maintaining consistency with the original input where appropriate.<|im_end|>\n<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|>{}<|im_end|>\n<|im_start|>assistant\n",
+    prompt_template_encode: str = (
+        "<|im_start|>system\nDescribe the key features of the input image (color, shape, size, texture, objects, background), then explain how the user's "
+        "text instruction should alter or modify the image. Generate a new image that meets the user's requirements while maintaining consistency with the "
+        "original input where appropriate.<|im_end|>\n<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|>{}<|im_end|>\n<|im_start|>assistant\n"
+    ),
     prompt_template_encode_start_idx: int = 64,
 ):
     prompt = [prompt] if isinstance(prompt, str) else prompt
@@ -134,7 +141,11 @@ def get_qwen_prompt_embeds_edit_plus(
     processor,
     prompt: Union[str, List[str]] = None,
     image: Optional[Union[ms.Tensor, List[PIL.Image.Image], PIL.Image.Image]] = None,
-    prompt_template_encode: str = "<|im_start|>system\nDescribe the key features of the input image (color, shape, size, texture, objects, background), then explain how the user's text instruction should alter or modify the image. Generate a new image that meets the user's requirements while maintaining consistency with the original input where appropriate.<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n",
+    prompt_template_encode: str = (
+        "<|im_start|>system\nDescribe the key features of the input image (color, shape, size, texture, objects, background), then explain how the user's "
+        "text instruction should alter or modify the image. Generate a new image that meets the user's requirements while maintaining consistency with the "
+        "original input where appropriate.<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n"
+    ),
     img_template_encode: str = "Picture {}: <|vision_start|><|image_pad|><|vision_end|>",
     prompt_template_encode_start_idx: int = 64,
 ):
@@ -219,12 +230,12 @@ def encode_vae_image(
 
     if isinstance(generator, list):
         image_latents = [
-            retrieve_latents(vae.encode(image[i : i + 1]), generator=generator[i], sample_mode=sample_mode)
+            retrieve_latents(vae, vae.encode(image[i : i + 1])[0], generator=generator[i], sample_mode=sample_mode)
             for i in range(image.shape[0])
         ]
         image_latents = mint.cat(image_latents, dim=0)
     else:
-        image_latents = retrieve_latents(vae.encode(image), generator=generator, sample_mode=sample_mode)
+        image_latents = retrieve_latents(vae, vae.encode(image)[0], generator=generator, sample_mode=sample_mode)
     latents_mean = ms.Tensor(vae.config.latents_mean).view(1, latent_channels, 1, 1, 1).to(image_latents.dtype)
     latents_std = ms.Tensor(vae.config.latents_std).view(1, latent_channels, 1, 1, 1).to(image_latents.dtype)
     image_latents = (image_latents - latents_mean) / latents_std
@@ -488,6 +499,8 @@ class QwenImageTextEncoderStep(ModularPipelineBlocks):
         block_state.prompt_embeds = block_state.prompt_embeds[:, : block_state.max_sequence_length]
         block_state.prompt_embeds_mask = block_state.prompt_embeds_mask[:, : block_state.max_sequence_length]
 
+        block_state.negative_prompt_embeds = None
+        block_state.negative_prompt_embeds_mask = None
         if components.requires_unconditional_embeds:
             negative_prompt = block_state.negative_prompt or ""
             block_state.negative_prompt_embeds, block_state.negative_prompt_embeds_mask = get_qwen_prompt_embeds(
@@ -534,7 +547,12 @@ class QwenImageEditTextEncoderStep(ModularPipelineBlocks):
         return [
             ConfigSpec(
                 name="prompt_template_encode",
-                default="<|im_start|>system\nDescribe the key features of the input image (color, shape, size, texture, objects, background), then explain how the user's text instruction should alter or modify the image. Generate a new image that meets the user's requirements while maintaining consistency with the original input where appropriate.<|im_end|>\n<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|>{}<|im_end|>\n<|im_start|>assistant\n",
+                default=(
+                    "<|im_start|>system\nDescribe the key features of the input image (color, shape, size, texture, objects, background), "
+                    "then explain how the user's text instruction should alter or modify the image. Generate a new image that meets the user's "
+                    "requirements while maintaining consistency with the original input where appropriate.<|im_end|>\n<|im_start|>user\n"
+                    "<|vision_start|><|image_pad|><|vision_end|>{}<|im_end|>\n<|im_start|>assistant\n"
+                ),
             ),
             ConfigSpec(name="prompt_template_encode_start_idx", default=64),
         ]
@@ -607,6 +625,8 @@ class QwenImageEditTextEncoderStep(ModularPipelineBlocks):
             prompt_template_encode_start_idx=components.config.prompt_template_encode_start_idx,
         )
 
+        block_state.negative_prompt_embeds = None
+        block_state.negative_prompt_embeds_mask = None
         if components.requires_unconditional_embeds:
             negative_prompt = block_state.negative_prompt or " "
             block_state.negative_prompt_embeds, block_state.negative_prompt_embeds_mask = get_qwen_prompt_embeds_edit(
@@ -659,6 +679,8 @@ class QwenImageEditPlusTextEncoderStep(QwenImageEditTextEncoderStep):
             prompt_template_encode_start_idx=components.config.prompt_template_encode_start_idx,
         )
 
+        block_state.negative_prompt_embeds = None
+        block_state.negative_prompt_embeds_mask = None
         if components.requires_unconditional_embeds:
             negative_prompt = block_state.negative_prompt or " "
             (
@@ -799,7 +821,6 @@ class QwenImageProcessImagesInputStep(ModularPipelineBlocks):
         if width is not None and width % (vae_scale_factor * 2) != 0:
             raise ValueError(f"Width must be divisible by {vae_scale_factor * 2} but is {width}")
 
-    @torch.no_grad()
     def __call__(self, components: QwenImageModularPipeline, state: PipelineState):
         block_state = self.get_block_state(state)
 

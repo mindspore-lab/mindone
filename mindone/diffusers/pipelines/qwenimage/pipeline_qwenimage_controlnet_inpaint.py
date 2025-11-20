@@ -235,7 +235,7 @@ class QwenImageControlNetInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderM
     def _get_qwen_prompt_embeds(
         self,
         prompt: Union[str, List[str]] = None,
-        dtype: Optional[ms.dtype] = None,
+        dtype: Optional[ms.Type] = None,
     ):
         dtype = dtype or self.text_encoder.dtype
 

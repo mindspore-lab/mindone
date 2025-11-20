@@ -123,7 +123,10 @@ class QwenImageTextInputsStep(ModularPipelineBlocks):
         )
 
         # Placement guidance
-        placement_section = "\n\nThis block should be placed after all encoder steps to process the text embeddings before they are used in subsequent pipeline steps."
+        placement_section = (
+            "\n\nThis block should be placed after all encoder steps to process the text embeddings before they "
+            "are used in subsequent pipeline steps."
+        )
 
         return summary_section + placement_section
 
@@ -388,7 +391,6 @@ class QwenImageControlNetInputsStep(ModularPipelineBlocks):
             InputParam(name="width"),
         ]
 
-    @torch.no_grad()
     def __call__(self, components: QwenImageModularPipeline, state: PipelineState) -> PipelineState:
         block_state = self.get_block_state(state)
 
