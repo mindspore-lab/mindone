@@ -28,8 +28,6 @@ from mindspore import mint, nn
 
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
 from mindone.diffusers.models.activations import get_activation
-
-# from mindone.diffusers.models.autoencoders.vae import DecoderOutput, DiagonalGaussianDistribution
 from mindone.diffusers.models.modeling_outputs import AutoencoderKLOutput
 from mindone.diffusers.models.modeling_utils import ModelMixin
 from mindone.diffusers.utils import BaseOutput
@@ -42,16 +40,18 @@ from mindone.transformers.mindspore_adapter import scaled_dot_product_attention
 # from ..attention_processor import Attention
 # from ..layers_compat import unflatten
 
-# def forward_with_checkpointing(module, *inputs, use_checkpointing=False):
-#     def create_custom_forward(module):
-#         def custom_forward(*inputs):
-#             return module(*inputs)
-#         return custom_forward
 
-#     if use_checkpointing:
-#         return torch.utils.checkpoint.checkpoint(create_custom_forward(module), *inputs, use_reentrant=False)
-#     else:
-#         return module(*inputs)
+def forward_with_checkpointing(module, *inputs, use_checkpointing=False):
+    def create_custom_forward(module):
+        def custom_forward(*inputs):
+            return module(*inputs)
+
+        return custom_forward
+
+    if use_checkpointing:
+        raise NotImplementedError
+    else:
+        return module(*inputs)
 
 
 class DiagonalGaussianDistribution(object):
@@ -145,11 +145,11 @@ class Conv3d(mint.nn.Conv3d):
             for i in range(len(chunks)):
                 if self.padding[0] > 0:
                     padded_chunk = F.pad(
-                        chunks[i],
+                        chunks[i].float(),
                         (0, 0, 0, 0, self.padding[0], self.padding[0]),
                         mode="constant" if self.padding_mode == "zeros" else self.padding_mode,
                         value=0,
-                    )
+                    ).to(chunks[i].dtype)
                     if i > 0:
                         padded_chunk[:, :, : self.padding[0]] = chunks[i - 1][:, :, -self.padding[0] :]
                     if i < len(chunks) - 1:
@@ -180,48 +180,32 @@ class AttnBlock(nn.Cell):
         super().__init__()
         self.in_channels = in_channels
 
-        self.norm = mint.nn.GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
+        self.norm = nn.GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
 
-        self.to_q = Conv3d(in_channels, in_channels, kernel_size=1)
-        self.to_k = Conv3d(in_channels, in_channels, kernel_size=1)
-        self.to_v = Conv3d(in_channels, in_channels, kernel_size=1)
-        self.proj = Conv3d(in_channels, in_channels, kernel_size=1)
+        self.q = Conv3d(in_channels, in_channels, kernel_size=1)
+        self.k = Conv3d(in_channels, in_channels, kernel_size=1)
+        self.v = Conv3d(in_channels, in_channels, kernel_size=1)
+        self.proj_out = Conv3d(in_channels, in_channels, kernel_size=1)
 
-    def construct(self, x: ms.Tensor) -> ms.Tensor:
-        identity = x
-        x = self.norm(x)
+    def attention(self, h_: ms.Tensor) -> ms.Tensor:
+        h_ = self.norm(h_)
+        q = self.q(h_)
+        k = self.k(h_)
+        v = self.v(h_)
 
-        # compute query, key, value
-        query = self.to_q(x)
-        key = self.to_k(x)
-        value = self.to_v(x)
-
-        batch_size, channels, frame, height, width = query.shape  # (1, 1024, 1, 76, 52)
-        query = query.permute(0, 2, 3, 4, 1).reshape(batch_size, 1, frame * height * width, channels).contiguous()
-        key = key.permute(0, 2, 3, 4, 1).reshape(batch_size, 1, frame * height * width, channels).contiguous()
-        value = value.permute(0, 2, 3, 4, 1).reshape(batch_size, 1, frame * height * width, channels).contiguous()
-
-        """
-        # Head dim must <= 768, but got 1024 (channels)
-        num_heads = 16
-        head_dim = channels // num_heads
-        query = query.reshape(batch_size, -1, num_heads, head_dim)  # (B, S, num_heads, head_dim)
-        key = key.reshape(batch_size, -1, num_heads, head_dim)
-        value = value.reshape(batch_size, -1, num_heads, head_dim)
-        x = ops.flash_attention_score(
-            query, key, value, num_heads, scalar_value=1 / math.sqrt(head_dim), input_layout="BSND"
-        )
-        x = x.reshape(batch_size, 1, frame * height * width, channels)
-        """
+        b, c, f, h, w = q.shape  # (1, 1024, 1, 76, 52)
+        q = q.permute(0, 2, 3, 4, 1).reshape(b, 1, f * h * w, c).contiguous()
+        k = k.permute(0, 2, 3, 4, 1).reshape(b, 1, f * h * w, c).contiguous()
+        v = v.permute(0, 2, 3, 4, 1).reshape(b, 1, f * h * w, c).contiguous()
 
         # apply attention
-        x = scaled_dot_product_attention(query, key, value)
+        h_ = scaled_dot_product_attention(q, k, v)
+        h_ = h_.reshape(b, f, h, w, c).permute(0, 4, 1, 2, 3)
 
-        x = x.squeeze(1).reshape(batch_size, frame, height, width, channels).permute(0, 4, 1, 2, 3)
-        # output projection
-        x = self.proj(x)
+        return h_
 
-        return x + identity
+    def construct(self, x: ms.Tensor) -> ms.Tensor:
+        return x + self.proj_out(self.attention(x))
 
 
 class ResnetBlock(nn.Cell):
@@ -240,9 +224,9 @@ class ResnetBlock(nn.Cell):
         self.out_channels = out_channels
         self.nonlinearity = get_activation(non_linearity)
 
-        self.norm1 = mint.nn.GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
+        self.norm1 = nn.GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
         self.conv1 = Conv3d(in_channels, out_channels, kernel_size=3, stride=1, padding=1)
-        self.norm2 = mint.nn.GroupNorm(num_groups=32, num_channels=out_channels, eps=1e-6, affine=True)
+        self.norm2 = nn.GroupNorm(num_groups=32, num_channels=out_channels, eps=1e-6, affine=True)
         self.conv2 = Conv3d(out_channels, out_channels, kernel_size=3, stride=1, padding=1)
         if in_channels != out_channels:
             self.conv_shortcut = Conv3d(in_channels, out_channels, kernel_size=1, stride=1, padding=0)
@@ -391,38 +375,6 @@ class UpsampleDCAE(nn.Cell):
         return h + shortcut
 
 
-class MidBlock(nn.Cell):
-    """
-    Middle block for HunyuanImageVAE encoder and decoder.
-
-    Args:
-        in_channels (int): Number of input channels.
-        num_layers (int): Number of layers.
-    """
-
-    def __init__(self, in_channels: int, num_layers: int = 1):
-        super().__init__()
-
-        resnets = [ResnetBlock(in_channels=in_channels, out_channels=in_channels)]
-
-        attentions = []
-        for _ in range(num_layers):
-            attentions.append(AttnBlock(in_channels))
-            resnets.append(ResnetBlock(in_channels=in_channels, out_channels=in_channels))
-
-        self.resnets = nn.CellList(resnets)
-        self.attentions = nn.CellList(attentions)
-
-    def construct(self, x: ms.Tensor) -> ms.Tensor:
-        x = self.resnets[0](x)
-
-        for attn, resnet in zip(self.attentions, self.resnets[1:]):
-            x = attn(x)
-            x = resnet(x)
-
-        return x
-
-
 class Encoder(nn.Cell):
     r"""
     Encoder network that compresses input to latent representation.
@@ -456,44 +408,46 @@ class Encoder(nn.Cell):
                 f"{block_out_channels[-1]} and out_channels = {z_channels}"
             )
 
-        self.in_channels = in_channels
         self.z_channels = z_channels
         self.block_out_channels = block_out_channels
         self.num_res_blocks = num_res_blocks
-        self.ffactor_spatial = ffactor_spatial
-        self.ffactor_temporal = ffactor_temporal
 
         self.group_size = block_out_channels[-1] // (2 * z_channels)
         self.nonlinearity = get_activation(non_linearity)
 
-        # init block
+        # downsampling
         self.conv_in = Conv3d(in_channels, block_out_channels[0], kernel_size=3, stride=1, padding=1)
 
-        # downsample blocks
-        self.down_blocks = nn.CellList([])
+        self.down = nn.CellList()
+        block_in = block_out_channels[0]
+        for i_level, ch in enumerate(block_out_channels):
+            block = nn.CellList()
+            block_out = ch
+            for _ in range(self.num_res_blocks):
+                block.append(ResnetBlock(in_channels=block_in, out_channels=block_out))
+                block_in = block_out
+            down = nn.Cell()
+            down.block = block
 
-        block_in_channel = block_out_channels[0]
-        for i in range(len(block_out_channels)):
-            block_out_channel = block_out_channels[i]
-            # residual blocks
-            for _ in range(num_res_blocks):
-                self.down_blocks.append(ResnetBlock(in_channels=block_in_channel, out_channels=block_out_channel))
-                block_in_channel = block_out_channel
-
-            # downsample block
-            add_spatial_downsample = bool(i < np.log2(ffactor_spatial))
-            add_temporal_downsample = add_spatial_downsample and bool(i >= np.log2(ffactor_spatial // ffactor_temporal))
-            if (add_spatial_downsample or add_temporal_downsample) and i != len(block_out_channels) - 1:
-                if downsample_match_channel:
-                    block_out_channel = block_out_channels[i + 1]
-                self.down_blocks.append(DownsampleDCAE(block_in_channel, block_out_channel, add_temporal_downsample))
-                block_in_channel = block_out_channel
+            add_spatial_downsample = bool(i_level < np.log2(ffactor_spatial))
+            add_temporal_downsample = add_spatial_downsample and bool(
+                i_level >= np.log2(ffactor_spatial // ffactor_temporal)
+            )
+            if add_spatial_downsample or add_temporal_downsample:
+                assert i_level < len(block_out_channels) - 1
+                block_out = block_out_channels[i_level + 1] if downsample_match_channel else block_in
+                down.downsample = DownsampleDCAE(block_in, block_out, add_temporal_downsample)
+                block_in = block_out
+            self.down.append(down)
 
         # middle blocks
-        self.mid_block = MidBlock(in_channels=block_out_channels[-1], num_layers=1)
+        self.mid = nn.CellList()
+        self.mid.block_1 = ResnetBlock(in_channels=block_in, out_channels=block_in)
+        self.mid.attn_1 = AttnBlock(block_in)
+        self.mid.block_2 = ResnetBlock(in_channels=block_in, out_channels=block_in)
 
         # output blocks / layers
-        self.norm_out = mint.nn.GroupNorm(num_groups=32, num_channels=block_out_channels[-1], eps=1e-6, affine=True)
+        self.norm_out = nn.GroupNorm(num_groups=32, num_channels=block_out_channels[-1], eps=1e-6, affine=True)
         self.conv_out = Conv3d(block_out_channels[-1], 2 * z_channels, kernel_size=3, stride=1, padding=1)
 
         self.gradient_checkpointing = False
@@ -501,28 +455,28 @@ class Encoder(nn.Cell):
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         use_checkpointing = bool(self.training and self.gradient_checkpointing)
 
-        x = self.conv_in(x)
-
         # downsampling
-        for down_block in self.down_blocks:
-            if use_checkpointing:
-                x = self._gradient_checkpointing_func(down_block, x)  # does it support?
-            else:
-                x = down_block(x)
+        h = self.conv_in(x)
+        for i_level in range(len(self.block_out_channels)):
+            for i_block in range(self.num_res_blocks):
+                h = forward_with_checkpointing(
+                    self.down[i_level].block[i_block], h, use_checkpointing=use_checkpointing
+                )
+            if hasattr(self.down[i_level], "downsample"):
+                h = forward_with_checkpointing(self.down[i_level].downsample, h, use_checkpointing=use_checkpointing)
 
         # middle
-        if use_checkpointing:
-            x = self._gradient_checkpointing_func(self.mid_block, x)  # does it support?
-        else:
-            x = self.mid_block(x)
+        h = forward_with_checkpointing(self.mid.block_1, h, use_checkpointing=use_checkpointing)
+        h = forward_with_checkpointing(self.mid.attn_1, h, use_checkpointing=use_checkpointing)
+        h = forward_with_checkpointing(self.mid.block_2, h, use_checkpointing=use_checkpointing)
 
         # output
-        B, C, H, W = x.shape
-        residual = x.view(B, C // self.group_size, self.group_size, H, W).mean(dim=2)
+        B, C, H, W = h.shape
+        residual = h.view(B, C // self.group_size, self.group_size, H, W).mean(dim=2)
 
-        x = self.norm_out(x)
-        x = self.nonlinearity(x)
-        x = self.conv_out(x)
+        h = self.norm_out(h)
+        h = self.nonlinearity(h)
+        h = self.conv_out(h)
         return x + residual
 
 
@@ -562,37 +516,42 @@ class Decoder(nn.Cell):
         self.z_channels = z_channels
         self.block_out_channels = block_out_channels
         self.num_res_blocks = num_res_blocks
-        self.ffactor_spatial = ffactor_spatial
-        self.ffactor_temporal = ffactor_temporal
 
         self.repeats = block_out_channels[0] // z_channels
         self.nonlinearity = get_activation(non_linearity)
 
         # z to block_in
-        self.conv_in = Conv3d(z_channels, block_out_channels[0], kernel_size=3, stride=1, padding=1)
+        block_in = block_out_channels[0]
+        self.conv_in = Conv3d(z_channels, block_in, kernel_size=3, stride=1, padding=1)
 
-        # middle blocks with attention
-        self.mid_block = MidBlock(in_channels=block_out_channels[0], num_layers=1)
+        # middle
+        self.mid = nn.Cell()
+        self.mid.block_1 = ResnetBlock(in_channels=block_in, out_channels=block_in)
+        self.mid.attn_1 = AttnBlock(block_in)
+        self.mid.block_2 = ResnetBlock(in_channels=block_in, out_channels=block_in)
 
-        # upsampling blocks
-        block_in_channel = block_out_channels[0]
-        self.up_blocks = nn.CellList()
-        for i in range(len(block_out_channels)):
-            block_out_channel = block_out_channels[i]
+        # upsampling
+        self.up = nn.CellList()
+        for i_level, ch in enumerate(block_out_channels):
+            block = nn.CellList()
+            block_out = ch
             for _ in range(self.num_res_blocks + 1):
-                self.up_blocks.append(ResnetBlock(in_channels=block_in_channel, out_channels=block_out_channel))
-                block_in_channel = block_out_channel
+                block.append(ResnetBlock(in_channels=block_in, out_channels=block_out))
+                block_in = block_out
+            up = nn.Cell()
+            up.block = block
 
-            add_spatial_upsample = bool(i < np.log2(ffactor_spatial))
-            add_temporal_upsample = bool(i < np.log2(ffactor_temporal))
-            if (add_spatial_upsample or add_temporal_upsample) and i != len(block_out_channels) - 1:
-                if upsample_match_channel:
-                    block_out_channel = block_out_channels[i + 1]
-                self.up_blocks.append(UpsampleDCAE(block_in_channel, block_out_channel, add_temporal_upsample))
-                block_in_channel = block_out_channel
+            add_spatial_upsample = bool(i_level < np.log2(ffactor_spatial))
+            add_temporal_upsample = bool(i_level < np.log2(ffactor_temporal))
+            if add_spatial_upsample or add_temporal_upsample:
+                assert i_level < len(block_out_channels) - 1
+                block_out = block_out_channels[i_level + 1] if upsample_match_channel else block_in
+                up.upsample = UpsampleDCAE(block_in, block_out, add_temporal_upsample)
+                block_in = block_out
+            self.up.append(up)
 
         # output
-        self.norm_out = mint.nn.GroupNorm(num_groups=32, num_channels=block_out_channels[-1], eps=1e-6, affine=True)
+        self.norm_out = nn.GroupNorm(num_groups=32, num_channels=block_out_channels[-1], eps=1e-6, affine=True)
         self.conv_out = Conv3d(block_out_channels[-1], out_channels, kernel_size=3, stride=1, padding=1)
 
         self.gradient_checkpointing = False
@@ -604,17 +563,16 @@ class Decoder(nn.Cell):
         h = self.conv_in(z) + z.repeat_interleave(repeats=self.repeats, dim=1)
 
         # middle
-        if use_checkpointing:
-            h = self._gradient_checkpointing_func(self.mid_block, h)
-        else:
-            h = self.mid_block(h)
+        h = forward_with_checkpointing(self.mid.block_1, h, use_checkpointing=use_checkpointing)
+        h = forward_with_checkpointing(self.mid.attn_1, h, use_checkpointing=use_checkpointing)
+        h = forward_with_checkpointing(self.mid.block_2, h, use_checkpointing=use_checkpointing)
 
         # upsampling
-        for up_block in self.up_blocks:
-            if use_checkpointing:
-                h = self._gradient_checkpointing_func(up_block, h)
-            else:
-                h = up_block(h)
+        for i_level in range(len(self.block_out_channels)):
+            for i_block in range(self.num_res_blocks + 1):
+                h = forward_with_checkpointing(self.up[i_level].block[i_block], h, use_checkpointing=use_checkpointing)
+            if hasattr(self.up[i_level], "upsample"):
+                h = forward_with_checkpointing(self.up[i_level].upsample, h, use_checkpointing=use_checkpointing)
 
         # output
         h = self.norm_out(h)
@@ -694,10 +652,12 @@ class AutoencoderKLConv3D(ModelMixin, ConfigMixin):
         self.tile_latent_min_tsize = sample_tsize // ffactor_temporal
         self.tile_overlap_factor = 0.25
 
-        # recompute function?
+        # use torch.compile for faster encode speed ??
+        self.use_compile = False
 
     def _set_gradient_checkpointing(self, module, value=False):
-        raise NotImplementedError
+        if isinstance(module, (Encoder, Decoder)):
+            module.gradient_checkpointing = value
 
     def enable_tiling_during_training(self, use_tiling: bool = True):
         self.use_tiling_during_training = use_tiling
@@ -988,7 +948,7 @@ class AutoencoderKLConv3D(ModelMixin, ConfigMixin):
         """
 
         if self.use_slicing and z.shape[0] > 1:
-            decoded_slices = [self._decode(z_slice) for z_slice in z.split(1)]
+            decoded_slices = [self._decode(z_slice).sample for z_slice in z.split(1)]
             decoded = mint.cat(decoded_slices)
         else:
             decoded = self._decode(z).sample
@@ -1039,7 +999,7 @@ class AutoencoderKLConv3D(ModelMixin, ConfigMixin):
         else:
             z = posterior.mode()
 
-        dec = self.decode(z, return_dict=return_dict)
+        dec = self.decode(z, return_dict=return_dict).sample
 
         if not return_dict:
             return (dec, posterior)

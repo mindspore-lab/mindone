@@ -14,7 +14,7 @@
 import argparse
 import os
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Callable
 
 from hunyuan_image_3.hunyuan import HunyuanImage3ForCausalMM
 
@@ -26,17 +26,6 @@ from mindspore.communication import GlobalComm
 from mindone.trainers.zero import prepare_network
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
-
-# import logging
-# import sys
-# import types
-
-
-# from mindspore.nn.utils import no_init_parameters
-
-
-# from hunyuan_image_3.distributed.util import init_distributed_group  # for sp
-# from hunyuan_image_3.distributed.zero import free_model, shard_model  # free_model -> offload model
 
 
 def parse_args():
@@ -134,30 +123,9 @@ def parse_args():
     return parser.parse_args()
 
 
-def init_distributed_group() -> None:
-    """r initialize sequence parallel group."""
-    if not dist.is_initialized():
-        dist.init_process_group(backend="hccl")
-
-
-def shard_model(
-    model: nn.Cell,
-    device_id: Optional[int] = None,
-    param_dtype: ms.dtype = ms.bfloat16,
-    reduce_dtype: ms.dtype = ms.float32,
-    buffer_dtype: ms.dtype = ms.float32,
-    process_group: Optional[Any] = None,
-    sharding_strategy: Optional[Any] = None,
-    sync_module_states: bool = True,
-) -> nn.Cell:
-    model = prepare_network(model, zero_stage=3, optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP)
-    return model
-
-
 def configure_model(
     self,
     model: HunyuanImage3ForCausalMM,
-    use_sp: bool,
     dit_zero3: bool,
     shard_fn: Callable[[nn.Cell], nn.Cell],
     convert_model_dtype: bool,
@@ -169,8 +137,6 @@ def configure_model(
     Args:
         model (mindspore.nn.Cell):
             The model instance to configure.
-        use_sp (`bool`):
-            Enable distribution strategy of sequence parallel.
         dit_zero3 (`bool`):
             Enable ZeRO3 sharding for DiT model.
         shard_fn (callable):
@@ -185,12 +151,6 @@ def configure_model(
     model.set_train(False)
     for param in model.trainable_params():
         param.requires_grad = False
-
-    if use_sp:
-        pass
-        # for block in model.blocks:
-        #     block.self_attn.construct = types.MethodType(sp_attn_forward, block.self_attn)
-        # model.construct = types.MethodType(sp_dit_forward, model)
 
     if dist.is_initialized():
         dist.barrier()
@@ -233,12 +193,6 @@ def main(args):
     ms.launch_blocking()
 
     local_rank = dist.get_rank()
-    # world_size = dist.get_world_size()
-
-    # if args.ulysses_size > 1:
-    #     assert args.ulysses_size == world_size, "The number of ulysses_size should be equal to the world size."
-    #     # assert args.ulysses_size % 4 == 0?
-    #     init_distributed_group()
 
     if args.reproduce:
         set_reproducibility(args.reproduce, global_seed=args.seed)
@@ -252,21 +206,11 @@ def main(args):
     kwargs = dict(
         attn_implementation=args.attn_impl,
         mindspore_dtype=dtype,
-        # device_map="auto",
         moe_impl=args.moe_impl,
     )
     with nn.no_init_parameters():
         model = HunyuanImage3ForCausalMM.from_pretrained(args.model_id, **kwargs)
     model.load_tokenizer(args.model_id)
-
-    # shard across devices
-    # model = configure_model(
-    #         model=model,
-    #         use_sp=(args.ulysses_size > 1),
-    #         use_zero3=args.use_zero3,
-    #         shard_fn=shard_model,
-    #         convert_model_dtype=False,
-    #     )
 
     # shard across devices
     if args.use_zero3:
@@ -278,7 +222,7 @@ def main(args):
         print(f"Use MS auto mixed precision for model, amp_level: {args.amp_level}")
         if hasattr(model, "vae") and model.vae is not None:
             model.vae = auto_mixed_precision(
-                model.vae, amp_level="O2", dtype=dtype, custom_fp32_cells=[ms.mint.nn.GroupNorm]
+                model.vae, amp_level="O2", dtype=dtype, custom_fp32_cells=[ms.nn.GroupNorm]
             )
             print("Use MS auto mixed precision for model.vae, amp_level: O2")
 
@@ -286,7 +230,7 @@ def main(args):
             ms.amp.auto_mixed_precision(model, amp_level=args.amp_level, dtype=dtype)
         else:
             # OOM risk
-            whitelist_ops = [ms.mint.nn.GroupNorm]
+            whitelist_ops = [ms.nn.GroupNorm]
             print("custom fp32 cell for vae: ", whitelist_ops)
             model = auto_mixed_precision(model, amp_level=args.amp_level, dtype=dtype, custom_fp32_cells=whitelist_ops)
 

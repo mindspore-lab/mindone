@@ -8,11 +8,10 @@ MASTER_PORT=${MASTER_PORT:-$(shuf -i 20001-29999 -n 1)}
 NPROC_PER_NODE=${WORLD_SIZE:-8}
 
 # Model configuration
-llm="/data6/hunyuanimage3_0"  # Using HuggingFace model ID
+llm="/mnt/disk3/dxw/hunyuanimage3/"  # Using HuggingFace model ID
 
 # Training entry point
-# entry_file="run_image_gen.py"
-entry_file="run_image_gen_torchrandn.py"
+entry_file="run_image_gen.py"
 
 # Checkpoint configuration
 # lora_dir=./output
@@ -23,13 +22,7 @@ prompt="A brown and white dog is running on the grass"
 seed=0
 verbose=1
 enable_amp="True"
-image_size=""
-
-# Inference arguments
-# args="
-#     --model_id '${llm}' \
-#     --save '${image_path}' \
-#     --prompt '${prompt}'"
+image_size="832x1216"
 
 # Launch inference
 msrun --worker_num=${NPROC_PER_NODE} \
