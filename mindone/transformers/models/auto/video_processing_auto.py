@@ -42,7 +42,11 @@ if TYPE_CHECKING:
     # the transformers package is used with Microsoft's Pylance language server.
     VIDEO_PROCESSOR_MAPPING_NAMES: OrderedDict[str, tuple[Optional[str], Optional[str]]] = OrderedDict()
 else:
-    VIDEO_PROCESSOR_MAPPING_NAMES = OrderedDict()
+    VIDEO_PROCESSOR_MAPPING_NAMES = OrderedDict(
+        [
+            ("glm4v", "Glm4vVideoProcessor"),
+        ]
+    )
 
 if version.parse(transformers.__version__) >= version.parse("4.57.0"):
     VIDEO_PROCESSOR_MAPPING_NAMES.update(

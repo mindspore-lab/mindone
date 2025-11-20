@@ -104,20 +104,20 @@ class Glm4vProcessor(ProcessorMixin):
         the text.
 
         Args:
-            images (`PIL.Image.Image`, `np.ndarray`, `torch.Tensor`, `List[PIL.Image.Image]`, `List[np.ndarray]`, `List[torch.Tensor]`):
+            images (`PIL.Image.Image`, `np.ndarray`, `ms.Tensor`, `List[PIL.Image.Image]`, `List[np.ndarray]`, `List[ms.Tensor]`):
                 The image or batch of images to be prepared. Each image can be a PIL image, NumPy array or PyTorch
                 tensor. Both channels-first and channels-last formats are supported.
             text (`str`, `List[str]`, `List[List[str]]`):
                 The sequence or batch of sequences to be encoded. Each sequence can be a string or a list of strings
                 (pretokenized string). If the sequences are provided as list of strings (pretokenized), you must set
                 `is_split_into_words=True` (to lift the ambiguity with a batch of sequences).
-            videos (`np.ndarray`, `torch.Tensor`, `List[np.ndarray]`, `List[torch.Tensor]`):
+            videos (`np.ndarray`, `ms.Tensor`, `List[np.ndarray]`, `List[ms.Tensor]`):
                 The image or batch of videos to be prepared. Each video can be a 4D NumPy array or PyTorch
                 tensor, or a nested list of 3D frames. Both channels-first and channels-last formats are supported.
             return_tensors (`str` or [`~utils.TensorType`], *optional*):
                 If set, will return tensors of a particular framework. Acceptable values are:
                 - `'tf'`: Return TensorFlow `tf.constant` objects.
-                - `'pt'`: Return PyTorch `torch.Tensor` objects.
+                - `'pt'`: Return PyTorch `ms.Tensor` objects.
                 - `'np'`: Return NumPy `np.ndarray` objects.
                 - `'jax'`: Return JAX `jnp.ndarray` objects.
 
@@ -270,7 +270,7 @@ class Glm4vProcessor(ProcessorMixin):
         Post-process the output of the model to decode the text.
 
         Args:
-            generated_outputs (`torch.Tensor` or `np.ndarray`):
+            generated_outputs (`ms.Tensor` or `np.ndarray`):
                 The output of the model `generate` function. The output is expected to be a tensor of shape `(batch_size, sequence_length)`
                 or `(sequence_length,)`.
             skip_special_tokens (`bool`, *optional*, defaults to `True`):
