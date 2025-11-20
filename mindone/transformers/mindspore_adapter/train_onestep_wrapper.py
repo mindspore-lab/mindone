@@ -93,6 +93,10 @@ class LossWithScaleSense(nn.Cell):
         super().__init__(auto_prefix=False)
         self.network = network
 
+    def set_train(self, mode: bool = True):
+        # Delegate control of training-mode behavior to the network.
+        self.network.set_train(mode)
+
     def construct(self, *args, scale_sense: float = 1.0, **kwargs) -> Tensor:
         loss = self.network(*args, **kwargs)
         if isinstance(scale_sense, ms.Tensor):
@@ -161,6 +165,10 @@ class TrainOneStepWrapper(nn.Cell):
                     super(ScalingLossForGradAccum, self).__init__(auto_prefix=False)
                     self.net = net
                     self.accum_steps_ = accum_steps_
+
+                def set_train(self, mode: bool = True):
+                    # Delegate control of training-mode behavior to the network.
+                    self.net.set_train(mode)
 
                 def construct(self, *args, **kwargs):
                     loss = self.net(*args, **kwargs)
@@ -238,10 +246,7 @@ class TrainOneStepWrapper(nn.Cell):
 
     def set_train(self, mode: bool = True):
         # Delegate control of training-mode behavior to the network.
-        if self.accum_steps > 1:
-            self.network.network.network.set_train(mode)  # ScalingLossForGradAccum(LossWithScaleSense(network))
-        else:
-            self.network.network.set_train(mode)  # LossWithScaleSense(network)
+        self.network.set_train(mode)
 
     def do_optim(self, loss, grads):
         if self.accum_steps == 1:
