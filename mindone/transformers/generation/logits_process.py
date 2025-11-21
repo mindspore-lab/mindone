@@ -452,7 +452,8 @@ class RepetitionPenaltyLogitsProcessor(LogitsProcessor):
         score = mint.gather(scores, 1, input_ids)
         # if score < 0 then repetition penalty has to be multiplied to reduce the token probabilities
         score = mint.where(score < 0, score * self.penalty, score / self.penalty)
-        scores_processed = scores.scatter(1, input_ids, score)
+        # TODO check difference of "ms.tensor.scatter" and "ms.tensor.scatter_"
+        scores_processed = scores.scatter_(1, input_ids, score)
         return scores_processed
 
 
