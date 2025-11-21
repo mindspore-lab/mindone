@@ -7,11 +7,14 @@ import mindspore.mint.nn.functional as functional
 import mindspore.nn as nn
 from mindspore.mint.optim import AdamW
 
+from mindone.diffusers.utils import get_logger
 from mindone.peft import LoraConfig, PeftModel, get_peft_model
 
 from ..utils.fm_solvers import FlowDPMSolverMultistepScheduler
 from ..utils.fm_solvers_unipc import FlowUniPCMultistepScheduler
 from .utils import clip_by_global_norm, save_checkpoint, syn_gradients
+
+logger = get_logger(__name__)
 
 
 class LoRATrainer:
@@ -135,6 +138,7 @@ class LoRATrainer:
         return loss
 
     def validate(self):
+        logger.info("Running validation...")
         self.pipeline.model.set_train(False)
         self.pipeline.generate(**self.generation_config)
 
