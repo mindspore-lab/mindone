@@ -158,6 +158,7 @@ from .models.auto import (
     AutoModelForZeroShotObjectDetection,
     AutoModelWithLMHead,
     AutoProcessor,
+    AutoVideoProcessor,
 )
 from .models.aya_vision import AyaVisionForConditionalGeneration, AyaVisionPreTrainedModel
 from .models.bamba import BambaForCausalLM, BambaModel, BambaPreTrainedModel
@@ -1120,6 +1121,7 @@ from .models.qwen2_moe import (
 from .models.qwen2_vl import (
     Qwen2VLForConditionalGeneration,
     Qwen2VLImageProcessor,
+    Qwen2VLImageProcessorFast,
     Qwen2VLModel,
     Qwen2VLPreTrainedModel,
 )
@@ -1521,6 +1523,7 @@ from .processing_utils import ProcessorMixin
 from .trainer import Trainer
 from .training_args import TrainingArguments
 from .utils import logging
+from .video_processing_utils import BaseVideoProcessor
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
     from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
@@ -1581,6 +1584,7 @@ if version.parse(transformers.__version__) >= version.parse("4.57.0"):
         Qwen3VLPreTrainedModel,
         Qwen3VLProcessor,
         Qwen3VLTextModel,
+        Qwen3VLVideoProcessor,
         Qwen3VLVisionModel,
     )
     from .models.qwen3_vl_moe import (

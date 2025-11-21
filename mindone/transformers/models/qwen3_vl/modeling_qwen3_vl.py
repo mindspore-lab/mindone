@@ -622,7 +622,7 @@ class Qwen3VLVisionModel(Qwen3VLPreTrainedModel):
             coords = mint.stack((row_idx, col_idx), dim=-1)
 
             if num_frames > 1:
-                coords = coords.repeat(num_frames, 1)
+                coords = coords.repeat(num_frames.item(), 1)
 
             num_tokens = coords.shape[0]
             pos_ids[offset : offset + num_tokens] = coords
