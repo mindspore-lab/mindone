@@ -61,22 +61,23 @@ class DINOv3ViTImageProcessorFast(BaseImageProcessorFast):
         grouped_images, grouped_images_index = group_images_by_shape(images)
         resized_images_grouped = {}
         for shape, stacked_images in grouped_images.items():
-            if do_rescale:
-                stacked_images = self.rescale(stacked_images, rescale_factor)
-            if do_resize:
+            stacked_images_updated = []
+            for i in range(len(stacked_images)):
+                image = stacked_images[i]
                 # TODO mindspore.dataset.vision.Resize could only support (H, W, 3) format,
                 #  batch_size stacked image should be computed in one iteration
                 # batch_size, channels = stacked_images.shape[0], stacked_images.shape[1]
                 # stacked_images_updated = mint.zeros((batch_size, channels, resized_height, resized_width), dtype=stacked_images.dtype)
-                stacked_images_updated = []
-                for i in range(len(stacked_images)):
-                    stacked_images_updated.append(
-                        self.resize(
-                            image=stacked_images[i], size=size, interpolation=interpolation, antialias=True
-                        )
+                # TODO: current version of resize require input to be unscaled image, so the order is changed to: 
+                # resize -> rescale -> normalize
+                if do_resize:
+                    image = self.resize(
+                        image=image, size=size, interpolation=interpolation, antialias=True
                     )
-                stacked_images = stacked_images_updated
-            resized_images_grouped[shape] = stacked_images
+                if do_rescale:
+                    image = self.rescale(image, rescale_factor)
+            stacked_images_updated.append(image)
+            resized_images_grouped[shape] = stacked_images_updated
         resized_images = reorder_images(resized_images_grouped, grouped_images_index)
 
         # Group images by size for further processing
