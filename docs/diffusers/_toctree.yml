@@ -483,6 +483,8 @@
       title: PixArt-α
     - local: api/pipelines/pixart_sigma
       title: PixArt-Σ
+    - local: api/pipelines/prx
+      title: PRX
     - local: api/pipelines/qwenimage
       title: QwenImage
     - local: api/pipelines/sana
