@@ -173,7 +173,7 @@ def _convert_state_dict(m, state_dict_pt, prefix=""):
         name_pt, data_pt = state_dict_pt.popitem()
         if pt2ms_mappings:
             if name_pt in mapping_key or name_pt in model_ckpt_key:
-                name_ms, data_mapping = pt2ms_mappings.get(name_pt)
+                name_ms, data_mapping = pt2ms_mappings.get(name_pt, (name_pt, lambda x: x))
             # When model name and state dict name match and state dict name has prefix, state dict name would be sliced
             elif name_pt[length:] in mapping_key or name_pt[length:] in model_ckpt_key:
                 name_ms, data_mapping = pt2ms_mappings.get(name_pt[length:], (name_pt[length:], lambda x: x))
