@@ -24,6 +24,9 @@ from ...utils import (
     logging,
 )
 
+import mindspore as ms
+from mindspore import mint
+
 logger = logging.get_logger(__name__)
 
 
@@ -51,7 +54,6 @@ class DINOv3ViTImageProcessorFast(BaseImageProcessorFast):
         do_normalize: bool,
         image_mean: Optional[Union[float, list[float]]],
         image_std: Optional[Union[float, list[float]]],
-        # disable_grouping: Optional[bool],
         return_tensors: Optional[Union[str, TensorType]],
         **kwargs,
     ) -> BatchFeature:
@@ -62,9 +64,18 @@ class DINOv3ViTImageProcessorFast(BaseImageProcessorFast):
             if do_rescale:
                 stacked_images = self.rescale(stacked_images, rescale_factor)
             if do_resize:
-                stacked_images = self.resize(
-                    image=stacked_images, size=size, interpolation=interpolation, antialias=True
-                )
+                # TODO mindspore.dataset.vision.Resize could only support (H, W, 3) format,
+                #  batch_size stacked image should be computed in one iteration
+                # batch_size, channels = stacked_images.shape[0], stacked_images.shape[1]
+                # stacked_images_updated = mint.zeros((batch_size, channels, resized_height, resized_width), dtype=stacked_images.dtype)
+                stacked_images_updated = []
+                for i in range(len(stacked_images)):
+                    stacked_images_updated.append(
+                        self.resize(
+                            image=stacked_images[i], size=size, interpolation=interpolation, antialias=True
+                        )
+                    )
+                stacked_images = stacked_images_updated
             resized_images_grouped[shape] = stacked_images
         resized_images = reorder_images(resized_images_grouped, grouped_images_index)
 
