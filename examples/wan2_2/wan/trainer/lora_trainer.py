@@ -129,7 +129,7 @@ class LoRATrainer:
 
             self.optimizer(grads)
             duration = time.time() - start_time
-            print(f"Step {i}, Loss: {loss.asnumpy():.4f}, Step time: {duration:.4f} sec")
+            logger.info(f"Step {i}, Loss: {loss.asnumpy():.4f}, Step time: {duration:.4f} sec")
 
     def calculate_loss(self, noise, latents, noisy_latents, timesteps, encoder_hidden_states, seq_len):
         model_pred = self.pipeline.model(noisy_latents, t=timesteps, context=encoder_hidden_states, seq_len=seq_len)
@@ -144,5 +144,5 @@ class LoRATrainer:
 
     def train(self, num_epochs):
         for epoch in range(num_epochs):
-            print(f"Starting epoch {epoch + 1}/{num_epochs}")
+            logger.info(f"Starting epoch {epoch + 1}/{num_epochs}")
             self.train_epoch()
