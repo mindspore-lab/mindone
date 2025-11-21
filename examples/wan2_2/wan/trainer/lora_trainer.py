@@ -141,6 +141,7 @@ class LoRATrainer:
         logger.info("Running validation...")
         self.pipeline.model.set_train(False)
         self.pipeline.generate(**self.generation_config)
+        self.pipeline.model.set_train(True)
 
     def train(self, num_epochs):
         for epoch in range(num_epochs):
