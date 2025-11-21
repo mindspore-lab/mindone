@@ -61,6 +61,7 @@ else:
             ("depth_anything", ("DPTImageProcessor",)),
             ("depth_pro", ("DepthProImageProcessor",)),
             ("dinov2", ("BitImageProcessor",)),
+            ("dinov3_vit", ("DINOv3ViTImageProcessorFast")),
             ("dpt", ("DPTImageProcessor",)),
             ("efficientnet", ("EfficientNetImageProcessor",)),
             ("flava", ("FlavaImageProcessor",)),
