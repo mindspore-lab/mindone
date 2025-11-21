@@ -8,7 +8,7 @@ MASTER_PORT=${MASTER_PORT:-$(shuf -i 20001-29999 -n 1)}
 NPROC_PER_NODE=${WORLD_SIZE:-8}
 
 # Model configuration
-llm="/mnt/disk3/dxw/hunyuanimage3/"  # Using HuggingFace model ID
+MODEL_ID=${MODEL_ID:-"HunyuanImage-3/"}  # Using HuggingFace model ID
 
 # Training entry point
 entry_file="run_image_gen.py"
@@ -32,7 +32,7 @@ msrun --worker_num=${NPROC_PER_NODE} \
     --log_dir="logs/infer" \
     --join=True \
     ${entry_file} \
-    --model-id "${llm}" \
+    --model-id "${MODEL_ID}" \
     --save "${image_path}" \
     --prompt "${prompt}" \
     --seed "${seed}" \

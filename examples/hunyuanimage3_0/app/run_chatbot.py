@@ -416,7 +416,11 @@ def parse_args():
     # model
     parser.add_argument("--model-id", type=str, default="./HunyuanImage-3", help="Path to the model")
     parser.add_argument(
-        "--attn-impl", type=str, default="sdpa", choices=["sdpa", "flash_attention_2"], help="Attention implementation"
+        "--attn-impl",
+        type=str,
+        default="flash_attention_2",
+        choices=["sdpa", "flash_attention_2"],
+        help="Attention implementation",
     )
     parser.add_argument(
         "--moe-impl", type=str, default="eager", choices=["eager", "flashinfer"], help="MoE implementation"

@@ -221,9 +221,7 @@ def main(args):
     if args.enable_ms_amp and dtype != ms.float32:
         print(f"Use MS auto mixed precision for model, amp_level: {args.amp_level}")
         if hasattr(model, "vae") and model.vae is not None:
-            model.vae = auto_mixed_precision(
-                model.vae, amp_level="O2", dtype=dtype, custom_fp32_cells=[ms.nn.GroupNorm]
-            )
+            model.vae = auto_mixed_precision(model.vae, amp_level="O2", dtype=dtype, custom_fp32_cells=[nn.GroupNorm])
             print("Use MS auto mixed precision for model.vae, amp_level: O2")
 
         if args.amp_level == "auto":
