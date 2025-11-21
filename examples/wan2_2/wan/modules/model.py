@@ -498,7 +498,11 @@ class WanModel(ModelMixin, ConfigMixin):
 
         x = x.to(self.dtype)
         for block in self.blocks:
-            x = block(x, **kwargs)
+            if self.training:
+                # recompute to save memory
+                x = ms.recompute(block, x, **kwargs)
+            else:
+                x = block(x, **kwargs)
 
         # head
         x = self.head(x, e)

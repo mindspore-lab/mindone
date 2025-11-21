@@ -484,7 +484,7 @@ class WanVAE_(nn.Cell):
         return x_recon, mu, log_var
 
     def encode(
-        self, x: ms.Tensor, scale: List[Union[ms.Tensor, float]]
+        self, x: ms.Tensor, scale: List[Union[ms.Tensor, float]], return_log_var: bool = False
     ) -> Union[Tuple[ms.Tensor, ms.Tensor], ms.Tensor]:
         self.clear_cache()
         # cache
@@ -508,6 +508,9 @@ class WanVAE_(nn.Cell):
         else:
             mu = (mu - scale[0]) * scale[1]
         self.clear_cache()
+
+        if return_log_var:
+            return mu, log_var
         return mu
 
     def decode(self, z: ms.Tensor, scale: List[Union[ms.Tensor, float]]) -> ms.Tensor:
