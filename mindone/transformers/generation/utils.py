@@ -1079,9 +1079,8 @@ class GenerationMixin:
             model_kwargs["cache_position"] = model_kwargs["cache_position"][-1:] + num_new_tokens
         else:
             past_positions = model_kwargs.pop("cache_position")
-            new_positions = mint.arange(
-                past_positions[-1] + 1, past_positions[-1] + num_new_tokens + 1, dtype=past_positions.dtype
-            )
+            cur_idx = int(past_positions[-1]) + 1
+            new_positions = mint.arange(cur_idx, cur_idx + num_new_tokens, dtype=past_positions.dtype)
             model_kwargs["cache_position"] = mint.cat((past_positions, new_positions))
 
         return model_kwargs
