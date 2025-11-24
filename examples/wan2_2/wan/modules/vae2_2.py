@@ -1,7 +1,7 @@
 # Copyright 2024-2025 The Alibaba Wan Team Authors. All rights reserved.
 import logging
 import math
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -684,7 +684,9 @@ class WanVAE_(nn.Cell):
         x_recon = self.decode(mu, scale)
         return x_recon, mu
 
-    def encode(self, x: ms.Tensor, scale: List[Any]) -> ms.Tensor:
+    def encode(
+        self, x: ms.Tensor, scale: List[Any], return_log_var: bool = False
+    ) -> Union[ms.Tensor, Tuple[ms.Tensor, ms.Tensor]]:
         self.clear_cache()
         x = patchify(x, patch_size=2)
         t = x.shape[2]
@@ -706,6 +708,9 @@ class WanVAE_(nn.Cell):
         else:
             mu = (mu - scale[0]) * scale[1]
         self.clear_cache()
+
+        if return_log_var:
+            return mu, log_var
         return mu
 
     def decode(self, z: ms.Tensor, scale: List[Any]) -> ms.Tensor:

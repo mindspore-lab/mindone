@@ -102,6 +102,7 @@ def _parse_args():
         "--frame_num", type=int, default=None, help="How many frames of video are generated. The number should be 4n+1"
     )
     parser.add_argument("--ckpt_dir", type=str, default=None, help="The path to the checkpoint directory.")
+    parser.add_argument("--lora_dir", type=str, default=None, help="The path to the LoRA checkpoint directory.")
     parser.add_argument(
         "--offload_model",
         type=str2bool,
@@ -302,6 +303,7 @@ def generate(args):
             use_sp=(args.ulysses_size > 1),
             t5_cpu=args.t5_cpu,
             convert_model_dtype=args.convert_model_dtype,
+            lora_dir=args.lora_dir,
         )
 
         logging.info("Generating video ...")

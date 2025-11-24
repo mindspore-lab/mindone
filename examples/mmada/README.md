@@ -190,13 +190,6 @@ The following experiments are tested on Ascend Atlas 800T A2 machines with minds
 |:-:|:-:|:-:|:-:|:-:|:-:|
 | MMaDA-8B-Base  | 8 |  4 | zero2  | finetune  | 1.29 |
 
-The following experiments are tested on Ascend Atlas 800T A2 machines with mindspore **2.6.0** under **pynative** mode:
-
-| model | # card(s) | batch size | parallelism | task | per batch time (seconds) |
-|:-:|:-:|:-:|:-:|:-:|:-:|
-| MMaDA-8B-Base  | 8 |  4 | zero2  | finetune  | 1.30 |
-
-
 
 ## 🤝 Acknowledgments
 
