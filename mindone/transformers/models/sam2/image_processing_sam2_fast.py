@@ -28,7 +28,7 @@ from typing import Any, Optional, Union
 
 import numpy as np
 import mindspore as ms
-import mindspore.nn.functional as F
+import mindspore.mint.nn.functional as F
 from mindspore import mint, ops
 
 from ...mindspore_adapter.batched_nms import batched_nms
@@ -149,7 +149,7 @@ def _batched_mask_to_box(masks: "ms.Tensor"):
 
 def _is_box_near_crop_edge(boxes, crop_box, orig_box, atol=20.0):
     """Filter masks at the edge of a crop, but not at the edge of the original image."""
-    crop_box_torch = ms.tensor(crop_box, dtype=ms.float)
+    crop_box_torch = ms.tensor(crop_box, dtype=ms.float, device=boxes.device)
     orig_box_torch = ms.tensor(orig_box, dtype=ms.float, device=boxes.device)
 
     left, top, _, _ = crop_box
@@ -695,7 +695,7 @@ class Sam2ImageProcessorFast(BaseImageProcessorFast):
         Apply non-overlapping constraints to the object scores in pred_masks. Here we
         keep only the highest scoring object at each spatial location in pred_masks.
         """
-        batch_size = pred_masks.shape[0]
+        batch_size = pred_masks.size(0)
         if batch_size == 1:
             return pred_masks
 
