@@ -50,9 +50,6 @@ from mindone.transformers.cache_utils import (
     OffloadedStaticCache,
     SlidingWindowCache,
     StaticCache,
-    get_seq_length,
-    init_static_cache,
-    reset,
 )
 from mindone.transformers.generation.candidate_generator import (
     AssistantVocabTranslatorCache,
@@ -598,10 +595,6 @@ class GenerationMixin:
                 model_inputs[input_ids_key] = None
                 model_inputs["inputs_embeds"] = inputs_embeds
             else:
-                # For static shape, padding input_id to max_len when no cache, in prefill-stage
-                if self._supports_default_jit() and past_key_values is None:
-                    pad_len = max(0, attention_mask.shape[1] - input_ids.shape[1])
-                    input_ids = mint.nn.functional.pad(input_ids, (0, pad_len), value=0)
                 model_inputs[input_ids_key] = input_ids
                 model_inputs["inputs_embeds"] = None
         else:
@@ -627,26 +620,17 @@ class GenerationMixin:
         for model_input_name in ["position_ids", "token_type_ids", "decoder_position_ids"]:
             model_input = kwargs.get(model_input_name)
             if model_input is not None:
-                _past_key_values = past_key_values
-                if (
-                    isinstance(past_key_values, (tuple, list))
-                    and get_seq_length(past_key_values, dynamic=not self._supports_default_jit()) == 0
-                ):
-                    _past_key_values = None
-
-                if _past_key_values is not None:
-                    current_input_length = (
-                        model_inputs["inputs_embeds"].shape[1]
-                        if model_inputs.get("inputs_embeds") is not None
-                        else model_inputs[input_ids_key].shape[1]
-                    )
-                    if not self._supports_default_jit() or attention_mask is None:
+                model_input = kwargs.get(model_input_name)
+                if model_input is not None:
+                    if past_key_values is not None:
+                        current_input_length = (
+                            model_inputs["inputs_embeds"].shape[1]
+                            if model_inputs.get("inputs_embeds") is not None
+                            else model_inputs[input_ids_key].shape[1]
+                        )
                         model_input = model_input[:, -current_input_length:]
-                    else:  # static shape input
-                        cur_len = attention_mask.sum(-1).max()
-                        model_input = model_input[:, cur_len - current_input_length : cur_len]
-                    model_input = model_input.clone()
-                model_inputs[model_input_name] = model_input
+                        model_input = model_input.clone()
+                    model_inputs[model_input_name] = model_input
 
         # 6. Create 4D attention mask is we are using a `StaticCache` (important for performant compiled forward pass)
         if isinstance(past_key_values, StaticCache) and attention_mask.ndim == 2:
@@ -1076,20 +1060,9 @@ class GenerationMixin:
             if "attention_mask" in model_kwargs:
                 attention_mask = model_kwargs["attention_mask"]
 
-                if not self._supports_default_jit():
-                    model_kwargs["attention_mask"] = mint.cat(
-                        [attention_mask, mint.ones((attention_mask.shape[0], 1), dtype=attention_mask.dtype)], dim=-1
-                    )
-                else:  # update static attention mask
-                    cur_lens = attention_mask.sum(-1)
-                    for batch_idx in range(attention_mask.shape[0]):
-                        cur_len = int(cur_lens[batch_idx])
-                        if cur_len < attention_mask.shape[-1]:
-                            attention_mask[batch_idx, cur_len] = 1
-                        else:
-                            attention_mask[batch_idx, :-1] = attention_mask[batch_idx, 1:]
-                            attention_mask[batch_idx, -1:] = 1
-                    model_kwargs["attention_mask"] = attention_mask
+                model_kwargs["attention_mask"] = mint.cat(
+                    [attention_mask, mint.ones((attention_mask.shape[0], 1), dtype=attention_mask.dtype)], dim=-1
+                )
         else:
             # update decoder attention mask
             if "decoder_attention_mask" in model_kwargs:
@@ -1103,35 +1076,13 @@ class GenerationMixin:
                 )
 
         if model_kwargs.get("use_cache", True):
-            # the first step for static shape
-            if (
-                self._supports_default_jit()
-                and model_kwargs.get("attention_mask", None) is not None
-                and model_kwargs["attention_mask"].shape[-1] == model_kwargs["cache_position"].shape[0]
-            ):
-                cur_idx = int(model_kwargs["attention_mask"].sum(-1).max()) - 1
-                past_idx = cur_idx - 1
-                model_kwargs["cache_position"] = (
-                    model_kwargs["cache_position"][past_idx : past_idx + 1] + num_new_tokens
-                )
-            else:
-                model_kwargs["cache_position"] = model_kwargs["cache_position"][-1:] + num_new_tokens
+            model_kwargs["cache_position"] = model_kwargs["cache_position"][-1:] + num_new_tokens
         else:
             past_positions = model_kwargs.pop("cache_position")
-            if not self._supports_default_jit() or model_kwargs.get("attention_mask", None) is None:
-                cur_idx = int(past_positions[-1]) + 1
-                new_positions = mint.arange(cur_idx, cur_idx + num_new_tokens, dtype=past_positions.dtype)
-                model_kwargs["cache_position"] = mint.cat((past_positions, new_positions))
-            else:
-                max_len = past_positions.shape[-1]
-                cur_idx = int(model_kwargs["attention_mask"].sum(-1).max()) - 1
-                new_positions = mint.arange(cur_idx, cur_idx + num_new_tokens, dtype=past_positions.dtype)
-                cache_position = mint.cat((past_positions[:cur_idx], new_positions))
-                if cache_position.shape[-1] < max_len:  # pad to max_len
-                    cache_position = mint.cat(
-                        (cache_position, mint.zeros((max_len - cache_position.shape[-1]), dtype=cache_position.dtype))
-                    )
-                model_kwargs["cache_position"] = cache_position
+            new_positions = mint.arange(
+                past_positions[-1] + 1, past_positions[-1] + num_new_tokens + 1, dtype=past_positions.dtype
+            )
+            model_kwargs["cache_position"] = mint.cat((past_positions, new_positions))
 
         return model_kwargs
 
@@ -1951,7 +1902,6 @@ class GenerationMixin:
         """Calculates `cache_position` for the pre-fill stage based on `input_ids` and optionally past length"""
         if "cache_position" in model_kwargs and model_kwargs["cache_position"] is not None:
             return model_kwargs
-        # the lines below are equivalent to `mint.arange` [0,1,2,3, .., input_shape-1]
         if "inputs_embeds" in model_kwargs and not self.config.is_encoder_decoder:
             cache_position = mint.ones_like(model_kwargs["inputs_embeds"][0, :, 0], dtype=ms.int64).cumsum(0) - 1
         elif "decoder_inputs_embeds" in model_kwargs and self.config.is_encoder_decoder:
@@ -1961,27 +1911,17 @@ class GenerationMixin:
         else:
             cache_position = mint.ones(seq_length, dtype=ms.int64).cumsum(0) - 1
 
+        past_length = 0
         if model_kwargs.get("past_key_values") is not None:
             cache = model_kwargs["past_key_values"]
             past_length = 0
             # Support for BC tuple cache format
             if isinstance(cache, tuple):
-                past_length = get_seq_length(cache, dynamic=not self._supports_default_jit())
+                past_length = cache[0][0].shape[2]
             elif hasattr(cache, "get_seq_length"):
                 past_length = cache.get_seq_length()
 
-            # [past_length, past_length+1, ..., input_shape-1]
             cache_position = cache_position[past_length:]
-
-            # for static input, cache fallback to static shape
-            if self._supports_default_jit() and model_kwargs.get("attention_mask", None) is not None:
-                attention_mask = model_kwargs["attention_mask"]
-                cur_len = int(attention_mask.sum(-1).max())
-                valid_len = cur_len - past_length
-                max_len = cache_position.shape[0]
-                if valid_len < max_len:
-                    cache_position = cache_position[:valid_len]
-                    cache_position = mint.cat([cache_position, mint.zeros(max_len - valid_len, dtype=ms.int64)])
 
         model_kwargs["cache_position"] = cache_position
         return model_kwargs
@@ -2057,56 +1997,6 @@ class GenerationMixin:
             ]
         )
 
-    def _supports_default_jit(self) -> bool:
-        """
-        Return `True` if current model use compilable cache or _supports_jit is `True` ,
-        and add addtional consideration for `paged_attention` which use dynamic input shape.
-        """
-        return (
-            self._supports_jit
-            and not self._supports_default_dynamic_cache()
-            and self.config._attn_implementation != "paged_attention"
-        )
-
-    def _prepare_legacy_cache(
-        self,
-        generation_config: GenerationConfig,
-        model_kwargs: dict,
-        cache_name: str,
-        batch_size: int,
-    ):
-        """
-        Prepares a static legacy cache (tuple of tuples) for `generate`.
-        """
-        if not self._supports_default_jit():  # cache will be default None and will be processed further in model
-            return
-
-        past = model_kwargs.get(cache_name, None)
-        max_batch_size, max_cache_len, cache_dtype = (
-            getattr(generation_config, "num_beams", 1) * batch_size,
-            generation_config.max_length,
-            self.dtype,
-        )
-        need_new_cache = (
-            past is None
-            or (not isinstance(past, tuple))
-            or (not isinstance(past[0][0], ms.Tensor))
-            or past[0][0].shape[0] != max_batch_size
-            or past[0][0].shape[2] < max_cache_len
-        )
-
-        if need_new_cache:
-            model_kwargs[cache_name] = init_static_cache(
-                config=self.config,
-                max_batch_size=max_batch_size,
-                max_cache_len=max_cache_len,
-                dtype=cache_dtype,
-            )
-        else:
-            model_kwargs[cache_name] = reset(past)
-
-        return
-
     def _prepare_cache_for_generation(
         self,
         generation_config: GenerationConfig,
@@ -2162,13 +2052,6 @@ class GenerationMixin:
                     "This model does not support `Cache` instances. `cache_implementation` (set to "
                     f"{generation_config.cache_implementation}) will be ignored.",
                 )
-
-            self._prepare_legacy_cache(
-                generation_config=generation_config,
-                model_kwargs=model_kwargs,
-                cache_name=cache_name,
-                batch_size=batch_size,
-            )
             return
 
         # Otherwise we NEED to prepare a cache class, based on `generation_config.cache_implementation`
@@ -2729,10 +2612,11 @@ class GenerationMixin:
             input_ids_length=input_ids_length,
         )
 
-        # This lines will always select the last logits, which is not the right way for static shape
-        if not self._supports_default_jit():
-            if self._supports_logits_to_keep() and "logits_to_keep" not in model_kwargs:
-                model_kwargs["logits_to_keep"] = 1
+        # If the model supports `logits_to_keep` in forward(), set it to 1 to avoid computing the whole
+        # logit matrix. This can save a lot of memory during the first forward pass. Note that assisted decoding
+        # dynamically overrides this value as it can need more than the last token logits
+        if self._supports_logits_to_keep() and "logits_to_keep" not in model_kwargs:
+            model_kwargs["logits_to_keep"] = 1
 
         self._validate_generated_length(generation_config, input_ids_length, has_default_max_length)
 
@@ -2960,31 +2844,6 @@ class GenerationMixin:
                 model_kwargs["encoder_outputs"].get("hidden_states") if output_hidden_states else None
             )
 
-        # Padding inputs to avoid dynamic shape
-        if self._supports_default_jit():
-            (
-                padded_input_ids,
-                padded_inputs_embeds,
-                padded_labels,
-                padded_position_ids,
-                padded_attention_mask,
-            ) = self._padding_inputs(
-                generation_config,
-                input_ids,
-                model_kwargs.get("inputs_embeds", None),
-                model_kwargs.get("labels", None),
-                model_kwargs.get("position_ids", None),
-                model_kwargs.get("attention_mask", None),
-            )
-            input_ids = padded_input_ids
-            model_kwargs["attention_mask"] = padded_attention_mask
-            if model_kwargs.get("inputs_embeds", None) is not None:
-                model_kwargs["inputs_embeds"] = padded_inputs_embeds
-            if model_kwargs.get("labels", None) is not None:
-                model_kwargs["labels"] = padded_labels
-            if model_kwargs.get("position_ids", None) is not None:
-                model_kwargs["position_ids"] = padded_position_ids
-
         # keep track of which sequences are already finished
         batch_size, cur_len = input_ids.shape
         this_peer_finished = False
@@ -3043,7 +2902,7 @@ class GenerationMixin:
                     past_key_values=outputs[1] if model_inputs.get("use_cache", False) else None,
                 )
 
-            if not self._supports_default_jit() or model_kwargs.get("attention_mask", None) is None:
+            if model_kwargs.get("attention_mask", None) is None:
                 next_token_logits = outputs.logits[:, -1, :]
             else:  # Get the right logits from static input shape
                 attention_mask = model_kwargs["attention_mask"]
