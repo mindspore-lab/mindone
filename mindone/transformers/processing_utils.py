@@ -275,7 +275,6 @@ class VideosKwargs(TypedDict, total=False):
     crop_size: Optional[dict[str, int]]
     data_format: Optional[ChannelDimension]
     input_data_format: Optional[Union[str, ChannelDimension]]
-    device: Optional[str]
     do_sample_frames: Optional[bool]
     video_metadata: Optional[Union[VideoMetadata, dict]]
     fps: Optional[Union[int, float]]
