@@ -216,7 +216,7 @@ class Sam2VideoProcessor(ProcessorMixin):
         """
         old_h, old_w = original_size
         new_h, new_w = target_size, target_size
-        coords = deepcopy(coords).float()
+        coords = coords.clone().float()
 
         if is_bounding_box:
             coords = coords.reshape(-1, 2, 2)
