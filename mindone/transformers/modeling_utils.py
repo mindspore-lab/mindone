@@ -69,6 +69,7 @@ from .generation.utils import GenerationMixin
 from .integrations import PeftAdapterMixin
 from .integrations.accelerate import find_tied_parameters
 from .integrations.flash_attention import flash_attention_forward
+from .integrations.flash_paged import paged_attention_forward
 from .integrations.sdpa_attention import sdpa_attention_forward
 from .loss.loss_utils import LOSS_MAPPING
 from .mindspore_adapter import dtype_to_str
@@ -3849,6 +3850,9 @@ class AttentionInterface(MutableMapping):
         "flash_attention_2": flash_attention_forward,
         # "flex_attention": flex_attention_forward,  # Mindspore dose not support flex_attention yet
         "sdpa": sdpa_attention_forward,  # Mindspore dose not support sdpa yet. Use vanilla attention to work around
+        "sdpa_paged": paged_attention_forward,
+        "eager_paged": paged_attention_forward,
+        "flash_paged": paged_attention_forward,
     }
 
     def __init__(self):

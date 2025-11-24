@@ -212,6 +212,30 @@ class Qwen3Attention(nn.Cell):
             # TODO to add sliding window in cache utils
             raise NotImplementedError("Sliding window is not supported yet.")
 
+        if self.config._attn_implementation == "paged_attention":
+            compute_dtype = str_to_dtype(config.mindspore_dtype)
+            self.num_attention_heads = config.num_attention_heads
+            self.num_key_value_heads = config.num_key_value_heads
+            self.is_first_iteration = True
+
+            self.infer_attention = InferAttention(
+                config.num_attention_heads,
+                self.head_dim,
+                config.num_key_value_heads,
+                seq_length=config.max_position_embeddings,
+                pa_n_head_split=config.num_attention_heads,
+                pa_n_kv_head_split=self.head_dim,
+                scale_value=1.0 / (math.sqrt(self.head_dim)),
+                pre_tokens=2147483647,
+                next_tokens=0,
+                block_size=32,
+                num_blocks=1024,
+                is_dynamic=True if not self.is_first_iteration else False,
+                use_flash_attention=True,
+                rotary_cos_format=2,
+                compute_dtype=compute_dtype,
+            )
+
     def construct(
         self,
         hidden_states: ms.Tensor,
@@ -221,8 +245,8 @@ class Qwen3Attention(nn.Cell):
         cache_position: Optional[ms.Tensor] = None,
         **kwargs: Unpack[FlashAttentionKwargs],
     ) -> Tuple[Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
-        input_shape = hidden_states.shape[:-1]
-        hidden_shape = (*input_shape, -1, self.head_dim)
+        bsz, q_len, _ = hidden_states.shape
+        hidden_shape = (*(bsz, q_len), -1, self.head_dim)
 
         query_states = self.q_norm(self.q_proj(hidden_states).view(hidden_shape)).swapaxes(1, 2)
         key_states = self.k_norm(self.k_proj(hidden_states).view(hidden_shape)).swapaxes(1, 2)
@@ -231,14 +255,26 @@ class Qwen3Attention(nn.Cell):
         cos, sin = position_embeddings
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
 
-        if past_key_value is not None:
-            if isinstance(past_key_value, Cache):
-                # sin and cos are specific to RoPE models; cache_position needed for the static cache
-                cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
-                key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
-            elif isinstance(past_key_value, tuple):
-                key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
-                past_key_value = (key_states, value_states)
+        if self.config._attn_implementation == "paged_attention":
+            if not self.is_first_iteration:
+                query_states = query_states.swapaxes(1, 2).reshape(bsz, q_len, -1)
+                key_states = key_states.swapaxes(1, 2).reshape(bsz, q_len, -1)
+                value_states = value_states.swapaxes(1, 2).reshape(bsz, q_len, -1)
+
+                query_states = query_states[:, -1, :].reshape(bsz, 1, self.num_heads * self.head_dim)
+                key_states = key_states[:, -1, :].reshape(bsz, 1, self.num_key_value_heads * self.head_dim)
+                value_states = value_states[:, -1, :].reshape(bsz, 1, self.num_key_value_heads * self.head_dim)
+        else:
+            if past_key_value is not None:
+                if isinstance(past_key_value, Cache):
+                    # sin and cos are specific to RoPE models; cache_position needed for the static cache
+                    cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
+                    key_states, value_states = past_key_value.update(
+                        key_states, value_states, self.layer_idx, cache_kwargs
+                    )
+                elif isinstance(past_key_value, tuple):
+                    key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
+                    past_key_value = (key_states, value_states)
 
         attention_interface: Callable = eager_attention_forward
         if self.config._attn_implementation != "eager":
@@ -262,95 +298,18 @@ class Qwen3Attention(nn.Cell):
             **kwargs,
         )
 
-        attn_output = attn_output.reshape(*input_shape, -1).contiguous()
+        if self.config._attn_implementation != "paged_attention":
+            attn_output = attn_output.reshape(*(bsz, q_len), -1).contiguous()
+
         attn_output = self.o_proj(attn_output)
         return attn_output, attn_weights, past_key_value
-
-
-class Qwen3PageAttention(Qwen3Attention):
-    """
-    Qwen3 page attention module
-    """
-
-    def __init__(self, config: Qwen3Config, layer_idx: Optional[int] = None):
-        super().__init__(config, layer_idx)
-        compute_dtype = str_to_dtype(config.mindspore_dtype)
-        self.num_attention_heads = config.num_attention_heads
-        self.num_key_value_heads = config.num_key_value_heads
-
-        self.is_first_iteration = True
-
-        self.infer_attention = InferAttention(
-            config.num_attention_heads,
-            self.head_dim,
-            config.num_key_value_heads,
-            seq_length=config.max_position_embeddings,
-            pa_n_head_split=config.num_attention_heads,
-            pa_n_kv_head_split=self.head_dim,
-            scale_value=1.0 / (math.sqrt(self.head_dim)),
-            pre_tokens=2147483647,
-            next_tokens=0,
-            block_size=32,
-            num_blocks=1024,
-            is_dynamic=True if not self.is_first_iteration else False,
-            use_flash_attention=True,
-            rotary_cos_format=2,
-            compute_dtype=compute_dtype,
-        )
-
-    def construct(
-        self,
-        hidden_states: ms.Tensor,
-        attention_mask: Optional[ms.Tensor] = None,
-        position_ids: Optional[ms.Tensor] = None,
-        past_key_value: Optional[tuple[ms.Tensor, ms.Tensor]] = None,
-        output_attentions: bool = False,
-        use_cache: bool = False,
-        cache_position: Optional[ms.Tensor] = None,
-        block_tables: Optional[ms.Tensor] = None,
-        slot_mapping: Optional[ms.Tensor] = None,
-        freqs_cis: Optional[ms.Tensor] = None,
-        mask: Optional[ms.Tensor] = None,
-        batch_valid_length: Optional[ms.Tensor] = None,
-        **kwargs,
-    ):
-        bs, seq_len, hidden_dim = hidden_states.shape
-        q_bsnd_shape = (bs, seq_len, self.num_attention_heads, self.head_dim)
-        q_bsh_shape = (bs, seq_len, self.num_attention_heads * self.head_dim)
-
-        kv_bsnd_shape = (bs, seq_len, self.num_key_value_heads, self.head_dim)
-        kv_bsh_shape = (bs, seq_len, self.num_key_value_heads * self.head_dim)
-
-        query_states = self.q_norm(self.q_proj(hidden_states).view(q_bsnd_shape)).view(q_bsh_shape)
-        key_states = self.k_norm(self.k_proj(hidden_states).view(kv_bsnd_shape)).view(kv_bsh_shape)
-        value_states = self.v_proj(hidden_states)
-
-        attn_output = self.infer_attention(
-            query_states,
-            key_states,
-            value_states,
-            batch_valid_length,
-            block_tables,
-            slot_mapping,
-            freqs_cis,
-            mask,
-            q_seq_lens=None,
-        )
-
-        attn_output = self.o_proj(attn_output)
-
-        return attn_output, None, past_key_value
 
 
 class Qwen3DecoderLayer(nn.Cell):
     def __init__(self, config: Qwen3Config, layer_idx: int):
         super().__init__()
         self.hidden_size = config.hidden_size
-        self.self_attn = (
-            Qwen3Attention(config=config, layer_idx=layer_idx)
-            if not config._attn_implementation == "paged_attention"
-            else Qwen3PageAttention(config=config, layer_idx=layer_idx)
-        )
+        self.self_attn = Qwen3Attention(config=config, layer_idx=layer_idx)
         self.mlp = Qwen3MLP(config)
         self.input_layernorm = Qwen3RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.post_attention_layernorm = Qwen3RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
