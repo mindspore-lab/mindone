@@ -232,7 +232,7 @@ class Qwen3Attention(nn.Cell):
                 num_blocks=1024,
                 is_dynamic=True if not self.is_first_iteration else False,
                 use_flash_attention=True,
-                rotary_cos_format=2,
+                use_rope_rotary_emb=False,
                 compute_dtype=compute_dtype,
             )
 
@@ -257,13 +257,13 @@ class Qwen3Attention(nn.Cell):
 
         if self.config._attn_implementation == "flash_paged":
             if not self.is_first_iteration:
-                query_states = query_states.swapaxes(1, 2).reshape(bsz, q_len, -1)
-                key_states = key_states.swapaxes(1, 2).reshape(bsz, q_len, -1)
-                value_states = value_states.swapaxes(1, 2).reshape(bsz, q_len, -1)
+                query_states = query_states[:, :, -1:, :]
+                key_states = key_states[:, :, -1:, :]
+                value_states = value_states[:, :, -1:, :]
 
-                query_states = query_states[:, -1, :].reshape(bsz, 1, self.num_heads * self.head_dim)
-                key_states = key_states[:, -1, :].reshape(bsz, 1, self.num_key_value_heads * self.head_dim)
-                value_states = value_states[:, -1, :].reshape(bsz, 1, self.num_key_value_heads * self.head_dim)
+            query_states = query_states.swapaxes(1, 2).reshape(bsz, q_len, -1)
+            key_states = key_states.swapaxes(1, 2).reshape(bsz, q_len, -1)
+            value_states = value_states.swapaxes(1, 2).reshape(bsz, q_len, -1)
         else:
             if past_key_value is not None:
                 if isinstance(past_key_value, Cache):

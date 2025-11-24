@@ -748,6 +748,7 @@ class GenerationMixin:
         self.model.add_flags(is_first_iteration=is_first_iteration)
         for layer in self.model.layers:
             layer.add_flags(is_first_iteration=is_first_iteration)
+            layer.self_attn.add_flags(is_first_iteration=is_first_iteration)
             layer.self_attn.infer_attention.add_flags(is_first_iteration=is_first_iteration)
             layer.self_attn.infer_attention.paged_attention_mgr.add_flags(is_first_iteration=is_first_iteration)
 

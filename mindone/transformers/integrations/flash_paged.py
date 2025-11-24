@@ -2,12 +2,9 @@ from typing import Optional
 
 import mindspore as ms
 
-from ..utils import is_flash_attn_2_available
-
 
 def paged_attention_forward(
     module: ms.nn.Cell,
-    paged_attention,
     q: ms.Tensor,
     k: ms.Tensor,
     v: ms.Tensor,
@@ -25,7 +22,7 @@ def paged_attention_forward(
         v: (total_k, nheads_k, headdim), where total_k = total number of key tokens in the batch.  but if there is a block table it can be the full v
     """
 
-    attn_output = paged_attention(
+    attn_output = module.infer_attention(
         q,
         k,
         v,
@@ -33,7 +30,7 @@ def paged_attention_forward(
         kwargs["block_tables"],
         kwargs["slot_mapping"],
         kwargs["freqs_cis"],
-        attention_mask,
+        kwargs["mask"],
         q_seq_lens=None,
     )
 
