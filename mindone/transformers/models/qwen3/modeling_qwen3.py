@@ -212,7 +212,7 @@ class Qwen3Attention(nn.Cell):
             # TODO to add sliding window in cache utils
             raise NotImplementedError("Sliding window is not supported yet.")
 
-        if self.config._attn_implementation == "paged_attention":
+        if self.config._attn_implementation == "flash_paged":
             compute_dtype = str_to_dtype(config.mindspore_dtype)
             self.num_attention_heads = config.num_attention_heads
             self.num_key_value_heads = config.num_key_value_heads
@@ -255,7 +255,7 @@ class Qwen3Attention(nn.Cell):
         cos, sin = position_embeddings
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
 
-        if self.config._attn_implementation == "paged_attention":
+        if self.config._attn_implementation == "flash_paged":
             if not self.is_first_iteration:
                 query_states = query_states.swapaxes(1, 2).reshape(bsz, q_len, -1)
                 key_states = key_states.swapaxes(1, 2).reshape(bsz, q_len, -1)
@@ -298,7 +298,7 @@ class Qwen3Attention(nn.Cell):
             **kwargs,
         )
 
-        if self.config._attn_implementation != "paged_attention":
+        if self.config._attn_implementation != "flash_paged":
             attn_output = attn_output.reshape(*(bsz, q_len), -1).contiguous()
 
         attn_output = self.o_proj(attn_output)
@@ -854,7 +854,7 @@ class Qwen3ForCausalLM(Qwen3PreTrainedModel, GenerationMixin):
         self.vocab_size = config.vocab_size
         self.lm_head = nn.Dense(config.hidden_size, config.vocab_size, has_bias=False)
 
-        if self.config._attn_implementation == "paged_attention":
+        if self.config._attn_implementation == "flash_paged":
             compute_dtype = str_to_dtype(config.mindspore_dtype)
 
             self.is_first_iteration = True
