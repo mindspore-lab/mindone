@@ -190,12 +190,12 @@ def test_named_modules(
     if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
         pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
         ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
+    ms_inputs_kwargs["return_dict"] = False
 
     with torch.no_grad():
         pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
     ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
-    # print("ms:", ms_outputs)
-    # print("pt:", pt_outputs)
+
     if outputs_map:
         pt_outputs_n = []
         ms_outputs_n = []
