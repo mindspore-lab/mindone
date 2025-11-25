@@ -191,7 +191,7 @@ def eager_attention_forward(
     attn_output = mint.matmul(attn_weights, value_states)
     attn_output = attn_output.swapaxes(1, 2).contiguous()
 
-    return attn_output, attn_weights, qk_product
+    return attn_output, attn_weights
 
 
 class Qwen2Attention(nn.Cell):
@@ -551,11 +551,11 @@ class Qwen2DecoderLayer(nn.Cell):
                 }
             )
 
-        hidden_states, self_attn_weights, present_key_value = self.self_attn(
+        hidden_states, self_attn_weights = self.self_attn(
             hidden_states=hidden_states,
             attention_mask=attention_mask,
             position_ids=position_ids,
-            past_key_value=past_key_values,
+            past_key_values=past_key_values,
             output_attentions=output_attentions,
             use_cache=use_cache,
             cache_position=cache_position,

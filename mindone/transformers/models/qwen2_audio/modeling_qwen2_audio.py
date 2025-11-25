@@ -34,7 +34,7 @@ from mindspore import Tensor, mint, nn, ops
 from mindspore.common.initializer import Normal, initializer
 
 from ...activations import ACT2FN
-from ...cache_utils import Cache, StaticCache, get_seq_length
+from ...cache_utils import Cache, StaticCache
 from ...generation import GenerationMixin
 from ...modeling_outputs import BaseModelOutput, ModelOutput
 from ...modeling_utils import MSPreTrainedModel
@@ -1004,7 +1004,7 @@ class Qwen2AudioForConditionalGeneration(Qwen2AudioPreTrainedModel, GenerationMi
         #   function may be called outside of `generate`. Handle most use cases by creating `cache_position` on the fly
         #   (this alternative is not as robust as calling `generate` and letting it create `cache_position`)
         elif cache_position is None:
-            past_length = get_seq_length(past_key_values) if past_key_values is not None else 0
+            past_length = past_key_values.get_seq_length() if past_key_values is not None else 0
             cache_position = ops.arange(past_length, input_ids.shape[1], dtype=ms.int32)
 
         if kwargs["use_cache"]:
@@ -1067,7 +1067,7 @@ class Qwen2AudioForConditionalGeneration(Qwen2AudioPreTrainedModel, GenerationMi
             model_input = kwargs.get(model_input_name)
             if model_input is not None:
                 _past_key_values = past_key_values
-                if isinstance(past_key_values, (tuple, list)) and get_seq_length(past_key_values) == 0:
+                if isinstance(past_key_values, (tuple, list)) and past_key_values.get_seq_length() == 0:
                     _past_key_values = None
 
                 if _past_key_values is not None:
