@@ -97,10 +97,16 @@ class Qwen3VLMoeTextExperts(nn.Cell):
         self.hidden_size = config.hidden_size
         self.expert_dim = self.intermediate_size
         self.gate_up_proj = Parameter(
-            ms.tensor(np.ones((self.num_experts, self.hidden_size, 2 * self.expert_dim)), dtype=config.mindspore_dtype)
+            ms.tensor(
+                np.ones((self.num_experts, self.hidden_size, 2 * self.expert_dim)),
+                dtype=config.dtype if config.dtype else ms.float32,
+            )
         )
         self.down_proj = Parameter(
-            ms.tensor(np.ones((self.num_experts, self.expert_dim, self.hidden_size)), dtype=config.mindspore_dtype)
+            ms.tensor(
+                np.ones((self.num_experts, self.expert_dim, self.hidden_size)),
+                dtype=config.dtype if config.dtype else ms.float32,
+            )
         )
         self.act_fn = ACT2FN[config.hidden_act]
 

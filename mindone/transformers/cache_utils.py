@@ -115,7 +115,7 @@ class DynamicLayer(CacheLayerMixin):
         Returns:
             tuple[`ms.Tensor`, `ms.Tensor`]: The key and value states.
         """
-        # Lazy initialization
+        # Lazy initialization. FIXME not really working now.
         if not self.is_initialized:
             self.lazy_initialization(key_states, value_states)
         else:
@@ -197,15 +197,18 @@ class DynamicSlidingWindowLayer(DynamicLayer):
         Returns:
             tuple[`ms.Tensor`, `ms.Tensor`]: The key and value states.
         """
-        # Lazy initialization
-        if not self.is_initialized:
-            self.lazy_initialization(key_states)
-
         self.cumulative_length += key_states.shape[-2]
 
-        # Compute the full states
-        full_key_states = mint.cat([self.keys, key_states], dim=-2)
-        full_value_states = mint.cat([self.values, value_states], dim=-2)
+        if not self.is_initialized:
+            # Lazy initialization
+            # FIXME not really working now as upstream repo.
+            # mint.cat does not support tensor([]) input
+            full_key_states = key_states
+            full_value_states = value_states
+        else:
+            # Compute the full states
+            full_key_states = mint.cat([self.keys, key_states], dim=-2)
+            full_value_states = mint.cat([self.values, value_states], dim=-2)
         # Only cache the last `self.sliding_window - 1` tokens (or all of them if lower than that)
         self.keys = full_key_states[:, :, -self.sliding_window + 1 :, :]
         self.values = full_value_states[:, :, -self.sliding_window + 1 :, :]
