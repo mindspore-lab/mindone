@@ -1363,7 +1363,7 @@ class PreTrainedModel(
         # we set default attn implementation to "eager" because immature mindspore sdpa interface
         applicable_attention = "eager" if requested_attention is None else requested_attention
 
-        if applicable_attention not in ["eager", "paged_attention"] + ALL_ATTENTION_FUNCTIONS.valid_keys():
+        if applicable_attention not in ["eager"] + ALL_ATTENTION_FUNCTIONS.valid_keys():
             message = (
                 f'Specified `attn_implementation="{applicable_attention}"` is not supported. The only possible arguments are '
                 '`attn_implementation="eager"`'

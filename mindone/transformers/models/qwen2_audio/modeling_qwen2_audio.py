@@ -1134,7 +1134,7 @@ class Qwen2AudioForConditionalGeneration(Qwen2AudioPreTrainedModel, GenerationMi
         model_inputs.pop("labels", None)
 
         # Paged Attention
-        if self.config._attn_implementation == "paged_attention":
+        if self.config._attn_implementation == "flash_paged":
             bs, seq_len = input_ids.shape
             step = kwargs["step"]
             if step == 0:

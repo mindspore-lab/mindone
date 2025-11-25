@@ -236,6 +236,29 @@ class Qwen2Attention(nn.Cell):
 
         self.scale = self.head_dim**-0.5
 
+        if self.config._attn_implementation == "flash_paged":
+            compute_dtype = str_to_dtype(config.mindspore_dtype)
+
+            self.is_first_iteration = True
+
+            self.infer_attention = InferAttention(
+                config.num_attention_heads,
+                config.hidden_size // config.num_attention_heads,
+                config.num_key_value_heads,
+                seq_length=config.max_position_embeddings,
+                pa_n_head_split=config.num_attention_heads,
+                pa_n_kv_head_split=config.hidden_size // config.num_attention_heads,
+                scale_value=1.0 / (math.sqrt(config.hidden_size // config.num_attention_heads)),
+                pre_tokens=2147483647,
+                next_tokens=0,
+                block_size=32,
+                num_blocks=1024,
+                is_dynamic=True if not self.is_first_iteration else False,
+                use_flash_attention=True,
+                use_rope_rotary_emb=False,
+                compute_dtype=compute_dtype,
+            )
+
     def construct(
         self,
         hidden_states: ms.Tensor,
@@ -261,9 +284,19 @@ class Qwen2Attention(nn.Cell):
         cos, sin = position_embeddings
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
 
-        if past_key_value is not None:
-            key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
-            past_key_value = (key_states, value_states)
+        if self.config._attn_implementation == "flash_paged":
+            if not self.is_first_iteration:
+                query_states = query_states[:, :, -1:, :]
+                key_states = key_states[:, :, -1:, :]
+                value_states = value_states[:, :, -1:, :]
+
+            query_states = query_states.swapaxes(1, 2).reshape(bsz, q_len, -1)
+            key_states = key_states.swapaxes(1, 2).reshape(bsz, q_len, -1)
+            value_states = value_states.swapaxes(1, 2).reshape(bsz, q_len, -1)
+        else:
+            if past_key_value is not None:
+                key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
+                past_key_value = (key_states, value_states)
 
         attention_interface: Callable = eager_attention_forward
         if self.config._attn_implementation != "eager":
@@ -283,7 +316,7 @@ class Qwen2Attention(nn.Cell):
         ):
             sliding_window = self.config.sliding_window
 
-        attn_output, attn_weights, qk_product = attention_interface(
+        attn_output, attn_weights = attention_interface(
             self,
             query_states,
             key_states,
@@ -295,13 +328,15 @@ class Qwen2Attention(nn.Cell):
             **kwargs,
         )
 
-        attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)
+        if self.config._attn_implementation != "flash_paged":
+            attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)
+
         attn_output = self.o_proj(attn_output)
 
         if not output_attentions:
             attn_weights = None
 
-        return attn_output, attn_weights, past_key_value, qk_product
+        return attn_output, attn_weights, past_key_value
 
 
 class Qwen2MLAAttention(nn.Cell):
@@ -518,9 +553,7 @@ class Qwen2DecoderLayer(nn.Cell):
                 "unexpected results may be encountered."
             )
 
-        if config._attn_implementation == "paged_attention":
-            self.self_attn = Qwen2PageAttention(config=config, layer_idx=layer_idx)
-        elif os.environ.get("USE_MLA", None) == "1":
+        if os.environ.get("USE_MLA", None) == "1":
             self.self_attn = Qwen2MLAAttention(config=config, layer_idx=layer_idx)
         else:
             self.self_attn = Qwen2Attention(config=config, layer_idx=layer_idx)
@@ -529,7 +562,7 @@ class Qwen2DecoderLayer(nn.Cell):
         self.input_layernorm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.post_attention_layernorm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
-        if config._attn_implementation == "paged_attention":
+        if config._attn_implementation == "flash_paged":
             self.is_first_iteration = True
 
     def construct(
@@ -572,37 +605,30 @@ class Qwen2DecoderLayer(nn.Cell):
 
         hidden_states = self.input_layernorm(hidden_states)
 
-        # Self Attention
-        if block_tables is None:
-            hidden_states, self_attn_weights, present_key_value, qk_product = self.self_attn(
-                hidden_states=hidden_states,
-                attention_mask=attention_mask,
-                position_ids=position_ids,
-                past_key_value=past_key_value,
-                output_attentions=output_attentions,
-                use_cache=use_cache,
-                cache_position=cache_position,
-                position_embeddings=position_embeddings,
-                **kwargs,
+        is_page_attention = block_tables is not None
+        if is_page_attention:
+            kwargs.update(
+                {
+                    "block_tables": block_tables,
+                    "slot_mapping": slot_mapping,
+                    "freqs_cis": freqs_cis,
+                    "mask": mask,
+                    "batch_valid_length": batch_valid_length,
+                }
             )
-        else:
-            hidden_states, self_attn_weights, present_key_value = self.self_attn(
-                hidden_states=hidden_states,
-                attention_mask=attention_mask,
-                position_ids=position_ids,
-                past_key_value=past_key_value,
-                output_attentions=output_attentions,
-                use_cache=use_cache,
-                cache_position=cache_position,
-                position_embeddings=position_embeddings,
-                block_tables=block_tables,
-                slot_mapping=slot_mapping,
-                freqs_cis=freqs_cis,
-                mask=mask,
-                batch_valid_length=batch_valid_length,
-                **kwargs,
-            )
-            qk_product = None
+
+        hidden_states, self_attn_weights, present_key_value = self.self_attn(
+            hidden_states=hidden_states,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            past_key_value=past_key_value,
+            output_attentions=output_attentions,
+            use_cache=use_cache,
+            cache_position=cache_position,
+            position_embeddings=position_embeddings,
+            **kwargs,
+        )
+
         hidden_states = residual + hidden_states
 
         # Fully Connected
@@ -618,8 +644,6 @@ class Qwen2DecoderLayer(nn.Cell):
 
         if use_cache:
             outputs += (present_key_value,)
-
-        outputs += (qk_product,)
 
         return outputs
 
@@ -642,17 +666,21 @@ QWEN2_START_DOCSTRING = r"""
 
 
 class Qwen2PreTrainedModel(MSPreTrainedModel):
-    config_class = Qwen2Config
+    config: Qwen2Config
     base_model_prefix = "model"
     supports_gradient_checkpointing = True
     _no_split_modules = ["Qwen2DecoderLayer"]
-    _skip_keys_device_placement = "past_key_values"
-    _supports_flash_attn_2 = True
+    _skip_keys_device_placement = ["past_key_values"]
+    _supports_flash_attn = True
     _supports_sdpa = True
-    _supports_cache_class = False  # FIXME
+    _supports_flex_attn = True
+
+    _can_compile_fullgraph = True
     _supports_attention_backend = True
-    _supports_jit = True
-    _is_stateful = True
+    _can_record_outputs = {
+        "hidden_states": Qwen2DecoderLayer,
+        "attentions": Qwen2Attention,
+    }
 
     def _init_weights(self, module):
         std = self.config.initializer_range
@@ -762,7 +790,7 @@ class Qwen2Model(Qwen2PreTrainedModel):
 
         self.rotary_emb = Qwen2RotaryEmbedding(config)
 
-        if self.config._attn_implementation == "paged_attention":
+        if self.config._attn_implementation == "flash_paged":
             self.is_first_iteration = True
 
         self.gradient_checkpointing = False
@@ -832,7 +860,6 @@ class Qwen2Model(Qwen2PreTrainedModel):
         position_embeddings = self.rotary_emb(hidden_states, position_ids)
 
         # decoder layers
-        all_qk_products = ()
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
         next_caches = () if use_cache else None
@@ -864,8 +891,6 @@ class Qwen2Model(Qwen2PreTrainedModel):
             if output_attentions:
                 all_self_attns += (layer_outputs[1],)
 
-            all_qk_products += (layer_outputs[-1],)
-
         hidden_states = self.norm(hidden_states)
 
         # add hidden states from the last decoder layer
@@ -873,11 +898,7 @@ class Qwen2Model(Qwen2PreTrainedModel):
             all_hidden_states += (hidden_states,)
 
         if not return_dict:
-            return tuple(
-                v
-                for v in [hidden_states, next_caches, all_hidden_states, all_self_attns, all_qk_products]
-                if v is not None
-            )
+            return tuple(v for v in [hidden_states, next_caches, all_hidden_states, all_self_attns] if v is not None)
 
         return BaseModelOutputWithPast(
             last_hidden_state=hidden_states,
@@ -1019,8 +1040,9 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel, GenerationMixin):
         # Initialize weights and apply final processing
         self.post_init()
 
-        if self.config._attn_implementation == "paged_attention":
+        if self.config._attn_implementation == "flash_paged":
             compute_dtype = str_to_dtype(config.mindspore_dtype)
+            self.is_first_iteration = True
 
             self.freqs_mgr = FreqsMgr(
                 head_dim=config.hidden_size // config.num_attention_heads,
@@ -1028,14 +1050,14 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel, GenerationMixin):
                 max_position_embedding=config.max_position_embeddings,
                 rotary_dtype=compute_dtype,
                 theta=config.rope_theta,
-                is_dynamic=True,
+                is_dynamic=True if not self.is_first_iteration else False,
             )
 
             self.casual_mask = LowerTriangularMaskWithDynamic(
                 seq_length=config.max_position_embeddings,
                 batch_size=1,
                 compute_type=compute_dtype,
-                is_dynamic=True,
+                is_dynamic=True if not self.is_first_iteration else False,
                 pad_token_id=config.pad_token_id,
                 use_flash_attention=True,
                 use_attn_mask_compression=False,
@@ -1043,8 +1065,6 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel, GenerationMixin):
                 seq_split_num=1,
                 chunk_prefill=False,
             )
-
-            self.is_first_iteration = True
 
     def get_input_embeddings(self):
         return self.model.embed_tokens
@@ -1065,17 +1085,17 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel, GenerationMixin):
         return self.model
 
     def enable_dynamic_shape(self):
-        input_ids = Tensor(shape=[None, None], dtype=ms.int32)
-        position_ids = Tensor(shape=[None, None], dtype=ms.int32)
-        attention_mask = Tensor(shape=[None, None], dtype=ms.int32)
+        input_ids = Tensor(shape=[None, None], dtype=ms.int64)
+        position_ids = Tensor(shape=[None, None], dtype=ms.int64)
+        attention_mask = Tensor(shape=[None, None], dtype=ms.int64)
         past_key_values = None
         inputs_embeds = None
         labels = None
         use_cache = False
-        output_attentions = False
-        output_hidden_states = False
+        output_attentions = None
+        output_hidden_states = None
         return_dict = False
-        cache_position = None
+        cache_position = Tensor(shape=[None], dtype=ms.int64)
         block_tables = Tensor(shape=[None, None], dtype=ms.int32)
         slot_mapping = Tensor(shape=[None], dtype=ms.int32)
         batch_valid_length = ms.mutable(Tensor(shape=[None], dtype=ms.int32))
