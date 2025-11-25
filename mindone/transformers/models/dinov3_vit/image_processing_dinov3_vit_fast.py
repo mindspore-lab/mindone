@@ -68,8 +68,8 @@ class DINOv3ViTImageProcessorFast(BaseImageProcessorFast):
                 #  batch_size stacked image should be computed in one iteration
                 # batch_size, channels = stacked_images.shape[0], stacked_images.shape[1]
                 # stacked_images_updated = mint.zeros((batch_size, channels, resized_height, resized_width), dtype=stacked_images.dtype)
-                # TODO: current version of resize require input to be unscaled image, so the order is changed to: 
-                # resize -> rescale -> normalize
+                # TODO: current implementation of resize require input to be unscaled image, so the order is changed to: 
+                # resize -> rescale -> normalize, causing ~e-3 precision difference
                 if do_resize:
                     image = self.resize(
                         image=image, size=size, interpolation=interpolation, antialias=True
