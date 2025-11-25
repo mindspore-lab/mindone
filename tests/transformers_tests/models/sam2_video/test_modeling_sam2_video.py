@@ -282,7 +282,7 @@ def test_named_modules(
         dtype=torch.float32 if pt_dtype == "fp32" else torch.float16 if pt_dtype == "fp16" else torch.bfloat16,
     )
     obj_idx = session_pt.obj_id_to_idx(1)
-    session_pt.add_point_inputs(0, 0, {"point_coords": torch.Tensor([[[[50, 50]]]]), "point_labels": torch.LongTensor([[[1]]])})
+    session_pt.add_point_inputs(obj_idx, 0, {"point_coords": torch.Tensor([[[[50, 50]]]]), "point_labels": torch.LongTensor([[[1]]])})
     session_pt.obj_with_new_inputs = [1]
     pt_inputs_kwargs = {
         "inference_session": session_pt,
