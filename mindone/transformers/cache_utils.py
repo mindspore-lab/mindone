@@ -6,144 +6,15 @@ Cache utils.
 
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 
-import numpy as np
 from transformers.configuration_utils import PretrainedConfig
 from transformers.utils import logging
 
 import mindspore as ms
-from mindspore import mint, ops
+from mindspore import mint
 
 logger = logging.get_logger(__name__)
-
-
-def init_static_cache(config: PretrainedConfig, max_batch_size: int, max_cache_len: int, dtype=None):
-    # Hack implementation for multimodal models. Only the text part is used.
-    if hasattr(config, "text_config"):
-        config = config.text_config
-        logger.info("Using text_config for static cache")
-
-    max_cache_len = config.max_position_embeddings if max_cache_len is None else max_cache_len
-    # Some model define a custom `head_dim` != config.hidden_size // config.num_attention_heads
-    head_dim = config.head_dim if hasattr(config, "head_dim") else config.hidden_size // config.num_attention_heads
-
-    dtype = dtype if dtype is not None else ms.float32
-    if hasattr(config, "num_key_value_heads"):
-        num_key_value_heads = config.num_key_value_heads
-    else:
-        num_key_value_heads = config.num_attention_heads
-
-    key_value_cache: Tuple[Tuple[ms.Tensor, ms.Tensor]] = []
-    cache_shape = (max_batch_size, num_key_value_heads, max_cache_len, head_dim)
-    for _layer_index in range(config.num_hidden_layers):
-        # Note: `mark_static_address` is used to tag the cache as an fixed data pointer, preventing cuda graph
-        # breaks when updating the cache.
-        new_layer_key_cache = ms.Tensor(np.zeros(cache_shape), dtype=dtype)
-        new_layer_value_cache = ms.Tensor(np.zeros(cache_shape), dtype=dtype)
-        key_value_cache += [(new_layer_key_cache, new_layer_value_cache)]
-    key_value_cache = tuple(key_value_cache)
-
-    return key_value_cache
-
-
-# TODO backup code for a future implementation of the graph mode static cache
-# _pad_ops = ops.operations.PadV3()
-# _sub_ops = ops.operations.Sub()
-# _concat_ops = ops.operations.Concat(axis=0)  # for setting up arg
-# _cache_padding_dim_preorder = Tensor([0, 0, 0], ms.int32)
-# _cache_padding_dim_subsequence = Tensor([0, 0, 0, 0, 0], ms.int32)
-
-
-# def kv_padding_subsequence(cache_length, state_seq_length, key, value, cache_position, dtype):
-#     _pad_zero = Tensor([0,], dtype)
-#     pad_length = _sub_ops(cache_length, state_seq_length)[None].to(ms.int32)
-#     pad_config = _concat_ops((_cache_padding_dim_preorder, pad_length, _cache_padding_dim_subsequence))
-#     key_padded = _pad_ops(key, pad_config, _pad_zero)
-#     value_padded = _pad_ops(value, pad_config, _pad_zero)
-#     cache_position_padded = _pad_ops(
-#         cache_position,
-#         _concat_ops((Tensor([0,], ms.int32), pad_length)),
-#         Tensor([0,], ms.int32)
-#     )
-#     return key_padded, value_padded, cache_position_padded
-
-
-# Notes: Only return the updated value, do not modify the original `past_key_value` in-place !
-def update(
-    past_key_value: Tuple[ms.Tensor, ms.Tensor],
-    key_states: ms.Tensor,
-    value_states: ms.Tensor,
-    cache_position: Optional[ms.Tensor] = None,
-    dynamic: bool = False,
-) -> Tuple[ms.Tensor, ms.Tensor]:
-    """
-    Notes: Only return the updated value, do not modifying the original `past_key_value` in-place !
-
-    Get the cache with the new `key_states` and `value_states` for cur layer.
-
-    Parameters:
-        past_key_value (`Tuple[ms.Tensor, ms.Tensor]`):
-            Past key/value states cache.
-        key_states (`ms.Tensor`):
-            The new key states to cache.
-        value_states (`ms.Tensor`):
-            The new value states to cache.
-        cache_position (`ms.Tensor`, `optional`):
-            Additional arguments for the cache subclass, needs the `cache_position` input
-            to know how where to write in the cache.
-
-    Return:
-        A tuple containing the updated key and value states.
-    """
-    k_out, v_out = past_key_value[0], past_key_value[1]
-
-    if dynamic:
-        if len(k_out) == 0:  # first time, prefill the cache
-            return key_states, value_states
-        k_out = ops.cat((k_out, key_states), axis=-2)
-        v_out = ops.cat((v_out, value_states), axis=-2)
-        return k_out, v_out
-
-    k_out = ops.select(
-        (ops.arange(k_out.shape[2]) == cache_position)[None, None, :, None],
-        key_states,
-        k_out,
-    )
-    v_out = ops.select(
-        (ops.arange(v_out.shape[2]) == cache_position)[None, None, :, None],
-        value_states,
-        v_out,
-    )
-
-    return k_out, v_out
-
-
-def get_seq_length(past_key_values, layer_idx: Optional[int] = 0, dynamic=False) -> int:
-    """Returns the sequence length of the cached states that were seen by the model."""
-    # Occupied cache == any slot in the 3rd dim (sequence length) holds a non-zero value. To save on compute, let's
-    # limit the check to the first batch member and head dimension.
-    # TODO: deprecate this function in favor of `cache_position`
-    if dynamic:
-        if past_key_values is None:
-            return 0
-        return past_key_values[layer_idx][0].shape[-2]
-    return (past_key_values[layer_idx][0][0, 0].any(axis=-1)).sum()
-
-
-def get_max_length(past_key_values) -> Optional[int]:
-    """Returns the maximum sequence length of the cached states."""
-    return past_key_values[0][0].shape[2]
-
-
-def reset(past_key_values):
-    """Resets the cache values while preserving the objects"""
-    for layer_idx in range(len(past_key_values)):
-        # In-place ops prevent breaking the static address
-        past_key_values[layer_idx][0] = ops.zeros_like(past_key_values[layer_idx][0])  # key
-        past_key_values[layer_idx][1] = ops.zeros_like(past_key_values[layer_idx][1])  # value
-
-    return past_key_values
 
 
 class CacheLayerMixin(ABC):

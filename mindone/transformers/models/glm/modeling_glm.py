@@ -32,7 +32,7 @@ import mindspore as ms
 from mindspore import mint, nn, ops
 
 from ...activations import ACT2FN
-from ...cache_utils import get_max_length, get_seq_length, init_static_cache, update
+from ...cache_utils import Cache, DynamicCache
 from ...generation import GenerationMixin
 from ...mindspore_adapter import recompute_except_output
 from ...modeling_attn_mask_utils import dtype_to_min
@@ -247,7 +247,7 @@ class GlmAttention(nn.Cell):
         hidden_states: ms.Tensor,
         attention_mask: Optional[ms.Tensor] = None,
         position_ids: Optional[ms.Tensor] = None,
-        past_key_value: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
+        past_key_values: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
         output_attentions: bool = False,
         use_cache: bool = False,
         cache_position: Optional[ms.Tensor] = None,
@@ -267,9 +267,10 @@ class GlmAttention(nn.Cell):
         cos, sin = position_embeddings
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
 
-        if past_key_value is not None:
-            key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
-            past_key_value = (key_states, value_states)
+        if past_key_values is not None:
+            # sin and cos are specific to RoPE models; cache_position needed for the static cache
+            cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
+            key_states, value_states = past_key_values.update(key_states, value_states, self.layer_idx, cache_kwargs)
 
         attention_interface: Callable = eager_attention_forward
         if self.config._attn_implementation != "eager":
@@ -298,7 +299,7 @@ class GlmAttention(nn.Cell):
         if not output_attentions:
             attn_weights = None
 
-        return attn_output, attn_weights, past_key_value
+        return attn_output, attn_weights
 
 
 class GlmDecoderLayer(nn.Cell):
@@ -317,7 +318,7 @@ class GlmDecoderLayer(nn.Cell):
         hidden_states: ms.Tensor,
         attention_mask: Optional[ms.Tensor] = None,
         position_ids: Optional[ms.Tensor] = None,
-        past_key_value: Optional[Tuple[Tuple[ms.Tensor, ms.Tensor]]] = None,
+        past_key_values: Optional[Cache] = None,
         output_attentions: Optional[bool] = False,
         use_cache: Optional[bool] = False,
         cache_position: Optional[ms.Tensor] = None,
@@ -351,11 +352,11 @@ class GlmDecoderLayer(nn.Cell):
         hidden_states = self.input_layernorm(hidden_states)
 
         # Self Attention
-        hidden_states, self_attn_weights, present_key_value = self.self_attn(
+        hidden_states, self_attn_weights = self.self_attn(
             hidden_states=hidden_states,
             attention_mask=attention_mask,
             position_ids=position_ids,
-            past_key_value=past_key_value,
+            past_key_value=past_key_values,
             output_attentions=output_attentions,
             use_cache=use_cache,
             cache_position=cache_position,
@@ -374,9 +375,6 @@ class GlmDecoderLayer(nn.Cell):
 
         if output_attentions:
             outputs += (self_attn_weights,)
-
-        if use_cache:
-            outputs += (present_key_value,)
 
         return outputs
 
@@ -560,17 +558,6 @@ class GlmModel(GlmPreTrainedModel):
 
         logger.info(f"{self.__class__.__name__}: enable recompute.")
 
-    def prepare_static_cache(self, input_embeds, max_cache_len):
-        bs = input_embeds.shape[0]
-        max_batch_size, cache_dtype = (
-            getattr(self.config, "num_beams", 1) * bs,
-            self.dtype,
-        )
-        past_key_values = init_static_cache(
-            config=self.config, max_batch_size=max_batch_size, max_cache_len=max_cache_len, dtype=cache_dtype
-        )
-        return past_key_values
-
     @add_start_docstrings_to_model_forward(GLM_INPUTS_DOCSTRING)
     def construct(
         self,
@@ -595,8 +582,11 @@ class GlmModel(GlmPreTrainedModel):
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
+        if use_cache and past_key_values is None:
+            past_key_values = DynamicCache(config=self.config)
+
         if cache_position is None:
-            past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0
+            past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
             cache_position = ops.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1], dtype=ms.int32)
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
@@ -670,11 +660,11 @@ class GlmModel(GlmPreTrainedModel):
         # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
         # to infer the attention mask.
         dtype = input_tensor.dtype
-        past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0
+        past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
 
         sequence_length = input_tensor.shape[1]
         if past_key_values is not None:
-            target_length = get_max_length(past_key_values)
+            target_length = past_key_values.get_max_length()
         else:
             target_length = (
                 attention_mask.shape[-1]

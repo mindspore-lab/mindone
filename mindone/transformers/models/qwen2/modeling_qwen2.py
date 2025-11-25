@@ -22,7 +22,7 @@ from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from mindone.models.utils import normal_, zeros_
-from mindone.transformers.cache_utils import Cache, get_max_length, get_seq_length, update
+from mindone.transformers.cache_utils import Cache, DynamicCache
 from mindone.transformers.generation import GenerationMixin
 from mindone.transformers.mindspore_adapter import str_to_dtype
 from mindone.transformers.mindspore_adapter.paged_attention_freqs import FreqsMgr
@@ -264,7 +264,7 @@ class Qwen2Attention(nn.Cell):
         hidden_states: ms.Tensor,
         attention_mask: Optional[ms.Tensor] = None,
         position_ids: Optional[ms.Tensor] = None,
-        past_key_value: Optional[Cache] = None,
+        past_key_values: Optional[Cache] = None,
         output_attentions: bool = False,
         use_cache: bool = False,
         cache_position: Optional[ms.Tensor] = None,
@@ -294,9 +294,12 @@ class Qwen2Attention(nn.Cell):
             key_states = key_states.swapaxes(1, 2).reshape(bsz, q_len, -1)
             value_states = value_states.swapaxes(1, 2).reshape(bsz, q_len, -1)
         else:
-            if past_key_value is not None:
-                key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
-                past_key_value = (key_states, value_states)
+            if past_key_values is not None:
+                # sin and cos are specific to RoPE models; cache_position needed for the static cache
+                cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
+                key_states, value_states = past_key_values.update(
+                    key_states, value_states, self.layer_idx, cache_kwargs
+                )
 
         attention_interface: Callable = eager_attention_forward
         if self.config._attn_implementation != "eager":
@@ -336,7 +339,7 @@ class Qwen2Attention(nn.Cell):
         if not output_attentions:
             attn_weights = None
 
-        return attn_output, attn_weights, past_key_value
+        return attn_output, attn_weights
 
 
 class Qwen2MLAAttention(nn.Cell):
@@ -400,7 +403,7 @@ class Qwen2MLAAttention(nn.Cell):
         hidden_states: ms.Tensor,
         attention_mask: Optional[ms.Tensor] = None,
         position_ids: Optional[ms.Tensor] = None,
-        past_key_value: Optional[Cache] = None,
+        past_key_values: Optional[Cache] = None,
         output_attentions: bool = False,
         use_cache: bool = False,
         cache_position: Optional[ms.Tensor] = None,
@@ -429,9 +432,10 @@ class Qwen2MLAAttention(nn.Cell):
         query_states = mint.cat((query_pass, query_rot), dim=-1)
         key_states = mint.cat((key_pass, key_rot), dim=-1)
 
-        if past_key_value is not None:
-            key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
-            past_key_value = (key_states, value_states)
+        if past_key_values is not None:
+            # sin and cos are specific to RoPE models; cache_position needed for the static cache
+            cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
+            key_states, value_states = past_key_values.update(key_states, value_states, self.layer_idx, cache_kwargs)
 
         attention_interface: Callable = eager_attention_forward
         if self.config._attn_implementation != "eager":
@@ -451,7 +455,7 @@ class Qwen2MLAAttention(nn.Cell):
         ):
             sliding_window = self.config.sliding_window
 
-        attn_output, attn_weights, qk_product = attention_interface(
+        attn_output, attn_weights = attention_interface(
             self,
             query_states,
             key_states,
@@ -469,77 +473,7 @@ class Qwen2MLAAttention(nn.Cell):
         if not output_attentions:
             attn_weights = None
 
-        return attn_output, attn_weights, past_key_value, qk_product
-
-
-class Qwen2PageAttention(Qwen2Attention):
-    """
-    Llama flash attention module. This module inherits from `LlamaAttention` as the weights of the module stays
-    untouched. The only required change would be on the forward pass where it needs to correctly call the public API of
-    flash attention and deal with padding tokens in case the input contains any of them.
-    """
-
-    def __init__(self, config: Qwen2Config, layer_idx: Optional[int] = None):
-        super().__init__(config, layer_idx)
-        compute_dtype = str_to_dtype(config.mindspore_dtype)
-
-        self.infer_attention = InferAttention(
-            config.num_attention_heads,
-            config.hidden_size // config.num_attention_heads,
-            config.num_key_value_heads,
-            seq_length=config.max_position_embeddings,
-            pa_n_head_split=config.num_attention_heads,
-            pa_n_kv_head_split=config.hidden_size // config.num_attention_heads,
-            scale_value=1.0 / (math.sqrt(config.hidden_size // config.num_attention_heads)),
-            pre_tokens=2147483647,
-            next_tokens=0,
-            block_size=32,
-            num_blocks=1024,
-            is_dynamic=True,
-            use_flash_attention=True,
-            rotary_cos_format=2,
-            compute_dtype=compute_dtype,
-        )
-
-        self.is_first_iteration = True
-
-    def construct(
-        self,
-        hidden_states: ms.Tensor,
-        attention_mask: Optional[ms.Tensor] = None,
-        position_ids: Optional[ms.Tensor] = None,
-        past_key_value: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
-        output_attentions: bool = False,
-        use_cache: bool = False,
-        cache_position: Optional[ms.Tensor] = None,
-        block_tables: Optional[ms.Tensor] = None,
-        slot_mapping: Optional[ms.Tensor] = None,
-        freqs_cis: Optional[ms.Tensor] = None,
-        mask: Optional[ms.Tensor] = None,
-        batch_valid_length: Optional[ms.Tensor] = None,
-        **kwargs,
-    ):
-        bsz, q_len, _ = hidden_states.shape
-
-        query_states = self.q_proj(hidden_states)
-        key_states = self.k_proj(hidden_states)
-        value_states = self.v_proj(hidden_states)
-
-        attn_output = self.infer_attention(
-            query_states,
-            key_states,
-            value_states,
-            batch_valid_length,
-            block_tables,
-            slot_mapping,
-            freqs_cis,
-            mask,
-            q_seq_lens=None,
-        )
-
-        attn_output = self.o_proj(attn_output)
-
-        return attn_output, None, past_key_value
+        return attn_output, attn_weights
 
 
 class Qwen2DecoderLayer(nn.Cell):
@@ -570,7 +504,7 @@ class Qwen2DecoderLayer(nn.Cell):
         hidden_states: ms.Tensor,
         attention_mask: Optional[ms.Tensor] = None,
         position_ids: Optional[ms.Tensor] = None,
-        past_key_value: Optional[Tuple[ms.Tensor]] = None,
+        past_key_values: Optional[Tuple[ms.Tensor]] = None,
         output_attentions: Optional[bool] = False,
         use_cache: Optional[bool] = False,
         cache_position: Optional[ms.Tensor] = None,
@@ -621,7 +555,7 @@ class Qwen2DecoderLayer(nn.Cell):
             hidden_states=hidden_states,
             attention_mask=attention_mask,
             position_ids=position_ids,
-            past_key_value=past_key_value,
+            past_key_value=past_key_values,
             output_attentions=output_attentions,
             use_cache=use_cache,
             cache_position=cache_position,
@@ -641,9 +575,6 @@ class Qwen2DecoderLayer(nn.Cell):
 
         if output_attentions:
             outputs += (self_attn_weights,)
-
-        if use_cache:
-            outputs += (present_key_value,)
 
         return outputs
 
@@ -841,9 +772,13 @@ class Qwen2Model(Qwen2PreTrainedModel):
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
+        if use_cache and past_key_values is None:
+            past_key_values = DynamicCache(config=self.config)
+
         if cache_position is None:
-            past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0
-            cache_position = ops.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
+            past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
+            cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
+
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
 
@@ -862,7 +797,6 @@ class Qwen2Model(Qwen2PreTrainedModel):
         # decoder layers
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
-        next_caches = () if use_cache else None
 
         for layer_idx, decoder_layer in enumerate(self.layers):
             if output_hidden_states:
@@ -886,8 +820,6 @@ class Qwen2Model(Qwen2PreTrainedModel):
             )
             hidden_states = layer_outputs[0]
 
-            if use_cache:
-                next_caches += (layer_outputs[2 if output_attentions else 1],)
             if output_attentions:
                 all_self_attns += (layer_outputs[1],)
 
@@ -898,11 +830,11 @@ class Qwen2Model(Qwen2PreTrainedModel):
             all_hidden_states += (hidden_states,)
 
         if not return_dict:
-            return tuple(v for v in [hidden_states, next_caches, all_hidden_states, all_self_attns] if v is not None)
+            return tuple(v for v in [hidden_states, all_hidden_states, all_self_attns] if v is not None)
 
         return BaseModelOutputWithPast(
             last_hidden_state=hidden_states,
-            past_key_values=next_caches,
+            past_key_values=past_key_values if use_cache else None,
             hidden_states=all_hidden_states,
             attentions=all_self_attns,
         )
@@ -929,13 +861,13 @@ class Qwen2Model(Qwen2PreTrainedModel):
         # For SDPA, when possible, we will rely on its `is_causal` argument instead of its `attn_mask` argument, in
         # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
         # to infer the attention mask.
-        past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0
+        past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
 
         dtype = input_tensor.dtype
         min_dtype = dtype_to_min(dtype)
         sequence_length = input_tensor.shape[1]
         if past_key_values is not None:
-            target_length = get_max_length(past_key_values)
+            target_length = past_key_values.get_max_length()
         else:
             target_length = (
                 attention_mask.shape[-1]

@@ -40,7 +40,7 @@ import mindspore as ms
 from mindspore import Tensor, mint, nn
 
 from ...activations import ACT2FN
-from ...cache_utils import Cache, DynamicCache, SlidingWindowCache, StaticCache, get_seq_length, update
+from ...cache_utils import Cache, DynamicCache, SlidingWindowCache, StaticCache
 from ...generation import GenerationMixin
 from ...mindspore_adapter import dtype_to_min, str_to_dtype
 from ...mindspore_adapter.paged_attention_freqs import FreqsMgr
@@ -272,9 +272,6 @@ class Qwen3Attention(nn.Cell):
                     key_states, value_states = past_key_value.update(
                         key_states, value_states, self.layer_idx, cache_kwargs
                     )
-                elif isinstance(past_key_value, tuple):
-                    key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
-                    past_key_value = (key_states, value_states)
 
         attention_interface: Callable = eager_attention_forward
         if self.config._attn_implementation != "eager":
@@ -616,7 +613,7 @@ class Qwen3Model(Qwen3PreTrainedModel):
             past_key_values = DynamicCache()
 
         if cache_position is None:
-            past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0
+            past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
             cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
         if position_ids is None:
@@ -715,7 +712,7 @@ class Qwen3Model(Qwen3PreTrainedModel):
         # For SDPA, when possible, we will rely on its `is_causal` argument instead of its `attn_mask` argument, in
         # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
         # to infer the attention mask.
-        past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0
+        past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
         using_static_cache = isinstance(past_key_values, StaticCache)
         # using_sliding_window_cache = isinstance(past_key_values, SlidingWindowCache)
         using_sliding_window_cache = False
