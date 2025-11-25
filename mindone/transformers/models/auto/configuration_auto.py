@@ -69,6 +69,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("cohere", "CohereConfig"),
         ("cohere2", "Cohere2Config"),
         ("colpali", "ColPaliConfig"),
+        ("colqwen2", "ColQwen2Config"),
         ("convbert", "ConvBertConfig"),
         ("convnext", "ConvNextConfig"),
         ("convnextv2", "ConvNextV2Config"),
