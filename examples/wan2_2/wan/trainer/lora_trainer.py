@@ -1,6 +1,7 @@
 import math
 import os
 import time
+from typing import Tuple
 
 import mindspore as ms
 import mindspore.mint as mint
@@ -48,9 +49,12 @@ class LoRATrainer:
         else:
             raise ValueError(f"Unsupported sample solver: {sample_solver}")
 
+        self.output_dir = self.generation_config.pop("output_dir", "./output/visual")
+        self.fps = self.generation_config.pop("sample_fps", 24)
+
         self.global_step = 0
 
-    def _configure_peft(self, model: nn.Cell) -> tuple[PeftModel, LoraConfig]:
+    def _configure_peft(self, model: nn.Cell) -> Tuple[PeftModel, LoraConfig]:
         target_modules = ["q", "k", "v", "o"]
         lora_config = LoraConfig(
             r=32,
@@ -153,17 +157,15 @@ class LoRATrainer:
         logger.info("Running validation...")
         dist.barrier()
         self.pipeline.model.set_train(False)
-        output_dir = self.generation_config.pop("output_dir", "./output/visual")
-        fps = self.generation_config.pop("sample_fps", 24)
         video = self.pipeline.generate(**self.generation_config)
         if get_rank() == 0:
-            os.makedirs(output_dir, exist_ok=True)
-            save_file = os.path.join(output_dir, f"step_{self.global_step}.mp4")
+            os.makedirs(self.output_dir, exist_ok=True)
+            save_file = os.path.join(self.output_dir, f"step_{self.global_step}.mp4")
             logger.info(f"Saving generated video to {save_file}")
             save_video(
                 tensor=video[None],
                 save_file=save_file,
-                fps=fps,
+                fps=self.fps,
                 nrow=1,
                 normalize=True,
                 value_range=(-1, 1),

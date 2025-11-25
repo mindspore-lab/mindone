@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import decord
 import numpy as np
@@ -66,7 +66,7 @@ class VideoDataset:
     def __len__(self) -> int:
         return len(self.video_paths)
 
-    def __getitem__(self, index: int) -> Dict[str, Any]:
+    def __getitem__(self, index: int) -> Tuple[Any, ...]:
         try:
             item = self.read_video(index)
             self.valid_indices.add(index)
@@ -77,7 +77,7 @@ class VideoDataset:
             item = self.read_video(np.random.choice(list(self.valid_indices)) if self.valid_indices else 0)
         return item
 
-    def read_video(self, index: int) -> Dict[str, Any]:
+    def read_video(self, index: int) -> Tuple[Any, ...]:
         if np.random.rand() < self.text_drop_prob:
             prompt = ""
         else:
@@ -115,7 +115,7 @@ class VideoDataset:
 
         if any(not path.is_file() for path in video_paths):
             raise ValueError(
-                f"Expected `self.video_column={self.video_column}` to be a path to a file in `self.data_root={self.data_root}` containing line-separated paths to video data but found atleast one path that is not a valid file."  # noqa: E501
+                f"Expected `self.video_column={self.video_column}` to be a path to a file in `self.data_root={self.data_root}` containing line-separated paths to video data but found at least one path that is not a valid file."  # noqa: E501
             )
 
         return prompts, video_paths
@@ -128,12 +128,12 @@ class VideoDataset:
 
         if any(not path.is_file() for path in video_paths):
             raise ValueError(
-                f"Expected `self.video_column={self.video_column}` to be a path to a file in `self.data_root={self.data_root}` containing line-separated paths to video data but found atleast one path that is not a valid file."  # noqa: E501
+                f"Expected `self.video_column={self.video_column}` to be a path to a file in `self.data_root={self.data_root}` containing line-separated paths to video data but found at least one path that is not a valid file."  # noqa: E501
             )
 
         return prompts, video_paths
 
-    def _preprocess_video(self, path: Path) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+    def _preprocess_video(self, path: Path) -> Tuple[Optional[np.ndarray], np.ndarray]:
         video_reader = decord.VideoReader(uri=path.as_posix())
         video_num_frames = len(video_reader)
 

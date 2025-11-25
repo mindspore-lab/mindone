@@ -9,7 +9,7 @@ import mindspore.mint.distributed as dist
 
 def map_(*args, **kwargs) -> Tuple:
     """
-    same as `map`, but returns a tuple instead of a iterator.
+    same as `map`, but returns a tuple instead of an iterator.
     This is useful for when operation is done in place, to make sure the operation is applied to all elements.
     """
     return tuple(map(*args, **kwargs))

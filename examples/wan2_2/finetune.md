@@ -1,6 +1,6 @@
-# Wan2.2 LoRA Finetune
+# Wan2.2 LoRA Fine-tune
 
-We provide an example of how to finetune Wan2.2 model (5B) Text-to-Video task using LoRA (Low-Rank Adaptation) technique.
+We provide an example of how to fine-tune Wan2.2 model (5B) Text-to-Video task using LoRA (Low-Rank Adaptation) technique.
 
 ## Prerequisites
 
@@ -25,7 +25,7 @@ bash scripts/train_lora_2p.sh
 
 The lora checkpoint and the visualization results will be saved in the `output` directory by default.
 
-## Fintune Result
+## Finetune Result
 
 After finetuning on 2 Ascend devices, we obtained the following results (Using `Disney-VideoGeneration-Dataset` Dataset):
 
@@ -34,7 +34,7 @@ Training loss curve:
 ![result](https://github.com/user-attachments/assets/e5a54d00-8d27-42d9-84f5-2adda7723b8d)
 
 
-You can run inference with the fine‑tuned LoRA weights by adding `--lora_dir /path/to/lora_ckpt_dir` to the arguments of `generation.py`.
+You can run inference with the fine-tuned LoRA weights by adding `--lora_dir /path/to/lora_ckpt_dir` to the arguments of `generation.py`.
 
 Here are some samples generated using the finetuned LoRA weights with prompt: *Two anthropomorphic cats in comfy boxing gear and bright gloves fight intensely on a spotlighted stage.*
 
