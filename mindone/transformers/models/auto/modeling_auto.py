@@ -1229,7 +1229,7 @@ MODEL_FOR_BACKBONE_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_MASK_GENERATION_MAPPING_NAMES = OrderedDict(
     [
         ("sam", "SamModel"),
-        ("sam2_video", "Sam2Model"),
+        ("sam2_video", "Sam2VideoModel"),
     ]
 )
 
