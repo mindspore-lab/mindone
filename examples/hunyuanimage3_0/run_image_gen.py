@@ -86,9 +86,9 @@ def parse_args():
         default="universal",
         help="System prompt for rewriting the prompt",
     )
-    parser.add_argument("--ulysses_size", type=int, default=4, help="The size of the ulysses parallelism in the model.")
     parser.add_argument("--use_zero3", action="store_true", default=True, help="Whether to use ZeRO3 for the model")
     parser.add_argument("--reproduce", action="store_true", default=True, help="Whether to reproduce the results")
+    parser.add_argument("--bf16", action="store_true", default=True, help="Whether to use bfloat16 for the model")
     # mindspore args
     parser.add_argument("--ms-mode", type=int, default=1, help="0 graph, 1 pynative")
     parser.add_argument(
@@ -202,7 +202,7 @@ def main(args):
     if not Path(args.model_id).exists():
         raise ValueError(f"Model path {args.model_id} does not exist")
 
-    dtype = ms.bfloat16
+    dtype = ms.bfloat16 if args.bf16 else (ms.float16 if args.fp16 else ms.float32)
     kwargs = dict(
         attn_implementation=args.attn_impl,
         mindspore_dtype=dtype,

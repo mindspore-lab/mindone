@@ -645,7 +645,6 @@ class HunyuanImage3Text2ImagePipeline(DiffusionPipeline):
 
         if latents is None:
             latents = randn_tensor(latents_shape, generator=generator, dtype=dtype)
-            np.save("noise", latents.float())
         else:
             latents = latents
 
@@ -782,7 +781,7 @@ class HunyuanImage3Text2ImagePipeline(DiffusionPipeline):
             generator=generator,
             latents=latents,
         )
-        np.save("latents_prepared", latents.float())
+
         # Prepare extra step kwargs.
         _scheduler_step_extra_kwargs = self.prepare_extra_func_kwargs(self.scheduler.step, {"generator": generator})
 
@@ -798,12 +797,10 @@ class HunyuanImage3Text2ImagePipeline(DiffusionPipeline):
         # Sampling loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
         self._num_timesteps = len(timesteps)
-        # orig_dtype = latents.dtype
 
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 # expand the latents if we are doing classifier free guidance
-                # latents = latents.to(dtype=orig_dtype)  # manually set mixed precision
                 latent_model_input = ops.cat([latents] * cfg_factor)
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
@@ -864,7 +861,6 @@ class HunyuanImage3Text2ImagePipeline(DiffusionPipeline):
 
         # with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=True):
         # auto mixed precision is set with ms AMP
-        np.save("latents_before_vae", latents.float())
         image = self.vae.decode(latents, return_dict=False)[0]
 
         # b c t h w

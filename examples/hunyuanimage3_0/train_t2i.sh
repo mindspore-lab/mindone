@@ -11,33 +11,33 @@ NPROC_PER_NODE=${WORLD_SIZE:-8}
 MODEL_ID=${MODEL_ID:-"HunyuanImage-3/"}  # Using HuggingFace model ID
 
 # Training entry point
-entry_file="run_image_gen.py"
+entry_file="run_image_train.py"
 
 # Output configuration
-image_path="examples/infer/image_repro.png"
+output_dir="output/train"
 
 # Input argument (To be filled)
-image_path="image_repro.png"
-prompt="A brown and white dog is running on the grass"
+dataset_path="datasets/pokemon-blip-captions"
+deepspeed="scripts/zero3.json"
+learning_rate=1e-5
+num_train_epochs=1
 seed=0
-verbose=1
-enable_amp="True"
-image_size="832x1216"
+save_strategy="no"
 
 # Launch inference
 msrun --worker_num=${NPROC_PER_NODE} \
     --local_worker_num=${NPROC_PER_NODE} \
     --master_addr=${MASTER_ADDR} \
     --master_port=${MASTER_PORT} \
-    --log_dir="logs/infer" \
+    --log_dir="logs/train" \
     --join=True \
     ${entry_file} \
-    --model-id "${MODEL_ID}" \
-    --save "${image_path}" \
-    --prompt "${prompt}" \
+    --dataset_path "${dataset_path}" \
+    --deepspeed "${deepspeed}" \
+    --model_path "${MODEL_ID}" \
+    --output_dir "${output_dir}" \
+    --num_train_epochs "${num_train_epochs}" \
+    --learning_rate "${learning_rate}" \
     --seed "${seed}" \
-    --verbose "${verbose}" \
-    --enable-ms-amp "${enable_amp}"\
-    --image-size "${image_size}"\
-    --reproduce \
+    --save_strategy "${save_strategy}" \
     --bf16
