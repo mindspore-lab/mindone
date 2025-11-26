@@ -22,7 +22,7 @@ from mindone.data import create_dataloader
 from mindone.diffusers.models.autoencoders.autoencoder_kl import AutoencoderKL
 from mindone.peft import LoraConfig
 from mindone.trainers import create_optimizer, create_scheduler
-from mindone.trainers.callback import OverflowMonitor, StopAtStepCallback
+from mindone.trainers.callback import StopAtStepCallback
 from mindone.transformers import Qwen2_5_VLModel as TextEncoder
 
 logger = get_logger(__name__)
@@ -198,7 +198,7 @@ def main(args, parser):
     pipeline = OmniGen2TrainPipeline(text_encoder, vae, model, freqs_cis, transport)
     pipeline = prepare_train_network(pipeline, optimizer=optimizer, ema=ema, **args.train.settings)
 
-    callbacks: list[Callback] = [OverflowMonitor(), BinLossCallback(batch_size=args.dataloader.batch_size)]
+    callbacks: list[Callback] = [BinLossCallback(batch_size=args.dataloader.batch_size)]
     if rank == 0:
         ckpt_config = CheckpointConfig(
             save_checkpoint_steps=args.save.checkpointing_steps,

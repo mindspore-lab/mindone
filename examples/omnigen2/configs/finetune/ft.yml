@@ -28,7 +28,8 @@ data:
 dataloader:
   batch_size: 1
   shuffle: True
-  num_workers: 6
+  num_workers: 4
+  python_multiprocessing: False
   project_columns: [ "input_images", "output_image", "text_ids", "text_mask" ]
 
 collator:
@@ -52,6 +53,7 @@ train:
     clip_norm: 1.0
     gradient_accumulation_steps: 1
     zero_stage: 2
+    drop_overflow_update: False
 
   lr_scheduler:
     name: constant
