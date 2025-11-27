@@ -44,11 +44,13 @@ class Sam2PromptEncoderTester:
         hidden_size=32,
         input_image_size=128,
         patch_size=16,
+        batch_size=2,
         mask_input_channels=8,
         num_point_embeddings=4,
         hidden_act="gelu",
     ):
         self.hidden_size = hidden_size
+        self.batch_size = batch_size
         self.input_image_size = input_image_size
         self.patch_size = patch_size
         self.mask_input_channels = mask_input_channels
@@ -78,6 +80,7 @@ class Sam2MaskDecoderTester:
         hidden_size=32,
         hidden_act="relu",
         mlp_dim=64,
+        batch_size=2,
         num_hidden_layers=2,
         num_attention_heads=4,
         attention_downsample_rate=2,
@@ -88,6 +91,7 @@ class Sam2MaskDecoderTester:
         self.hidden_size = hidden_size
         self.hidden_act = hidden_act
         self.mlp_dim = mlp_dim
+        self.batch_size = batch_size
         self.num_hidden_layers = num_hidden_layers
         self.num_attention_heads = num_attention_heads
         self.attention_downsample_rate = attention_downsample_rate
