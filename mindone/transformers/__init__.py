@@ -503,6 +503,7 @@ from .models.esm import (
     EsmModel,
     EsmPreTrainedModel,
 )
+from .models.evolla import EvollaForProteinText2Text, EvollaModel, EvollaPreTrainedModel, EvollaProcessor
 from .models.falcon import (
     FalconForCausalLM,
     FalconForQuestionAnswering,
