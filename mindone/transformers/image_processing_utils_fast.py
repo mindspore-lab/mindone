@@ -268,12 +268,25 @@ class BaseImageProcessorFast(BaseImageProcessor):
                 f" {size}."
             )
         # Fixme different with torchvision resize, which has inout `antialias`
-        resize = vision.Resize(new_size, interpolation=interpolation)
-        # image ms.tensor-->numpy-->PIL
-        image = image.permute(1, 2, 0).asnumpy()
-        image = (image * 255).clip(0, 255).astype(np.uint8)
-        image = Image.fromarray(image)
-        return ms.tensor(np.array(resize(image))).permute(2, 0, 1)
+        resize_op = vision.Resize(new_size, interpolation=interpolation)
+        original_shape = image.shape
+        batch_dims = original_shape[:-3]  
+        num_batch = 1
+        for dim in batch_dims:
+            num_batch *= dim
+        image_flat = image.view(num_batch, *original_shape[-3:])  # (N, C, H, W)
+        resized_images = []
+        for i in range(num_batch):
+            img = image_flat[i]  # (C, H, W)
+            # image ms.tensor-->numpy-->PIL
+            img_np = img.permute(1, 2, 0).asnumpy()
+            img_np = (img_np * 255).clip(0, 255).astype(np.uint8)
+            img_pil = Image.fromarray(img_np)
+            resized_img = ms.tensor(np.array(resize_op(img_pil))).permute(2, 0, 1)  
+            resized_images.append(resized_img)
+        resized_flat = mint.stack(resized_images, dim=0)  
+        _, new_C, new_H, new_W = resized_flat.shape
+        return resized_flat.view(*batch_dims, new_C, new_H, new_W)
 
     @staticmethod
     def compile_friendly_resize(
@@ -328,17 +341,27 @@ class BaseImageProcessorFast(BaseImageProcessor):
         Returns:
             `ms.tensor`: The normalized image.
         """
-        assert image.ndim == 4  # [B, C, H, W]
+        original_shape = image.shape
+        batch_dims = original_shape[:-3]
+        num_batch = 1
+        for dim in batch_dims:
+            num_batch *= dim
+        image_flat = image.view(num_batch, *original_shape[-3:])
+
         mean = [float(mean[0]), float(mean[1]), float(mean[2])]
         std = [float(std[0]), float(std[1]), float(std[2])]
         normalize = vision.Normalize(
             mean=mean,
             std=std,
         )
-        images = []
-        for img in image:
-            images.append(normalize(img.permute(1, 2, 0).asnumpy()))
-        return ms.tensor(images).permute(0, 3, 1, 2)
+        normalized_images = []
+        for img in image_flat:
+            normalized_img = normalize(img.permute(1, 2, 0).asnumpy())
+            normalized_images.append(ms.tensor(normalized_img).permute(2, 0, 1))
+
+        normalized_flat = mint.stack(normalized_images, dim=0)
+        _, new_C, new_H, new_W = normalized_flat.shape
+        return normalized_flat.view(*batch_dims, new_C, new_H, new_W)
 
     @lru_cache(maxsize=10)
     def _fuse_mean_std_and_rescale_factor(
