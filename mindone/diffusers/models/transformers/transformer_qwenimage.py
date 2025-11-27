@@ -26,8 +26,11 @@ from mindspore import mint, nn, ops
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
 from ...utils import logging
-from ..attention import FeedForward
+from .._modeling_parallel import ContextParallelInput, ContextParallelOutput
+from ..attention import AttentionMixin, FeedForward
+from ..attention_dispatch import dispatch_attention_fn
 from ..attention_processor import Attention
+from ..cache_utils import CacheMixin
 from ..embeddings import TimestepEmbedding, Timesteps
 from ..layers_compat import unflatten, view_as_complex
 from ..modeling_outputs import Transformer2DModelOutput
@@ -246,6 +249,7 @@ class QwenDoubleStreamAttnProcessor2_0:
     """
 
     _attention_backend = None
+    _parallel_config = None
 
     def __call__(
         self,
@@ -305,12 +309,16 @@ class QwenDoubleStreamAttnProcessor2_0:
         joint_value = mint.cat([txt_value, img_value], dim=1)
 
         # Compute joint attention
-        # TODO: function dispatch_attention_fn.py
-        joint_query, joint_key, joint_value = (x.permute(0, 2, 1, 3) for x in (joint_query, joint_key, joint_value))
-        joint_hidden_states = attn.scaled_dot_product_attention(
-            joint_query, joint_key, joint_value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
+        joint_hidden_states = dispatch_attention_fn(
+            joint_query,
+            joint_key,
+            joint_value,
+            attn_mask=attention_mask,
+            dropout_p=0.0,
+            is_causal=False,
+            backend=self._attention_backend,
+            parallel_config=self._parallel_config,
         )
-        joint_hidden_states = joint_hidden_states.permute(0, 2, 1, 3)
 
         # Reshape back
         joint_hidden_states = joint_hidden_states.flatten(2, 3)
@@ -446,7 +454,9 @@ class QwenImageTransformerBlock(nn.Cell):
         return encoder_hidden_states, hidden_states
 
 
-class QwenImageTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginalModelMixin):
+class QwenImageTransformer2DModel(
+    ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginalModelMixin, CacheMixin, AttentionMixin
+):
     """
     The Transformer model introduced in Qwen.
 
@@ -476,6 +486,18 @@ class QwenImageTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, Fro
     _no_split_modules = ["QwenImageTransformerBlock"]
     _skip_layerwise_casting_patterns = ["pos_embed", "norm"]
     _repeated_blocks = ["QwenImageTransformerBlock"]
+    _cp_plan = {
+        "": {
+            "hidden_states": ContextParallelInput(split_dim=1, expected_dims=3, split_output=False),
+            "encoder_hidden_states": ContextParallelInput(split_dim=1, expected_dims=3, split_output=False),
+            "encoder_hidden_states_mask": ContextParallelInput(split_dim=1, expected_dims=2, split_output=False),
+        },
+        "pos_embed": {
+            0: ContextParallelInput(split_dim=0, expected_dims=2, split_output=True),
+            1: ContextParallelInput(split_dim=0, expected_dims=2, split_output=True),
+        },
+        "proj_out": ContextParallelOutput(gather_dim=1, expected_dims=3),
+    }
 
     @register_to_config
     def __init__(

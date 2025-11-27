@@ -21,12 +21,14 @@ import math
 from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
 from ...utils import deprecate, logging
+from .._modeling_parallel import ContextParallelInput, ContextParallelOutput
 from ..attention import AttentionMixin, AttentionModuleMixin, FeedForward
+from ..attention_dispatch import dispatch_attention_fn
 from ..cache_utils import CacheMixin
 from ..embeddings import PixArtAlphaTextProjection
 from ..layers_compat import unflatten
@@ -50,6 +52,9 @@ class LTXVideoAttnProcessor:
     Processor for implementing attention (SDPA is used by default if you're using PyTorch 2.0). This is used in the LTX
     model. It applies a normalization layer and rotary embedding on the query and key vector.
     """
+
+    _attention_backend = None
+    _parallel_config = None
 
     def __call__(
         self,
@@ -85,8 +90,15 @@ class LTXVideoAttnProcessor:
         key = unflatten(key, 2, (attn.heads, -1))
         value = unflatten(value, 2, (attn.heads, -1))
 
-        hidden_states = attn.scaled_dot_product_attention(
-            query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
+        hidden_states = dispatch_attention_fn(
+            query,
+            key,
+            value,
+            attn_mask=attention_mask,
+            dropout_p=0.0,
+            is_causal=False,
+            backend=self._attention_backend,
+            parallel_config=self._parallel_config,
         )
         hidden_states = hidden_states.flatten(2, 3)
         hidden_states = hidden_states.to(query.dtype)
@@ -142,60 +154,6 @@ class LTXAttention(nn.Cell, AttentionModuleMixin):
         if processor is None:
             processor = self._default_processor_cls()
         self.set_processor(processor)
-
-    def scaled_dot_product_attention(
-        self,
-        query: ms.Tensor,
-        key: ms.Tensor,
-        value: ms.Tensor,
-        attn_mask: Optional[ms.Tensor] = None,
-        dropout_p: float = 0.0,
-        is_causal: bool = False,
-        scale: Optional[float] = None,
-    ):
-        query, key, value = (x.permute(0, 2, 1, 3) for x in (query, key, value))
-        if query.dtype in (ms.float16, ms.bfloat16):
-            out = self.flash_attention_op(query, key, value, attn_mask, keep_prob=1 - dropout_p, scale=scale)
-        else:
-            out = self.flash_attention_op(
-                query.to(ms.float16),
-                key.to(ms.float16),
-                value.to(ms.float16),
-                attn_mask,
-                keep_prob=1 - dropout_p,
-                scale=scale,
-            ).to(query.dtype)
-        return out.permute(0, 2, 1, 3)
-
-    def flash_attention_op(
-        self,
-        query: ms.Tensor,
-        key: ms.Tensor,
-        value: ms.Tensor,
-        attn_mask: Optional[ms.Tensor] = None,
-        keep_prob: float = 1.0,
-        scale: Optional[float] = None,
-    ):
-        # For most scenarios, qkv has been processed into a BNSD layout before sdp
-        input_layout = "BNSD"
-        head_num = query.shape[1]
-
-        # In case qkv is 3-dim after `head_to_batch_dim`
-        if query.ndim == 3:
-            input_layout = "BSH"
-            head_num = 1
-
-        # process `attn_mask` as logic is different between PyTorch and Mindspore
-        # In MindSpore, False indicates retention and True indicates discard, in PyTorch it is the opposite
-        if attn_mask is not None:
-            attn_mask = mint.logical_not(attn_mask) if attn_mask.dtype == ms.bool_ else attn_mask.bool()
-            attn_mask = mint.broadcast_to(
-                attn_mask, (attn_mask.shape[0], attn_mask.shape[1], query.shape[-2], key.shape[-2])
-            )[:, :1, :, :]
-
-        return ops.operations.nn_ops.FlashAttentionScore(
-            head_num=head_num, keep_prob=keep_prob, scale_value=scale or self.scale, input_layout=input_layout
-        )(query, key, value, None, None, None, attn_mask)[3]
 
     def construct(
         self,
@@ -447,6 +405,18 @@ class LTXVideoTransformer3DModel(
     _supports_gradient_checkpointing = True
     _skip_layerwise_casting_patterns = ["norm"]
     _repeated_blocks = ["LTXVideoTransformerBlock"]
+    _cp_plan = {
+        "": {
+            "hidden_states": ContextParallelInput(split_dim=1, expected_dims=3, split_output=False),
+            "encoder_hidden_states": ContextParallelInput(split_dim=1, expected_dims=3, split_output=False),
+            "encoder_attention_mask": ContextParallelInput(split_dim=1, expected_dims=2, split_output=False),
+        },
+        "rope": {
+            0: ContextParallelInput(split_dim=1, expected_dims=3, split_output=True),
+            1: ContextParallelInput(split_dim=1, expected_dims=3, split_output=True),
+        },
+        "proj_out": ContextParallelOutput(gather_dim=1, expected_dims=3),
+    }
 
     @register_to_config
     def __init__(
