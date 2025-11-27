@@ -1,0 +1,4 @@
+data:
+  - path: "configs/finetune/data/t2i/jsonls/0.jsonl"
+    type: "t2i"
+    ratio: 1.0

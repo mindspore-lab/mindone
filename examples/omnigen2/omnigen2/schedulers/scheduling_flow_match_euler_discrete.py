@@ -17,12 +17,13 @@ from dataclasses import dataclass
 from typing import Optional, Union
 
 import numpy as np
-from diffusers.configuration_utils import ConfigMixin, register_to_config
-from diffusers.schedulers.scheduling_utils import SchedulerMixin
-from diffusers.utils import BaseOutput, logging
 
 import mindspore as ms
 from mindspore import mint
+
+from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
+from mindone.diffusers.schedulers.scheduling_utils import SchedulerMixin
+from mindone.diffusers.utils import BaseOutput, logging
 
 logger = logging.get_logger(__name__)
 
