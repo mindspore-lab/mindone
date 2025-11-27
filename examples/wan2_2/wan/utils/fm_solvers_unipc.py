@@ -110,7 +110,7 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
             sigmas = shift * sigmas / (1 + (shift - 1) * sigmas)  # pyright: ignore
 
         self.sigmas = sigmas
-        self.timesteps = sigmas * num_train_timesteps
+        self.timesteps = mint.round(sigmas * num_train_timesteps)
 
         self.model_outputs = [None] * solver_order
         self.timestep_list = [None] * solver_order

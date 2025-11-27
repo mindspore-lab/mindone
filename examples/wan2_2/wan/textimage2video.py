@@ -17,6 +17,8 @@ import mindspore.mint as mint
 import mindspore.mint.distributed as dist
 import mindspore.nn as nn
 
+from mindone.peft import PeftConfig, PeftModel, set_peft_model_state_dict
+
 from .distributed.sequence_parallel import sp_attn_forward, sp_dit_forward
 from .distributed.util import get_world_size
 from .distributed.zero import free_model, shard_model
@@ -40,6 +42,7 @@ class WanTI2V:
         t5_cpu: bool = False,
         init_on_cpu: bool = False,
         convert_model_dtype: bool = False,
+        lora_dir: Optional[str] = None,
     ) -> None:
         r"""
         Initializes the Wan text-to-video generation model components.
@@ -65,6 +68,8 @@ class WanTI2V:
                 No usage now. For compatibility only.
             convert_model_dtype (`bool`, *optional*, defaults to False):
                 Convert DiT model parameters dtype to 'config.param_dtype'.
+            lora_dir (`str`, *optional*, defaults to None):
+                Path to directory containing LoRA checkpoint. If provided, LoRA weights will be loaded into the model.
         """
         self.config = config
         self.rank = rank
@@ -93,6 +98,21 @@ class WanTI2V:
         logging.info(f"Creating WanModel from {checkpoint_dir}")
         with nn.no_init_parameters():
             self.model = WanModel.from_pretrained(checkpoint_dir)
+
+        if lora_dir is not None:
+            peft_config = PeftConfig.from_pretrained(lora_dir)
+            self.model = PeftModel(self.model, peft_config)
+
+            ckpts = os.listdir(lora_dir)
+            ckpts = [d for d in ckpts if d.endswith(".ckpt")]
+            ckpt = sorted(ckpts, key=lambda x: int(x.split("_")[1]))[-1]
+            lora_path = os.path.join(lora_dir, ckpt)
+            logging.info(f"Loading LoRA weights from {lora_path}")
+            lora_weight = ms.load_checkpoint(lora_path)
+            lora_weight = {k.replace("default.", ""): v for k, v in lora_weight.items()}
+            result = set_peft_model_state_dict(self.model, lora_weight)
+            assert len(result["unexpected_keys"]) == 0, result
+
         self.model = self._configure_model(
             model=self.model,
             use_sp=use_sp,
