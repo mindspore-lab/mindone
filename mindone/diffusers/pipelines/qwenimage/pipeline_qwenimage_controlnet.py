@@ -766,7 +766,7 @@ class QwenImageControlNetPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             latents_mean = ms.tensor(self.vae.config.latents_mean).view(1, self.vae.config.z_dim, 1, 1, 1)
             latents_std = 1.0 / ms.tensor(self.vae.config.latents_std).view(1, self.vae.config.z_dim, 1, 1, 1)
 
-            control_image = retrieve_latents(self.vae, self.vae.encode(control_image), generator=generator)
+            control_image = retrieve_latents(self.vae, self.vae.encode(control_image)[0], generator=generator)
             control_image = (control_image - latents_mean) * latents_std
 
             control_image = control_image.permute(0, 2, 1, 3, 4)
@@ -803,7 +803,7 @@ class QwenImageControlNetPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                     latents_mean = ms.tensor(self.vae.config.latents_mean).view(1, self.vae.config.z_dim, 1, 1, 1)
                     latents_std = 1.0 / ms.tensor(self.vae.config.latents_std).view(1, self.vae.config.z_dim, 1, 1, 1)
 
-                    control_image_ = retrieve_latents(self.vae, self.vae.encode(control_image_), generator=generator)
+                    control_image_ = retrieve_latents(self.vae, self.vae.encode(control_image_)[0], generator=generator)
                     control_image_ = (control_image_ - latents_mean) * latents_std
 
                     control_image_ = control_image_.permute(0, 2, 1, 3, 4)

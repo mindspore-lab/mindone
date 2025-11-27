@@ -20,6 +20,8 @@ import functools
 import math
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import numpy as np
+
 import mindspore as ms
 from mindspore import mint, nn, ops
 
@@ -609,7 +611,7 @@ class QwenImageTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, Fro
             # controlnet residual
             if controlnet_block_samples is not None:
                 interval_control = len(self.transformer_blocks) / len(controlnet_block_samples)
-                interval_control = int(mint.ceil(interval_control))
+                interval_control = int(np.ceil(interval_control))
                 hidden_states = hidden_states + controlnet_block_samples[index_block // interval_control]
 
         # Use only the image part (hidden_states) from the dual-stream blocks
