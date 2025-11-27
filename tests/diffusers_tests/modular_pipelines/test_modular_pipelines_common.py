@@ -3,11 +3,13 @@ import tempfile
 from typing import Callable, Union
 
 import numpy as np
+import pytest
 
 import mindspore as ms
 
 import mindone.diffusers as diffusers
 from mindone.diffusers import ModularPipeline, ModularPipelineBlocks
+from mindone.diffusers.guiders import ClassifierFreeGuidance
 from mindone.diffusers.utils import logging
 from mindone.diffusers.utils.testing_utils import numpy_cosine_similarity_distance
 
@@ -72,11 +74,15 @@ class ModularPipelineTesterMixin:
             "See existing pipeline tests for reference."
         )
 
-    def get_pipeline(self):
-        raise NotImplementedError(
-            "You need to implement `get_pipeline(self)` in the child test class. "
-            "See existing pipeline tests for reference."
-        )
+    def get_pipeline(self, components_manager=None, mindspore_dtype=ms.float32):
+        pipeline = self.pipeline_blocks_class().init_pipeline(self.repo, components_manager=components_manager)
+        pipeline.load_default_components(mindspore_dtype=mindspore_dtype)
+        pipeline.set_progress_bar_config(disable=None)
+        return pipeline
+        # raise NotImplementedError(
+        #     "You need to implement `get_pipeline(self)` in the child test class. "
+        #     "See existing pipeline tests for reference."
+        # )
 
     def get_dummy_inputs(self, seed=0):
         raise NotImplementedError(
@@ -250,7 +256,7 @@ class ModularPipelineTesterMixin:
         pipe = self.get_pipeline()
 
         if "num_images_per_prompt" not in pipe.blocks.input_names:
-            return
+            pytest.mark.skip("Skipping test as `num_images_per_prompt` is not present in input names.")
 
         pipe.set_progress_bar_config(disable=None)
 
@@ -289,3 +295,27 @@ class ModularPipelineTesterMixin:
             image_slices.append(image[0, -3:, -3:, -1].flatten())
 
         assert np.abs(image_slices[0] - image_slices[1]).max() < 1e-3
+
+
+class ModularGuiderTesterMixin:
+    def test_guider_cfg(self, expected_max_diff=1e-2):
+        pipe = self.get_pipeline()
+
+        # forward pass with CFG not applied
+        guider = ClassifierFreeGuidance(guidance_scale=1.0)
+        pipe.update_components(guider=guider)
+
+        inputs = self.get_dummy_inputs()
+        out_no_cfg = pipe(**inputs, output="images")
+
+        # forward pass with CFG applied
+        guider = ClassifierFreeGuidance(guidance_scale=7.5)
+        pipe.update_components(guider=guider)
+        inputs = self.get_dummy_inputs()
+        out_cfg = pipe(**inputs, output="images")
+
+        assert out_cfg.shape == out_no_cfg.shape
+        out_cfg_tensor = ms.Tensor(out_cfg)
+        out_no_cfg_tensor = ms.Tensor(out_no_cfg)
+        max_diff = ms.mint.abs(out_cfg_tensor - out_no_cfg_tensor).max()
+        assert max_diff > expected_max_diff, "Output with CFG must be different from normal inference"
