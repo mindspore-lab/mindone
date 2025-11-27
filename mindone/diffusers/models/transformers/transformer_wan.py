@@ -411,7 +411,7 @@ class WanRotaryPosEmbed(nn.Cell):
         # freqs_sin_h = freqs_sin[1][:pph].view(1, pph, 1, -1).expand(ppf, pph, ppw, -1)
         # freqs_sin_w = freqs_sin[2][:ppw].view(1, 1, ppw, -1).expand(ppf, pph, ppw, -1)
         # FIXME: we use tile since `tensor.broadcast_to` will thrown an issue (complex input is not supported) in graph
-        #  mode
+        # mode
         freqs_cos_f = freqs_cos[0][:ppf].view(ppf, 1, 1, -1).tile((1, pph, ppw, 1))
         freqs_cos_h = freqs_cos[1][:pph].view(1, pph, 1, -1).tile((ppf, 1, ppw, 1))
         freqs_cos_w = freqs_cos[2][:ppw].view(1, 1, ppw, -1).tile((ppf, pph, 1, 1))

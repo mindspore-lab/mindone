@@ -199,10 +199,12 @@ class ContextParallelSplitHook(ModelHook):
 
     def _prepare_cp_input(self, x: ms.Tensor, cp_input: ContextParallelInput) -> ms.Tensor:
         if cp_input.expected_dims is not None and x.dim() != cp_input.expected_dims:
-            raise ValueError(
-                f"Expected input tensor to have {cp_input.expected_dims} dimensions, but got {x.dim()} dimensions."
+            logger.warning_once(
+                f"Expected input tensor to have {cp_input.expected_dims} dimensions, but got {x.dim()} dimensions, split will not be applied."
             )
-        return EquipartitionSharder.shard(x, cp_input.split_dim, self.parallel_config._flattened_mesh)
+            return x
+        else:
+            return EquipartitionSharder.shard(x, cp_input.split_dim, self.parallel_config._flattened_mesh)
 
 
 class ContextParallelGatherHook(ModelHook):
@@ -232,33 +234,32 @@ class ContextParallelGatherHook(ModelHook):
         return output[0] if is_tensor else tuple(output)
 
 
-class AllGatherFunction(ms.nn.Cell):
-    def __init__(self, dim, group):
-        super().__init__()
-        self.dim = dim
-        self.group = group
-        self.world_size = mint.distributed.get_world_size(group)
-        self.rank = mint.distributed.get_rank(group)
+class AllGatherFunction(ms.common._Function):
+    @staticmethod
+    def forward(ctx, tensor, dim, group):
+        ctx.dim = dim
+        ctx.group = group
+        ctx.world_size = mint.distributed.get_world_size(group)
+        ctx.rank = mint.distributed.get_rank(group)
 
-    def construct(self, tensor):
-        # return funcol.all_gather_tensor(tensor, dim, group=group)
         # mint.distributed.all_gather_into_tensor only support dim=0
-        tensor_t = tensor.transpose(self.dim, 0) if self.dim != 0 else tensor
+        tensor_t = tensor.transpose(dim, 0) if dim != 0 else tensor
 
         out_shape = list(tensor_t.shape)
-        out_shape[0] *= self.world_size
+        out_shape[0] *= ctx.world_size
         output = mint.zeros(out_shape, dtype=tensor_t.dtype)
 
-        mint.distributed.all_gather_into_tensor(output, tensor_t.contiguous(), group=self.group)
+        mint.distributed.all_gather_into_tensor(output, tensor_t.contiguous(), group=group)
 
-        if self.dim != 0:
-            output = output.transpose(0, self.dim)
+        if dim != 0:
+            output = output.transpose(0, dim)
 
         return output
 
-    def bprop(self, tensor, out, dout):
-        grad_chunks = mint.chunk(dout, self.world_size, dim=self.dim)
-        return (grad_chunks[self.rank],)
+    @staticmethod
+    def backward(ctx, grad_output):
+        grad_chunks = mint.chunk(grad_output, ctx.world_size, dim=ctx.dim)
+        return grad_chunks[ctx.rank], None, None
 
 
 class EquipartitionSharder:
@@ -278,7 +279,7 @@ class EquipartitionSharder:
     @classmethod
     def unshard(cls, tensor: ms.Tensor, dim: int, mesh) -> ms.Tensor:
         tensor = tensor.contiguous()
-        tensor = AllGatherFunction(dim, mesh)(tensor)
+        tensor = AllGatherFunction.apply(tensor, dim, mesh)
         return tensor
 
 

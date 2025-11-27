@@ -19,7 +19,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Union
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import mint, ops
 
 from ..utils import get_logger
 from ..utils.constants import DIFFUSERS_ATTN_BACKEND, DIFFUSERS_ATTN_CHECKS
@@ -463,157 +463,167 @@ def _flex_attention_causal_mask_mod(batch_idx, head_idx, q_idx, kv_idx):
 # ===== Helper functions to use attention backends with templated CP autograd functions =====
 
 
-class NativeAttentionCell(nn.Cell):
-    def __init__(self):
-        super().__init__()
+def _native_attention_forward_op(
+    ctx,
+    query: ms.Tensor,
+    key: ms.Tensor,
+    value: ms.Tensor,
+    attn_mask: Optional[ms.Tensor] = None,
+    dropout_p: float = 0.0,
+    is_causal: bool = False,
+    scale: Optional[float] = None,
+    enable_gqa: bool = False,
+    return_lse: bool = False,
+    _save_ctx: bool = True,
+    _parallel_config: Optional["ParallelConfig"] = None,
+):
+    # Native attention does not return_lse
+    if return_lse:
+        raise ValueError("Native attention does not support return_lse=True")
 
-    def construct(
-        self,
-        query: ms.Tensor,
-        key: ms.Tensor,
-        value: ms.Tensor,
-        attn_mask: Optional[ms.Tensor] = None,
-        dropout_p: float = 0.0,
-        is_causal: bool = False,
-        scale: Optional[float] = None,
-        enable_gqa: bool = False,
-        return_lse: bool = False,
-        _save_ctx: bool = True,
-        _parallel_config: Optional["ParallelConfig"] = None,
-    ):
-        # Native attention does not return_lse
-        if return_lse:
-            raise ValueError("Native attention does not support return_lse=True")
+    # used for backward pass
+    if _save_ctx:
+        ctx.save_for_backward(query, key, value)
+        ctx.attn_mask = attn_mask
+        ctx.dropout_p = dropout_p
+        ctx.is_causal = is_causal
+        ctx.scale = scale
+        ctx.enable_gqa = enable_gqa
 
-        query, key, value = (x.permute(0, 2, 1, 3) for x in (query, key, value))
+    query, key, value = (x.permute(0, 2, 1, 3) for x in (query, key, value))
+    out = scaled_dot_product_attention(
+        query=query,
+        key=key,
+        value=value,
+        attn_mask=attn_mask,
+        dropout_p=dropout_p,
+        is_causal=is_causal,
+        scale=scale,
+        enable_gqa=enable_gqa,
+    )
+    out = out.permute(0, 2, 1, 3)
+
+    return out
+
+
+def _native_attention_backward_op(
+    ctx,
+    grad_out: ms.Tensor,
+    *args,
+    **kwargs,
+):
+    query, key, value = ctx.saved_tensors
+
+    query._requires_grad = True
+    key._requires_grad = True
+    value._requires_grad = True
+
+    query_t, key_t, value_t = (x.permute(0, 2, 1, 3) for x in (query, key, value))
+
+    def forward_fn(q, k, v):
         out = scaled_dot_product_attention(
-            query=query,
-            key=key,
-            value=value,
-            attn_mask=attn_mask,
-            dropout_p=dropout_p,
-            is_causal=is_causal,
-            scale=scale,
-            enable_gqa=enable_gqa,
+            query=query_t,
+            key=key_t,
+            value=value_t,
+            attn_mask=ctx.attn_mask,
+            dropout_p=ctx.dropout_p,
+            is_causal=ctx.is_causal,
+            scale=ctx.scale,
+            enable_gqa=ctx.enable_gqa,
         )
         out = out.permute(0, 2, 1, 3)
-
         return out
 
-    def bprop(
-        self,
-        query,
-        key,
-        value,
-        attn_mask,
-        dropout_p,
-        is_causal,
-        scale,
-        enable_gqa,
-        return_lse,
-        _save_ctx,
-        _parallel_config,
-        out,
-        dout,
-    ):
-        query_t, key_t, value_t = (x.permute(0, 2, 1, 3) for x in (query, key, value))
+    grad_out_t = grad_out.permute(0, 2, 1, 3)  # noqa
+    grad_query_t, grad_key_t, grad_value_t = ms.grad(forward_fn, grad_position=(0, 1, 2))(query_t, key_t, value_t)
 
-        def forward_fn(q, k, v):
-            out = scaled_dot_product_attention(
-                query=q,
-                key=k,
-                value=v,
-                attn_mask=attn_mask,
-                dropout_p=dropout_p,
-                is_causal=is_causal,
-                scale=scale,
-                enable_gqa=enable_gqa,
-            )
-            out = out.permute(0, 2, 1, 3)
-            return out
+    grad_query = grad_query_t.permute(0, 2, 1, 3)
+    grad_key = grad_key_t.permute(0, 2, 1, 3)
+    grad_value = grad_value_t.permute(0, 2, 1, 3)
 
-        grad_query_t, grad_key_t, grad_value_t = ms.grad(forward_fn, grad_position=(0, 1, 2))(query_t, key_t, value_t)
-
-        grad_query = grad_query_t.permute(0, 2, 1, 3)
-        grad_key = grad_key_t.permute(0, 2, 1, 3)
-        grad_value = grad_value_t.permute(0, 2, 1, 3)
-
-        return grad_query, grad_key, grad_value, None, None, None, None, None, None, None, None
+    return grad_query, grad_key, grad_value
 
 
 # Adapted from: https://github.com/Dao-AILab/flash-attention/blob/fd2fc9d85c8e54e5c20436465bca709bc1a6c5a1/flash_attn/flash_attn_interface.py#L807
-class FlashAttentionCell(nn.Cell):
-    def __init__(self):
-        super().__init__()
+def _flash_attention_forward_op(
+    ctx,
+    query: ms.Tensor,
+    key: ms.Tensor,
+    value: ms.Tensor,
+    attn_mask: Optional[ms.Tensor] = None,
+    dropout_p: float = 0.0,
+    is_causal: bool = False,
+    scale: Optional[float] = None,
+    enable_gqa: bool = False,
+    return_lse: bool = False,
+    _save_ctx: bool = True,
+    _parallel_config: Optional["ParallelConfig"] = None,
+):
+    # if attn_mask is not None:
+    #     raise ValueError("`attn_mask` is not yet supported for flash-attn.")
+    if enable_gqa:
+        raise ValueError("`enable_gqa` is not yet supported for flash-attn.")
 
-    def construct(
-        self,
-        query: ms.Tensor,
-        key: ms.Tensor,
-        value: ms.Tensor,
-        attn_mask: Optional[ms.Tensor] = None,
-        dropout_p: float = 0.0,
-        is_causal: bool = False,
-        scale: Optional[float] = None,
-        enable_gqa: bool = False,
-        return_lse: bool = False,
-        _save_ctx: bool = True,
-        _parallel_config: Optional["ParallelConfig"] = None,
-    ):
-        # Hardcoded for now
-        grad_enabled = any(x._requires_grad for x in (query, key, value))
+    # Hardcoded for now
+    window_size = (-1, -1)
+    softcap = 0.0
+    alibi_slopes = None
+    deterministic = False
+    grad_enabled = any(x._requires_grad for x in (query, key, value))
 
-        if scale is None:
-            scale = query.shape[-1] ** (-0.5)
+    if scale is None:
+        scale = query.shape[-1] ** (-0.5)
 
-        if is_causal:
-            sparse_mode = 2
-        else:
-            sparse_mode = 0
+    if is_causal:
+        sparse_mode = 2
+    else:
+        sparse_mode = 0
 
-        # flash-attn only returns LSE if dropout_p > 0. So, we need to workaround.
-        if grad_enabled or (_parallel_config is not None and _parallel_config.context_parallel_config._world_size > 1):
-            dropout_p = dropout_p if dropout_p > 0 else 1e-30
+    # flash-attn only returns LSE if dropout_p > 0. So, we need to workaround.
+    if grad_enabled or (_parallel_config is not None and _parallel_config.context_parallel_config._world_size > 1):
+        dropout_p = dropout_p if dropout_p > 0 else 1e-30
 
-        input_layout = "BSND"
-        head_num = query.shape[2]
+    input_layout = "BSND"
+    head_num = query.shape[2]
 
-        softmax_max, softmax_sum, _, out = ops.operations.nn_ops.FlashAttentionScore(
-            head_num=head_num,
-            keep_prob=1 - dropout_p,
-            scale_value=scale,
-            input_layout=input_layout,
-            sparse_mode=sparse_mode,
-        )(query, key, value, None, None, None, attn_mask)
-        lse = softmax_max[..., 0] + mint.log(softmax_sum[..., 0])
-        lse = lse.permute(0, 2, 1)
+    softmax_max, softmax_sum, _, out = ops.operations.nn_ops.FlashAttentionScore(
+        head_num=head_num,
+        keep_prob=1 - dropout_p,
+        scale_value=scale,
+        input_layout=input_layout,
+        sparse_mode=sparse_mode,
+    )(query, key, value, None, None, None, attn_mask)
+    lse = softmax_max[..., 0] + mint.log(softmax_sum[..., 0])
+    lse = lse.permute(0, 2, 1)
 
-        return (out, lse) if return_lse else out
+    if _save_ctx:
+        ctx.save_for_backward(query, key, value, out, lse)
+        ctx.dropout_p = dropout_p
+        ctx.scale = scale
+        ctx.is_causal = is_causal
+        ctx.window_size = window_size
+        ctx.softcap = softcap
+        ctx.alibi_slopes = alibi_slopes
+        ctx.deterministic = deterministic
 
-    def bprop(
-        self,
-        query,
-        key,
-        value,
-        attn_mask,
-        dropout_p,
-        is_causal,
-        scale,
-        enable_gqa,
-        return_lse,
-        _save_ctx,
-        _parallel_config,
-        out,
-        dout,
-    ):
-        grad_query, grad_key, grad_value = mint.empty_like(query), mint.empty_like(key), mint.empty_like(value)
+    return (out, lse) if return_lse else out
 
-        # Head dimension may have been padded
-        grad_query = grad_query[..., : dout.shape[-1]]
-        grad_key = grad_key[..., : dout.shape[-1]]
-        grad_value = grad_value[..., : dout.shape[-1]]
 
-        return grad_query, grad_key, grad_value, None, None, None, None, None, None, None, None
+def _flash_attention_backward_op(
+    ctx,
+    grad_out: ms.Tensor,
+    *args,
+    **kwargs,
+):
+    query, key, value, out, lse = ctx.saved_tensors
+    grad_query, grad_key, grad_value = mint.empty_like(query), mint.empty_like(key), mint.empty_like(value)
+
+    # Head dimension may have been padded
+    grad_query = grad_query[..., : grad_out.shape[-1]]
+    grad_key = grad_key[..., : grad_out.shape[-1]]
+    grad_value = grad_value[..., : grad_out.shape[-1]]
+
+    return grad_query, grad_key, grad_value
 
 
 # ===== Context parallel =====
@@ -671,17 +681,10 @@ def permute_tensor(
     return output
 
 
-class TemplatedRingAttention(nn.Cell):
-    def __init__(self):
-        super().__init__()
-        self.forward_op = None
-        self.backward_op = None
-        self.q_shape = None
-        self.kv_shape = None
-        self._parallel_config = None
-
-    def construct(
-        self,
+class TemplatedRingAttention(ms.common._Function):
+    @staticmethod
+    def forward(
+        ctx,
         query: ms.Tensor,
         key: ms.Tensor,
         value: ms.Tensor,
@@ -701,11 +704,11 @@ class TemplatedRingAttention(nn.Cell):
         next_rank = (rank + 1) % world_size
         prev_out = prev_lse = None
 
-        self.forward_op = forward_op
-        self.backward_op = backward_op
-        self.q_shape = query.shape
-        self.kv_shape = key.shape
-        self._parallel_config = _parallel_config
+        ctx.forward_op = forward_op
+        ctx.backward_op = backward_op
+        ctx.q_shape = query.shape
+        ctx.kv_shape = key.shape
+        ctx._parallel_config = _parallel_config
 
         kv_buffer = mint.cat([key.flatten(), value.flatten()]).contiguous()
         group_size = mint.distributed.get_world_size(ring_mesh)
@@ -723,6 +726,7 @@ class TemplatedRingAttention(nn.Cell):
                 next_rank = (next_rank + 1) % world_size
 
             out, lse = forward_op(
+                ctx,
                 query,
                 key,
                 value,
@@ -732,6 +736,8 @@ class TemplatedRingAttention(nn.Cell):
                 scale,
                 enable_gqa,
                 True,
+                _save_ctx=i == 0,
+                _parallel_config=_parallel_config,
             )
 
             if _parallel_config.context_parallel_config.convert_to_fp32:
@@ -750,35 +756,25 @@ class TemplatedRingAttention(nn.Cell):
 
         return (out, lse) if return_lse else out
 
-    def bprop(
-        self,
-        query,
-        key,
-        value,
-        attn_mask,
-        dropout_p,
-        is_causal,
-        scale,
-        enable_gqa,
-        return_lse,
-        forward_op,
-        backward_op,
-        _parallel_config,
-        out,
-        dout,
+    @staticmethod
+    def backward(
+        ctx,
+        grad_out: ms.Tensor,
+        *args,
     ):
-        ring_mesh = self._parallel_config.context_parallel_config._ring_mesh
-        rank = self._parallel_config.context_parallel_config._ring_local_rank
-        world_size = self._parallel_config.context_parallel_config.ring_degree
+        ring_mesh = ctx._parallel_config.context_parallel_config._ring_mesh
+        rank = ctx._parallel_config.context_parallel_config._ring_local_rank
+        world_size = ctx._parallel_config.context_parallel_config.ring_degree
         next_rank = (rank + 1) % world_size
         next_ranks = list(range(1, world_size)) + [0]
 
-        accum_dtype = ms.float32 if self._parallel_config.context_parallel_config.convert_to_fp32 else dout.dtype
-        grad_query = mint.zeros(self.q_shape, dtype=accum_dtype)
-        grad_key = mint.zeros(self.kv_shape, dtype=accum_dtype)
-        grad_value = mint.zeros(self.kv_shape, dtype=accum_dtype)
+        accum_dtype = ms.float32 if ctx._parallel_config.context_parallel_config.convert_to_fp32 else grad_out.dtype
+        grad_query = mint.zeros(ctx.q_shape, dtype=accum_dtype)
+        grad_key = mint.zeros(ctx.kv_shape, dtype=accum_dtype)
+        grad_value = mint.zeros(ctx.kv_shape, dtype=accum_dtype)
         next_grad_kv = None
 
+        query, key, value, *_ = ctx.saved_tensors
         kv_buffer = mint.cat([key.flatten(), value.flatten()]).contiguous()
         group_size = mint.distributed.get_world_size(ring_mesh)
         kv_buffer_output = mint.cat([mint.zeros_like(kv_buffer) for _ in range(group_size)], dim=0)
@@ -793,19 +789,7 @@ class TemplatedRingAttention(nn.Cell):
                 value = kv[key_numel:].reshape_as(value)
                 next_rank = (next_rank + 1) % world_size
 
-            grad_query_op, grad_key_op, grad_value_op, *_ = (
-                ms.grad(self.forward_op, grad_position=(0, 1, 2))(
-                    query,
-                    key,
-                    value,
-                    attn_mask,
-                    dropout_p,
-                    is_causal,
-                    scale,
-                    enable_gqa,
-                    True,
-                ),
-            )
+            grad_query_op, grad_key_op, grad_value_op, *_ = ctx.backward_op(ctx, grad_out)
 
             if i > 0:
                 grad_kv_buffer = next_grad_kv
@@ -821,22 +805,15 @@ class TemplatedRingAttention(nn.Cell):
                 grad_kv_buffer = mint.cat([grad_key.flatten(), grad_value.flatten()]).contiguous()
                 next_grad_kv = permute_tensor(grad_kv_buffer, next_ranks, group=ring_mesh)
 
-        grad_query, grad_key, grad_value = (x.to(dout.dtype) for x in (grad_query, grad_key, grad_value))
+        grad_query, grad_key, grad_value = (x.to(grad_out.dtype) for x in (grad_query, grad_key, grad_value))
 
         return grad_query, grad_key, grad_value, None, None, None, None, None, None, None, None
 
 
-class TemplatedUlyssesAttention(nn.Cell):
-    def __init__(self):
-        super().__init__()
-        self.forward_op = None
-        self.backward_op = None
-        self.q_shape = None
-        self.kv_shape = None
-        self._parallel_config = None
-
-    def construct(
-        self,
+class TemplatedUlyssesAttention(ms.common._Function):
+    @staticmethod
+    def forward(
+        ctx,
         query: ms.Tensor,
         key: ms.Tensor,
         value: ms.Tensor,
@@ -854,9 +831,9 @@ class TemplatedUlyssesAttention(nn.Cell):
         world_size = _parallel_config.context_parallel_config.ulysses_degree
         group = ulysses_mesh
 
-        self.forward_op = forward_op
-        self.backward_op = backward_op
-        self._parallel_config = _parallel_config
+        ctx.forward_op = forward_op
+        ctx.backward_op = backward_op
+        ctx._parallel_config = _parallel_config
 
         B, S_Q_LOCAL, H, D = query.shape
         _, S_KV_LOCAL, _, _ = key.shape
@@ -868,6 +845,7 @@ class TemplatedUlyssesAttention(nn.Cell):
         query, key, value = (x.flatten(0, 1).permute(1, 0, 2, 3).contiguous() for x in (query, key, value))
 
         out = forward_op(
+            ctx,
             query,
             key,
             value,
@@ -896,50 +874,24 @@ class TemplatedUlyssesAttention(nn.Cell):
 
         return (out, lse) if return_lse else out
 
-    def bprop(
-        self,
-        query,
-        key,
-        value,
-        attn_mask,
-        dropout_p,
-        is_causal,
-        scale,
-        enable_gqa,
-        return_lse,
-        forward_op,
-        backward_op,
-        _parallel_config,
-        out,
-        dout,
+    @staticmethod
+    def backward(
+        ctx,
+        grad_out: ms.Tensor,
+        *args,
     ):
-        ulysses_mesh = self._parallel_config.context_parallel_config._ulysses_mesh
-        world_size = self._parallel_config.context_parallel_config.ulysses_degree
+        ulysses_mesh = ctx._parallel_config.context_parallel_config._ulysses_mesh
+        world_size = ctx._parallel_config.context_parallel_config.ulysses_degree
         group = ulysses_mesh
 
-        B, S_LOCAL, H, D = dout.shape
+        B, S_LOCAL, H, D = grad_out.shape
         H_LOCAL = H // world_size
 
-        grad_out = dout.reshape(B, S_LOCAL, world_size, H_LOCAL, D).permute(2, 1, 0, 3, 4).contiguous()
+        grad_out = grad_out.reshape(B, S_LOCAL, world_size, H_LOCAL, D).permute(2, 1, 0, 3, 4).contiguous()
         grad_out = _all_to_all_single(grad_out, group)
         grad_out = grad_out.flatten(0, 1).permute(1, 0, 2, 3).contiguous()
 
-        # grad_query_op, grad_key_op, grad_value_op, *_ = self.backward_op(self, grad_out)
-        grad_query_op, grad_key_op, grad_value_op, *_ = (
-            ms.grad(self.forward_op, grad_position=(0, 1, 2))(
-                query,
-                key,
-                value,
-                attn_mask,
-                dropout_p,
-                is_causal,
-                scale,
-                enable_gqa,
-                return_lse,
-                _save_ctx=True,
-                _parallel_config=_parallel_config,
-            ),
-        )
+        grad_query_op, grad_key_op, grad_value_op, *_ = ctx.backward_op(ctx, grad_out)
 
         grad_query, grad_key, grad_value = (
             x.reshape(B, world_size, S_LOCAL, H_LOCAL, D).permute(1, 3, 0, 2, 4).contiguous()
@@ -977,7 +929,7 @@ def _templated_context_parallel_attention(
 
     # TODO: add support for unified attention with ring/ulysses degree both being > 1
     if _parallel_config.context_parallel_config.ring_degree > 1:
-        return TemplatedRingAttention()(
+        return TemplatedRingAttention.apply(
             query,
             key,
             value,
@@ -992,7 +944,7 @@ def _templated_context_parallel_attention(
             _parallel_config,
         )
     elif _parallel_config.context_parallel_config.ulysses_degree > 1:
-        return TemplatedUlyssesAttention()(
+        return TemplatedUlyssesAttention.apply(
             query,
             key,
             value,
@@ -1022,6 +974,7 @@ def _flash_attention(
     query: ms.Tensor,
     key: ms.Tensor,
     value: ms.Tensor,
+    attn_mask: Optional[ms.Tensor] = None,
     dropout_p: float = 0.0,
     is_causal: bool = False,
     scale: Optional[float] = None,
@@ -1030,17 +983,26 @@ def _flash_attention(
 ) -> ms.Tensor:
     lse = None
     if _parallel_config is None:
-        out = FlashAttentionCell().construct(
-            query=query,
-            key=key,
-            value=value,
-            dropout_p=dropout_p,
-            scale=scale,
-            is_causal=is_causal,
-            return_lse=return_lse,
-        )
-        if return_lse:
-            out, lse = out
+        if scale is None:
+            scale = query.shape[-1] ** (-0.5)
+
+        if is_causal:
+            sparse_mode = 2
+        else:
+            sparse_mode = 0
+
+        input_layout = "BSND"
+        head_num = query.shape[2]
+
+        softmax_max, softmax_sum, _, out = ops.operations.nn_ops.FlashAttentionScore(
+            head_num=head_num,
+            keep_prob=1 - dropout_p,
+            scale_value=scale,
+            input_layout=input_layout,
+            sparse_mode=sparse_mode,
+        )(query, key, value)
+        lse = softmax_max[..., 0] + mint.log(softmax_sum[..., 0])
+        lse = lse.permute(0, 2, 1)
     else:
         out = _templated_context_parallel_attention(
             query,
@@ -1052,8 +1014,8 @@ def _flash_attention(
             scale,
             False,
             return_lse,
-            forward_op=FlashAttentionCell().construct,
-            backward_op=FlashAttentionCell().bprop,
+            forward_op=_flash_attention_forward_op,
+            backward_op=_flash_attention_backward_op,
             _parallel_config=_parallel_config,
         )
         if return_lse:
@@ -1105,8 +1067,8 @@ def _native_attention(
             scale,
             enable_gqa,
             return_lse,
-            forward_op=NativeAttentionCell().construct,
-            backward_op=NativeAttentionCell().bprop,
+            forward_op=_native_attention_forward_op,
+            backward_op=_native_attention_backward_op,
             _parallel_config=_parallel_config,
         )
 
@@ -1121,6 +1083,7 @@ def _native_flash_attention(
     query: ms.Tensor,
     key: ms.Tensor,
     value: ms.Tensor,
+    attn_mask: Optional[ms.Tensor] = None,
     dropout_p: float = 0.0,
     is_causal: bool = False,
     scale: Optional[float] = None,
@@ -1137,7 +1100,7 @@ def _native_flash_attention(
         query=query,
         key=key,
         value=value,
-        attn_mask=None,  # not supported
+        attn_mask=None,
         dropout_p=dropout_p,
         is_causal=is_causal,
         scale=scale,
