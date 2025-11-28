@@ -101,6 +101,7 @@ class ShieldGemma2ModelTester:
             image_token_index=self.image_token_index,
             yes_token_index=self.yes_token_index,
             no_token_index=self.no_token_index,
+            attn_implementation="eager", 
         )
 
     def prepare_config_and_inputs(self):
