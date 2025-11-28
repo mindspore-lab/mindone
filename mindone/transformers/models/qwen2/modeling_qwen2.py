@@ -24,11 +24,11 @@ from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 from mindone.models.utils import normal_, zeros_
 from mindone.transformers.cache_utils import Cache, DynamicCache
 from mindone.transformers.generation import GenerationMixin
+from mindone.transformers.masking_utils import create_causal_mask
 from mindone.transformers.mindspore_adapter import str_to_dtype
 from mindone.transformers.mindspore_adapter.paged_attention_freqs import FreqsMgr
 from mindone.transformers.mindspore_adapter.paged_attention_infer_attention_block import InferAttention
 from mindone.transformers.mindspore_adapter.paged_attention_mask import LowerTriangularMaskWithDynamic
-from mindone.transformers.modeling_attn_mask_utils import dtype_to_min
 from mindone.transformers.modeling_flash_attention_utils import FlashAttentionKwargs
 from mindone.transformers.modeling_outputs import (
     BaseModelOutputWithPast,
@@ -783,9 +783,18 @@ class Qwen2Model(Qwen2PreTrainedModel):
             position_ids = cache_position.unsqueeze(0)
 
         if block_tables is None:
-            causal_mask = self._update_causal_mask(
-                attention_mask, inputs_embeds, cache_position, past_key_values, output_attentions
-            )
+            # It may already have been prepared by e.g. `generate`
+            # Prepare mask arguments
+            mask_kwargs = {
+                "config": self.config,
+                "input_embeds": inputs_embeds,
+                "attention_mask": attention_mask,
+                "cache_position": cache_position,
+                "past_key_values": past_key_values,
+                "position_ids": position_ids,
+            }
+            # Create the masks
+            causal_mask = create_causal_mask(**mask_kwargs)
         else:
             causal_mask = attention_mask
 
@@ -838,126 +847,6 @@ class Qwen2Model(Qwen2PreTrainedModel):
             hidden_states=all_hidden_states,
             attentions=all_self_attns,
         )
-
-    # Copied from transformers.models.llama.modeling_llama.LlamaModel._update_causal_mask
-    def _update_causal_mask(
-        self,
-        attention_mask: ms.Tensor,
-        input_tensor: ms.Tensor,
-        cache_position: ms.Tensor,
-        past_key_values: Tuple[Tuple[ms.Tensor, ms.Tensor]],
-        output_attentions: bool,
-    ):
-        # TODO: As of torch==2.2.0, the `attention_mask` passed to the model in `generate` is 2D and of dynamic length even when the static
-        # KV cache is used. This is an issue for torch.compile which then recaptures cudagraphs at each decode steps due to the dynamic shapes.
-        # (`recording cudagraph tree for symint key 13`, etc.), which is VERY slow. A workaround is `@torch.compiler.disable`, but this prevents using
-        # `fullgraph=True`. See more context in https://github.com/huggingface/transformers/pull/29114
-
-        # if self.config._attn_implementation == "flash_attention_2":
-        #     if attention_mask is not None and 0.0 in attention_mask:
-        #         return attention_mask
-        #     return None
-
-        # For SDPA, when possible, we will rely on its `is_causal` argument instead of its `attn_mask` argument, in
-        # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
-        # to infer the attention mask.
-        past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-
-        dtype = input_tensor.dtype
-        min_dtype = dtype_to_min(dtype)
-        sequence_length = input_tensor.shape[1]
-        if past_key_values is not None:
-            target_length = past_key_values.get_max_length()
-        else:
-            target_length = (
-                attention_mask.shape[-1]
-                if isinstance(attention_mask, ms.Tensor)
-                else past_seen_tokens + sequence_length + 1
-            )
-
-        # In case the provided `attention` mask is 2D, we generate a causal mask here (4D).
-        causal_mask = self._prepare_4d_causal_attention_mask_with_cache_position(
-            attention_mask,
-            sequence_length=sequence_length,
-            target_length=target_length,
-            dtype=dtype,
-            min_dtype=min_dtype,
-            cache_position=cache_position,
-            batch_size=input_tensor.shape[0],
-        )
-
-        return causal_mask
-
-    # Copied from transformers.models.llama.modeling_llama._prepare_4d_causal_attention_mask_with_cache_position
-    @staticmethod
-    def _prepare_4d_causal_attention_mask_with_cache_position(
-        attention_mask: ms.Tensor,
-        sequence_length: int,
-        target_length: int,
-        dtype: ms.dtype,
-        min_dtype: float,
-        cache_position: ms.Tensor,
-        batch_size: int,
-    ):
-        """
-        Creates a causal 4D mask of shape `(batch_size, 1, query_length, key_value_length)` from a 2D mask of shape
-        `(batch_size, key_value_length)`, or if the input `attention_mask` is already 4D, do nothing.
-
-        Args:
-            attention_mask (`ms.Tensor`):
-                A 2D attention mask of shape `(batch_size, key_value_length)` or a 4D attention mask of shape `(batch_size, 1, query_length, key_value_length)`.
-            sequence_length (`int`):
-                The sequence length being processed.
-            target_length (`int`):
-                The target length: when generating with static cache, the mask should be as long as the static cache,
-                to account for the 0 padding, the part of the cache that is not filled yet.
-            dtype (`torch.dtype`):
-                The dtype to use for the 4D attention mask.
-            device (`torch.device`):
-                The device to plcae the 4D attention mask on.
-            min_dtype (`float`):
-                The minimum value representable with the dtype `dtype`.
-            cache_position (`ms.Tensor`):
-                Indices depicting the position of the input sequence tokens in the sequence.
-            batch_size (`ms.Tensor`):
-                Batch size.
-        """
-        if attention_mask is not None and attention_mask.dim() == 4:
-            # In this case we assume that the mask comes already in inverted form and requires no inversion or slicing.
-            causal_mask = attention_mask
-        else:
-            causal_mask = ops.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
-            if sequence_length != 1:
-                causal_mask = ops.triu(causal_mask, diagonal=1)
-            causal_mask *= ops.arange(target_length) > cache_position.reshape(-1, 1)
-            causal_mask = causal_mask[None, None, :, :].broadcast_to((batch_size, 1, -1, -1))
-            if attention_mask is not None:
-                # causal_mask = causal_mask  # copy to contiguous memory for in-place edit
-                mask_length = attention_mask.shape[-1]
-                # padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :]
-                padding_mask = ops.narrow(causal_mask, -1, 0, mask_length) + attention_mask[:, None, None, :]
-                padding_mask = padding_mask == 0
-                # causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(
-                #     padding_mask, min_dtype
-                # )
-
-                # FIXME: not support masked_fill with bf16 & @jit on MindSpore 2.5.0
-                causal_mask = causal_mask.to(ms.float32)
-                if mask_length >= causal_mask.shape[-1]:
-                    causal_mask = causal_mask.masked_fill(padding_mask, min_dtype.to(ms.float32))
-                else:
-                    causal_mask = ops.cat(
-                        [
-                            ops.narrow(causal_mask, -1, 0, mask_length).masked_fill(
-                                padding_mask, min_dtype.to(ms.float32)
-                            ),
-                            ops.narrow(causal_mask, -1, mask_length, causal_mask.shape[-1] - mask_length),
-                        ],
-                        axis=-1,
-                    )
-                causal_mask = causal_mask.to(dtype)
-
-        return causal_mask
 
 
 class Qwen2ForCausalLM(Qwen2PreTrainedModel, GenerationMixin):
