@@ -55,7 +55,7 @@ class ViTEmbeddings(nn.Cell):
         super().__init__()
 
         self.cls_token = Parameter(mint.randn(1, 1, config.hidden_size))
-        self.mask_token = Parameter(mint.zeros(1, 1, config.hidden_size)) if use_mask_token else None
+        self.mask_token = Parameter(mint.zeros((1, 1, config.hidden_size))) if use_mask_token else None
         self.patch_embeddings = ViTPatchEmbeddings(config)
         num_patches = self.patch_embeddings.num_patches
         self.position_embeddings = Parameter(mint.randn(1, num_patches + 1, config.hidden_size))
