@@ -25,7 +25,6 @@ import mindspore
 from mindspore.common.initializer import TruncatedNormal, initializer
 from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
-from ....models.utils import trunc_normal_
 from ...activations import ACT2FN
 from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling, SequenceClassifierOutput

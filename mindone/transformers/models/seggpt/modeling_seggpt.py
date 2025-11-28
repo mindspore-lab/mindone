@@ -24,7 +24,6 @@ from transformers.utils import ModelOutput
 
 import mindspore
 from mindspore import mint
-from mindspore.common.initializer import Normal, One, TruncatedNormal, Zero, initializer
 
 from ...activations import ACT2FN
 from ...modeling_utils import PreTrainedModel
