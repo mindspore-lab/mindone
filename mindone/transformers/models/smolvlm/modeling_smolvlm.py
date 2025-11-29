@@ -196,10 +196,10 @@ class SmolVLMVisionAttention(nn.Cell):
         self.scale = self.head_dim**-0.5
         self.dropout = config.attention_dropout
 
-        self.k_proj = nn.Linear(self.embed_dim, self.embed_dim)
-        self.v_proj = nn.Linear(self.embed_dim, self.embed_dim)
-        self.q_proj = nn.Linear(self.embed_dim, self.embed_dim)
-        self.out_proj = nn.Linear(self.embed_dim, self.embed_dim)
+        self.k_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
+        self.v_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
+        self.q_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
+        self.out_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
 
         # Ignore copy
         self.is_causal = False
@@ -248,8 +248,8 @@ class SmolVLMVisionMLP(nn.Cell):
         super().__init__()
         self.config = config
         self.activation_fn = ACT2FN[config.hidden_act]
-        self.fc1 = nn.Linear(config.hidden_size, config.intermediate_size)
-        self.fc2 = nn.Linear(config.intermediate_size, config.hidden_size)
+        self.fc1 = mint.nn.Linear(config.hidden_size, config.intermediate_size)
+        self.fc2 = mint.nn.Linear(config.intermediate_size, config.hidden_size)
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         hidden_states = self.fc1(hidden_states)
@@ -423,7 +423,7 @@ class SmolVLMSimpleMLP(nn.Cell):
         super().__init__()
         input_size = config.vision_config.hidden_size * (config.scale_factor**2)
         output_size = config.text_config.hidden_size
-        self.proj = nn.Linear(input_size, output_size, bias=False)
+        self.proj = mint.nn.Linear(input_size, output_size, bias=False)
 
     def construct(self, x):
         return self.proj(x)
@@ -720,7 +720,7 @@ class SmolVLMForConditionalGeneration(SmolVLMPreTrainedModel, GenerationMixin):
         super().__init__(config)
         self.model = SmolVLMModel(config)
         self.image_token_id = self.config.image_token_id
-        self.lm_head = nn.Linear(config.text_config.hidden_size, config.text_config.vocab_size, bias=False)
+        self.lm_head = mint.nn.Linear(config.text_config.hidden_size, config.text_config.vocab_size, bias=False)
         self.vocab_size = config.text_config.vocab_size
         self.model.text_model.generation_config = GenerationConfig.from_model_config(config)
 
