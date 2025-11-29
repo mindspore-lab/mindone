@@ -43,7 +43,8 @@ Image VQA:
 ### Requirements
 |mindspore |	ascend driver | firmware | cann tookit/kernel|
 |--- | --- | --- | --- |
-|2.5.0 | 24.1RC2 | 7.3.0.1.231 | 8.0.RC3.beta1|
+|2.6.0 | 24.1.RC3 | 7.5.T11.0 | 8.1.RC1|
+|2.7.0 | 24.1.RC3 | 7.5.T11.0 | 8.2.RC1|
 
 ### Dependencies
 
@@ -69,12 +70,6 @@ pip install -r requirements.txt
 
 </details>
 
-#### Weight conversion:
-
-For model **Emu3-VisionTokenizer**, there are some incompatible network layer variable names that cannot be automatically converted, we need to convert some weight names in advanved before loading the pre-trained weights:
-```
-python python convert_weights.py --safetensor_path ORIGINAL_MODEL.safetensors --target_safetensor_path model.safetensors
-```
 
 ## Inference
 
@@ -118,7 +113,7 @@ image_tokenizer = Emu3VisionVQModel.from_pretrained(
     mindspore_dtype=VQ_DTYPE
 ).set_train(False)
 image_tokenizer = auto_mixed_precision(
-    image_tokenizer, amp_level="O2", dtype=VQ_DTYPE, custom_fp32_cells=[nn.BatchNorm3d]
+    image_tokenizer, amp_level="O2", dtype=VQ_DTYPE, custom_fp32_cells=[mint.nn.BatchNorm3d]
 )
 processor = Emu3Processor(image_processor, image_tokenizer, tokenizer)
 
@@ -220,7 +215,7 @@ image_tokenizer = Emu3VisionVQModel.from_pretrained(
     mindspore_dtype=VQ_DTYPE
 ).set_train(False)
 image_tokenizer = auto_mixed_precision(
-    image_tokenizer, amp_level="O2", dtype=VQ_DTYPE, custom_fp32_cells=[nn.BatchNorm3d]
+    image_tokenizer, amp_level="O2", dtype=VQ_DTYPE, custom_fp32_cells=[mint.nn.BatchNorm3d]
 )
 processor = Emu3Processor(image_processor, image_tokenizer, tokenizer)
 
@@ -279,7 +274,7 @@ model = Emu3VisionVQModel.from_pretrained(
         mindspore_dtype=MS_DTYPE
     ).set_train(False)
 model = auto_mixed_precision(
-    model, amp_level="O2", dtype=MS_DTYPE, custom_fp32_cells=[nn.BatchNorm3d]
+    model, amp_level="O2", dtype=MS_DTYPE, custom_fp32_cells=[mint.nn.BatchNorm3d]
 )
 processor = Emu3VisionVQImageProcessor.from_pretrained(MODEL_HUB)
 
@@ -366,66 +361,81 @@ DATA_DIR
 
 Input an image or a clip of video frames, outout the reconstructed image(s).
 <br>
-Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 pynative mode.
+Experiments are tested on Ascend Atlas 800T A2 machines.
 
-| model name	| precision* | cards | batch size| resolution |	s/step | img/s |
-| --- | --- | --- | --- | --- | --- | --- |
-| Emu3-VisionTokenizer | bfloat16 | 1 | 1         | 768x1360 | 2.65 | 0.38 |
-| Emu3-VisionTokenizer | bfloat16 | 1 | 4 (video) | 768x1360 | 0.96 | 1.04 |
+-  mindspore 2.6.0
 
-*note: mixed precision, `BatchNorm3d` uses fp32, `Conv3d` and `Flash Attention` use fp16.
-
-<br>
-Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 graph mode.
-
-| model name | precision* | cards | batch size| resolution | graph compile |	s/step | img/s |
+|mode | model name | precision* | cards | batch size| resolution |	s/step | img/s |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Emu3-VisionTokenizer | bfloat16 | 1 | 1         | 768x1360 | 15s | 3.23 | 0.31 |
-| Emu3-VisionTokenizer | bfloat16 | 1 | 4 (video) | 768x1360 | 15s | 5.46 | 0.18 |
+|pynative| Emu3-VisionTokenizer | bfloat16 | 1 | 1         | 768x1360 | 2.42 | 0.41 |
+|pynative| Emu3-VisionTokenizer | bfloat16 | 1 | 4 (video) | 768x1360 | 0.95 | 4.21 |
+|graph| Emu3-VisionTokenizer | bfloat16 | 1 | 1         | 768x1360 | 3.06 | 0.33 |
+|graph| Emu3-VisionTokenizer | bfloat16 | 1 | 4 (video) | 768x1360 | 2.70 | 1.48 |
+
+-  mindspore 2.7.0
+
+|mode | model name | precision* | cards | batch size| resolution |	s/step | img/s |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+|pynative| Emu3-VisionTokenizer | bfloat16 | 1 | 1         | 768x1360 | 2.46 | 0.41 |
+|pynative| Emu3-VisionTokenizer | bfloat16 | 1 | 4 (video) | 768x1360 | 1.23 | 3.25 |
+|graph| Emu3-VisionTokenizer | bfloat16 | 1 | 1         | 768x1360 | 2.76 | 0.36 |
+|graph| Emu3-VisionTokenizer | bfloat16 | 1 | 4 (video) | 768x1360 | 2.70 | 1.48 |
 
 *note: mixed precision, `BatchNorm3d` uses fp32, `Conv3d` and `Flash Attention` use fp16.
 
 #### Text-to-Image Generation
 Input a text prompt, output an image.
 <br>
-Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 pynative mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with pynative mode.
 
-|model name	| precision* | cards | batch size| resolution | flash attn |	s/step	| step | img/s |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Emu3-Gen | bfloat16 | 1 | 1 | 720x720 | OFF | 0.50 | 8193 | 2.27-e4 |
-| Emu3-Gen | bfloat16 | 1 | 1 | 720x720 | ON  | 0.49 | 8193 | 2.50-e4 |
+- mindspore 2.6.0
 
-*note: mixed precision, `BatchNorm3d` uses fp32, `Conv3d` and `Flash Attention` use fp16.
+|model name	| precision* | cards | batch size| resolution | flash attn |	tokens/s	| step |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Emu3-Gen | bfloat16 | 1 | 1 | 720x720 | OFF | 1.68 | 8193 |
+| Emu3-Gen | bfloat16 | 1 | 1 | 720x720 | ON  | 2.13 | 8193 |
+
+
+- mindspore 2.7.0
+
+|model name	| precision* | cards | batch size| resolution | flash attn |	tokens/s	| step |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Emu3-Gen | bfloat16 | 1 | 1 | 720x720 | OFF | 1.85 | 8193 |
+| Emu3-Gen | bfloat16 | 1 | 1 | 720x720 | ON  | 2.33 | 8193 |
+
+*note: mixed precision, `BatchNorm3d` and `Emu3RMSNorm` use fp32, `Conv3d` and `Flash Attention` use fp16.
 
 #### VQA
 Input an image and a text prompt, output textual response.
 <br>
-Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0  pynative mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with pynative mode.
 
-|model name	| precision* | cards | batch size| resolution | flash attn |	s/step	| step | response/s |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Emu3-Chat | bfloat16 | 1 | 1 | 384x384 | OFF | 0.29 | 131 | 0.03 |
-| Emu3-Chat | bfloat16 | 1 | 1 | 384x384 | ON  | 0.24 | 92 | 0.05 |
+- mindspore 2.6.0
 
-*note: mixed precision, `BatchNorm3d` uses fp32, `Conv3d` and `Flash Attention` use fp16.
+|model name	| precision* | cards | batch size| resolution | flash attn |	tokens/s	| step |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Emu3-Chat | bfloat16 | 1 | 1 | 384x384 | OFF | 4.12 | 659 |
+| Emu3-Chat | bfloat16 | 1 | 1 | 384x384 | ON  | 4.37 | 652 |
+
+- mindspore 2.7.0
+
+|model name	| precision* | cards | batch size| resolution | flash attn |	tokens/s	| step |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Emu3-Chat | bfloat16 | 1 | 1 | 384x384 | OFF | 5.15 | 659 |
+| Emu3-Chat | bfloat16 | 1 | 1 | 384x384 | ON  | 5.16 | 652 |
+
+*note: mixed precision, `BatchNorm3d` and `Emu3RMSNorm` use fp32, `Conv3d` and `Flash Attention` use fp16.
 
 ### Training
 
-Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 pynative mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.7.0*.
 
-| stage | pre-trained model	| precision* | cards | batch size| resolution | max token | init lr | recompute | zero stage | grad accu |flash attn | sequence parallel |	s/step	| step | sample/s |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| stage2-T2I | Emu3-Stage1 | float16 | 8 | 1 | 512x512 | 4200 | 1e-6 | ON | 3 | 1 | ON | 8 shards | 2.61 | 4996 | 0.38 |
-| stage2-VQA | Emu3-Stage1 | float16 | 4 | 1 | 384x384 | 2560 | 1e-5 | ON | 3 | 1 | ON | 8 shards | 3.08 | 4993 | 0.32 |
+|mode | stage | pre-trained model	| precision* | cards | batch size| resolution | max token | init lr | recompute | zero stage | grad accu |flash attn | sequence parallel |	s/step	| step | sample/s |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| pynative | stage2-T2I | Emu3-Stage1 | float16 | 8 | 1 | 512x512 | 4200 | 1e-6 | ON | 3 | 1 | ON | 8 shards | 1.79 | 400 | 0.56 |
+| pynative | stage2-VQA | Emu3-Stage1 | float16 | 4 | 1 | 384x384 | 2560 | 1e-5 | ON | 3 | 1 | ON | 4 shards | 1.79 | 400 | 0.56 |
+|graph | stage2-T2I | Emu3-Stage1 | float16 | 8 | 1 | 512x512 | 4200 | 1e-6 | ON | 3 | 1 | ON | 8 shards | 34.11 | 400 | 0.03 |
+|graph | stage2-VQA | Emu3-Stage1 | float16 | 4 | 1 | 384x384 | 2560 | 1e-5 | ON | 3 | 1 | ON | 4 shards | 20.10 | 400 | 0.05 |
 
-*note: mixed precision, `BatchNorm3d` and `Emu3RMSNorm` use fp32.
-
-<br>
-Experiments are tested on ascend 910* with mindspore 2.5.0 graph mode.
-
-| stage | pre-trained model	| precision* | cards | batch size| resolution | max token | init lr | recompute | zero stage | grad accu |flash attn | sequence parallel |	s/step	| step | sample/s |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| stage2-T2I | Emu3-Stage1 | float16 | 8 | 1 | 512x512 | 4200 | 1e-6 | ON | 3 | 1 | ON | 8 shards | 1.93 | 4993 | 0.52 |
-| stage2-VQA | Emu3-Stage1 | float16 | 4 | 1 | 384x384 | 2560 | 1e-5 | ON | 3 | 1 | ON | 8 shards | 1.95 | 5000 | 0.51 |
-
-*note: mixed precision, `BatchNorm3d` and `Emu3RMSNorm` use fp32.
+*note: currently it supports training with mindspore 2.7.0 only.
+Used mixed precision, `BatchNorm3d` and `Emu3RMSNorm` use fp32.
