@@ -382,7 +382,7 @@ class FuyuForCausalLM(FuyuPreTrainedModel, GenerationMixin):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             use_cache=use_cache,
-            return_dict=True,
+            return_dict=return_dict,
             # don't pass kwargs because Persimmon-backbone doesn't accept FA2 kwargs yet, TODO: raushan
         )
 
@@ -396,6 +396,10 @@ class FuyuForCausalLM(FuyuPreTrainedModel, GenerationMixin):
             loss = self.loss_function(
                 logits=logits, labels=labels, vocab_size=self.config.text_config.vocab_size, **kwargs
             )
+
+        if not return_dict:
+            output = (logits,) + outputs[1:]
+            return (loss,) + output if loss is not None else output
 
         return CausalLMOutputWithPast(
             loss=loss,

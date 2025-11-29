@@ -44,6 +44,7 @@ if TYPE_CHECKING:
 else:
     VIDEO_PROCESSOR_MAPPING_NAMES = OrderedDict(
         [
+            ("glm4v", "Glm4vVideoProcessor"),
             ("qwen2_5_vl", "Qwen2VLVideoProcessor"),
         ]
     )

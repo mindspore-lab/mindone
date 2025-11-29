@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Any, Union, overload
 
 import numpy as np
 from transformers.utils import add_end_docstrings, logging
@@ -18,7 +18,7 @@ logger = logging.get_logger(__name__)
     r"""
         top_k (`int`, *optional*, defaults to 5):
             The number of predictions to return.
-        targets (`str` or `List[str]`, *optional*):
+        targets (`str` or `list[str]`, *optional*):
             When passed, the model will limit the scores to the passed targets instead of looking up in the whole
             vocab. If the provided targets are not in the model vocab, they will be tokenized and the first resulting
             token will be used (with a warning, and that might be slower).
@@ -26,6 +26,11 @@ logger = logging.get_logger(__name__)
             Additional dictionary of keyword arguments passed along to the tokenizer.""",
 )
 class FillMaskPipeline(Pipeline):
+    _load_processor = False
+    _load_image_processor = False
+    _load_feature_extractor = False
+    _load_tokenizer = True
+
     """
     Masked language modeling prediction pipeline using any `ModelWithLMHead`. See the [masked language modeling
     examples](../task_summary#masked-language-modeling) for more information.
@@ -111,7 +116,7 @@ class FillMaskPipeline(Pipeline):
 
     def preprocess(
         self, inputs, return_tensors=None, tokenizer_kwargs=None, **preprocess_parameters
-    ) -> Dict[str, GenericTensor]:
+    ) -> dict[str, GenericTensor]:
         if return_tensors is None:
             return_tensors = self.framework
         if tokenizer_kwargs is None:
@@ -170,7 +175,7 @@ class FillMaskPipeline(Pipeline):
             return result[0]
         return result
 
-    def get_target_ids(self, targets, top_k=None):
+    def get_target_ids(self, targets):
         if isinstance(targets, str):
             targets = [targets]
         try:
@@ -179,7 +184,7 @@ class FillMaskPipeline(Pipeline):
             vocab = {}
         target_ids = []
         for target in targets:
-            id_ = vocab.get(target, None)
+            id_ = vocab.get(target)
             if id_ is None:
                 input_ids = self.tokenizer(
                     target,
@@ -220,7 +225,7 @@ class FillMaskPipeline(Pipeline):
         postprocess_params = {}
 
         if targets is not None:
-            target_ids = self.get_target_ids(targets, top_k)
+            target_ids = self.get_target_ids(targets)
             postprocess_params["target_ids"] = target_ids
 
         if top_k is not None:
@@ -232,14 +237,24 @@ class FillMaskPipeline(Pipeline):
             )
         return preprocess_params, {}, postprocess_params
 
-    def __call__(self, inputs, *args, **kwargs):
+    @overload
+    def __call__(self, inputs: str, **kwargs: Any) -> list[dict[str, Any]]:
+        ...
+
+    @overload
+    def __call__(self, inputs: list[str], **kwargs: Any) -> list[list[dict[str, Any]]]:
+        ...
+
+    def __call__(
+        self, inputs: Union[str, list[str]], **kwargs: Any
+    ) -> Union[list[dict[str, Any]], list[list[dict[str, Any]]]]:
         """
         Fill the masked token in the text(s) given as inputs.
 
         Args:
-            args (`str` or `List[str]`):
+            args (`str` or `list[str]`):
                 One or several texts (or one list of prompts) with masked tokens.
-            targets (`str` or `List[str]`, *optional*):
+            targets (`str` or `list[str]`, *optional*):
                 When passed, the model will limit the scores to the passed targets instead of looking up in the whole
                 vocab. If the provided targets are not in the model vocab, they will be tokenized and the first
                 resulting token will be used (with a warning, and that might be slower).

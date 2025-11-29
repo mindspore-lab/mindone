@@ -14,7 +14,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import List, Union
+from typing import Any, Union, overload
 
 import numpy as np
 from transformers.utils import add_end_docstrings
@@ -95,6 +95,10 @@ class ImageClassificationPipeline(Pipeline):
     """
 
     function_to_apply: ClassificationFunction = ClassificationFunction.NONE
+    _load_processor = False
+    _load_image_processor = True
+    _load_feature_extractor = False
+    _load_tokenizer = False
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -114,7 +118,17 @@ class ImageClassificationPipeline(Pipeline):
             postprocess_params["function_to_apply"] = function_to_apply
         return preprocess_params, {}, postprocess_params
 
-    def __call__(self, inputs: Union[str, List[str], "Image.Image", List["Image.Image"]] = None, **kwargs):
+    @overload
+    def __call__(self, inputs: Union[str, "Image.Image"], **kwargs: Any) -> list[dict[str, Any]]:
+        ...
+
+    @overload
+    def __call__(self, inputs: Union[list[str], list["Image.Image"]], **kwargs: Any) -> list[list[dict[str, Any]]]:
+        ...
+
+    def __call__(
+        self, inputs: Union[str, list[str], "Image.Image", list["Image.Image"]], **kwargs: Any
+    ) -> Union[list[dict[str, Any]], list[list[dict[str, Any]]]]:
         """
         Assign labels to the image(s) passed as inputs.
 
@@ -173,7 +187,7 @@ class ImageClassificationPipeline(Pipeline):
         image = load_image(image, timeout=timeout)
         model_inputs = self.image_processor(images=image, return_tensors=return_tensors)
         for k, v in model_inputs.items():
-            model_inputs[k] = ms.tensor(v).to(self.mindspore_dtype)
+            model_inputs[k] = ms.tensor(v).to(self.dtype)
         return model_inputs
 
     def _forward(self, model_inputs):

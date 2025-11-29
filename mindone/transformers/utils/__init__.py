@@ -29,3 +29,4 @@ FEATURE_EXTRACTOR_NAME = "preprocessor_config.json"
 IMAGE_PROCESSOR_NAME = FEATURE_EXTRACTOR_NAME
 CHAT_TEMPLATE_NAME = "chat_template.json"
 PROCESSOR_NAME = "processor_config.json"
+GENERATION_CONFIG_NAME = "generation_config.json"

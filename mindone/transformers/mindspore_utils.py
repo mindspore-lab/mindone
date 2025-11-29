@@ -265,3 +265,10 @@ def meshgrid(*tensors: ms.Tensor, indexing) -> tuple[ms.Tensor, ...]:
     Wrapper around torch.meshgrid to avoid warning messages about the introduced `indexing` argument.
     """
     return mint.meshgrid(*tensors, indexing=indexing)
+
+
+def infer_device():
+    """
+    Infers available device.
+    """
+    return ms.get_current_device().device_target

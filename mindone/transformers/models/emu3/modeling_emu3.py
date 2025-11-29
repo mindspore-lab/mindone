@@ -43,7 +43,7 @@ from mindspore.common.initializer import HeNormal, Uniform, initializer
 from mindone.models.utils import normal_, ones_, zeros_
 
 from ...activations import ACT2FN
-from ...cache_utils import Cache, DynamicCache, get_max_length, get_seq_length, update
+from ...cache_utils import Cache, DynamicCache
 from ...generation import GenerationMixin
 from ...modeling_attn_mask_utils import dtype_to_min
 from ...modeling_flash_attention_utils import FlashAttentionKwargs
@@ -237,9 +237,6 @@ class Emu3Attention(nn.Cell):
                 # sin and cos are specific to RoPE models; cache_position needed for the static cache
                 cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
                 key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
-            elif isinstance(past_key_value, tuple):
-                key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
-                past_key_value = (key_states, value_states)
 
         attention_interface: Callable = eager_attention_construct
         if self.config._attn_implementation != "eager":
@@ -1469,8 +1466,6 @@ class Emu3TextModel(Emu3PreTrainedModel):
             if past_key_values is not None:
                 if isinstance(past_key_values, Cache):
                     past_seen_tokens = past_key_values.get_seq_length()
-                else:  # tuple static cache
-                    past_seen_tokens = get_seq_length(past_key_values)
             cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
         if position_ids is None:
@@ -1534,23 +1529,15 @@ class Emu3TextModel(Emu3PreTrainedModel):
     ):
         past_seen_tokens = 0
         if past_key_values is not None:
-            past_seen_tokens = (
-                get_seq_length(past_key_values)
-                if isinstance(past_key_values, tuple)
-                else past_key_values.get_seq_length()
-            )
-        using_static_cache = isinstance(past_key_values, tuple)
+            past_seen_tokens = past_key_values.get_seq_length()
 
         dtype = input_tensor.dtype
         sequence_length = input_tensor.shape[1]
-        if using_static_cache:
-            target_length = get_max_length(past_key_values)
-        else:
-            target_length = (
-                attention_mask.shape[-1]
-                if isinstance(attention_mask, ms.Tensor)
-                else past_seen_tokens + sequence_length + 1
-            )
+        target_length = (
+            attention_mask.shape[-1]
+            if isinstance(attention_mask, ms.Tensor)
+            else past_seen_tokens + sequence_length + 1
+        )
 
         # In case the provided `attention` mask is 2D, we generate a causal mask here (4D).
         causal_mask = self._prepare_4d_causal_attention_mask_with_cache_position(

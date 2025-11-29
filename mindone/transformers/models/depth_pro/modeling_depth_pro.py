@@ -19,83 +19,62 @@
 
 import math
 from dataclasses import dataclass
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Union
 
 from transformers.models.depth_pro.configuration_depth_pro import DepthProConfig
-from transformers.utils import ModelOutput
+from transformers.utils import auto_docstring
 
 import mindspore as ms
-import mindspore.mint as mint
 import mindspore.mint.nn.functional as F
-from mindspore import nn
+from mindspore import mint, nn
 from mindspore.common.initializer import HeNormal, initializer
 
 from ...modeling_utils import PreTrainedModel
-from ...utils import logging, mindspore_int
+from ...utils import ModelOutput, logging, mindspore_int
 from ..auto import AutoModel
 
 logger = logging.get_logger(__name__)
 
 
 @dataclass
-class DepthProOutput(ModelOutput):
-    """
+@auto_docstring(
+    custom_intro="""
     Base class for DepthPro's outputs.
-
-    Args:
-        last_hidden_state (`ms.Tensor` of shape `(batch_size, n_patches_per_batch, sequence_length, hidden_size)`):
-            Sequence of hidden-states at the output of the last layer of the model.
-        features (`Union[ms.Tensor, List[ms.Tensor]]`, *optional*):
-            Features from encoders. Can be a single feature or a list of features.
-        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
-            one for the output of each layer) of shape `(batch_size, n_patches_per_batch, sequence_length, hidden_size)`.
-
-            Hidden-states of the model at the output of each layer and the optional initial embedding outputs.
-        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, n_patches_per_batch, num_heads, sequence_length,
-            sequence_length)`.
-
-            Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
-            heads.
+    """
+)
+class DepthProOutput(ModelOutput):
+    r"""
+    last_hidden_state (`ms.Tensor` of shape `(batch_size, n_patches_per_batch, sequence_length, hidden_size)`):
+        Sequence of hidden-states at the output of the last layer of the model.
+    features (`Union[ms.Tensor, List[ms.Tensor]]`, *optional*):
+        Features from encoders. Can be a single feature or a list of features.
     """
 
-    last_hidden_state: ms.Tensor = None
-    features: Union[ms.Tensor, List[ms.Tensor]] = None
-    hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
-    attentions: Optional[Tuple[ms.Tensor, ...]] = None
+    last_hidden_state: Optional[ms.Tensor] = None
+    features: Union[ms.Tensor, list[ms.Tensor]] = None
+    hidden_states: Optional[tuple[ms.Tensor, ...]] = None
+    attentions: Optional[tuple[ms.Tensor, ...]] = None
 
 
 @dataclass
-class DepthProDepthEstimatorOutput(ModelOutput):
-    """
+@auto_docstring(
+    custom_intro="""
     Base class for DepthProForDepthEstimation's output.
-
-    Args:
-        loss (`ms.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
-            Classification (or regression if config.num_labels==1) loss.
-        predicted_depth (`ms.Tensor` of shape `(batch_size, height, width)`):
-            Predicted depth for each pixel.
-        field_of_view (`ms.Tensor` of shape `(batch_size,)`, *optional*, returned when `use_fov_model` is provided):
-            Field of View Scaler.
-        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
-            one for the output of each layer) of shape `(batch_size, n_patches_per_batch, sequence_length, hidden_size)`.
-
-            Hidden-states of the model at the output of each layer and the optional initial embedding outputs.
-        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, n_patches_per_batch, num_heads, sequence_length,
-            sequence_length)`.
-
-            Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
-            heads.
+    """
+)
+class DepthProDepthEstimatorOutput(ModelOutput):
+    r"""
+    loss (`ms.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
+        Classification (or regression if config.num_labels==1) loss.
+    field_of_view (`ms.Tensor` of shape `(batch_size,)`, *optional*, returned when `use_fov_model` is provided):
+        Field of View Scaler.
     """
 
     loss: Optional[ms.Tensor] = None
-    predicted_depth: ms.Tensor = None
+    predicted_depth: Optional[ms.Tensor] = None
     field_of_view: Optional[ms.Tensor] = None
-    hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
-    attentions: Optional[Tuple[ms.Tensor, ...]] = None
+    hidden_states: Optional[tuple[ms.Tensor, ...]] = None
+    attentions: Optional[tuple[ms.Tensor, ...]] = None
 
 
 def split_to_patches(pixel_values: ms.Tensor, patch_size: int, overlap_ratio: float) -> ms.Tensor:
@@ -140,7 +119,7 @@ def merge_patches(patches: ms.Tensor, batch_size: int, padding: int) -> ms.Tenso
         return patches
 
     if n_patches_per_batch < 4:
-        # for each batch, atleast 4 small patches are required to
+        # for each batch, at least 4 small patches are required to
         # recreate a large square patch from merging them and later padding is applied
         # 3 x (8x8) patches becomes 1 x ( 8x8 ) patch (extra patch ignored, no padding)
         # 4 x (8x8) patches becomes 1 x (16x16) patch (padding later)
@@ -206,7 +185,7 @@ def merge_patches(patches: ms.Tensor, batch_size: int, padding: int) -> ms.Tenso
 
 
 def reconstruct_feature_maps(
-    hidden_state: ms.Tensor, batch_size: int, padding: int, output_size: Tuple[float, float]
+    hidden_state: ms.Tensor, batch_size: int, padding: int, output_size: tuple[float, float]
 ) -> ms.Tensor:
     """
     Reconstructs feature maps from the hidden state produced by any of the encoder. Converts the hidden state of shape
@@ -218,7 +197,7 @@ def reconstruct_feature_maps(
             representing the encoded patches.
         batch_size (int): The number of samples in a batch.
         padding (int): The amount of padding to be removed when merging patches.
-        output_size (Tuple[float, float]): The desired output size for the feature maps, specified as `(height, width)`.
+        output_size (tuple[float, float]): The desired output size for the feature maps, specified as `(height, width)`.
 
     Returns:
         ms.Tensor: Reconstructed feature maps of shape `(batch_size, hidden_size, output_size[0], output_size[1])`.
@@ -266,7 +245,7 @@ class DepthProPatchEncoder(nn.Cell):
         self,
         pixel_values: ms.Tensor,
         head_mask: Optional[ms.Tensor] = None,
-    ) -> List[ms.Tensor]:
+    ) -> list[ms.Tensor]:
         batch_size, num_channels, height, width = pixel_values.shape
 
         if min(self.scaled_images_ratios) * min(height, width) < self.config.patch_size:
@@ -326,7 +305,6 @@ class DepthProPatchEncoder(nn.Cell):
         scaled_images_features = []
         for i in range(self.n_scaled_images):
             hidden_state = scaled_images_last_hidden_state[i]
-            batch_size = batch_size
             padding = mindspore_int(self.merge_padding_value * (1 / self.scaled_images_ratios[i]))
             output_height = base_height * 2**i
             output_width = base_width * 2**i
@@ -560,7 +538,7 @@ class DepthProFeatureUpsample(nn.Cell):
             )
             self.intermediate.append(block)
 
-    def construct(self, features: List[ms.Tensor]) -> List[ms.Tensor]:
+    def construct(self, features: list[ms.Tensor]) -> list[ms.Tensor]:
         features[0] = self.image_block(features[0])
 
         for i in range(self.n_scaled_images):
@@ -582,7 +560,7 @@ class DepthProFeatureProjection(nn.Cell):
         for i, in_channels in enumerate(combined_feature_dims):
             if i == len(combined_feature_dims) - 1 and in_channels == config.fusion_hidden_size:
                 # projection for last layer can be ignored if input and output channels already match
-                self.projections.append(mint.nn.Identity())
+                self.projections.append(nn.Identity())
             else:
                 self.projections.append(
                     mint.nn.Conv2d(
@@ -595,7 +573,7 @@ class DepthProFeatureProjection(nn.Cell):
                     )
                 )
 
-    def construct(self, features: List[ms.Tensor]) -> List[ms.Tensor]:
+    def construct(self, features: list[ms.Tensor]) -> list[ms.Tensor]:
         projected_features = []
         for i, projection in enumerate(self.projections):
             upsampled_feature = projection(features[i])
@@ -619,7 +597,7 @@ class DepthProNeck(nn.Cell):
         )
         self.feature_projection = DepthProFeatureProjection(config)
 
-    def construct(self, features: List[ms.Tensor]) -> List[ms.Tensor]:
+    def construct(self, features: list[ms.Tensor]) -> list[ms.Tensor]:
         features = self.feature_upsample(features)
         # global features = low res features + image features
         global_features = mint.cat((features[1], features[0]), dim=1)
@@ -629,14 +607,11 @@ class DepthProNeck(nn.Cell):
         return features
 
 
+# General docstring
+@auto_docstring
 class DepthProPreTrainedModel(PreTrainedModel):
-    """
-    An abstract class to handle weights initialization and a simple interface for downloading and loading pretrained
-    models.
-    """
-
-    config_class = DepthProConfig
-    # base_model_prefix = "depth_pro" # prefix is already existed in parameter naming in ckpt, no need to added the prefix again
+    config: DepthProConfig
+    base_model_prefix = "depth_pro"
     main_input_name = "pixel_values"
     supports_gradient_checkpointing = True
     _supports_sdpa = True
@@ -647,7 +622,7 @@ class DepthProPreTrainedModel(PreTrainedModel):
         """Initialize the weights"""
         if isinstance(module, mint.nn.Linear):
             # Slightly different from the TF version which uses truncated_normal for initialization
-            # cf https://github.com/mindspore/mindspore/pull/5617
+            # cf https://github.com/pytorch/pytorch/pull/5617
             module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
             if module.bias is not None:
                 module.bias.data.zero_()
@@ -664,6 +639,7 @@ class DepthProPreTrainedModel(PreTrainedModel):
                 module.bias.data.zero_()
 
 
+@auto_docstring
 class DepthProModel(DepthProPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
@@ -676,6 +652,7 @@ class DepthProModel(DepthProPreTrainedModel):
     def get_input_embeddings(self):
         return self.encoder.image_encoder.model.get_input_embeddings()
 
+    @auto_docstring
     def construct(
         self,
         pixel_values: ms.Tensor,
@@ -683,31 +660,31 @@ class DepthProModel(DepthProPreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[Tuple, DepthProOutput]:
+    ) -> Union[tuple, DepthProOutput]:
         r"""
-        Returns:
-
         Examples:
 
         ```python
+        >>> import torch
         >>> from PIL import Image
         >>> import requests
-        >>> from mindone.transformers import DepthProImageProcessor, DepthProModel
+        >>> from transformers import AutoProcessor, DepthProModel
 
         >>> url = "https://www.ilankelman.org/stopsigns/australia.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
         >>> checkpoint = "apple/DepthPro-hf"
-        >>> processor = DepthProImageProcessor.from_pretrained(checkpoint)
+        >>> processor = AutoProcessor.from_pretrained(checkpoint)
         >>> model = DepthProModel.from_pretrained(checkpoint)
 
         >>> # prepare image for the model
-        >>> inputs = processor(images=image, return_tensors="ms")
+        >>> inputs = processor(images=image, return_tensors="pt")
 
-        >>> output = model(**inputs)
+        >>> with torch.no_grad():
+        ...     output = model(**inputs)
 
         >>> output.last_hidden_state.shape
-        (1, 577, 1024)
+        torch.Size([1, 35, 577, 1024])
         ```"""
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
@@ -746,7 +723,7 @@ class DepthProPreActResidualLayer(nn.Cell):
             Model configuration class defining the model architecture.
     """
 
-    def __init__(self, config):
+    def __init__(self, config: DepthProConfig):
         super().__init__()
 
         self.use_batch_norm = config.use_batch_norm_in_fusion_residual
@@ -846,14 +823,14 @@ class DepthProFeatureFusionStage(nn.Cell):
         for _ in range(self.num_layers - 1):
             self.intermediate.append(DepthProFeatureFusionLayer(config))
 
-        # final layer doesnot require deconvolution
+        # final layer does not require deconvolution
         self.final = DepthProFeatureFusionLayer(config, use_deconv=False)
 
-    def construct(self, hidden_states: List[ms.Tensor]) -> List[ms.Tensor]:
+    def construct(self, hidden_states: list[ms.Tensor]) -> list[ms.Tensor]:
         if self.num_layers != len(hidden_states):
             raise ValueError(
                 f"num_layers={self.num_layers} in DepthProFeatureFusionStage"
-                f"doesnot match len(hidden_states)={len(hidden_states)}"
+                f"does not match len(hidden_states)={len(hidden_states)}"
             )
 
         fused_hidden_states = []
@@ -1031,8 +1008,17 @@ class DepthProDepthEstimationHead(nn.Cell):
         return predicted_depth
 
 
+@auto_docstring(
+    custom_intro="""
+    DepthPro Model with a depth estimation head on top (consisting of 3 convolutional layers).
+    """
+)
 class DepthProForDepthEstimation(DepthProPreTrainedModel):
     def __init__(self, config, use_fov_model=None):
+        r"""
+        use_fov_model (bool, *optional*):
+            Whether to use the field of view model.
+        """
         super().__init__(config)
         self.config = config
         self.use_fov_model = use_fov_model if use_fov_model is not None else self.config.use_fov_model
@@ -1052,6 +1038,7 @@ class DepthProForDepthEstimation(DepthProPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
+    @auto_docstring
     def construct(
         self,
         pixel_values: ms.Tensor,
@@ -1060,17 +1047,16 @@ class DepthProForDepthEstimation(DepthProPreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[Tuple[ms.Tensor], DepthProDepthEstimatorOutput]:
+    ) -> Union[tuple[ms.Tensor], DepthProDepthEstimatorOutput]:
         r"""
         labels (`ms.Tensor` of shape `(batch_size, height, width)`, *optional*):
             Ground truth depth estimation maps for computing the loss.
 
-        Returns:
-
         Examples:
 
         ```python
-        >>> from mindone.transformers import DepthProImageProcessor, DepthProForDepthEstimation
+        >>> from mindone.transformers import AutoImageProcessor, DepthProForDepthEstimation
+        >>> import mindspore as ms
         >>> from PIL import Image
         >>> import requests
 
@@ -1078,13 +1064,17 @@ class DepthProForDepthEstimation(DepthProPreTrainedModel):
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
         >>> checkpoint = "apple/DepthPro-hf"
-        >>> processor = DepthProImageProcessor.from_pretrained(checkpoint)
+        >>> processor = AutoImageProcessor.from_pretrained(checkpoint)
         >>> model = DepthProForDepthEstimation.from_pretrained(checkpoint)
 
-        >>> # prepare image for the model
-        >>> inputs = processor(images=image, return_tensors="ms")
 
-        >>> outputs = model(**inputs)
+        >>> # prepare image for the model
+        >>> inputs = processor(images=image, return_tensors="np")
+        >>> for key in inputs.keys():
+        >>>     inputs[key] = ms.tensor(inputs[key])
+
+        >>> with torch.no_grad():
+        ...     outputs = model(**inputs)
 
         >>> # interpolate to original size
         >>> post_processed_output = processor.post_process_depth_estimation(
@@ -1098,7 +1088,7 @@ class DepthProForDepthEstimation(DepthProPreTrainedModel):
         >>> # visualize the prediction
         >>> predicted_depth = post_processed_output[0]["predicted_depth"]
         >>> depth = predicted_depth * 255 / predicted_depth.max()
-        >>> depth = depth.numpy()
+        >>> depth = depth.detach().asnumpy()
         >>> depth = Image.fromarray(depth.astype("uint8"))
         ```"""
         loss = None
@@ -1124,7 +1114,7 @@ class DepthProForDepthEstimation(DepthProPreTrainedModel):
 
         if self.use_fov_model:
             # frozen features from encoder are used
-            features_for_fov = features[0]
+            features_for_fov = features[0].detach()
             fov = self.fov_model(
                 pixel_values=pixel_values,
                 global_features=features_for_fov,

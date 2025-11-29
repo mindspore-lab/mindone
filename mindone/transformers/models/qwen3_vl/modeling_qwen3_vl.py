@@ -220,22 +220,27 @@ class Qwen3VLVisionAttention(nn.Cell):
             key_states = key_states.swapaxes(0, 1).unsqueeze(0)
             value_states = value_states.swapaxes(0, 1).unsqueeze(0)
 
-            attention_mask = mint.zeros([1, seq_length, seq_length], dtype=ms.bool_)
-            for i in range(1, len(cu_seqlens)):
-                attention_mask[..., cu_seqlens[i - 1] : cu_seqlens[i], cu_seqlens[i - 1] : cu_seqlens[i]] = True
-            attention_mask = attention_mask.unsqueeze(1)
+            # Other implementations: Process each chunk separately
+            lengths = cu_seqlens[1:] - cu_seqlens[:-1]
+            splits = [
+                mint.split(tensor, lengths.tolist(), dim=2) for tensor in (query_states, key_states, value_states)
+            ]
 
-            attn_output = attention_interface(
-                self,
-                query_states,
-                key_states,
-                value_states,
-                attention_mask=attention_mask,
-                scaling=self.scaling,
-                dropout=0.0 if not self.training else self.attention_dropout,
-                is_causal=False,
-                **kwargs,
-            )[0]
+            attn_outputs = [
+                attention_interface(
+                    self,
+                    q,
+                    k,
+                    v,
+                    attention_mask=None,
+                    scaling=self.scaling,
+                    dropout=0.0 if not self.training else self.attention_dropout,
+                    is_causal=False,
+                    **kwargs,
+                )[0]
+                for q, k, v in zip(*splits)
+            ]
+            attn_output = mint.cat(attn_outputs, dim=1)
 
         attn_output = attn_output.reshape(seq_length, -1).contiguous()
         attn_output = self.proj(attn_output)

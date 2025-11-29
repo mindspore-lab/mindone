@@ -17,6 +17,7 @@ import numpy as np
 import pytest
 import torch
 from transformers import VisualBertConfig
+from transformers.testing_utils import slow
 
 import mindspore as ms
 from mindspore import mint
@@ -324,7 +325,7 @@ def test_named_modules(
     )
 
 
-@pytest.mark.slow
+@slow
 def test_inference_vqa_coco_pre():
     THRESHOLD = DTYPE_AND_THRESHOLDS["fp32"]
 
@@ -358,7 +359,7 @@ def test_inference_vqa_coco_pre():
     assert (np.array(diffs) < THRESHOLD).all(), f"Output difference exceeds the threshold: {diffs} > {THRESHOLD}"
 
 
-@pytest.mark.slow
+@slow
 def test_inference_vqa():
     THRESHOLD = DTYPE_AND_THRESHOLDS["fp32"]
 
@@ -389,7 +390,7 @@ def test_inference_vqa():
     assert (np.array(diffs) < THRESHOLD).all(), f"Output difference exceeds the threshold: {diffs} > {THRESHOLD}"
 
 
-@pytest.mark.slow
+@slow
 def test_inference_nlvr():
     THRESHOLD = DTYPE_AND_THRESHOLDS["fp32"]
 
@@ -418,7 +419,7 @@ def test_inference_nlvr():
     assert (np.array(diffs) < THRESHOLD).all(), f"Output difference exceeds the threshold: {diffs} > {THRESHOLD}"
 
 
-@pytest.mark.slow
+@slow
 def test_inference_vcr():
     THRESHOLD = DTYPE_AND_THRESHOLDS["fp32"]
 
