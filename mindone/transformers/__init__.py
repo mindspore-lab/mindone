@@ -1556,8 +1556,8 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
         Glm4vPreTrainedModel,
         Glm4vProcessor,
         Glm4vTextModel,
-        Glm4vVisionModel,
         Glm4vVideoProcessor,
+        Glm4vVisionModel,
     )
     from .models.minimax import (
         MiniMaxForCausalLM,
