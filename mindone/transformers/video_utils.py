@@ -520,7 +520,7 @@ def read_video_mindspore(
         pts_unit="sec",
     )
     video_fps = info["video_fps"]
-    total_num_frames = video.size(0)
+    total_num_frames = video.shape[0]
     duration = total_num_frames / video_fps if video_fps else 0
     metadata = VideoMetadata(
         total_num_frames=int(total_num_frames),
@@ -531,7 +531,7 @@ def read_video_mindspore(
 
     indices = sample_indices_fn(metadata=metadata, **kwargs)
 
-    video = video[indices].contiguous()
+    video = video[indices]
     metadata.update(
         {
             "frames_indices": indices,
