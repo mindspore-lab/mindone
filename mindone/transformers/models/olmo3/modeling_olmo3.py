@@ -22,7 +22,6 @@
 from typing import Callable, Optional, Union
 
 from transformers import Olmo3Config
-from transformers.utils import auto_docstring
 
 import mindspore
 from mindspore import mint
@@ -309,7 +308,6 @@ class Olmo3RotaryEmbedding(mindspore.nn.Cell):
         return cos, sin
 
 
-@auto_docstring
 class Olmo3PreTrainedModel(PreTrainedModel):
     config: Olmo3Config
     base_model_prefix = "model"
@@ -328,7 +326,6 @@ class Olmo3PreTrainedModel(PreTrainedModel):
     }
 
 
-@auto_docstring
 class Olmo3Model(Olmo3PreTrainedModel):
     def __init__(self, config: Olmo3Config):
         super().__init__(config)
@@ -351,7 +348,6 @@ class Olmo3Model(Olmo3PreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @auto_docstring
     def construct(
         self,
         input_ids: Optional[mindspore.Tensor] = None,
@@ -423,7 +419,6 @@ class Olmo3Model(Olmo3PreTrainedModel):
         )
 
 
-@auto_docstring
 class Olmo3ForCausalLM(Olmo3PreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
     _tp_plan = {"lm_head": "colwise_rep"}
@@ -439,7 +434,6 @@ class Olmo3ForCausalLM(Olmo3PreTrainedModel, GenerationMixin):
         self.post_init()
 
     @can_return_tuple
-    @auto_docstring
     def construct(
         self,
         input_ids: Optional[mindspore.Tensor] = None,
