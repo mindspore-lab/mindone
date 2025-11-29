@@ -454,6 +454,7 @@ from .models.distilbert import (
     DistilBertModel,
     DistilBertPreTrainedModel,
 )
+from .models.doge import DogeForCausalLM, DogeForSequenceClassification, DogeModel, DogePreTrainedModel
 from .models.dpr import (
     DPRContextEncoder,
     DPRPretrainedContextEncoder,
