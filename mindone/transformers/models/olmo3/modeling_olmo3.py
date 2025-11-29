@@ -85,7 +85,7 @@ def eager_attention_forward(
     key_states = repeat_kv(key, module.num_key_value_groups)
     value_states = repeat_kv(value, module.num_key_value_groups)
 
-    attn_weights = mint.matmul(query, key_states.transpose((2, 3))) * scaling
+    attn_weights = mint.matmul(query, key_states.transpose(2, 3)) * scaling
     if attention_mask is not None:
         causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
         attn_weights = attn_weights + causal_mask
@@ -93,7 +93,7 @@ def eager_attention_forward(
     attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1, dtype=mindspore.float32).to(query.dtype)
     attn_weights = mint.nn.functional.dropout(attn_weights, p=dropout, training=module.training)
     attn_output = mint.matmul(attn_weights, value_states)
-    attn_output = attn_output.transpose((1, 2))
+    attn_output = attn_output.transpose(1, 2)
 
     return attn_output, attn_weights
 
@@ -180,9 +180,9 @@ class Olmo3Attention(mindspore.nn.Cell):
         key_states = self.k_norm(self.k_proj(hidden_states))
         value_states = self.v_proj(hidden_states)
 
-        query_states = query_states.view(hidden_shape).transpose((1, 2))
-        key_states = key_states.view(hidden_shape).transpose((1, 2))
-        value_states = value_states.view(hidden_shape).transpose((1, 2))
+        query_states = query_states.view(hidden_shape).transpose(1, 2)
+        key_states = key_states.view(hidden_shape).transpose(1, 2)
+        value_states = value_states.view(hidden_shape).transpose(1, 2)
 
         cos, sin = position_embeddings
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
@@ -302,9 +302,7 @@ class Olmo3RotaryEmbedding(mindspore.nn.Cell):
         inv_freq_expanded = self.inv_freq[None, :, None].float()
         position_ids_expanded = position_ids[:, None, :].float()
 
-        freqs = (inv_freq_expanded.to(mindspore.float32) @ position_ids_expanded.to(mindspore.float32)).transpose(
-            (1, 2)
-        )
+        freqs = (inv_freq_expanded.to(mindspore.float32) @ position_ids_expanded.to(mindspore.float32)).transpose(1, 2)
         emb = mint.cat((freqs, freqs), dim=-1)
         cos = emb.cos() * self.attention_scaling
         sin = emb.sin() * self.attention_scaling
