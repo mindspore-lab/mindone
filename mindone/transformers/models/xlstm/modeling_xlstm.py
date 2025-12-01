@@ -11,27 +11,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import mindspore as ms
-from mindspore import mint, nn
-"""PyTorch xLSTM Model."""
+"""MindSpore xLSTM Model."""
 
 from dataclasses import dataclass
-from typing import Optional, Union
+from functools import partial
+from typing import Callable, Literal, Optional, Union
 
 import mindspore as ms
-import mint.nn.functional as F
-from mindspore import nn
-from mint.nn import CrossEntropyLoss
+from mindspore import mint
+from mindspore.common.initializer import Constant, Normal, initializer
 
 from ...generation import GenerationMixin
 from ...modeling_utils import PreTrainedModel
-from ...utils import ModelOutput, auto_docstring, can_return_tuple, is_xlstm_available
-from .configuration_xlstm import xLSTMConfig
-
-from functools import partial
-from typing import Callable, Literal
-
-from .configuration_xlstm import round_up_to_next_multiple_of
+from ...utils import ModelOutput, can_return_tuple
+from .configuration_xlstm import round_up_to_next_multiple_of, xLSTMConfig
 
 mLSTMLayerStateType = tuple[ms.Tensor, ms.Tensor, ms.Tensor]
 mLSTMStateType = dict[int, mLSTMLayerStateType]
@@ -60,46 +53,66 @@ def soft_cap(values: ms.Tensor, cap_value: Optional[Union[float, ms.Tensor]] = N
 
 
 def mlstm_chunkwise_recurrent_fw_C(
-        matK: ms.Tensor,
-        matV: ms.Tensor,
-        vecB: ms.Tensor,
-        vecI: ms.Tensor,
-        matC_states: Optional[ms.Tensor] = None,
-        vecN_states: Optional[ms.Tensor] = None,
-        scaMinter_states: Optional[ms.Tensor] = None,
-        matC_initial: Optional[ms.Tensor] = None,
-        vecN_initial: Optional[ms.Tensor] = None,
-        scaMinter_initial: Optional[ms.Tensor] = None,
-        qk_scale: Optional[float] = None,
-        chunk_size: int = 64,
-        num_chunks: int = 1,
+    matK: ms.Tensor,
+    matV: ms.Tensor,
+    vecB: ms.Tensor,
+    vecI: ms.Tensor,
+    matC_states: Optional[ms.Tensor] = None,
+    vecN_states: Optional[ms.Tensor] = None,
+    scaMinter_states: Optional[ms.Tensor] = None,
+    matC_initial: Optional[ms.Tensor] = None,
+    vecN_initial: Optional[ms.Tensor] = None,
+    scaMinter_initial: Optional[ms.Tensor] = None,
+    qk_scale: Optional[float] = None,
+    chunk_size: int = 64,
+    num_chunks: int = 1,
 ) -> tuple[ms.Tensor, ms.Tensor, ms.Tensor]:
     batch_size, nh, _, dhqk, dhhv = *matK.shape, matV.shape[-1]
     nc = num_chunks
-    _dtype, _device = matK.dtype, matK.device
+    _dtype = matK.dtype
 
     if qk_scale is None:
-        qk_scale = dhqk ** -0.5
+        qk_scale = dhqk**-0.5
 
     # initialize the states tensors
     if matC_states is None:
-        matC_states = mint.zeros((batch_size, nh, (nc + 1) * dhqk, dhhv), dtype=_dtype, )
+        matC_states = mint.zeros(
+            (batch_size, nh, (nc + 1) * dhqk, dhhv),
+            dtype=_dtype,
+        )
     if vecN_states is None:
-        vecN_states = mint.zeros((batch_size, nh, (nc + 1) * dhqk), dtype=_dtype, )
+        vecN_states = mint.zeros(
+            (batch_size, nh, (nc + 1) * dhqk),
+            dtype=_dtype,
+        )
     if scaMinter_states is None:
-        scaMinter_states = mint.zeros((batch_size, nh, (nc + 1)), dtype=_dtype, )
+        scaMinter_states = mint.zeros(
+            (batch_size, nh, (nc + 1)),
+            dtype=_dtype,
+        )
 
     # assign the initial states to the running states
     matC_k = (
-        mint.zeros((batch_size, nh, dhqk, dhhv), dtype=_dtype, )
+        mint.zeros(
+            (batch_size, nh, dhqk, dhhv),
+            dtype=_dtype,
+        )
         if matC_initial is None
         else matC_initial
     )
     vecN_k = (
-        mint.zeros((batch_size, nh, dhqk), dtype=_dtype, ) if vecN_initial is None else vecN_initial
+        mint.zeros(
+            (batch_size, nh, dhqk),
+            dtype=_dtype,
+        )
+        if vecN_initial is None
+        else vecN_initial
     )
     scaM_inter_k = (
-        mint.zeros((batch_size, nh, 1), dtype=_dtype, )
+        mint.zeros(
+            (batch_size, nh, 1),
+            dtype=_dtype,
+        )
         if scaMinter_initial is None
         else scaMinter_initial
     )
@@ -112,8 +125,8 @@ def mlstm_chunkwise_recurrent_fw_C(
     for key in range(0, num_chunks):
         # store the states from the previous iteration before updating them
         # in the first iteration, these are the initial states
-        matC_states[:, :, key * dhqk: (key + 1) * dhqk, :] = matC_k
-        vecN_states[:, :, key * dhqk: (key + 1) * dhqk] = vecN_k
+        matC_states[:, :, key * dhqk : (key + 1) * dhqk, :] = matC_k
+        vecN_states[:, :, key * dhqk : (key + 1) * dhqk] = vecN_k
         scaMinter_states[:, :, key] = scaM_inter_k
 
         # m_k update
@@ -121,8 +134,8 @@ def mlstm_chunkwise_recurrent_fw_C(
         scaG_k = scaG[:, :, key]
         scaM_inter_k_next = mint.max(scaG_k + scaM_inter_k, scaA_max_k)
         # C_k update
-        matK_chunk = matK[:, :, key * chunk_size: (key + 1) * chunk_size, :]  # * qk_scale
-        matV_chunk = matV[:, :, key * chunk_size: (key + 1) * chunk_size, :]
+        matK_chunk = matK[:, :, key * chunk_size : (key + 1) * chunk_size, :]  # * qk_scale
+        matV_chunk = matV[:, :, key * chunk_size : (key + 1) * chunk_size, :]
         vecA_k = vecA[:, :, key, :]
 
         vecAbar_k = mint.exp(vecA_k - scaM_inter_k_next[..., None])[:, :, :, None]
@@ -151,21 +164,20 @@ def mlstm_chunkwise_recurrent_fw_C(
 
 
 def mlstm_chunkwise_parallel_fw_H(
-        matQ: ms.Tensor,
-        matK: ms.Tensor,
-        matV: ms.Tensor,
-        # these states must be all states up to the last chunk, i.e. :-1
-        matC_states: ms.Tensor,
-        vecN_states: ms.Tensor,
-        scaMinter_states: ms.Tensor,
-        vecI: ms.Tensor,
-        vecB: ms.Tensor,
-        qk_scale: float,
-        chunk_size: int = 64,
-        num_chunks: int = 1,
-        eps: float = 1e-6,
+    matQ: ms.Tensor,
+    matK: ms.Tensor,
+    matV: ms.Tensor,
+    # these states must be all states up to the last chunk, i.e. :-1
+    matC_states: ms.Tensor,
+    vecN_states: ms.Tensor,
+    scaMinter_states: ms.Tensor,
+    vecI: ms.Tensor,
+    vecB: ms.Tensor,
+    qk_scale: float,
+    chunk_size: int = 64,
+    num_chunks: int = 1,
+    eps: float = 1e-6,
 ) -> tuple[ms.Tensor, ms.Tensor, ms.Tensor]:
-    _device = matQ.device
     nc = num_chunks
     batch_size, nh, dqk, dhv = matC_states.shape
     matC_k_states = matC_states.view(batch_size, nh, nc, dqk // nc, dhv)
@@ -180,7 +192,7 @@ def mlstm_chunkwise_parallel_fw_H(
         mint.ones(
             (chunk_size, chunk_size),
             dtype=ms.bool_,
-            )
+        )
     )
 
     # Compute intra chunk contribution: H_intra
@@ -228,19 +240,19 @@ def mlstm_chunkwise_parallel_fw_H(
 
 
 def mlstm_chunkwise_fw(
-        query: ms.Tensor,
-        key: ms.Tensor,
-        value: ms.Tensor,
-        igate: ms.Tensor,
-        fgate: ms.Tensor,
-        cstate: Optional[ms.Tensor] = None,
-        nstate: Optional[ms.Tensor] = None,
-        mstate: Optional[ms.Tensor] = None,
-        qk_scale: Optional[float] = None,
-        return_last_states: bool = False,
-        return_all_states: bool = False,
-        chunk_size: int = 64,
-        eps: float = 1e-6,
+    query: ms.Tensor,
+    key: ms.Tensor,
+    value: ms.Tensor,
+    igate: ms.Tensor,
+    fgate: ms.Tensor,
+    cstate: Optional[ms.Tensor] = None,
+    nstate: Optional[ms.Tensor] = None,
+    mstate: Optional[ms.Tensor] = None,
+    qk_scale: Optional[float] = None,
+    return_last_states: bool = False,
+    return_all_states: bool = False,
+    chunk_size: int = 64,
+    eps: float = 1e-6,
 ) -> tuple[
     ms.Tensor,
     ms.Tensor,
@@ -257,11 +269,11 @@ def mlstm_chunkwise_fw(
     vecF = fgate.view(batch_size, nh, nc, chunk_size)
 
     # compute the gates, the g and the a and b vectors
-    vecF_logsig = fgate.logsigmoid(vecF)
+    vecF_logsig = mint.nn.functional.logsigmoid(vecF)
     vecB = vecF_logsig.cumsum(-1)
 
     if qk_scale is None:
-        qk_scale = dhqk ** -0.5
+        qk_scale = dhqk**-0.5
 
     # ! materialize the  C_k, n_k, m_k states for each chunk
     matC_k_states, vecN_k_states, scaMinter_k_states = mlstm_chunkwise_recurrent_fw_C(
@@ -295,9 +307,7 @@ def mlstm_chunkwise_fw(
 
     ret_tuple = (matH_out, vecN_out, vecM_out)
     if return_last_states:
-        ret_tuple += (
-            (matC_k_states[:, :, -dhqk:, :], vecN_k_states[:, :, -dhqk:], scaMinter_k_states[:, :, -1:]),
-        )
+        ret_tuple += ((matC_k_states[:, :, -dhqk:, :], vecN_k_states[:, :, -dhqk:], scaMinter_k_states[:, :, -1:]),)
     else:
         ret_tuple += (None,)
 
@@ -310,18 +320,18 @@ def mlstm_chunkwise_fw(
 
 
 def mlstm_chunkwise_native_autograd(
-        query: ms.Tensor,
-        key: ms.Tensor,
-        value: ms.Tensor,
-        igate: ms.Tensor,
-        fgate: ms.Tensor,
-        c_initial: Optional[ms.Tensor] = None,
-        n_initial: Optional[ms.Tensor] = None,
-        m_initial: Optional[ms.Tensor] = None,
-        return_last_states: bool = False,
-        eps: float = 1e-6,
-        chunk_size: int = 64,
-        **kwargs,
+    query: ms.Tensor,
+    key: ms.Tensor,
+    value: ms.Tensor,
+    igate: ms.Tensor,
+    fgate: ms.Tensor,
+    c_initial: Optional[ms.Tensor] = None,
+    n_initial: Optional[ms.Tensor] = None,
+    m_initial: Optional[ms.Tensor] = None,
+    return_last_states: bool = False,
+    eps: float = 1e-6,
+    chunk_size: int = 64,
+    **kwargs,
 ) -> Union[ms.Tensor, tuple[ms.Tensor, tuple[ms.Tensor, ms.Tensor, ms.Tensor]]]:
     batch_size, nh, sequence_length, dhqk = query.shape
     if sequence_length % chunk_size != 0:
@@ -335,7 +345,7 @@ def mlstm_chunkwise_native_autograd(
     vecF_logsig = mint.nn.functional.logsigmoid(vecF)
     vecB = vecF_logsig.cumsum(-1)
 
-    qk_scale = dhqk ** -0.5
+    qk_scale = dhqk**-0.5
 
     # ! materialize the  C_k, n_k, m_k states for each chunk
     matC_k_states, vecN_k_states, scaMinter_k_states = mlstm_chunkwise_recurrent_fw_C(
@@ -376,17 +386,17 @@ def mlstm_chunkwise_native_autograd(
 
 
 def mlstm_recurrent_step_native(
-        query: ms.Tensor,
-        key: ms.Tensor,
-        value: ms.Tensor,
-        igate: ms.Tensor,
-        fgate: ms.Tensor,
-        cstate: ms.Tensor,
-        nstate: ms.Tensor,
-        mstate: ms.Tensor,
-        eps: float = 1e-6,
-        dtype_state: ms.dtype = ms.float32,
-        **kwargs,
+    query: ms.Tensor,
+    key: ms.Tensor,
+    value: ms.Tensor,
+    igate: ms.Tensor,
+    fgate: ms.Tensor,
+    cstate: ms.Tensor,
+    nstate: ms.Tensor,
+    mstate: ms.Tensor,
+    eps: float = 1e-6,
+    dtype_state: ms.dtype = ms.float32,
+    **kwargs,
 ) -> tuple[ms.Tensor, tuple[ms.Tensor, ms.Tensor, ms.Tensor]]:
     """This is a single step of the mLSTM operation in recurrent form."""
     dtype_qkv = query.dtype
@@ -420,7 +430,7 @@ def mlstm_recurrent_step_native(
 
     vecQ_scaled = query * (dhqk ** (-0.5))
     matC_state_new = scaF_act[:, :, :, None] * matC_old + scaI_act[:, :, :, None] * (
-            key[:, :, :, None] @ value[:, :, None, :]
+        key[:, :, :, None] @ value[:, :, None, :]
     )
     vecN_state_new = scaF_act * vecN_old + scaI_act * key
     h_num = vecQ_scaled[:, :, None, :] @ matC_state_new.to(dtype=dtype_qkv)
@@ -440,18 +450,18 @@ def mlstm_recurrent_step_native(
 
 
 def mlstm_recurrent_sequence_native(
-        query: ms.Tensor,
-        key: ms.Tensor,
-        value: ms.Tensor,
-        igate: ms.Tensor,
-        fgate: ms.Tensor,
-        c_initial: Optional[ms.Tensor] = None,
-        n_initial: Optional[ms.Tensor] = None,
-        m_initial: Optional[ms.Tensor] = None,
-        return_last_states: bool = False,
-        eps: float = 1e-6,
-        dtype_state: ms.dtype = ms.float32,
-        **kwargs,
+    query: ms.Tensor,
+    key: ms.Tensor,
+    value: ms.Tensor,
+    igate: ms.Tensor,
+    fgate: ms.Tensor,
+    c_initial: Optional[ms.Tensor] = None,
+    n_initial: Optional[ms.Tensor] = None,
+    m_initial: Optional[ms.Tensor] = None,
+    return_last_states: bool = False,
+    eps: float = 1e-6,
+    dtype_state: ms.dtype = ms.float32,
+    **kwargs,
 ) -> tuple[
     ms.Tensor,
     ms.Tensor,
@@ -461,7 +471,6 @@ def mlstm_recurrent_sequence_native(
 ]:
     batch_size, nh, sequence_length, dhqk = query.shape
     dhv = value.shape[-1]
-    device = query.device
 
     if c_initial is not None:
         if n_initial is None or m_initial is None:
@@ -475,11 +484,20 @@ def mlstm_recurrent_sequence_native(
         )
     else:
         # memory state
-        matC_state = mint.zeros((batch_size, nh, dhqk, dhv), dtype=dtype_state, )
+        matC_state = mint.zeros(
+            (batch_size, nh, dhqk, dhv),
+            dtype=dtype_state,
+        )
         # normalizer state
-        vecN_state = mint.zeros((batch_size, nh, dhqk), dtype=dtype_state, )
+        vecN_state = mint.zeros(
+            (batch_size, nh, dhqk),
+            dtype=dtype_state,
+        )
         # max state
-        vecM_state = mint.zeros((batch_size, nh, 1), dtype=dtype_state, )
+        vecM_state = mint.zeros(
+            (batch_size, nh, 1),
+            dtype=dtype_state,
+        )
 
     vecH_list = []
     for t in range(sequence_length):
@@ -514,20 +532,20 @@ def mlstm_recurrent_sequence_native(
 
 
 def wrap_chunkwise_pad_zeros(
-        mlstm_chunkwise_kernel: Callable,
-        query: ms.Tensor,
-        key: ms.Tensor,
-        value: ms.Tensor,
-        fgate: ms.Tensor,
-        igate: ms.Tensor,
-        c_initial: Optional[ms.Tensor] = None,
-        n_initial: Optional[ms.Tensor] = None,
-        m_initial: Optional[ms.Tensor] = None,
-        return_last_states: bool = False,
-        eps: float = 1e-6,
-        autocast_kernel_dtype: ms.dtype = ms.bfloat16,
-        chunk_size: int = 64,
-        **kwargs,
+    mlstm_chunkwise_kernel: Callable,
+    query: ms.Tensor,
+    key: ms.Tensor,
+    value: ms.Tensor,
+    fgate: ms.Tensor,
+    igate: ms.Tensor,
+    c_initial: Optional[ms.Tensor] = None,
+    n_initial: Optional[ms.Tensor] = None,
+    m_initial: Optional[ms.Tensor] = None,
+    return_last_states: bool = False,
+    eps: float = 1e-6,
+    autocast_kernel_dtype: ms.dtype = ms.bfloat16,
+    chunk_size: int = 64,
+    **kwargs,
 ) -> Union[ms.Tensor, tuple[ms.Tensor, tuple[ms.Tensor, ms.Tensor, ms.Tensor]]]:
     if return_last_states:
         raise ValueError(
@@ -577,22 +595,22 @@ def wrap_chunkwise_pad_zeros(
 
 
 def wrap_chunkwise_arbitrary_sequence_length(
-        mlstm_chunkwise_kernel: Callable,
-        mlstm_sequence_kernel: Callable,
-        mlstm_step_kernel: Callable,
-        query: ms.Tensor,
-        key: ms.Tensor,
-        value: ms.Tensor,
-        fgate: ms.Tensor,
-        igate: ms.Tensor,
-        c_initial: Optional[ms.Tensor] = None,
-        n_initial: Optional[ms.Tensor] = None,
-        m_initial: Optional[ms.Tensor] = None,
-        return_last_states: bool = True,
-        eps: float = 1e-6,
-        autocast_kernel_dtype: ms.dtype = ms.bfloat16,
-        chunk_size: int = 64,
-        enable_logging: bool = False,
+    mlstm_chunkwise_kernel: Callable,
+    mlstm_sequence_kernel: Callable,
+    mlstm_step_kernel: Callable,
+    query: ms.Tensor,
+    key: ms.Tensor,
+    value: ms.Tensor,
+    fgate: ms.Tensor,
+    igate: ms.Tensor,
+    c_initial: Optional[ms.Tensor] = None,
+    n_initial: Optional[ms.Tensor] = None,
+    m_initial: Optional[ms.Tensor] = None,
+    return_last_states: bool = True,
+    eps: float = 1e-6,
+    autocast_kernel_dtype: ms.dtype = ms.bfloat16,
+    chunk_size: int = 64,
+    enable_logging: bool = False,
 ) -> Union[ms.Tensor, tuple[ms.Tensor, tuple[ms.Tensor, ms.Tensor, ms.Tensor]]]:
     """This function computes the last hidden state and matH outputs of the mLSTM, independently of the sequence length.
 
@@ -635,21 +653,9 @@ def wrap_chunkwise_arbitrary_sequence_length(
     batch_size, nh, sequence_length, dhqk = key.shape
     dhhv = value.shape[-1]
 
-    c_state = (
-        c_initial
-        if c_initial is not None
-        else mint.zeros(batch_size, nh, dhqk, dhhv, dtype=ms.float32)
-    )
-    n_state = (
-        n_initial
-        if n_initial is not None
-        else mint.zeros(batch_size, nh, dhqk, dtype=ms.float32)
-    )
-    m_state = (
-        m_initial
-        if m_initial is not None
-        else mint.zeros(batch_size, nh, 1, dtype=ms.float32)
-    )
+    c_state = c_initial if c_initial is not None else mint.zeros(batch_size, nh, dhqk, dhhv, dtype=ms.float32)
+    n_state = n_initial if n_initial is not None else mint.zeros(batch_size, nh, dhqk, dtype=ms.float32)
+    m_state = m_initial if m_initial is not None else mint.zeros(batch_size, nh, 1, dtype=ms.float32)
 
     if sequence_length > 1:
         # process the sequence length in chunks
@@ -661,11 +667,11 @@ def wrap_chunkwise_arbitrary_sequence_length(
             iter_seq_len = chunk_size * num_chunks
             seq_len_idx = seq_len_start_idx + iter_seq_len
             h_out, (c_state, n_state, m_state) = mlstm_chunkwise_kernel(
-                query=query[..., seq_len_start_idx:seq_len_idx, :].contiguous(),
-                key=key[..., seq_len_start_idx:seq_len_idx, :].contiguous(),
-                value=value[..., seq_len_start_idx:seq_len_idx, :].contiguous(),
-                fgate=fgate[..., seq_len_start_idx:seq_len_idx].contiguous(),
-                igate=igate[..., seq_len_start_idx:seq_len_idx].contiguous(),
+                query=query[..., seq_len_start_idx:seq_len_idx, :],
+                key=key[..., seq_len_start_idx:seq_len_idx, :],
+                value=value[..., seq_len_start_idx:seq_len_idx, :],
+                fgate=fgate[..., seq_len_start_idx:seq_len_idx],
+                igate=igate[..., seq_len_start_idx:seq_len_idx],
                 c_initial=c_state,
                 n_initial=n_state,
                 m_initial=m_state,
@@ -682,11 +688,11 @@ def wrap_chunkwise_arbitrary_sequence_length(
         if remaining_seq_len > 0:
             # we use here matK as query as this kernel does not need a query, since we do not care about the outputs only about the last state
             h_out, (c_state, n_state, m_state) = mlstm_sequence_kernel(
-                query=query[..., seq_len_start_idx:sequence_length, :].contiguous(),
-                key=key[..., seq_len_start_idx:sequence_length, :].contiguous(),
-                value=value[..., seq_len_start_idx:sequence_length, :].contiguous(),
-                igate=igate[..., seq_len_start_idx:sequence_length].contiguous(),
-                fgate=fgate[..., seq_len_start_idx:sequence_length].contiguous(),
+                query=query[..., seq_len_start_idx:sequence_length, :],
+                key=key[..., seq_len_start_idx:sequence_length, :],
+                value=value[..., seq_len_start_idx:sequence_length, :],
+                igate=igate[..., seq_len_start_idx:sequence_length],
+                fgate=fgate[..., seq_len_start_idx:sequence_length],
                 c_initial=c_state,
                 n_initial=n_state,
                 m_initial=m_state,
@@ -746,21 +752,21 @@ class xLSTMBackend(ms.nn.Cell):
             mlstm_chunkwise_kernel=self.chunkwise_kernel_fn,
             mlstm_sequence_kernel=partial(
                 self.sequence_kernel_fn,
-                dtype_state=getattr(torch, config.inference_state_dtype),
+                dtype_state=getattr(ms, config.inference_state_dtype),
             ),
             mlstm_step_kernel=partial(
                 self.step_kernel_fn,
-                dtype_state=getattr(torch, config.inference_state_dtype),
+                dtype_state=getattr(ms, config.inference_state_dtype),
             ),
             chunk_size=config.chunk_size,
             eps=config.eps,
-            autocast_kernel_dtype=getattr(torch, config.autocast_kernel_dtype),
+            autocast_kernel_dtype=getattr(ms, config.autocast_kernel_dtype),
             return_last_states=True,
         )
 
         train_kernel_fn = partial(
             self.chunkwise_kernel_fn,
-            autocast_kernel_dtype=getattr(torch, config.autocast_kernel_dtype),
+            autocast_kernel_dtype=getattr(ms, config.autocast_kernel_dtype),
             eps=config.eps,
             chunk_size=config.chunk_size,
         )
@@ -769,17 +775,17 @@ class xLSTMBackend(ms.nn.Cell):
         self._train_fn = train_kernel_fn
 
     def construct(
-            self,
-            query: ms.Tensor,
-            key: ms.Tensor,
-            value: ms.Tensor,
-            igate: ms.Tensor,
-            fgate: ms.Tensor,
-            c_initial: Optional[ms.Tensor] = None,
-            n_initial: Optional[ms.Tensor] = None,
-            m_initial: Optional[ms.Tensor] = None,
-            return_last_states: bool = False,
-            mode: Optional[Literal["train", "inference"]] = None,
+        self,
+        query: ms.Tensor,
+        key: ms.Tensor,
+        value: ms.Tensor,
+        igate: ms.Tensor,
+        fgate: ms.Tensor,
+        c_initial: Optional[ms.Tensor] = None,
+        n_initial: Optional[ms.Tensor] = None,
+        m_initial: Optional[ms.Tensor] = None,
+        return_last_states: bool = False,
+        mode: Optional[Literal["train", "inference"]] = None,
     ) -> Union[ms.Tensor, tuple[ms.Tensor, tuple[ms.Tensor, ms.Tensor, ms.Tensor]]]:
         """Forward pass of the mLSTM backend.
 
@@ -860,12 +866,12 @@ class xLSTMRMSNorm(ms.nn.Cell):
     """
 
     def __init__(
-            self,
-            num_features: int,
-            eps: float = 1e-6,
-            use_weight: bool = True,
-            use_bias: bool = False,
-            force_float32_reductions: bool = True,
+        self,
+        num_features: int,
+        eps: float = 1e-6,
+        use_weight: bool = True,
+        use_bias: bool = False,
+        force_float32_reductions: bool = True,
     ):
         super().__init__()
         self.num_features = num_features
@@ -929,13 +935,13 @@ class xLSTMMultiHeadLayerNorm(ms.nn.Cell):
     """
 
     def __init__(
-            self,
-            num_heads: int,
-            head_dim: int,
-            eps: float = 1e-6,
-            use_weight: bool = True,
-            use_bias: bool = False,
-            force_float32_reductions: bool = True,
+        self,
+        num_heads: int,
+        head_dim: int,
+        eps: float = 1e-6,
+        use_weight: bool = True,
+        use_bias: bool = False,
+        force_float32_reductions: bool = True,
     ):
         super().__init__()
         self.num_features = num_heads * head_dim
@@ -971,8 +977,8 @@ class xLSTMMultiHeadLayerNorm(ms.nn.Cell):
         return y.to(in_dtype)
 
     def construct(
-            self,
-            x: ms.Tensor,
+        self,
+        x: ms.Tensor,
     ) -> ms.Tensor:
         batch_size, sequence_length, nh, DH = x.shape
         if nh != self.num_heads:
@@ -1027,7 +1033,7 @@ class xLSTMFeedForward(ms.nn.Cell):
             x = self.act_fn(self.proj_up_gate(x)) * self.proj_up(x)
         elif self.config.weight_mode == "fused":
             x = self.proj_up_gate_z(x)
-            gate, z = torch.tensor_split(x, (self.up_proj_dim,), dim=-1)
+            gate, z = mint.split(x, [self.up_proj_dim], dim=-1)
             x = self.act_fn(gate) * z
 
         y = self.proj_down(x)
@@ -1104,7 +1110,7 @@ class xLSTMLayer(ms.nn.Cell):
         )
 
     def construct(
-            self, x: ms.Tensor, state: Optional[mLSTMLayerStateType] = None
+        self, x: ms.Tensor, state: Optional[mLSTMLayerStateType] = None
     ) -> tuple[ms.Tensor, Optional[mLSTMLayerStateType]]:
         if x.ndim != 3:
             raise ValueError(f"Input must have shape [batch_size, sequence_length, HD], got {x.shape}")
@@ -1119,18 +1125,14 @@ class xLSTMLayer(ms.nn.Cell):
 
         elif self.config.weight_mode == "fused":
             qkv_opreact = self.qkv_opreact(x)
-            query, key, value, o_preact = torch.tensor_split(
+            query, key, value, o_preact = mint.split(
                 qkv_opreact,
-                (
-                    self.qk_dim,
-                    2 * self.qk_dim,
-                    2 * self.qk_dim + self.v_dim,
-                ),
+                [self.qk_dim, 2 * self.qk_dim, 2 * self.qk_dim + self.v_dim],
                 dim=-1,
             )
 
             if_preact = soft_cap(self.ifgate_preact(x), cap_value=self.config.gate_soft_cap)
-            i_preact, f_preact = torch.tensor_split(if_preact, (self.config.num_heads,), dim=-1)
+            i_preact, f_preact = mint.split(if_preact, [self.config.num_heads], dim=-1)
 
         query = query.reshape(batch_size, sequence_length, self.config.num_heads, -1).transpose(1, 2)
         key = key.reshape(batch_size, sequence_length, self.config.num_heads, -1).transpose(1, 2)
@@ -1192,9 +1194,7 @@ class xLSTMBlock(ms.nn.Cell):
         )
         self.ffn = xLSTMFeedForward(config)
 
-    def construct(
-            self, x: ms.Tensor, state: Optional[mLSTMStateType] = None
-    ) -> tuple[ms.Tensor, mLSTMStateType]:
+    def construct(self, x: ms.Tensor, state: Optional[mLSTMStateType] = None) -> tuple[ms.Tensor, mLSTMStateType]:
         x_mlstm = self.norm_mlstm(x)
         x_mlstm, state = self.mlstm_layer(x_mlstm, state)
         x = x + x_mlstm
@@ -1206,7 +1206,6 @@ class xLSTMBlock(ms.nn.Cell):
         return x, state
 
 
-
 def small_init_method(dim):
     """
     Adapted from: https://github.com/EleutherAI/gpt-neox/blob/main/megatron/model/init_functions.py
@@ -1214,10 +1213,7 @@ def small_init_method(dim):
     the Normalization of Self-Attention - Nguyen, T. & Salazar, J. (2019), using a normal distribution."""
     std = (2 / (5 * dim)) ** (1 / 2)
 
-    def init_(tensor):
-        return torch.nn.init.normal_(tensor, mean=0.0, std=std)
-
-    return init_
+    return Normal(sigma=std)
 
 
 def wang_init_method(n_layers, dim):
@@ -1226,10 +1222,7 @@ def wang_init_method(n_layers, dim):
     """
     std = 2 / n_layers / dim ** (1 / 2)
 
-    def init_(tensor):
-        return torch.nn.init.normal_(tensor, mean=0.0, std=std)
-
-    return init_
+    return Normal(sigma=std)
 
 
 class xLSTMPreTrainedModel(PreTrainedModel):
@@ -1251,28 +1244,33 @@ class xLSTMPreTrainedModel(PreTrainedModel):
 
     def _init_weights(self, module):
         if isinstance(module, mint.nn.Embedding):
-            small_init_method(self.config.hidden_size)(self.embeddings.weight)
+            small_init = small_init_method(self.config.hidden_size)
+            self.embeddings.weight.set_data(
+                initializer(small_init, self.embeddings.weight.shape, self.embeddings.weight.dtype)
+            )
         elif isinstance(module, mint.nn.Linear):
             if module.bias is not None:
-                torch.nn.init.zeros_(module.bias)
+                module.bias.set_data(initializer(Constant(0), module.bias.shape, module.bias.dtype))
+
             if self.config.weight_mode == "single" and "gate" in self._module_name_map(module):
-                torch.nn.init.zeros_(module.weight)
+                module.weight.set_data(initializer(Constant(0), module.weight.shape, module.weight.dtype))
                 with ms._no_grad():
                     if "igate" in self._module_name_map(module):
-                        module.bias.copy_(-10.0 * mint.ones_like(module.bias))
+                        module.bias.set_data(-10.0 * mint.ones_like(module.bias))
                     elif "fgate" in self._module_name_map(module):
-                        module.bias.copy_(
+                        module.bias.set_data(
                             mint.linspace(
                                 3.0,
                                 6.0,
                                 module.bias.shape[-1],
-                            ).to(
+                            ).astype(
                                 dtype=module.bias.dtype,
                             )
                         )
             elif self.config.weight_mode == "fused" and "gate" in self._module_name_map(module):
-                torch.nn.init.zeros_(module.weight)
+                module.weight.set_data(initializer(Constant(0), module.weight.shape, module.weight.dtype))
                 with ms._no_grad():
+                    # 保持原有的张量操作，并使用 .astype() 替换 .to()
                     module.bias[: self.config.num_heads] += -module.bias[
                         : self.config.num_heads
                     ] - 10.0 * mint.ones_like(module.bias)
@@ -1280,19 +1278,22 @@ class xLSTMPreTrainedModel(PreTrainedModel):
                         3.0,
                         6.0,
                         module.bias.shape[-1],
-                    ).to(
+                    ).astype(
                         dtype=module.bias.dtype,
                     )
             elif "proj_down" in self._module_name_map(module):
-                wang_init_method(dim=module.weight.shape[1], n_layers=self.config.num_hidden_layers)(module.weight)
+                wang_init = wang_init_method(n_layers=self.config.num_hidden_layers, dim=module.weight.shape[1])
+                module.weight.set_data(initializer(wang_init, module.weight.shape, module.weight.dtype))
             elif "out_proj" in self._module_name_map(module):
-                wang_init_method(dim=self.config.hidden_size, n_layers=self.config.num_hidden_layers)(module.weight)
+                wang_init = wang_init_method(n_layers=self.config.num_hidden_layers, dim=self.config.hidden_size)
+                module.weight.set_data(initializer(wang_init, module.weight.shape, module.weight.dtype))
             elif module.weight is not None:
-                small_init_method(self.config.hidden_size)(module.weight)
+                small_init = small_init_method(self.config.hidden_size)
+                module.weight.set_data(initializer(small_init, module.weight.shape, module.weight.dtype))
         elif isinstance(module, xLSTMRMSNorm) or hasattr(module, "_layer_normalize"):
-            torch.nn.init.ones_(module.weight)
+            module.weight.set_data(initializer(Constant(1), module.weight.shape, module.weight.dtype))
             if hasattr(module, "bias") and module.bias is not None:
-                torch.nn.init.zeros_(module.bias)
+                module.bias.set_data(initializer(Constant(0), module.bias.shape, module.bias.dtype))
 
 
 class xLSTMCache:
@@ -1346,9 +1347,15 @@ class xLSTMCache:
                 mint.zeros(
                     [max_batch_size, config.num_heads, config.qk_head_dim, config.v_head_dim],
                     dtype=dtype,
-                    ),
-                mint.zeros([max_batch_size, config.num_heads, config.qk_head_dim], dtype=dtype, ),
-                mint.zeros([max_batch_size, config.num_heads, 1], dtype=dtype, ),
+                ),
+                mint.zeros(
+                    [max_batch_size, config.num_heads, config.qk_head_dim],
+                    dtype=dtype,
+                ),
+                mint.zeros(
+                    [max_batch_size, config.num_heads, 1],
+                    dtype=dtype,
+                ),
             )
             for layer in range(config.num_hidden_layers)
         }
@@ -1365,7 +1372,6 @@ class xLSTMCache:
 
 
 @dataclass
-@auto_docstring
 class xLSTMOutput(ModelOutput):
     r"""
     cache_params (`xLSTMCache`):
@@ -1378,7 +1384,6 @@ class xLSTMOutput(ModelOutput):
     hidden_states: Optional[tuple[ms.Tensor]] = None
 
 
-@auto_docstring
 class xLSTMModel(xLSTMPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
@@ -1397,7 +1402,6 @@ class xLSTMModel(xLSTMPreTrainedModel):
         self.embeddings = new_embedding
 
     @can_return_tuple
-    @auto_docstring
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
@@ -1425,9 +1429,7 @@ class xLSTMModel(xLSTMPreTrainedModel):
             inputs_embeds = self.embeddings(input_ids)
 
         if use_cache and cache_params is None:
-            cache_params = xLSTMCache(
-                self.config, inputs_embeds.shape[0], dtype=inputs_embeds.dtype
-            )
+            cache_params = xLSTMCache(self.config, inputs_embeds.shape[0], dtype=inputs_embeds.dtype)
 
         hidden_states = inputs_embeds
 
@@ -1452,7 +1454,7 @@ class xLSTMModel(xLSTMPreTrainedModel):
                         )
                         for state_idx in range(len(cache_params.rnn_state[layer_idx])):
                             local_rnn_state = rnn_state[state_idx]
-                            cache_params.rnn_state[layer_idx][state_idx].copy_(local_rnn_state)
+                            cache_params.rnn_state[layer_idx][state_idx] = local_rnn_state
                         cache_params.rnn_state_initial = False
                     final_state[
                         :, offset : min(offset + self.config.max_inference_chunksize, hidden_states.shape[1])
@@ -1476,7 +1478,7 @@ class xLSTMModel(xLSTMPreTrainedModel):
                 if cache_params:
                     for state_idx in range(len(cache_params.rnn_state[layer_idx])):
                         local_rnn_state = rnn_state[state_idx]
-                        cache_params.rnn_state[layer_idx][state_idx].copy_(local_rnn_state)
+                        cache_params.rnn_state[layer_idx][state_idx] = local_rnn_state
                     cache_params.rnn_state_initial = False
 
                 if output_hidden_states:
@@ -1498,7 +1500,6 @@ class xLSTMModel(xLSTMPreTrainedModel):
 
 
 @dataclass
-@auto_docstring
 class xLSTMCausalLMOutput(ModelOutput):
     r"""
     loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
@@ -1516,7 +1517,6 @@ class xLSTMCausalLMOutput(ModelOutput):
     hidden_states: Optional[tuple[ms.Tensor]] = None
 
 
-@auto_docstring
 class xLSTMForCausalLM(xLSTMPreTrainedModel, GenerationMixin):
     def __init__(self, config):
         super().__init__(config)
@@ -1570,7 +1570,6 @@ class xLSTMForCausalLM(xLSTMPreTrainedModel, GenerationMixin):
         return model_inputs
 
     @can_return_tuple
-    @auto_docstring
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
@@ -1612,11 +1611,11 @@ class xLSTMForCausalLM(xLSTMPreTrainedModel, GenerationMixin):
         loss = None
         if labels is not None:
             # Shift so that tokens < nstate predict nstate
-            shift_logits = logits[..., :-1, :].contiguous()
-            shift_labels = labels[..., 1:].contiguous()
+            shift_logits = logits[..., :-1, :]
+            shift_labels = labels[..., 1:]
             # Flatten the tokens
-            loss_fct = CrossEntropyLoss()
-            loss = loss_fct(shift_logits.view(-1, shift_logits.shape[-1]), shift_labels.view(-1))
+            loss_fct = ms.nn.CrossEntropyLoss()
+            loss = loss_fct(shift_logits.view(-1, shift_logits.shape[-1]), shift_labels.view(-1).astype(ms.int32))
 
         return xLSTMCausalLMOutput(
             loss=loss,

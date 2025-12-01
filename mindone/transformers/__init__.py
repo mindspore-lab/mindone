@@ -1489,6 +1489,7 @@ from .models.xlnet import (
     XLNetModel,
     XLNetPreTrainedModel,
 )
+from .models.xlstm import xLSTMForCausalLM, xLSTMModel, xLSTMPreTrainedModel
 from .models.xmod import (
     XmodForCausalLM,
     XmodForMaskedLM,
