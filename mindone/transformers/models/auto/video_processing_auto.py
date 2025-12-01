@@ -45,6 +45,7 @@ else:
     VIDEO_PROCESSOR_MAPPING_NAMES = OrderedDict(
         [
             ("qwen2_5_vl", "Qwen2VLVideoProcessor"),
+            ("qwen2_vl", "Qwen2VLVideoProcessor"),
         ]
     )
 

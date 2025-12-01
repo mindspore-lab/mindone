@@ -238,7 +238,7 @@ class QwenImageEditInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         self,
         prompt: Union[str, List[str]] = None,
         image: Optional[ms.tensor] = None,
-        dtype: Optional[ms.dtype] = None,
+        dtype: Optional[ms.Type] = None,
     ):
         dtype = dtype or self.text_encoder.dtype
 
