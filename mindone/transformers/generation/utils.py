@@ -691,7 +691,7 @@ class GenerationMixin:
         model_inputs.pop("labels", None)
 
         # Paged Attention
-        if self.config._attn_implementation == "flash_paged":
+        if "paged" in self.config._attn_implementation:
             bs, seq_len = input_ids.shape
             step = kwargs["step"]
             if step == 0:
@@ -2196,73 +2196,6 @@ class GenerationMixin:
         generation_config._pad_token_tensor = pad_token_tensor
         generation_config._decoder_start_token_tensor = decoder_start_token_tensor
 
-    def _padding_inputs(
-        self,
-        generation_config,
-        input_ids: ms.Tensor,
-        inputs_embeds: ms.Tensor = None,
-        labels: ms.Tensor = None,
-        position_ids: ms.Tensor = None,
-        attention_mask: ms.Tensor = None,
-    ):
-        # init empty array
-        bs, max_length = len(input_ids), generation_config.max_length
-        emb_length = inputs_embeds.shape[-1] if inputs_embeds is not None else 0
-        ignore_label_index = 0
-
-        padded_input_ids = mint.zeros((bs, max_length), dtype=ms.int64)
-        padded_labels = ops.full((bs, max_length), ignore_label_index, dtype=ms.int64)
-        padded_position_ids = mint.zeros((bs, max_length), dtype=ms.int64)
-        padded_attention_mask = mint.zeros((bs, max_length), dtype=ms.bool_)
-
-        padded_inputs_embeds = (
-            mint.zeros((bs, max_length, emb_length), dtype=inputs_embeds.dtype) if inputs_embeds is not None else None
-        )
-
-        _labels = labels
-        _position_ids = position_ids
-
-        if attention_mask is None:
-            if inputs_embeds is not None:
-                attention_mask = mint.ones(inputs_embeds.shape[:2], dtype=ms.bool_)
-            else:
-                attention_mask = mint.ones(input_ids.shape[:], dtype=ms.bool_)
-        else:
-            attention_mask = attention_mask.astype(ms.bool_)
-        cur_len = int(attention_mask.sum(-1).max())
-
-        if position_ids is None:
-            position_ids = mint.arange(0, cur_len, dtype=ms.int64)
-        if labels is None:
-            labels = ops.full(
-                (
-                    bs,
-                    cur_len,
-                ),
-                ignore_label_index,
-                dtype=ms.int32,
-            )
-
-        for batch_idx, cur_attention_mask in enumerate(attention_mask):
-            cur_len = cur_attention_mask.sum()
-
-            padded_attention_mask[batch_idx, :cur_len] = attention_mask[batch_idx][:]
-            padded_input_ids[batch_idx, : min(cur_len, input_ids[batch_idx].shape[0])] = input_ids[batch_idx][:]
-            padded_labels[batch_idx, :cur_len] = labels[batch_idx][:]
-            padded_position_ids[batch_idx, :cur_len] = mint.arange(0, cur_len.item(), dtype=position_ids.dtype)
-
-            if inputs_embeds is not None:
-                padded_inputs_embeds[batch_idx, :cur_len] = inputs_embeds[batch_idx][:]
-
-        new_input_ids = padded_input_ids
-        new_attention_mask = padded_attention_mask
-        new_labels = None if _labels is None else padded_labels
-        new_position_ids = None if _position_ids is None else padded_position_ids
-
-        new_inputs_embeds = None if inputs_embeds is None else padded_inputs_embeds
-
-        return new_input_ids, new_inputs_embeds, new_labels, new_position_ids, new_attention_mask
-
     def _valid_auto_compile_criteria(self, model_kwargs: dict[str, Any], generation_config: GenerationConfig) -> bool:
         """
         Determines whether to trigger auto-compilation of the model's forward pass at generation time.
@@ -2878,7 +2811,7 @@ class GenerationMixin:
 
         while self._has_unfinished_sequences(this_peer_finished, synced_gpus):
             # prepare model inputs
-            if self.config._attn_implementation == "flash_paged":
+            if "paged" in self.config._attn_implementation:
                 model_kwargs["step"] = step
             model_inputs = self.prepare_inputs_for_generation(input_ids, **model_kwargs)
 

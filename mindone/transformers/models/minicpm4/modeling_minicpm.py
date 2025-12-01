@@ -633,7 +633,7 @@ class MiniCPMPagedAttention(MiniCPMAttention):
 
     def __init__(self, config: MiniCPMConfig, layer_idx: Optional[int] = None):
         super().__init__(config, layer_idx)
-        compute_dtype = str_to_dtype(config.mindspore_dtype)
+        compute_dtype = str_to_dtype(config.dtype)
 
         self.is_first_iteration = True
 
@@ -743,7 +743,7 @@ class MiniCPMDecoderLayer(nn.Cell):
         self.scale_depth = config.scale_depth
         self.num_hidden_layers = config.num_hidden_layers
 
-        if config._attn_implementation == "flash_paged":
+        if "paged" in config._attn_implementation:
             self.is_first_iteration = True
 
     def construct(
@@ -940,7 +940,7 @@ class MiniCPMModel(MiniCPMPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-        if self.config._attn_implementation == "flash_paged":
+        if "paged" in self.config._attn_implementation:
             self.is_first_iteration = True
 
     def get_input_embeddings(self):
@@ -1094,8 +1094,8 @@ class MiniCPMForCausalLM(MiniCPMPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-        if self.config._attn_implementation == "flash_paged":
-            compute_dtype = str_to_dtype(config.mindspore_dtype)
+        if "paged" in self.config._attn_implementation:
+            compute_dtype = str_to_dtype(config.dtype)
 
             self.is_first_iteration = True
 
@@ -1381,7 +1381,7 @@ class MiniCPMForCausalLM(MiniCPMPreTrainedModel):
         )
 
         # Paged Attention
-        if self.config._attn_implementation == "flash_paged":
+        if "paged" in self.config._attn_implementation:
             bs, seq_len = input_ids.shape
             step = kwargs["step"]
             if step == 0:

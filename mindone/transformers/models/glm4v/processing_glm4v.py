@@ -105,21 +105,18 @@ class Glm4vProcessor(ProcessorMixin):
 
         Args:
             images (`PIL.Image.Image`, `np.ndarray`, `ms.Tensor`, `List[PIL.Image.Image]`, `List[np.ndarray]`, `List[ms.Tensor]`):
-                The image or batch of images to be prepared. Each image can be a PIL image, NumPy array or PyTorch
+                The image or batch of images to be prepared. Each image can be a PIL image, NumPy array or Mindspore
                 tensor. Both channels-first and channels-last formats are supported.
             text (`str`, `List[str]`, `List[List[str]]`):
                 The sequence or batch of sequences to be encoded. Each sequence can be a string or a list of strings
                 (pretokenized string). If the sequences are provided as list of strings (pretokenized), you must set
                 `is_split_into_words=True` (to lift the ambiguity with a batch of sequences).
             videos (`np.ndarray`, `ms.Tensor`, `List[np.ndarray]`, `List[ms.Tensor]`):
-                The image or batch of videos to be prepared. Each video can be a 4D NumPy array or PyTorch
+                The image or batch of videos to be prepared. Each video can be a 4D NumPy array or Mindspore
                 tensor, or a nested list of 3D frames. Both channels-first and channels-last formats are supported.
             return_tensors (`str` or [`~utils.TensorType`], *optional*):
                 If set, will return tensors of a particular framework. Acceptable values are:
-                - `'tf'`: Return TensorFlow `tf.constant` objects.
-                - `'pt'`: Return PyTorch `ms.Tensor` objects.
                 - `'np'`: Return NumPy `np.ndarray` objects.
-                - `'jax'`: Return JAX `jnp.ndarray` objects.
 
         Returns:
             [`BatchFeature`]: A [`BatchFeature`] with the following fields:

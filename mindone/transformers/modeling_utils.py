@@ -412,7 +412,7 @@ def _add_variant(weights_name: str, variant: Optional[str] = None) -> str:
 
 def _get_dtype(
     cls,
-    mindspore_dtype: Optional[Union[str, ms.Type, dict]],
+    dtype: Optional[Union[str, ms.Type, dict]],
     checkpoint_files: Optional[list[str]],
     config: PretrainedConfig,
     sharded_metadata: Optional[dict],
@@ -421,49 +421,47 @@ def _get_dtype(
     is_sharded: bool,
 ):
     # set dtype to instantiate the model under:
-    # 1. If mindspore_dtype is not None, we use that dtype
-    # 2. If mindspore_dtype is "auto", we auto-detect dtype from the loaded state_dict, by checking its first
+    # 1. If dtype is not None, we use that dtype
+    # 2. If dtype is "auto", we auto-detect dtype from the loaded state_dict, by checking its first
     #    weights entry that is of a floating type - we assume all floating dtype weights are of the same dtype
     # we also may have config.dtype available, but we won't rely on it till v5
 
-    if mindspore_dtype is not None:
-        config.mindspore_dtype = dtype_to_str(mindspore_dtype)
+    if dtype is not None:
+        config.dtype = dtype_to_str(dtype)
         for sub_config_key in config.sub_configs.keys():
             sub_config = getattr(config, sub_config_key)
-            sub_config.mindspore_dtype = mindspore_dtype
-        if isinstance(mindspore_dtype, str):
-            if mindspore_dtype == "auto":
+            sub_config.dtype = dtype
+        if isinstance(dtype, str):
+            if dtype == "auto":
                 if hasattr(config, "dtype") and config.dtype is not None:
-                    mindspore_dtype = config.dtype
-                    logger.info(f"Will use dtype={mindspore_dtype} as defined in model's config object")
+                    dtype = config.dtype
+                    logger.info(f"Will use dtype={dtype} as defined in model's config object")
                 else:
                     if is_sharded and "dtype" in sharded_metadata:
-                        mindspore_dtype = sharded_metadata["dtype"]
+                        dtype = sharded_metadata["dtype"]
                     elif not is_sharded:
-                        mindspore_dtype = get_state_dict_dtype(state_dict)
+                        dtype = get_state_dict_dtype(state_dict)
                     else:
                         one_state_dict = load_state_dict(checkpoint_files[0])
-                        mindspore_dtype = get_state_dict_dtype(one_state_dict)
+                        dtype = get_state_dict_dtype(one_state_dict)
                         del one_state_dict  # free CPU memory
                     logger.info(
                         f"Since the `dtype` attribute can't be found in model's config object, "
-                        f"will use dtype={mindspore_dtype} as derived from model's weights"
+                        f"will use dtype={dtype} as derived from model's weights"
                     )
             else:
-                raise ValueError(
-                    f'`mindspore_dtype` can be either `ms.Type` or `"auto"`, but received {mindspore_dtype}'
-                )
+                raise ValueError(f'`mindspore_dtype` can be either `ms.Type` or `"auto"`, but received {dtype}')
         # TODO: We cannot set default mindspore dtype!
     else:
         # set fp32 as the default dtype for BC
         # TODO: We cannot get default mindspore dtype! Therefore, we set default dtype to ms.float32
         default_dtype = dtype_to_str(ms.float32)
-        config.mindspore_dtype = default_dtype
+        config.dtype = default_dtype
         for key in config.sub_configs.keys():
             value = getattr(config, key)
-            value.mindspore_dtype = default_dtype
+            value.dtype = default_dtype
 
-    return config, mindspore_dtype
+    return config, dtype
 
 
 def _find_missing_and_unexpected_keys(
@@ -2487,9 +2485,9 @@ class PreTrainedModel(
         ):
             key_mapping = cls._checkpoint_conversion_mapping
 
-        # For BC on torch_dtype argument
+        # For BC on mindspore_dtype argument
         if mindspore_dtype is not None:
-            logger.warning_once("`torch_dtype` is deprecated! Use `dtype` instead!")
+            logger.warning_once("`mindspore_dtype` is deprecated! Use `dtype` instead!")
             # If both kwargs are provided, use `dtype`
             dtype = dtype if dtype is not None else mindspore_dtype
 
@@ -2889,9 +2887,9 @@ class PreTrainedModel(
                 state_dict = load_state_dict(resolved_archive_file)
 
             # Find the correct dtype based on current state
-            config, mindspore_dtype = _get_dtype(
+            config, dtype = _get_dtype(
                 cls,
-                mindspore_dtype,
+                dtype,
                 resolved_archive_file,
                 config,
                 sharded_metadata,
@@ -2918,12 +2916,10 @@ class PreTrainedModel(
         model.tie_weights()
 
         # We cannot set default mindspore dtype. So we need to cast model weights after creating.
-        if mindspore_dtype is not None:
-            model = model.to(mindspore_dtype)
+        if dtype is not None:
+            model = model.to(dtype)
 
-            logger.info(
-                f"convert model:{model.__class__.__name__} parameters to mindspore_dtype {dtype_to_str(mindspore_dtype)}"
-            )
+            logger.info(f"convert model:{model.__class__.__name__} parameters to mindspore_dtype {dtype_to_str(dtype)}")
 
         # make sure we use the model's config since the __init__ call might have copied it
         config = model.config

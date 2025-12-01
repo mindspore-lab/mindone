@@ -236,8 +236,8 @@ class Qwen2Attention(nn.Cell):
 
         self.scale = self.head_dim**-0.5
 
-        if self.config._attn_implementation == "flash_paged":
-            compute_dtype = str_to_dtype(config.mindspore_dtype)
+        if "paged" in self.config._attn_implementation:
+            compute_dtype = str_to_dtype(config.dtype)
 
             self.is_first_iteration = True
 
@@ -284,7 +284,7 @@ class Qwen2Attention(nn.Cell):
         cos, sin = position_embeddings
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
 
-        if self.config._attn_implementation == "flash_paged":
+        if "paged" in self.config._attn_implementation:
             if not self.is_first_iteration:
                 query_states = query_states[:, :, -1:, :]
                 key_states = key_states[:, :, -1:, :]
@@ -331,7 +331,7 @@ class Qwen2Attention(nn.Cell):
             **kwargs,
         )
 
-        if self.config._attn_implementation != "flash_paged":
+        if "paged" not in self.config._attn_implementation:
             attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)
 
         attn_output = self.o_proj(attn_output)
@@ -496,7 +496,7 @@ class Qwen2DecoderLayer(nn.Cell):
         self.input_layernorm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.post_attention_layernorm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
-        if config._attn_implementation == "flash_paged":
+        if "paged" in config._attn_implementation:
             self.is_first_iteration = True
 
     def construct(
@@ -721,7 +721,7 @@ class Qwen2Model(Qwen2PreTrainedModel):
 
         self.rotary_emb = Qwen2RotaryEmbedding(config)
 
-        if self.config._attn_implementation == "flash_paged":
+        if "paged" in self.config._attn_implementation:
             self.is_first_iteration = True
 
         self.gradient_checkpointing = False
@@ -861,8 +861,8 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel, GenerationMixin):
         # Initialize weights and apply final processing
         self.post_init()
 
-        if self.config._attn_implementation == "flash_paged":
-            compute_dtype = str_to_dtype(config.mindspore_dtype)
+        if "paged" in self.config._attn_implementation:
+            compute_dtype = str_to_dtype(config.dtype)
             self.is_first_iteration = True
 
             self.freqs_mgr = FreqsMgr(
