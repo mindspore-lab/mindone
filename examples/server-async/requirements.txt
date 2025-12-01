@@ -1,0 +1,7 @@
+transformers
+sentencepiece
+fastapi
+uvicorn
+ftfy
+accelerate
+protobuf
