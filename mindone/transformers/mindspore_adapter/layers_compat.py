@@ -4,7 +4,7 @@ if TYPE_CHECKING:
     from mindspore import Tensor
 
 
-__all__ = ["unflatten"]
+__all__ = ["unflatten", "view_as_complex"]
 
 
 # ================================================================================
@@ -53,3 +53,35 @@ def _unflatten(x: "Tensor", dim: int, sizes: tuple[int, ...]) -> "Tensor":
 
 
 unflatten = _unflatten
+
+
+# ================================================================================
+# view_as_complex
+# ================================================================================
+def _view_as_complex(input: ms.Tensor) -> ms.Tensor:
+    r"""
+    Equivalence of `torch.view_as_complex`.
+
+    Args:
+        input (ms.Tensor): the input tensor.
+
+    Example:
+
+        >>> import mindspore as ms
+        >>> x = ms.ops.randn(4, 2)
+        >>> x
+        [[ 1.6116, -0.5772]
+         [-1.4606, -0.9120]
+         [ 0.0786, -1.7497]
+         [-0.6561, -1.6623]]
+        >>> view_as_complex(x)
+        [1.6116-0.5772j   -1.4606-0.9120j   0.0786-1.7497j   -0.6561-1.6623j]
+    """
+    assert input.shape[-1] == 2, "Tensor must have a last dimension of size 2"
+    real_part, imag_part = input.chunk(2, dim=-1)
+    # todo: unavailable mint interface ops.Complex
+    output = ops.Complex()(real_part, imag_part).squeeze(axis=-1)
+    return output
+
+
+view_as_complex = _view_as_complex
