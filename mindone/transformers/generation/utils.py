@@ -3049,39 +3049,20 @@ class GenerationMixin:
 
     @staticmethod
     def _beam_search_has_unfinished_sequences(
-        running_beam_scores: ms.Tensor,
-        beam_scores: ms.Tensor,
+        is_early_stop_heuristic_unsatisfied: ms.Tensor,
         is_sent_finished: ms.Tensor,
         next_token_hits_stopping_criteria: ms.Tensor,
-        cur_len: int,
-        max_length: int,
-        decoder_prompt_len: int,
         early_stopping: Union[bool, str],
-        length_penalty: float,
     ):
         """
         Beam Search stopping condition -- halts the generation loop if any of these conditions becomes False
         """
         # a. Can the open beams improve the top completed scores?
-        # early_stopping == False -> apply heuristic = always get the best score from
-        #   `cur_len - decoder_prompt_len`. See the discussion below for more details.
-        #   https://github.com/huggingface/transformers/pull/20901#issuecomment-1369845565
-        # early_stopping == "never" -> compute the best score from `max_length` or `cur_len`, depending on the
-        #   sign of `length_penalty`. Positive `length_penalty` favors longer sequences, thus we use
-        #   `max_length` there.
-        if early_stopping == "never" and length_penalty > 0.0:
-            best_hypothetical_length = max_length - decoder_prompt_len
-        else:
-            best_hypothetical_length = cur_len - decoder_prompt_len
-        best_possible_running_score = running_beam_scores[:, :1] / (best_hypothetical_length**length_penalty)
-        worst_finished_score = mint.where(is_sent_finished, mint.min(beam_scores, dim=1, keepdim=True)[0], -1.0e9)
-        improvement_possible = mint.any(best_possible_running_score > worst_finished_score)
+        improvement_possible = mint.any(is_early_stop_heuristic_unsatisfied)
 
         # b. Is there still a beam without fully completed sequences? This is only relevant if early_stopping is
         # enabled, where we want to finish as soon as all beams have a completed sequence.
-        exists_open_beam = ms.Tensor(
-            ~(mint.all(is_sent_finished) & ms.Tensor(early_stopping is True, ms.int32)), ms.int32
-        )
+        exists_open_beam = ~(mint.all(is_sent_finished) & (early_stopping is True))
 
         # c. Have we hit a stopping criteria with all running sequences and have no way to continue? e.g. we have
         # reached `max_length``
