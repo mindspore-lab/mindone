@@ -66,7 +66,6 @@ from mindspore.nn import CrossEntropyLoss, Identity
 from mindone.transformers.generation.configuration_utils import CompileConfig, GenerationConfig
 
 from .activations import get_activation
-from .generation.utils import GenerationMixin
 from .integrations import PeftAdapterMixin
 from .integrations.accelerate import find_tied_parameters
 from .integrations.flash_attention import flash_attention_forward
@@ -1137,9 +1136,7 @@ class EmbeddingAccessMixin:
             self.lm_head = new_embeddings
 
 
-class PreTrainedModel(
-    nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, GenerationMixin, PushToHubMixin, PeftAdapterMixin
-):
+class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMixin):
     r"""
     Base class for all models.
 

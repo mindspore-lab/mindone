@@ -154,6 +154,7 @@ def add_offsets_to_mask_function(mask_function: Callable, q_offset: int, kv_offs
     return inner_mask
 
 
+# TODO there is a compile problem if using `mindspore vmap`, so a patch is used as substition for this operator
 def _vmap_for_bhqkv(mask_function: Callable, bh_indices: bool = True) -> Callable:
     """
     Used to vmap our mask_functions over the q_idx and kv_idx dimensions of the inputs. Optionally, vmap over

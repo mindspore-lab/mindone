@@ -20,7 +20,13 @@ def paged_attention_forward(
         q: (total_q, nheads, headdim), where total_q = total number of query tokens in the batch.
         k: (total_k, nheads_k, headdim), where total_k = total number of key tokens in the batch.  but if there is a block table it can be the full k
         v: (total_k, nheads_k, headdim), where total_k = total number of key tokens in the batch.  but if there is a block table it can be the full v
+        kwargs:
+        batch_valid_length, block_tables, slot_mapping are needed to do mapping between cache getting/saving and physical blocks
     """
+    if not hasattr(module, "infer_attention"):
+        raise NotImplementedError(
+            "This model has not supported PagedAttenion yet. Please refer to qwen3 setting and supplement infer_attention as well."
+        )
 
     attn_output = module.infer_attention(
         q,
