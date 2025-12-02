@@ -22,6 +22,7 @@ from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from mindone.models.utils import normal_, zeros_
+from mindone.transformers.activations import ACT2FN
 from mindone.transformers.cache_utils import Cache, DynamicCache
 from mindone.transformers.generation import GenerationMixin
 from mindone.transformers.masking_utils import create_causal_mask
@@ -148,7 +149,7 @@ class Qwen2MLP(nn.Cell):
         self.gate_proj = nn.Dense(self.hidden_size, self.intermediate_size, has_bias=False)
         self.up_proj = nn.Dense(self.hidden_size, self.intermediate_size, has_bias=False)
         self.down_proj = nn.Dense(self.intermediate_size, self.hidden_size, has_bias=False)
-        self.act_fn = mint.nn.SiLU()
+        self.act_fn = ACT2FN[config.hidden_act]
 
     def construct(self, hidden_state):
         return self.down_proj(self.act_fn(self.gate_proj(hidden_state)) * self.up_proj(hidden_state))
@@ -815,7 +816,7 @@ class Qwen2Model(Qwen2PreTrainedModel):
                 hidden_states,
                 attention_mask=causal_mask,
                 position_ids=position_ids,
-                past_key_value=past_key_values[layer_idx] if past_key_values is not None else None,
+                past_key_values=past_key_values,
                 output_attentions=output_attentions,
                 use_cache=use_cache,
                 cache_position=cache_position,
