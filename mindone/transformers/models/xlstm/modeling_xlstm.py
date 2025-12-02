@@ -17,6 +17,8 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Callable, Literal, Optional, Union
 
+from transformers import xLSTMConfig
+
 import mindspore as ms
 from mindspore import mint
 from mindspore.common.initializer import Constant, Normal, initializer
@@ -24,7 +26,6 @@ from mindspore.common.initializer import Constant, Normal, initializer
 from ...generation import GenerationMixin
 from ...modeling_utils import PreTrainedModel
 from ...utils import ModelOutput, can_return_tuple
-from .configuration_xlstm import round_up_to_next_multiple_of, xLSTMConfig
 
 mLSTMLayerStateType = tuple[ms.Tensor, ms.Tensor, ms.Tensor]
 mLSTMStateType = dict[int, mLSTMLayerStateType]
@@ -973,7 +974,7 @@ class xLSTMMultiHeadLayerNorm(ms.nn.Cell):
         if self.force_float32_reductions:
             x = x.float()
         x_centered = x - x.mean(dim=-1, keepdim=True)
-        y = x_centered * mint.rsqrt(x.var(dim=-1, keepdim=True, unbiased=False) + self.eps)
+        y = x_centered * mint.rsqrt(mint.var(x, dim=-1, keepdim=True, correction=0) + self.eps)
         return y.to(in_dtype)
 
     def construct(
@@ -996,6 +997,10 @@ class xLSTMFeedForward(ms.nn.Cell):
     def __init__(self, config: xLSTMConfig):
         super().__init__()
         self.config = config
+
+        def round_up_to_next_multiple_of(x: int, multiple_of: int) -> int:
+            """Rounds up x to the next multiple of multiple_of."""
+            return int(((x + multiple_of - 1) // multiple_of) * multiple_of)
 
         self.up_proj_dim = round_up_to_next_multiple_of(
             config.hidden_size * config.ffn_proj_factor,
@@ -1237,7 +1242,7 @@ class xLSTMPreTrainedModel(PreTrainedModel):
     _is_stateful = True
 
     def _module_name_map(self, module):
-        for name, mod in self.named_modules():
+        for name, mod in self.parameters_and_names():
             if mod is module:
                 return name
         return ""
@@ -1254,33 +1259,32 @@ class xLSTMPreTrainedModel(PreTrainedModel):
 
             if self.config.weight_mode == "single" and "gate" in self._module_name_map(module):
                 module.weight.set_data(initializer(Constant(0), module.weight.shape, module.weight.dtype))
-                with ms._no_grad():
-                    if "igate" in self._module_name_map(module):
-                        module.bias.set_data(-10.0 * mint.ones_like(module.bias))
-                    elif "fgate" in self._module_name_map(module):
-                        module.bias.set_data(
-                            mint.linspace(
-                                3.0,
-                                6.0,
-                                module.bias.shape[-1],
-                            ).astype(
-                                dtype=module.bias.dtype,
-                            )
+
+                if "igate" in self._module_name_map(module):
+                    module.bias.set_data(-10.0 * mint.ones_like(module.bias))
+                elif "fgate" in self._module_name_map(module):
+                    module.bias.set_data(
+                        mint.linspace(
+                            3.0,
+                            6.0,
+                            module.bias.shape[-1],
+                        ).astype(
+                            dtype=module.bias.dtype,
                         )
+                    )
             elif self.config.weight_mode == "fused" and "gate" in self._module_name_map(module):
                 module.weight.set_data(initializer(Constant(0), module.weight.shape, module.weight.dtype))
-                with ms._no_grad():
-                    # 保持原有的张量操作，并使用 .astype() 替换 .to()
-                    module.bias[: self.config.num_heads] += -module.bias[
-                        : self.config.num_heads
-                    ] - 10.0 * mint.ones_like(module.bias)
-                    module.bias[: self.config.num_heads] += -module.bias[self.config.num_heads :] + mint.linspace(
-                        3.0,
-                        6.0,
-                        module.bias.shape[-1],
-                    ).astype(
-                        dtype=module.bias.dtype,
-                    )
+                module.bias[: self.config.num_heads] += -module.bias[: self.config.num_heads] - 10.0 * mint.ones_like(
+                    module.bias
+                )
+                module.bias[: self.config.num_heads] += -module.bias[self.config.num_heads :] + mint.linspace(
+                    3.0,
+                    6.0,
+                    module.bias.shape[-1],
+                ).astype(
+                    dtype=module.bias.dtype,
+                )
+
             elif "proj_down" in self._module_name_map(module):
                 wang_init = wang_init_method(n_layers=self.config.num_hidden_layers, dim=module.weight.shape[1])
                 module.weight.set_data(initializer(wang_init, module.weight.shape, module.weight.dtype))
@@ -1439,28 +1443,28 @@ class xLSTMModel(xLSTMPreTrainedModel):
             and not output_hidden_states
         ):
             offset = 0
-            with ms._no_grad():
-                if cache_params is None:
-                    cache_params = xLSTMCache(config=self.config, max_batch_size=hidden_states.shape[0])
-                final_state = mint.zeros_like(hidden_states)
-                while offset < hidden_states.shape[1]:
-                    hidden_states_chunk = hidden_states[
-                        :, offset : min(offset + self.config.max_inference_chunksize, hidden_states.shape[1])
-                    ]
-                    for layer_idx, xlstm_block in enumerate(self.blocks):
-                        hidden_states_chunk, rnn_state = xlstm_block(
-                            hidden_states_chunk,
-                            state=cache_params.rnn_state[layer_idx],
-                        )
-                        for state_idx in range(len(cache_params.rnn_state[layer_idx])):
-                            local_rnn_state = rnn_state[state_idx]
-                            cache_params.rnn_state[layer_idx][state_idx] = local_rnn_state
-                        cache_params.rnn_state_initial = False
-                    final_state[
-                        :, offset : min(offset + self.config.max_inference_chunksize, hidden_states.shape[1])
-                    ] = hidden_states_chunk
-                    offset += self.config.max_inference_chunksize
-                hidden_states = final_state
+
+            if cache_params is None:
+                cache_params = xLSTMCache(config=self.config, max_batch_size=hidden_states.shape[0])
+            final_state = mint.zeros_like(hidden_states)
+            while offset < hidden_states.shape[1]:
+                hidden_states_chunk = hidden_states[
+                    :, offset : min(offset + self.config.max_inference_chunksize, hidden_states.shape[1])
+                ]
+                for layer_idx, xlstm_block in enumerate(self.blocks):
+                    hidden_states_chunk, rnn_state = xlstm_block(
+                        hidden_states_chunk,
+                        state=cache_params.rnn_state[layer_idx],
+                    )
+                    for state_idx in range(len(cache_params.rnn_state[layer_idx])):
+                        local_rnn_state = rnn_state[state_idx]
+                        cache_params.rnn_state[layer_idx][state_idx] = local_rnn_state
+                    cache_params.rnn_state_initial = False
+                final_state[
+                    :, offset : min(offset + self.config.max_inference_chunksize, hidden_states.shape[1])
+                ] = hidden_states_chunk
+                offset += self.config.max_inference_chunksize
+            hidden_states = final_state
         else:
             all_hidden_states = () if output_hidden_states else None
             for layer_idx, xlstm_block in enumerate(self.blocks):
@@ -1478,7 +1482,7 @@ class xLSTMModel(xLSTMPreTrainedModel):
                 if cache_params:
                     for state_idx in range(len(cache_params.rnn_state[layer_idx])):
                         local_rnn_state = rnn_state[state_idx]
-                        cache_params.rnn_state[layer_idx][state_idx] = local_rnn_state
+                        cache_params.rnn_state[layer_idx][state_idx].copy_(local_rnn_state)
                     cache_params.rnn_state_initial = False
 
                 if output_hidden_states:
@@ -1598,13 +1602,12 @@ class xLSTMForCausalLM(xLSTMPreTrainedModel, GenerationMixin):
 
         if not self.training and self.config.max_inference_chunksize < logits.shape[1]:
             offset = 0
-            with ms._no_grad():
-                while offset < logits.shape[1]:
-                    logits[:, offset : min(offset + self.config.max_inference_chunksize, logits.shape[1])] = soft_cap(
-                        logits[:, offset : min(offset + self.config.max_inference_chunksize, logits.shape[1])],
-                        self.config.output_logit_soft_cap,
-                    )
-                    offset += self.config.max_inference_chunksize
+            while offset < logits.shape[1]:
+                logits[:, offset : min(offset + self.config.max_inference_chunksize, logits.shape[1])] = soft_cap(
+                    logits[:, offset : min(offset + self.config.max_inference_chunksize, logits.shape[1])],
+                    self.config.output_logit_soft_cap,
+                )
+                offset += self.config.max_inference_chunksize
         else:
             logits = soft_cap(logits, self.config.output_logit_soft_cap)
 
