@@ -1652,6 +1652,7 @@ FLUX2_TRANSFORMER2D_CASES = [
             .numpy(),
             "timestep": torch.tensor([1.0]).expand(1).numpy(),
             "guidance": torch.tensor([1.0]).expand(1).numpy(),
+            "return_dict": False,
         },
     ]
 ]

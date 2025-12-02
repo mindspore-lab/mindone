@@ -20,7 +20,7 @@ import PIL
 from transformers import AutoProcessor
 
 import mindspore as ms
-from mindspore import mint, ops
+from mindspore import mint
 
 from mindone.transformers import Mistral3ForConditionalGeneration
 
@@ -210,7 +210,7 @@ class Flux2Pipeline(DiffusionPipeline, Flux2LoraLoaderMixin):
         self.default_sample_size = 128
 
         # fmt: off
-        self.system_message = "You are an AI that reasons about image descriptions. You give structured responses focusing on object relationships, object attribution and actions without speculation."
+        self.system_message = "You are an AI that reasons about image descriptions. You give structured responses focusing on object relationships, object attribution and actions without speculation." # noqa
         # fmt: on
 
     @staticmethod
@@ -221,7 +221,8 @@ class Flux2Pipeline(DiffusionPipeline, Flux2LoraLoaderMixin):
         dtype: Optional[ms.Type] = None,
         max_sequence_length: int = 512,
         # fmt: off
-        system_message: str = "You are an AI that reasons about image descriptions. You give structured responses focusing on object relationships, object attribution and actions without speculation.",
+        system_message: str = "You are an AI that reasons about image descriptions. " \
+                              "You give structured responses focusing on object relationships, object attribution and actions without speculation.",
         # fmt: on
         hidden_states_layers: List[int] = (10, 20, 30),
     ):
@@ -277,7 +278,7 @@ class Flux2Pipeline(DiffusionPipeline, Flux2LoraLoaderMixin):
             t = mint.arange(1) if t_coord is None else t_coord[i]
             h = mint.arange(1)
             w = mint.arange(1)
-            l = mint.arange(L)
+            l = mint.arange(L)  # noqa
 
             coords = cartesian_prod(t, h, w, l)
             out_ids.append(coords)
@@ -306,7 +307,8 @@ class Flux2Pipeline(DiffusionPipeline, Flux2LoraLoaderMixin):
         t = mint.arange(1)  # [0] - time dimension
         h = mint.arange(height)
         w = mint.arange(width)
-        l = mint.arange(1)  # [0] - layer dimension
+        # [0] - layer dimension
+        l = mint.arange(1)  # noqa
 
         # Create position IDs: (H*W, 4)
         latent_ids = cartesian_prod(t, h, w, l)
@@ -547,7 +549,7 @@ class Flux2Pipeline(DiffusionPipeline, Flux2LoraLoaderMixin):
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"  # noqa
             )
 
         if prompt is not None and prompt_embeds is not None:

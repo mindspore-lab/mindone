@@ -4,10 +4,10 @@ import unittest
 
 import diffusers
 import numpy as np
+import pytest
 import torch
 from ddt import data, ddt, unpack
 from packaging.version import Version
-from PIL import Image
 from transformers import Mistral3Config
 
 import mindspore as ms
@@ -15,7 +15,6 @@ import mindspore as ms
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
-    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -149,9 +148,9 @@ class Flux2PipelineFastTests(PipelineTesterMixin, unittest.TestCase):
     @data(*test_cases)
     @unpack
     def test_inference(self, mode, dtype):
-        required_version = Version("0.36.0")
+        required_version = Version("0.35.2")
         current_version = Version(diffusers.__version__)
-        if current_version < required_version:
+        if current_version <= required_version:
             pytest.skip(f"Flux2Pipeline is not supported in diffusers version {current_version}")
 
         pt_components, ms_components = self.get_dummy_components()
