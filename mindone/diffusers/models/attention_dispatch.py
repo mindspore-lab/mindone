@@ -158,37 +158,40 @@ class _AttentionBackendRegistry:
     _active_backend = AttentionBackendName(DIFFUSERS_ATTN_BACKEND)
     _checks_enabled = DIFFUSERS_ATTN_CHECKS
 
-    @classmethod
+    @staticmethod
     def register(
-        cls,
         backend: AttentionBackendName,
         constraints: Optional[List[Callable]] = None,
         supports_context_parallel: bool = False,
     ):
+        Registry = _AttentionBackendRegistry
         logger.debug(f"Registering attention backend: {backend} with constraints: {constraints}")
 
         def decorator(func):
-            cls._backends[backend] = func
-            cls._constraints[backend] = constraints or []
-            cls._supported_arg_names[backend] = set(inspect.signature(func).parameters.keys())
-            cls._supports_context_parallel[backend] = supports_context_parallel
+            Registry._backends[backend] = func
+            Registry._constraints[backend] = constraints or []
+            Registry._supported_arg_names[backend] = set(inspect.signature(func).parameters.keys())
+            Registry._supports_context_parallel[backend] = supports_context_parallel
             return func
 
         return decorator
 
-    @classmethod
-    def get_active_backend(cls):
-        return cls._active_backend, cls._backends[cls._active_backend]
+    @staticmethod
+    def get_active_backend():
+        Registry = _AttentionBackendRegistry
+        return Registry._active_backend, Registry._backends[Registry._active_backend]
 
-    @classmethod
-    def list_backends(cls):
-        return list(cls._backends.keys())
+    @staticmethod
+    def list_backends():
+        Registry = _AttentionBackendRegistry
+        return list(Registry._backends.keys())
 
-    @classmethod
+    @staticmethod
     def _is_context_parallel_enabled(
-        cls, backend: AttentionBackendName, parallel_config: Optional["ParallelConfig"]
+        backend: AttentionBackendName, parallel_config: Optional["ParallelConfig"]
     ) -> bool:
-        supports_context_parallel = backend in cls._supports_context_parallel
+        Registry = _AttentionBackendRegistry
+        supports_context_parallel = backend in Registry._supports_context_parallel
         is_degree_greater_than_1 = parallel_config is not None and (
             parallel_config.context_parallel_config.ring_degree > 1
             or parallel_config.context_parallel_config.ulysses_degree > 1

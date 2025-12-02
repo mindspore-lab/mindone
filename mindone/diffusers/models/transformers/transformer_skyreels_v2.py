@@ -114,8 +114,8 @@ class SkyReelsV2AttnProcessor:
                 out[..., 1::2] = x1 * sin + x2 * cos
                 return out.type_as(hidden_states)
 
-            query = apply_rotary_emb(query, rotary_emb)
-            key = apply_rotary_emb(key, rotary_emb)
+            query = apply_rotary_emb(query, *rotary_emb)
+            key = apply_rotary_emb(key, *rotary_emb)
 
         # I2V task
         hidden_states_img = None
@@ -420,13 +420,13 @@ class SkyReelsV2RotaryPosEmbed(nn.Cell):
         freqs_cos = self.freqs_cos.split(split_sizes, dim=1)
         freqs_sin = self.freqs_sin.split(split_sizes, dim=1)
 
-        freqs_cos_f = freqs_cos[0][:ppf].view(ppf, 1, 1, -1).expand((ppf, pph, ppw, -1))
-        freqs_cos_h = freqs_cos[1][:pph].view(1, pph, 1, -1).expand((ppf, pph, ppw, -1))
-        freqs_cos_w = freqs_cos[2][:ppw].view(1, 1, ppw, -1).expand((ppf, pph, ppw, -1))
+        freqs_cos_f = freqs_cos[0][:ppf].view(ppf, 1, 1, -1).broadcast_to((ppf, pph, ppw, -1))
+        freqs_cos_h = freqs_cos[1][:pph].view(1, pph, 1, -1).broadcast_to((ppf, pph, ppw, -1))
+        freqs_cos_w = freqs_cos[2][:ppw].view(1, 1, ppw, -1).broadcast_to((ppf, pph, ppw, -1))
 
-        freqs_sin_f = freqs_sin[0][:ppf].view(ppf, 1, 1, -1).expand((ppf, pph, ppw, -1))
-        freqs_sin_h = freqs_sin[1][:pph].view(1, pph, 1, -1).expand((ppf, pph, ppw, -1))
-        freqs_sin_w = freqs_sin[2][:ppw].view(1, 1, ppw, -1).expand((ppf, pph, ppw, -1))
+        freqs_sin_f = freqs_sin[0][:ppf].view(ppf, 1, 1, -1).broadcast_to((ppf, pph, ppw, -1))
+        freqs_sin_h = freqs_sin[1][:pph].view(1, pph, 1, -1).broadcast_to((ppf, pph, ppw, -1))
+        freqs_sin_w = freqs_sin[2][:ppw].view(1, 1, ppw, -1).broadcast_to((ppf, pph, ppw, -1))
 
         freqs_cos = mint.cat([freqs_cos_f, freqs_cos_h, freqs_cos_w], dim=-1).reshape(1, ppf * pph * ppw, 1, -1)
         freqs_sin = mint.cat([freqs_sin_f, freqs_sin_h, freqs_sin_w], dim=-1).reshape(1, ppf * pph * ppw, 1, -1)
