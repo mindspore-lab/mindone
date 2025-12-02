@@ -165,7 +165,7 @@ XLSTM_CASES = [
         (),
         {"input_ids": input_ids},
         {
-            "feature_maps": 0,
+            "last_hidden_state": 0,
         },
     ],
     [
@@ -177,7 +177,7 @@ XLSTM_CASES = [
         (),
         {"input_ids": input_ids},
         {
-            "feature_maps": 0,
+            "logits": 0,
         },
     ],
 ]
