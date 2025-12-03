@@ -2928,9 +2928,6 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, PushToHub
                 is_sharded,
             )
 
-            # Check if `_keep_in_fp32_modules` is not None
-            use_keep_in_fp32_modules = (cls._keep_in_fp32_modules is not None) and (mindspore_dtype == ms.float16)
-
             if is_sharded:
                 loaded_state_dict_keys = sharded_metadata["all_checkpoint_keys"]
             else:
@@ -2954,11 +2951,16 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, PushToHub
         # make sure we use the model's config since the __init__ call might have copied it
         config = model.config
 
-        # Check first if we are `from_pt`
-        if use_keep_in_fp32_modules:
-            keep_in_fp32_modules = model._keep_in_fp32_modules
-        else:
-            keep_in_fp32_modules = []
+        # Find fp32 modules if needed
+        keep_in_fp32_modules = []
+        # The _keep_in_fp32_modules flag is only used to avoid bf16 -> fp16 casting precision issues. It was introduced
+        # in case of force loading a model that should stay bf16 in fp16 (which includes a few quantizers as this is a pre-processing
+        # step for e.g. bitsandbytes). See https://github.com/huggingface/transformers/issues/20287 for details.
+        if model._keep_in_fp32_modules is not None and dtype == ms.float16:
+            keep_in_fp32_modules.extend(model._keep_in_fp32_modules)
+
+        if model._keep_in_fp32_modules_strict is not None and (dtype == ms.float16 or dtype == ms.bfloat16):
+            keep_in_fp32_modules.extend(model._keep_in_fp32_modules_strict)
 
         if from_tf:
             raise NotImplementedError("loading tf checkpoint in mindspore model is not yet supported.")
