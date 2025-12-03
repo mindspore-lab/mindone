@@ -24,14 +24,13 @@ Processor class for Qwen2-VL.
 from typing import Optional, Union
 
 import numpy as np
+from transformers.tokenization_utils_base import PreTokenizedInput, TextInput
 
 from ...feature_extraction_utils import BatchFeature
 from ...image_utils import ImageInput
 from ...processing_utils import ImagesKwargs, MultiModalData, ProcessingKwargs, ProcessorMixin, Unpack
-from ...tokenization_utils_base import PreTokenizedInput, TextInput
 from ...utils import logging
 from ...video_utils import VideoInput
-
 
 logger = logging.get_logger(__name__)
 
