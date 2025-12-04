@@ -76,7 +76,7 @@ class DINOv3ViTImageProcessorFast(BaseImageProcessorFast):
                     )
                 if do_rescale:
                     image = self.rescale(image, rescale_factor)
-            stacked_images_updated.append(image)
+                stacked_images_updated.append(image)
             resized_images_grouped[shape] = stacked_images_updated
         resized_images = reorder_images(resized_images_grouped, grouped_images_index)
 
