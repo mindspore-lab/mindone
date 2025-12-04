@@ -32,7 +32,7 @@ from ..attention_processor import Attention, MochiVaeAttnProcessor2_0
 from ..modeling_outputs import AutoencoderKLOutput
 from ..modeling_utils import ModelMixin
 from .autoencoder_kl_cogvideox import CogVideoXCausalConv3d
-from .vae import DecoderOutput, DiagonalGaussianDistribution
+from .vae import AutoencoderMixin, DecoderOutput, DiagonalGaussianDistribution
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -635,7 +635,7 @@ class MochiDecoder3D(nn.Cell):
         return hidden_states, new_conv_cache
 
 
-class AutoencoderKLMochi(ModelMixin, ConfigMixin):
+class AutoencoderKLMochi(ModelMixin, AutoencoderMixin, ConfigMixin):
     r"""
     A VAE model with KL loss for encoding images into latents and decoding latent representations into images. Used in
     [Mochi 1 preview](https://github.com/genmoai/models).
@@ -798,27 +798,6 @@ class AutoencoderKLMochi(ModelMixin, ConfigMixin):
         self.tile_sample_stride_height = tile_sample_stride_height or self.tile_sample_stride_height
         self.tile_sample_stride_width = tile_sample_stride_width or self.tile_sample_stride_width
 
-    def disable_tiling(self) -> None:
-        r"""
-        Disable tiled VAE decoding. If `enable_tiling` was previously enabled, this method will go back to computing
-        decoding in one step.
-        """
-        self.use_tiling = False
-
-    def enable_slicing(self) -> None:
-        r"""
-        Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
-        compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.
-        """
-        self.use_slicing = True
-
-    def disable_slicing(self) -> None:
-        r"""
-        Disable sliced VAE decoding. If `enable_slicing` was previously enabled, this method will go back to computing
-        decoding in one step.
-        """
-        self.use_slicing = False
-
     def _enable_framewise_encoding(self):
         r"""
         Enables the framewise VAE encoding implementation with past latent padding. By default, Diffusers uses the
@@ -921,7 +900,7 @@ class AutoencoderKLMochi(ModelMixin, ConfigMixin):
         Decode a batch of images.
 
         Args:
-            z (`torch.Tensor`): Input batch of latent vectors.
+            z (`ms.Tensor`): Input batch of latent vectors.
             return_dict (`bool`, *optional*, defaults to `False`):
                 Whether to return a [`~models.vae.DecoderOutput`] instead of a plain tuple.
 
@@ -961,10 +940,10 @@ class AutoencoderKLMochi(ModelMixin, ConfigMixin):
         r"""Encode a batch of images using a tiled encoder.
 
         Args:
-            x (`torch.Tensor`): Input batch of videos.
+            x (`ms.Tensor`): Input batch of videos.
 
         Returns:
-            `torch.Tensor`:
+            `ms.Tensor`:
                 The latent representation of the encoded videos.
         """
         batch_size, num_channels, num_frames, height, width = x.shape
