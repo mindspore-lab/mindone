@@ -10,7 +10,7 @@ model_name = "/mnt/disk2/wcr/Qwen2.5-14B-Instruct"
 model = Qwen2ForCausalLM.from_pretrained(
     model_name,
     mindspore_dtype=ms.bfloat16,
-    attn_implementation="paged_attention",
+    attn_implementation="flash_paged",
 )
 
 # infer boost
@@ -28,7 +28,7 @@ messages = [
 ]
 text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
 
-input_ids = ms.Tensor(tokenizer([text], return_tensors="np").input_ids, ms.int32)
+input_ids = ms.Tensor(tokenizer([text], return_tensors="np").input_ids)
 model_inputs = {}
 model_inputs["input_ids"] = input_ids
 

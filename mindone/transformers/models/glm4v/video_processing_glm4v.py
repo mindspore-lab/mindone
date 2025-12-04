@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2025 The Qwen Team and The HuggingFace Inc. team. All rights reserved.
+# Copyright 2025 The ZhipuAI Inc. team and HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,74 +12,48 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""video processor class for Qwen3-VL."""
+"""video processor class for GLM-4.1V."""
 
 import math
 from typing import Optional, Union
 
 import numpy as np
-from transformers.utils import add_start_docstrings, logging
+from transformers.utils import add_start_docstrings
 
 import mindspore as ms
 from mindspore import mint
 
-from ...feature_extraction_utils import BatchFeature
+from ...image_processing_utils import BatchFeature
 from ...image_transforms import resize
-from ...image_utils import ChannelDimension, PILImageResampling, SizeDict, get_image_size
+from ...image_utils import (
+    OPENAI_CLIP_MEAN,
+    OPENAI_CLIP_STD,
+    ChannelDimension,
+    PILImageResampling,
+    SizeDict,
+    get_image_size,
+)
 from ...processing_utils import Unpack, VideosKwargs
 from ...utils import TensorType
 from ...video_processing_utils import BASE_VIDEO_PROCESSOR_DOCSTRING, BaseVideoProcessor
 from ...video_utils import VideoMetadata, group_videos_by_shape, reorder_videos
-
-logger = logging.get_logger(__name__)
-
-
-def smart_resize(
-    num_frames: int,
-    height: int,
-    width: int,
-    temporal_factor: int = 2,
-    factor: int = 32,
-    min_pixels: int = 128 * 128,
-    max_pixels: int = 16 * 16 * 2 * 2 * 2 * 6144,
-):
-    if num_frames < temporal_factor:
-        raise ValueError(f"t:{num_frames} must be larger than temporal_factor:{temporal_factor}")
-    if height < factor or width < factor:
-        raise ValueError(f"height:{height} or width:{width} must be larger than factor:{factor}")
-    elif max(height, width) / min(height, width) > 200:
-        raise ValueError(
-            f"absolute aspect ratio must be smaller than 200, got {max(height, width) / min(height, width)}"
-        )
-    h_bar = round(height / factor) * factor
-    w_bar = round(width / factor) * factor
-    t_bar = round(num_frames / temporal_factor) * temporal_factor
-
-    if t_bar * h_bar * w_bar > max_pixels:
-        beta = math.sqrt((num_frames * height * width) / max_pixels)
-        h_bar = max(factor, math.floor(height / beta / factor) * factor)
-        w_bar = max(factor, math.floor(width / beta / factor) * factor)
-    elif t_bar * h_bar * w_bar < min_pixels:
-        beta = math.sqrt(min_pixels / (num_frames * height * width))
-        h_bar = math.ceil(height * beta / factor) * factor
-        w_bar = math.ceil(width * beta / factor) * factor
-
-    return h_bar, w_bar
+from .image_processing_glm4v import smart_resize
 
 
-class Qwen3VLVideoProcessorInitKwargs(VideosKwargs):
-    patch_size: Optional[int]
-    temporal_patch_size: Optional[int]
-    merge_size: Optional[int]
-    min_frames: Optional[int]
-    max_frames: Optional[int]
+class Glm4vVideoProcessorInitKwargs(VideosKwargs):
+    max_image_size: dict[str, int] = None
+    patch_size: Optional[int] = None
+    temporal_patch_size: Optional[int] = None
+    merge_size: Optional[int] = None
+    image_mean: Optional[list[float]] = None
+    image_std: Optional[list[float]] = None
 
 
 @add_start_docstrings(
-    "Constructs a fast Qwen3-VL image processor that dynamically resizes videos based on the original videos.",
+    "Constructs a fast GLM-4V image processor that dynamically resizes videos based on the original videos.",
     BASE_VIDEO_PROCESSOR_DOCSTRING,
     """
-        patch_size (`int`, *optional*, defaults to 16):
+        patch_size (`int`, *optional*, defaults to 14):
             The spacial patch size of the vision encoder.
         temporal_patch_size (`int`, *optional*, defaults to 2):
             The temporal patch size of the vision encoder.
@@ -87,26 +61,28 @@ class Qwen3VLVideoProcessorInitKwargs(VideosKwargs):
             The merge size of the vision encoder to llm encoder.
     """,
 )
-class Qwen3VLVideoProcessor(BaseVideoProcessor):
+class Glm4vVideoProcessor(BaseVideoProcessor):
     resample = PILImageResampling.BICUBIC
-    size = {"shortest_edge": 128 * 32 * 32, "longest_edge": 32 * 32 * 768}
-    image_mean = [0.5, 0.5, 0.5]
-    image_std = [0.5, 0.5, 0.5]
+    size = {"shortest_edge": 112 * 112, "longest_edge": 28 * 28 * 2 * 30000}
+    max_image_size = {"longest_edge": 28 * 28 * 2 * 30000}
+    image_mean = OPENAI_CLIP_MEAN
+    image_std = OPENAI_CLIP_STD
     do_resize = True
     do_rescale = True
     do_normalize = True
     do_convert_rgb = True
-    patch_size = 16
-    temporal_patch_size = 2
-    merge_size = 2
-    fps = 2
-    min_frames = 4
-    max_frames = 768
     do_sample_frames = True
-    valid_kwargs = Qwen3VLVideoProcessorInitKwargs
+    patch_size = 14
+    temporal_patch_size = 2
+    max_duration = 300
+    merge_size = 2
+    valid_kwargs = Glm4vVideoProcessorInitKwargs
+    num_frames = 16
+    fps = 2
+
     model_input_names = ["pixel_values_videos", "video_grid_thw"]
 
-    def __init__(self, **kwargs: Unpack[Qwen3VLVideoProcessorInitKwargs]):
+    def __init__(self, **kwargs: Unpack[Glm4vVideoProcessorInitKwargs]):
         super().__init__(**kwargs)
         if self.size is not None and (
             self.size.get("shortest_edge", None) is None or self.size.get("longest_edge", None) is None
@@ -130,51 +106,52 @@ class Qwen3VLVideoProcessor(BaseVideoProcessor):
     def sample_frames(
         self,
         metadata: VideoMetadata,
-        num_frames: Optional[int] = None,
         fps: Optional[Union[int, float]] = None,
         **kwargs,
     ):
         """
-        Default sampling function which uniformly samples the desired number of frames between 0 and total number of frames.
-        If `fps` is passed along with metadata, `fps` frames per second are sampled uniformty. Arguments `num_frames`
-        and `fps` are mutually exclusive.
-
         Args:
-            video (`ms.Tensor`):
-                Video that need to be sampled.
             metadata (`VideoMetadata`):
                 Metadata of the video containing information about total duration, fps and total number of frames.
-            num_frames (`int`, *optional*):
-                Maximum number of frames to sample. Defaults to `self.num_frames`.
             fps (`int` or `float`, *optional*):
                 Target frames to sample per second. Defaults to `self.fps`.
         Returns:
-            ms.Tensor:
-                Sampled video frames.
+            np.ndarray:
+                Indices to sample video frames.
         """
-        if fps is not None and num_frames is not None:
-            raise ValueError("`num_frames` and `fps` are mutually exclusive arguments, please use only one!")
+        if metadata is None or getattr(metadata, "fps", None) is None:
+            raise ValueError(
+                "Asked to sample frames per second but no video metadata was provided which is required when sampling in GLM4V. "
+                "Please pass in `VideoMetadata` object or set `do_sample_frames=False`"
+            )
 
-        total_num_frames = metadata.total_num_frames
-        fps = fps if fps is not None else self.fps
+        total_frames = metadata.total_num_frames
+        requested_fps = fps if fps is not None else self.fps
 
-        # If num_frames is not given but fps is, calculate num_frames from fps
-        if num_frames is None and fps is not None:
-            if metadata.fps is None:
-                metadata.fps = 24
-                logger.warning_once(
-                    "Asked to sample `fps` frames per second but no video metadata was provided which is required when sampling with `fps`. "
-                    "Defaulting to `fps=24`. Please provide `video_metadata` for more accurate results."
-                )
-            num_frames = int(total_num_frames / metadata.fps * fps)
-            num_frames = min(min(max(num_frames, self.min_frames), self.max_frames), total_num_frames)
+        max_frame_idx = total_frames - 1
+        duration = metadata.duration or round(max_frame_idx / metadata.fps) + 1
 
-        if num_frames is None:
-            num_frames = min(max(total_num_frames, self.min_frames), self.max_frames)
+        if duration <= self.max_duration:
+            n = int(math.floor(duration * requested_fps))
+            frame_indices = [min(max_frame_idx, int(math.ceil(i * metadata.fps / requested_fps))) for i in range(n)]
+        else:
+            num_samples = int(self.max_duration * requested_fps)
+            if num_samples >= total_frames:
+                frame_indices = list(range(total_frames))
+            else:
+                target_seconds = np.linspace(0, duration, num_samples, endpoint=True)
+                frame_indices = [min(max_frame_idx, int(math.ceil(t * metadata.fps))) for t in target_seconds]
 
-        indices = np.linspace(0, total_num_frames - 1, num_frames).round().astype(int)
+        seen, uniq = set(), []
+        for idx in frame_indices:
+            if idx not in seen:
+                seen.add(idx)
+                uniq.append(idx)
 
-        return indices
+        if len(uniq) & 1:
+            uniq.append(uniq[-1])
+
+        return np.array(uniq)
 
     def _preprocess(
         self,
@@ -211,14 +188,12 @@ class Qwen3VLVideoProcessor(BaseVideoProcessor):
                     max_pixels=size.longest_edge,
                 )
                 stacked_videos = stacked_videos.view(B * T, C, H, W)
-                # TODO mindspore.dataset.vision.Resize could only support (H, W, 3) format,
-                #  batch_size stacked image should be computed in one iteration
                 stacked_videos_updated = []
                 for i in range(len(stacked_videos)):
                     stacked_videos_updated.append(
                         ms.tensor(
                             resize(
-                                stacked_videos[i].asnumpy(),
+                                image=stacked_videos[i].asnumpy(),
                                 size=(resized_height, resized_width),
                                 resample=interpolation,
                             )
@@ -237,13 +212,10 @@ class Qwen3VLVideoProcessor(BaseVideoProcessor):
         for shape, stacked_videos in grouped_videos.items():
             resized_height, resized_width = get_image_size(stacked_videos[0], channel_dim=ChannelDimension.FIRST)
 
-            # 'mindspore.dataset.vision.resize' only support 4 dim data
-            stacked_videos = stacked_videos.view(B * T, C, resized_height, resized_width)
             # Fused rescale and normalize
             stacked_videos = self.rescale_and_normalize(
                 stacked_videos, do_rescale, rescale_factor, do_normalize, image_mean, image_std
             )
-            stacked_videos = stacked_videos.view(B, T, C, resized_height, resized_width)
             patches = stacked_videos
 
             # Check that videos have `num_frames` divisible by `temporal_patch_size`
@@ -283,7 +255,7 @@ class Qwen3VLVideoProcessor(BaseVideoProcessor):
         processed_videos = reorder_videos(processed_videos_grouped, grouped_videos_index)
         processed_grids = reorder_videos(processed_grids, grouped_videos_index)
         pixel_values_videos = mint.cat(processed_videos, dim=0)
-        video_grid_thw = ms.tensor(processed_grids)
+        video_grid_thw = ms.Tensor(processed_grids)
         data = {
             "pixel_values_videos": pixel_values_videos,
             "video_grid_thw": video_grid_thw,
@@ -292,4 +264,4 @@ class Qwen3VLVideoProcessor(BaseVideoProcessor):
         return BatchFeature(data=data, tensor_type=return_tensors)
 
 
-__all__ = ["Qwen3VLVideoProcessor"]
+__all__ = ["Glm4vVideoProcessor"]
