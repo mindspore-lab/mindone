@@ -37,6 +37,8 @@ from transformers.utils import CONFIG_NAME, cached_file, copy_func, extract_comm
 from ...utils import is_mindspore_available, requires_backends
 
 if is_mindspore_available():
+    import mindspore as ms
+
     from ...generation import GenerationMixin
 
 
@@ -522,6 +524,12 @@ class _BaseAutoModelClass:
             # meaningless in the context of the config object
             if kwargs.get("mindspore_dtype", None) == "auto":
                 _ = kwargs.pop("mindspore_dtype")
+            if kwargs.get("dtype", None) == "auto":
+                _ = kwargs.pop("dtype")
+            # FIXME The following judgement is to forbid passing mindspore dtype into transformers config,
+            # Moving tsf AutoConfig/Configuration_utils is further needed to be considered.
+            if isinstance(kwargs.get("dtype", None), ms.Type):
+                _ = kwargs.pop("dtype")
             # to not overwrite the quantization_config if config has a quantization_config
             if kwargs.get("quantization_config", None) is not None:
                 _ = kwargs.pop("quantization_config")
@@ -539,6 +547,13 @@ class _BaseAutoModelClass:
             # if mindspore_dtype=auto was passed here, ensure to pass it on
             if kwargs_orig.get("mindspore_dtype", None) == "auto":
                 kwargs["mindspore_dtype"] = "auto"
+            # if dtype=auto was passed here, ensure to pass it on
+            if kwargs_orig.get("dtype", None) == "auto":
+                kwargs["dtype"] = "auto"
+            # FIXME The following judgement is to forbid passing mindspore dtype into transformers config,
+            # Moving tsf AutoConfig/Configuration_utils is further needed to be considered.
+            if isinstance(kwargs_orig.get("dtype", None), ms.Type):
+                kwargs["dtype"] = kwargs_orig.get("dtype", None)
             if kwargs_orig.get("quantization_config", None) is not None:
                 kwargs["quantization_config"] = kwargs_orig["quantization_config"]
 

@@ -31,25 +31,25 @@ from transformers.dynamic_module_utils import custom_object_save
 # fixme
 from transformers.utils import (
     FEATURE_EXTRACTOR_NAME,
+    PROCESSOR_NAME,
     PushToHubMixin,
-    cached_file,
     copy_func,
     download_url,
     is_offline_mode,
     is_remote_url,
     logging,
 )
+from transformers.utils.hub import cached_file
 
 from .utils import TensorType, is_mindspore_available, is_mindspore_tensor, is_numpy_array, requires_backends
 
 if TYPE_CHECKING:
-    if is_mindspore_available():
-        import mindspore as ms  # noqa
+    from .feature_extraction_sequence_utils import SequenceFeatureExtractor
 
 
 logger = logging.get_logger(__name__)
 
-PreTrainedFeatureExtractor = Union["SequenceFeatureExtractor"]  # noqa: F821
+PreTrainedFeatureExtractor = Union["SequenceFeatureExtractor"]
 
 # type hinting: specifying the type of feature extractor class that inherits from FeatureExtractionMixin
 SpecificFeatureExtractorType = TypeVar("SpecificFeatureExtractorType", bound="FeatureExtractionMixin")
@@ -74,7 +74,7 @@ class BatchFeature(UserDict):
         super().__init__(data)
         self.convert_to_tensors(tensor_type=tensor_type)
 
-    def __getitem__(self, item: str) -> Union[Any]:
+    def __getitem__(self, item: str) -> Any:
         """
         If the key is a string, returns the value of the dict associated to `key` ('input_values', 'attention_mask',
         etc.).
@@ -279,7 +279,7 @@ class FeatureExtractionMixin(PushToHubMixin):
 
             return_unused_kwargs (`bool`, *optional*, defaults to `False`):
                 If `False`, then this function returns just the final feature extractor object. If `True`, then this
-                functions returns a `tuple(feature_extractor, unused_kwargs)` where *unused_kwargs* is a dictionary
+                functions returns a `Tuple(feature_extractor, unused_kwargs)` where *unused_kwargs* is a dictionary
                 consisting of the key/value pairs whose keys are not feature extractor attributes: i.e., the part of
                 `kwargs` which has not been used to update `feature_extractor` and is otherwise ignored.
             kwargs (`dict[str, Any]`, *optional*):
@@ -358,7 +358,7 @@ class FeatureExtractionMixin(PushToHubMixin):
                 "The `use_auth_token` argument is deprecated and will be removed in v5 of Transformers. Please use `token` instead.",
                 FutureWarning,
             )
-            if kwargs.get("token", None) is not None:
+            if kwargs.get("token") is not None:
                 raise ValueError(
                     "`token` and `use_auth_token` are both specified. Please set only the argument `token`."
                 )
@@ -458,19 +458,28 @@ class FeatureExtractionMixin(PushToHubMixin):
             feature_extractor_file = FEATURE_EXTRACTOR_NAME
             try:
                 # Load from local folder or from cache or download from model Hub and cache
-                resolved_feature_extractor_file = cached_file(
-                    pretrained_model_name_or_path,
-                    feature_extractor_file,
-                    cache_dir=cache_dir,
-                    force_download=force_download,
-                    proxies=proxies,
-                    resume_download=resume_download,
-                    local_files_only=local_files_only,
-                    subfolder=subfolder,
-                    token=token,
-                    user_agent=user_agent,
-                    revision=revision,
-                )
+                resolved_feature_extractor_files = [
+                    resolved_file
+                    for filename in [feature_extractor_file, PROCESSOR_NAME]
+                    if (
+                        resolved_file := cached_file(
+                            pretrained_model_name_or_path,
+                            filename=filename,
+                            cache_dir=cache_dir,
+                            force_download=force_download,
+                            proxies=proxies,
+                            resume_download=resume_download,
+                            local_files_only=local_files_only,
+                            subfolder=subfolder,
+                            token=token,
+                            user_agent=user_agent,
+                            revision=revision,
+                            _raise_exceptions_for_missing_entries=False,
+                        )
+                    )
+                    is not None
+                ]
+                resolved_feature_extractor_file = resolved_feature_extractor_files[0]
             except OSError:
                 # Raise any environment error raise by `cached_file`. It will have a helpful error message adapted to
                 # the original exception.
@@ -489,6 +498,7 @@ class FeatureExtractionMixin(PushToHubMixin):
             with open(resolved_feature_extractor_file, encoding="utf-8") as reader:
                 text = reader.read()
             feature_extractor_dict = json.loads(text)
+            feature_extractor_dict = feature_extractor_dict.get("feature_extractor", feature_extractor_dict)
 
         except json.JSONDecodeError:
             raise OSError(
@@ -505,7 +515,9 @@ class FeatureExtractionMixin(PushToHubMixin):
         return feature_extractor_dict, kwargs
 
     @classmethod
-    def from_dict(cls, feature_extractor_dict: dict[str, Any], **kwargs) -> PreTrainedFeatureExtractor:
+    def from_dict(
+        cls, feature_extractor_dict: dict[str, Any], **kwargs
+    ) -> Union["FeatureExtractionMixin", tuple["FeatureExtractionMixin", dict[str, Any]]]:
         """
         Instantiates a type of [`~feature_extraction_utils.FeatureExtractionMixin`] from a Python dictionary of
         parameters.
@@ -555,7 +567,7 @@ class FeatureExtractionMixin(PushToHubMixin):
         return output
 
     @classmethod
-    def from_json_file(cls, json_file: Union[str, os.PathLike]) -> PreTrainedFeatureExtractor:
+    def from_json_file(cls, json_file: Union[str, os.PathLike]) -> "FeatureExtractionMixin":
         """
         Instantiates a feature extractor of type [`~feature_extraction_utils.FeatureExtractionMixin`] from the path to
         a JSON file of parameters.
@@ -613,6 +625,7 @@ class FeatureExtractionMixin(PushToHubMixin):
         """
         Register this class with a given auto class. This should only be used for custom feature extractors as the ones
         in the library are already mapped with `AutoFeatureExtractor`.
+
 
 
         Args:

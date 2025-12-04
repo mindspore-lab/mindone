@@ -10,10 +10,10 @@ from transformers.utils import (
 
 import mindspore as ms
 import mindspore.mint.nn.functional as F
-from mindspore import Tensor, mint, nn, ops
+from mindspore import Tensor, mint, nn
 
 from ...activations import ACT2FN
-from ...cache_utils import Cache, DynamicCache, StaticCache, get_seq_length, update
+from ...cache_utils import Cache, DynamicCache, StaticCache
 from ...generation import GenerationMixin
 from ...mindspore_adapter import dtype_to_min
 from ...modeling_attn_mask_utils import AttentionMaskConverter
@@ -176,12 +176,6 @@ class Olmo2Attention(nn.Cell):
                 # sin and cos are specific to RoPE models; cache_position needed for the static cache
                 cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
                 key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
-            elif isinstance(past_key_value, tuple):
-                key_states, value_states = update(
-                    past_key_value[self.layer_idx], key_states, value_states, cache_position
-                )
-                ops.assign(past_key_value[self.layer_idx][0], key_states)
-                ops.assign(past_key_value[self.layer_idx][1], value_states)
 
         attention_interface: Callable = eager_attention_forward
         if self.config._attn_implementation != "eager":
@@ -516,8 +510,8 @@ class Olmo2Model(Olmo2PreTrainedModel):
             past_key_values = DynamicCache()
 
         if cache_position is None:
-            past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0
-            cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
+            past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
+            cache_position: ms.Tensor = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
@@ -591,7 +585,7 @@ class Olmo2Model(Olmo2PreTrainedModel):
         # For SDPA, when possible, we will rely on its `is_causal` argument instead of its `attn_mask` argument, in
         # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
         # to infer the attention mask.
-        past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0
+        past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
         using_static_cache = isinstance(past_key_values, StaticCache)
 
         # When output attentions is True, sdpa implementation's forward method calls the eager implementation's forward
