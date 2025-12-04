@@ -1365,6 +1365,7 @@ from .models.unispeech_sat import (
 )
 from .models.univnet import UnivNetModel
 from .models.upernet import UperNetForSemanticSegmentation, UperNetPreTrainedModel
+from .models.vaultgemma import VaultGemmaForCausalLM, VaultGemmaModel, VaultGemmaPreTrainedModel
 from .models.video_llava import VideoLlavaForConditionalGeneration, VideoLlavaPreTrainedModel
 from .models.videomae import (
     VideoMAEForPreTraining,
