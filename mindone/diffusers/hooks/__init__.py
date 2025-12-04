@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .context_parallel import apply_context_parallel
 from .faster_cache import FasterCacheConfig, apply_faster_cache
 from .first_block_cache import FirstBlockCacheConfig, apply_first_block_cache
 from .hooks import HookRegistry, ModelHook

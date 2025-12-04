@@ -68,6 +68,8 @@
     title: Accelerate inference
   - local: optimization/memory
     title: Reduce memory usage
+  - local: api/parallel
+    title: Parallel inference
   - title: Community optimizations
     sections:
     - local: optimization/xformers

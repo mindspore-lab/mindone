@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 from ..utils import _LazyModule
 
 _import_structure = {
+    "_modeling_parallel": ["ContextParallelConfig", "ParallelConfig"],
     "adapter": ["MultiAdapter", "T2IAdapter"],
     "auto_model": ["AutoModel"],
     "autoencoders.autoencoder_asym_kl": ["AsymmetricAutoencoderKL"],
@@ -104,6 +105,7 @@ _import_structure = {
 }
 
 if TYPE_CHECKING:
+    from ._modeling_parallel import ContextParallelConfig, ParallelConfig
     from .adapter import MultiAdapter, T2IAdapter
     from .auto_model import AutoModel
     from .autoencoders import (
