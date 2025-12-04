@@ -332,37 +332,24 @@ class BaseImageProcessorFast(BaseImageProcessor):
 
         Args:
             image (`ms.Tensor`):
-                Image to normalize.
+                Image to normalize. Shape should be (..., C, H, W) where the last 3 dimensions are (C, H, W).
             mean (`ms.tensor`, `float` or `Iterable[float]`):
                 Image mean to use for normalization.
             std (`ms.tensor`, `float` or `Iterable[float]`):
                 Image standard deviation to use for normalization.
 
         Returns:
-            `ms.tensor`: The normalized image.
+            `ms.tensor`: The normalized image with the same shape as input.
         """
-        original_shape = image.shape
-        batch_dims = original_shape[:-3]
-        num_batch = 1
-        for dim in batch_dims:
-            num_batch *= dim
-        image_flat = image.view(num_batch, *original_shape[-3:])
-
-        mean = [float(mean[0]), float(mean[1]), float(mean[2])]
-        std = [float(std[0]), float(std[1]), float(std[2])]
-        normalize = vision.Normalize(
-            mean=mean,
-            std=std,
-        )
-        normalized_images = []
-        for img in image_flat:
-            normalized_img = normalize(img.permute(1, 2, 0).asnumpy())
-            normalized_images.append(ms.tensor(normalized_img).permute(2, 0, 1))
-
-        normalized_flat = mint.stack(normalized_images, dim=0)
-        _, new_C, new_H, new_W = normalized_flat.shape
-        return normalized_flat.view(*batch_dims, new_C, new_H, new_W)
-
+        mean = ms.tensor(mean, dtype=image.dtype)
+	    std = ms.tensor(std, dtype=image.dtype)
+	
+	        
+	    view_shape = (1,) * (image.ndim - 3) + (image.shape[-3], 1, 1)
+	    mean = mean.view(view_shape)
+	    std = std.view(view_shape)
+	
+	    return (image - mean) / std
     @lru_cache(maxsize=10)
     def _fuse_mean_std_and_rescale_factor(
         self,
