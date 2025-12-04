@@ -1022,6 +1022,7 @@ from .models.opt import (
     OPTModel,
     OPTPreTrainedModel,
 )
+from .models.ovis2 import Ovis2ForConditionalGeneration, Ovis2Model, Ovis2PreTrainedModel
 from .models.owlv2 import (
     Owlv2ForObjectDetection,
     Owlv2ImageProcessor,
