@@ -33,6 +33,7 @@ from . import (
     bigbird_pegasus,
     biogpt,
     bit,
+    bitnet,
     blip,
     blip_2,
     bloom,
