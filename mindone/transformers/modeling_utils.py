@@ -27,6 +27,7 @@ from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 from typing import Any, Callable, MutableMapping, Optional, Union
 
+from packaging.version import parse
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import custom_object_save
 from transformers.generation.configuration_utils import GenerationConfig
@@ -113,8 +114,16 @@ VLMS = [
 ]
 
 logger = logging.get_logger(__name__)
-ms.Parameter._data = ms.Tensor.data
-ms.Parameter.data_ptr = ms.Tensor.data_ptr
+
+if parse(ms.__version__) >= parse("2.7.1"):
+    ms.Parameter._data = ms.Tensor.data
+    ms.Parameter.data_ptr = ms.Tensor.data_ptr
+    version_mode = "new_data_assignment"
+elif parse(ms.__version__) == parse("2.7.0"):
+    cpu_cast = ops.Cast().set_device("CPU")
+    version_mode = "param_replacement"
+else:
+    version_mode = "set_dtype"
 
 _init_weights = True
 
@@ -378,7 +387,12 @@ def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_shar
     local_state = {v.name: v for k, v in model_to_load.parameters_and_names()}
     for k, v in state_dict.items():
         if k in local_state:
-            v._data = v.to(device="CPU", dtype=local_state[k].dtype)
+            if version_mode == "new_data_assignment":
+                v._data = v.to(device="CPU", dtype=local_state[k].dtype)
+            elif version_mode == "param_replacement":
+                state_dict[k] = ms.Parameter(cpu_cast(v.data, local_state[k].dtype), name=k)
+            else:
+                v.set_dtype(local_state[k].dtype)
         else:
             pass  # unexpect key keeps origin dtype
     cm = silence_mindspore_logger() if is_sharded else nullcontext()
@@ -517,7 +531,7 @@ class ModuleUtilsMixin:
             if p.dtype != dtype:
                 try:
                     p._data = p.to(device="CPU", dtype=dtype)
-                except RuntimeError:
+                except (RuntimeError, AttributeError):
                     p.set_dtype(dtype)
         return self
 
@@ -525,7 +539,7 @@ class ModuleUtilsMixin:
         for p in self.get_parameters():
             try:
                 p._data = p.to(device="CPU", dtype=ms.float32)
-            except RuntimeError:
+            except (RuntimeError, AttributeError):
                 p.set_dtype(ms.float32)
         return self
 
@@ -533,7 +547,7 @@ class ModuleUtilsMixin:
         for p in self.get_parameters():
             try:
                 p._data = p.to(device="CPU", dtype=ms.float16)
-            except RuntimeError:
+            except (RuntimeError, AttributeError):
                 p.set_dtype(ms.float16)
         return self
 

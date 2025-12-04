@@ -30,6 +30,7 @@ from typing import Any, Callable, ContextManager, Dict, List, Optional, Tuple, T
 
 from huggingface_hub import DDUFEntry, create_repo
 from huggingface_hub.utils import validate_hf_hub_args
+from packaging.version import parse
 from typing_extensions import Self
 
 import mindspore as ms
@@ -63,8 +64,9 @@ from .model_loading_utils import (
     split_torch_state_dict_into_shards,
 )
 
-ms.Parameter._data = ms.Tensor.data
-ms.Parameter.data_ptr = ms.Tensor.data_ptr
+if parse(ms.__version__) >= parse("2.7.1"):
+    ms.Parameter._data = ms.Tensor.data
+    ms.Parameter.data_ptr = ms.Tensor.data_ptr
 
 
 class ContextManagers:
@@ -920,7 +922,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             if p.dtype != dtype:
                 try:
                     p._data = p.to(device="CPU", dtype=dtype)
-                except RuntimeError:
+                except (RuntimeError, AttributeError):
                     p.set_dtype(dtype)
         return self
 
@@ -928,7 +930,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         for p in self.get_parameters():
             try:
                 p._data = p.to(device="CPU", dtype=ms.float16)
-            except RuntimeError:
+            except (RuntimeError, AttributeError):
                 p.set_dtype(ms.float16)
         return self
 
@@ -936,7 +938,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         for p in self.get_parameters():
             try:
                 p._data = p.to(device="CPU", dtype=ms.float32)
-            except RuntimeError:
+            except (RuntimeError, AttributeError):
                 p.set_dtype(ms.float32)
         return self
 
