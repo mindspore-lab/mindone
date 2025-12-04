@@ -1194,7 +1194,6 @@ class DPM_Solver:
             ], "Cannot use adaptive solver when correcting_xt_fn is not None"
         intermediates = []
 
-        # with torch.no_grad(): TODO
         if method == "adaptive":
             x = self.dpm_solver_adaptive(
                 x, order=order, t_T=t_T, t_0=t_0, atol=atol, rtol=rtol, solver_type=solver_type
