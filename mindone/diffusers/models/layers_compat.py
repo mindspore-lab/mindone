@@ -24,6 +24,8 @@ Key Features:
         - **unflatten**: Always custom due to framework limitations.
         [2025/10/22]
         - **RMSNorm**: Always custom due to framework limitations.
+        [2025/11/27]
+        - **cartesian_prod**: Always custom due to framework limitations.
 
 Example:
     Import this module and use the operators as you would with native MindSpore functions, with the assurance of cross-version compatibility.
@@ -615,3 +617,11 @@ class RMSNorm(nn.Cell):
         Return the extra representation of the module.
         """
         return "{normalized_shape}, eps={eps}, " "elementwise_affine={elementwise_affine}".format(**self.__dict__)
+
+
+def cartesian_prod(*tensors):
+    """
+    Equivalence of `torch.cartesian_prod`
+    """
+    grids = mint.meshgrid(*tensors, indexing="ij")
+    return mint.stack(tuple(grid.reshape(-1) for grid in grids), dim=1)
