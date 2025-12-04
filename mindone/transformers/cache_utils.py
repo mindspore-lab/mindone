@@ -205,6 +205,7 @@ class DynamicSlidingWindowLayer(DynamicLayer):
             # mint.cat does not support tensor([]) input
             full_key_states = key_states
             full_value_states = value_states
+            self.is_initialized = True
         else:
             # Compute the full states
             full_key_states = mint.cat([self.keys, key_states], dim=-2)
