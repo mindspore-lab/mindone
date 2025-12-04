@@ -1,5 +1,8 @@
 from typing import TYPE_CHECKING
 
+import mindspore as ms
+from mindspore import ops
+
 if TYPE_CHECKING:
     from mindspore import Tensor
 

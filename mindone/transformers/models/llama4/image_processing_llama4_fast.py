@@ -22,8 +22,11 @@ from collections import defaultdict
 from functools import lru_cache
 from typing import Optional, Union
 
+from transformers.utils import auto_docstring
+
 import mindspore as ms
 from mindspore import mint, nn
+
 # from torchvision.transforms.v2 import functional as F
 from mindspore.mint import functional as F
 
@@ -36,10 +39,7 @@ from ...image_processing_utils_fast import (
 )
 from ...image_utils import ImageInput, PILImageResampling, SizeDict
 from ...processing_utils import Unpack
-from ...utils import (
-    TensorType,
-    auto_docstring,
-)
+from ...utils import TensorType
 
 
 def get_factors(dividend: int) -> set[int]:
@@ -431,8 +431,7 @@ class Llama4ImageProcessorFast(BaseImageProcessorFast):
             # split into tiles
             processed_images = split_to_tiles(processed_images, ratio_h, ratio_w)
             grouped_processed_images[shape] = processed_images
-            grouped_aspect_ratios[shape] = ms.tensor(
-                [[ratio_h, ratio_w]] * stacked_images.shape[0])
+            grouped_aspect_ratios[shape] = ms.tensor([[ratio_h, ratio_w]] * stacked_images.shape[0])
 
             # add a global tile to the processed tile if there are more than one tile
             if ratio_h * ratio_w > 1:

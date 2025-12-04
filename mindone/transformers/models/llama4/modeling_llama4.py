@@ -19,29 +19,27 @@ import math
 from dataclasses import dataclass
 from typing import Callable, Optional, Union
 
-import mindspore as ms
-from mindspore import mint, nn
-import mindspore.mint.nn.functional as F
+from transformers.models.llama4.configuration_llama4 import Llama4Config, Llama4TextConfig, Llama4VisionConfig
+from transformers.utils import auto_docstring
+from transformers.utils.deprecation import deprecate_kwarg
 
-from transformers.models.llama4.configuration_llama4 import Llama4VisionConfig
+import mindspore as ms
+import mindspore.mint.nn.functional as F
+from mindspore import mint, nn, ops
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
 from ...generation import GenerationMixin
-from ...integrations import use_kernel_forward_from_hub
 from ...masking_utils import create_causal_mask, create_chunked_causal_mask
+from ...mindspore_adapter.layers_compat import view_as_complex
 from ...modeling_flash_attention_utils import FlashAttentionKwargs
 from ...modeling_layers import GradientCheckpointingLayer
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPast, CausalLMOutputWithPast, ModelOutput
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
-from ...utils import TransformersKwargs, auto_docstring, can_return_tuple, logging
-from ...utils.deprecation import deprecate_kwarg
+from ...utils import TransformersKwargs, can_return_tuple, logging
 from ...utils.generic import check_model_inputs
-from ...mindspore_adapter.layers_compat import view_as_complex
-from transformers.models.llama4.configuration_llama4 import Llama4Config, Llama4TextConfig
-
 
 logger = logging.get_logger(__name__)
 
@@ -53,8 +51,10 @@ class Llama4TextExperts(nn.Cell):
         self.intermediate_size = config.intermediate_size
         self.hidden_size = config.hidden_size
         self.expert_dim = self.intermediate_size
-        self.gate_up_proj = ms.Parameter(mint.empty(self.num_experts, self.hidden_size, 2 * self.expert_dim))
-        self.down_proj = ms.Parameter(mint.empty((self.num_experts, self.expert_dim, self.hidden_size)))
+        self.gate_up_proj = ms.Parameter(
+            mint.empty(self.num_experts, self.hidden_size, 2 * self.expert_dim, device="cpu")
+        )
+        self.down_proj = ms.Parameter(mint.empty((self.num_experts, self.expert_dim, self.hidden_size), device="cpu"))
         self.act_fn = ACT2FN[config.hidden_act]
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
@@ -146,7 +146,6 @@ class Llama4Router(mint.nn.Linear):
         return router_scores, router_logits
 
 
-@use_kernel_forward_from_hub("Llama4TextMoe")
 class Llama4TextMoe(nn.Cell):
     def __init__(self, config):
         super().__init__()
@@ -328,9 +327,7 @@ class Llama4TextAttention(nn.Cell):
         value_states = self.v_proj(hidden_states).view(hidden_shape).transpose(1, 2)
 
         if self.use_rope:  # the 16E model skips rope for long context on certain layers
-            query_states, key_states = apply_rotary_emb(
-                query_states, key_states, position_embeddings
-            )
+            query_states, key_states = apply_rotary_emb(query_states, key_states, position_embeddings)
 
         if hasattr(self, "qk_norm"):  # the 128E model does not use qk_norm
             query_states = self.qk_norm(query_states)
@@ -438,30 +435,8 @@ class Llama4PreTrainedModel(PreTrainedModel):
     _supports_attention_backend = True
 
     def _init_weights(self, module):
-        std = (
-            self.config.initializer_range
-            if hasattr(self.config, "initializer_range")
-            else self.config.text_config.initializer_range
-        )
-        if isinstance(module, mint.nn.Linear):
-            module.weight.data.normal_(mean=0.0, std=std)
-            if module.bias is not None:
-                module.bias.data.zero_()
-        elif isinstance(module, mint.nn.Embedding):
-            module.weight.data.normal_(mean=0.0, std=std)
-            if module.padding_idx is not None:
-                module.weight.data[module.padding_idx].zero_()
-        elif isinstance(module, mint.nn.LayerNorm):
-            module.weight.data.fill_(1.0)
-            module.bias.data.zero_()
-        elif isinstance(module, Llama4TextRMSNorm):
-            module.weight.data.fill_(1.0)
-        elif isinstance(module, Llama4TextExperts):
-            module.gate_up_proj.data.normal_(mean=0.0, std=std)
-            module.down_proj.data.normal_(mean=0.0, std=std)
-        elif isinstance(module, Llama4VisionModel):
-            module.class_embedding.data.normal_(std=module.scale)
-            module.positional_embedding_vlm.data.normal_(std=module.scale)
+        super()._init_weights(module)
+        pass
 
 
 @auto_docstring
@@ -492,7 +467,7 @@ class Llama4TextModel(Llama4PreTrainedModel):
         self.post_init()
 
     @can_return_tuple
-    @check_model_inputs()
+    @check_model_inputs
     @auto_docstring
     def construct(
         self,
@@ -516,8 +491,7 @@ class Llama4TextModel(Llama4PreTrainedModel):
 
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-            cache_position = mint.arange(
-                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
+            cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
@@ -956,9 +930,7 @@ class Llama4VisionEncoder(nn.Cell):
 
         if not return_dict:
             return tuple(v for v in [hidden_states, encoder_states, all_attentions] if v is not None)
-        return BaseModelOutput(
-            last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions
-        )
+        return BaseModelOutput(last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions)
 
 
 class Llama4UnfoldConvolution(nn.Cell):
@@ -1200,9 +1172,7 @@ class Llama4ForConditionalGeneration(Llama4PreTrainedModel, GenerationMixin):
         hidden_state = image_outputs.last_hidden_state
         return hidden_state
 
-    def get_placeholder_mask(
-        self, input_ids: ms.Tensor, inputs_embeds: ms.Tensor, image_features: ms.Tensor
-    ):
+    def get_placeholder_mask(self, input_ids: ms.Tensor, inputs_embeds: ms.Tensor, image_features: ms.Tensor):
         """
         Obtains multimodal placeholder mask from `input_ids` or `inputs_embeds`, and checks that the placeholder token count is
         equal to the length of multimodal features. If the lengths are different, an error is raised.
@@ -1304,9 +1274,7 @@ class Llama4ForConditionalGeneration(Llama4PreTrainedModel, GenerationMixin):
             )
 
             vision_flat = image_features.view(-1, image_features.shape[-1])
-            projected_vision_flat = self.multi_modal_projector(vision_flat).to(
-                inputs_embeds.dtype
-            )
+            projected_vision_flat = self.multi_modal_projector(vision_flat).to(inputs_embeds.dtype)
             special_image_mask = self.get_placeholder_mask(
                 input_ids, inputs_embeds=inputs_embeds, image_features=projected_vision_flat
             )
@@ -1342,9 +1310,7 @@ class Llama4ForConditionalGeneration(Llama4PreTrainedModel, GenerationMixin):
                 shift_labels = labels[..., 1:].contiguous()
             # Flatten the tokens
             loss_fct = mint.nn.CrossEntropyLoss()
-            loss = loss_fct(
-                shift_logits.view(-1, shift_logits.shape[-1]), shift_labels.view(-1)
-            )
+            loss = loss_fct(shift_logits.view(-1, shift_logits.shape[-1]), shift_labels.view(-1))
 
         if not return_dict:
             output = (logits,) + outputs[1:]

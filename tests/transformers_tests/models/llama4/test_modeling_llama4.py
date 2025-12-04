@@ -59,11 +59,11 @@ if transformers.__version__ >= "4.51.0":
                 "pad_token_id": 0,
                 "rms_norm_eps": 1e-05,
                 "rope_scaling": {
-                "factor": 1.0,
-                "high_freq_factor": 1.0,
-                "low_freq_factor": 1.0,
-                "original_max_position_embeddings": 256,
-                "rope_type": "llama3"
+                    "factor": 1.0,
+                    "high_freq_factor": 1.0,
+                    "low_freq_factor": 1.0,
+                    "original_max_position_embeddings": 256,
+                    "rope_type": "llama3",
                 },
                 "rope_theta": 10000.0,
                 "router_aux_loss_coef": 0.0,
@@ -84,7 +84,7 @@ if transformers.__version__ >= "4.51.0":
                 "pixel_shuffle_ratio": 1.0,
                 "projector_input_dim": 32,
                 "projector_output_dim": 32,
-                "multi_modal_projector_bias": false,
+                "multi_modal_projector_bias": False,
                 "projector_dropout": 0.0,
                 "vision_output_dim": 32,
                 "vision_feature_layer": -1,
@@ -105,7 +105,7 @@ if transformers.__version__ >= "4.51.0":
             self.vision_config = vision_config
 
         def prepare_config_and_inputs(self):
-            input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
+            input_ids = ids_numpy([self.batch_size, self.seq_length], self.text_config["vocab_size"])
 
             input_mask = None
             if self.use_input_mask:
@@ -120,11 +120,11 @@ if transformers.__version__ >= "4.51.0":
 
         def get_config(self):
             return self.config_class(
-                boi_token_index=self.boi_token_index
-                eoi_token_index=self.eoi_token_index
-                image_token_index=self.image_token_index
-                text_config=self.text_config
-                vision_config=self.vision_config
+                boi_token_index=self.boi_token_index,
+                eoi_token_index=self.eoi_token_index,
+                image_token_index=self.image_token_index,
+                text_config=self.text_config,
+                vision_config=self.vision_config,
             )
 
     model_tester = Llama4ModelTester()

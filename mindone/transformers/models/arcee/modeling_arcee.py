@@ -24,15 +24,16 @@
 
 from typing import Callable, Optional, Union
 
-import mindspore as ms
-from mindspore import nn, mint
-
+from transformers.models.arcee.configuration_arcee import ArceeConfig
 from transformers.utils import auto_docstring
+from transformers.utils.deprecation import deprecate_kwarg
+
+import mindspore as ms
+from mindspore import mint, nn
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
 from ...generation import GenerationMixin
-from ...integrations import use_kernel_forward_from_hub
 from ...masking_utils import create_causal_mask
 from ...modeling_layers import (
     GenericForQuestionAnswering,
@@ -45,9 +46,7 @@ from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
 from ...utils import TransformersKwargs, can_return_tuple
-from ...utils.deprecation import deprecate_kwarg
 from ...utils.generic import check_model_inputs
-from .configuration_arcee import ArceeConfig
 
 
 class ArceeMLP(nn.Cell):
@@ -64,7 +63,6 @@ class ArceeMLP(nn.Cell):
         return self.down_proj(self.act_fn(self.up_proj(x)))
 
 
-@use_kernel_forward_from_hub("RMSNorm")
 class ArceeRMSNorm(nn.Cell):
     def __init__(self, hidden_size, eps=1e-6):
         """
@@ -345,7 +343,7 @@ class ArceeModel(ArceePreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @check_model_inputs()
+    @check_model_inputs
     @auto_docstring
     def construct(
         self,
@@ -369,8 +367,7 @@ class ArceeModel(ArceePreTrainedModel):
 
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-            cache_position: ms.Tensor = mint.arange(
-                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
+            cache_position: ms.Tensor = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)

@@ -17,9 +17,9 @@
 # limitations under the License.
 """MindSpore Arcee model."""
 
+from mindone.transformers.models.llama.configuration_llama import LlamaConfig
 from mindone.transformers.utils import auto_docstring, logging
 
-from mindone.transformers.models.llama.configuration_llama import LlamaConfig
 from ..llama.modeling_llama import (
     LlamaForCausalLM,
     LlamaForQuestionAnswering,
@@ -27,7 +27,6 @@ from ..llama.modeling_llama import (
     LlamaForTokenClassification,
 )
 from ..nemotron.modeling_nemotron import NemotronMLP
-
 
 logger = logging.get_logger(__name__)
 
