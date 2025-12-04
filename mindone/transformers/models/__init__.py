@@ -74,6 +74,7 @@ from . import (
     encoder_decoder,
     ernie,
     esm,
+    exaone4,
     falcon,
     falcon_mamba,
     fastspeech2_conformer,
