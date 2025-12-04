@@ -29,7 +29,6 @@ import yaml
 from huggingface_hub import model_info
 from huggingface_hub.utils import HFValidationError
 from transformers import __version__
-from transformers.training_args import ParallelMode
 from transformers.utils import (
     MODEL_CARD_NAME,
     cached_file,
@@ -55,6 +54,7 @@ from .models.auto.modeling_auto import (
     MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES,
     MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES,
 )
+from .training_args import ParallelMode
 from .utils import is_mindspore_available
 
 TASK_MAPPING = {

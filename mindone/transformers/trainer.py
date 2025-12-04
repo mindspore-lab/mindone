@@ -35,19 +35,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, NamedTupl
 import numpy as np
 from packaging import version
 from transformers import PreTrainedTokenizerBase
-from transformers.feature_extraction_sequence_utils import SequenceFeatureExtractor
-from transformers.integrations import get_reporting_integration_callbacks
 from transformers.models.auto.modeling_auto import MODEL_FOR_CAUSAL_LM_MAPPING_NAMES
-from transformers.trainer_callback import (
-    CallbackHandler,
-    DefaultFlowCallback,
-    ExportableState,
-    PrinterCallback,
-    ProgressCallback,
-    TrainerCallback,
-    TrainerControl,
-    TrainerState,
-)
 from transformers.trainer_utils import (
     EvalPrediction,
     get_last_checkpoint,
@@ -61,6 +49,19 @@ import mindspore as ms
 from mindspore import Tensor, nn, ops
 from mindspore.communication import GlobalComm
 from mindspore.communication.management import get_group_size
+
+from mindone.transformers.feature_extraction_sequence_utils import SequenceFeatureExtractor
+from mindone.transformers.integrations import get_reporting_integration_callbacks
+from mindone.transformers.trainer_callback import (
+    CallbackHandler,
+    DefaultFlowCallback,
+    ExportableState,
+    PrinterCallback,
+    ProgressCallback,
+    TrainerCallback,
+    TrainerControl,
+    TrainerState,
+)
 
 from ..safetensors.mindspore import save_file
 from .data.data_collator import DataCollator, DataCollatorWithPadding, default_data_collator
