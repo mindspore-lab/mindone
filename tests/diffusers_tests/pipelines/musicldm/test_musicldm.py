@@ -2,9 +2,12 @@
 
 import unittest
 
+import diffusers
 import numpy as np
+import pytest
 import torch
 from ddt import data, ddt, unpack
+from packaging.version import Version
 from transformers.models.clap.configuration_clap import ClapAudioConfig, ClapConfig, ClapTextConfig
 from transformers.models.speecht5.configuration_speecht5 import SpeechT5HifiGanConfig
 
@@ -174,6 +177,11 @@ class MusicLDMPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
     @data(*test_cases)
     @unpack
     def test_inference(self, mode, dtype):
+        required_version = Version("0.33.1")
+        current_version = Version(diffusers.__version__)
+        if current_version > required_version:
+            pytest.skip(f"MusicLDMPipeline is not supported in diffusers version {current_version}")
+
         ms.set_context(mode=mode)
 
         pt_components, ms_components = self.get_dummy_components()
