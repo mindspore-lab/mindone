@@ -98,7 +98,7 @@ class ModernBertMLP(nn.Cell):
 
 
 class ModernBertRotaryEmbedding(nn.Cell):
-    def __init__(self, config: ModernBertConfig):
+    def __init__(self, config: ModernBertConfig, dim: int, base: float):
         super().__init__()
         # BC: "rope_type" was originally "type"
         if hasattr(config, "rope_scaling") and config.rope_scaling is not None:
@@ -309,10 +309,12 @@ class ModernBertAttention(nn.Cell):
         else:
             self.local_attention = (-1, -1)
 
-        # if self.local_attention != (-1, -1):
-        #     rope_theta = config.global_rope_theta if config.local_rope_theta is None else config.local_rope_theta
+        rope_theta = config.global_rope_theta
+        if self.local_attention != (-1, -1):
+            if config.local_rope_theta is not None:
+                rope_theta = config.local_rope_theta
 
-        self.rotary_emb = ModernBertRotaryEmbedding(config=config)
+        self.rotary_emb = ModernBertRotaryEmbedding(config=config, dim=self.head_dim, base=rope_theta)
 
         self.Wo = mint.nn.Linear(config.hidden_size, config.hidden_size, bias=config.attention_bias)
         self.out_drop = mint.nn.Dropout(config.attention_dropout) if config.attention_dropout > 0.0 else nn.Identity()
