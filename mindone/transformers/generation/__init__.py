@@ -22,6 +22,7 @@ from .candidate_generator import (
     EarlyExitCandidateGenerator,
     PromptLookupCandidateGenerator,
 )
+from .configuration_utils import CompileConfig
 from .logits_process import (
     AlternatingCodebooksLogitsProcessor,
     ClassifierFreeGuidanceLogitsProcessor,

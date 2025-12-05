@@ -63,4 +63,6 @@ LoRA is a fast and lightweight training method that inserts and trains a signifi
 
 ::: mindone.diffusers.loaders.lora_pipeline.QwenImageLoraLoaderMixin
 
+::: mindone.diffusers.loaders.lora_pipeline.KandinskyLoraLoaderMixin
+
 ::: mindone.diffusers.loaders.lora_base.LoraBaseMixin

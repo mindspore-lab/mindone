@@ -22,7 +22,7 @@ from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 from mindspore.ops.operations.nn_ops import FlashAttentionScore
 
 from mindone.transformers.activations import ACT2FN
-from mindone.transformers.cache_utils import Cache, get_max_length, get_seq_length, update
+from mindone.transformers.cache_utils import Cache, DynamicCache
 from mindone.transformers.mindspore_adapter import str_to_dtype
 from mindone.transformers.mindspore_adapter.paged_attention_block_tables import BlockTables
 from mindone.transformers.mindspore_adapter.paged_attention_freqs import FreqsMgr
@@ -441,23 +441,14 @@ class MiniCPMAttention(nn.Cell):
         key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).swapaxes(1, 2)
         value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).swapaxes(1, 2)
 
-        kv_seq_len = key_states.shape[-2]
-        if past_key_value is not None:
-            # if self.layer_idx is None:
-            #     raise ValueError(
-            #         f"The cache structure has changed since version v4.36. If you are using {self.__class__.__name__} "
-            #         "for auto-regressive decoding with k/v caching, please make sure to initialize the attention class "
-            #         "with a layer index."
-            #     )
-            # kv_seq_len += past_key_value.get_usable_length(kv_seq_len, self.layer_idx)
-            kv_seq_len = past_key_value[0].shape[-2]
+        kv_seq_len = position_ids.max().item() + 1
         cos, sin = self.rotary_emb(value_states.to(ms.float32), seq_len=kv_seq_len)
 
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
 
-        if past_key_value is not None and use_cache:
-            key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
-            past_key_value = (key_states, value_states)
+        if past_key_value is not None:
+            cache_kwargs = {"sin": sin, "cos": cos}  # Specific to RoPE models
+            key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
 
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
@@ -552,17 +543,15 @@ class MiniCPMFlashAttention2(MiniCPMAttention):
         key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).swapaxes(1, 2)
         value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).swapaxes(1, 2)
 
-        kv_seq_len = key_states.shape[-2]
-        if past_key_value is not None:
-            kv_seq_len = past_key_value[0].shape[-2]
+        kv_seq_len = position_ids.max().item() + 1
 
         cos, sin = self.rotary_emb(value_states.to(ms.float32), seq_len=kv_seq_len)
 
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
 
         if past_key_value is not None:
-            key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
-            past_key_value = (key_states, value_states)
+            cache_kwargs = {"sin": sin, "cos": cos}  # Specific to RoPE models
+            key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
 
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
@@ -644,7 +633,7 @@ class MiniCPMPagedAttention(MiniCPMAttention):
 
     def __init__(self, config: MiniCPMConfig, layer_idx: Optional[int] = None):
         super().__init__(config, layer_idx)
-        compute_dtype = str_to_dtype(config.mindspore_dtype)
+        compute_dtype = str_to_dtype(config.dtype)
 
         self.is_first_iteration = True
 
@@ -737,7 +726,7 @@ class MiniCPMPagedAttention(MiniCPMAttention):
 MINICPM_ATTENTION_CLASSES = {
     "eager": MiniCPMAttention,
     "flash_attention_2": MiniCPMFlashAttention2,
-    "paged_attention": MiniCPMPagedAttention,
+    "flash_paged": MiniCPMPagedAttention,
 }
 
 
@@ -754,7 +743,7 @@ class MiniCPMDecoderLayer(nn.Cell):
         self.scale_depth = config.scale_depth
         self.num_hidden_layers = config.num_hidden_layers
 
-        if config._attn_implementation == "paged_attention":
+        if "paged" in config._attn_implementation:
             self.is_first_iteration = True
 
     def construct(
@@ -951,7 +940,7 @@ class MiniCPMModel(MiniCPMPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-        if self.config._attn_implementation == "paged_attention":
+        if "paged" in self.config._attn_implementation:
             self.is_first_iteration = True
 
     def get_input_embeddings(self):
@@ -1006,11 +995,10 @@ class MiniCPMModel(MiniCPMPreTrainedModel):
 
         past_key_values_length = 0
         if use_cache:
-            # use_legacy_cache = not isinstance(past_key_values, Cache)
-            # if use_legacy_cache:
-            #     past_key_values = DynamicCache.from_legacy_cache(past_key_values)
-            # past_key_values_length = past_key_values.get_usable_length(seq_length)
-            past_key_values_length = get_seq_length(past_key_values)
+            use_legacy_cache = not isinstance(past_key_values, Cache)
+            if use_legacy_cache:
+                past_key_values = DynamicCache.from_legacy_cache(past_key_values)
+            past_key_values_length = past_key_values.get_usable_length(seq_length)
 
         if position_ids is None:
             if block_tables is None:
@@ -1106,8 +1094,8 @@ class MiniCPMForCausalLM(MiniCPMPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-        if self.config._attn_implementation == "paged_attention":
-            compute_dtype = str_to_dtype(config.mindspore_dtype)
+        if "paged" in self.config._attn_implementation:
+            compute_dtype = str_to_dtype(config.dtype)
 
             self.is_first_iteration = True
 
@@ -1316,9 +1304,15 @@ class MiniCPMForCausalLM(MiniCPMPreTrainedModel):
         past_length = 0
         if past_key_values is not None:
             # Past key values are always initialized with a `Cache` object -> no need for if-else anymore
-            past_length = cache_position[0] if cache_position is not None else get_seq_length(past_key_values)
-            max_cache_length = get_max_length(past_key_values) if get_max_length(past_key_values) is not None else None
-            cache_length = past_length if max_cache_length is None else ops.minimum(max_cache_length, past_length)
+            if isinstance(past_key_values, Cache):
+                # Use the new Cache class methods
+                cache_length = past_key_values.get_seq_length()
+                past_length = cache_length
+                max_cache_length = None
+            else:
+                raise ValueError(
+                    "You must use the new past_key_values format, such as the Cache class, instead of the old tuple format."
+                )
 
             # Keep only the unprocessed tokens:
             # 1 - If the length of the attention_mask exceeds the length of input_ids, then we are in a setting where
@@ -1387,7 +1381,7 @@ class MiniCPMForCausalLM(MiniCPMPreTrainedModel):
         )
 
         # Paged Attention
-        if self.config._attn_implementation == "paged_attention":
+        if "paged" in self.config._attn_implementation:
             bs, seq_len = input_ids.shape
             step = kwargs["step"]
             if step == 0:

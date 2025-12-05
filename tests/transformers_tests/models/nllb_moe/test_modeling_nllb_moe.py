@@ -187,7 +187,6 @@ NLLB_MOE_CASES = [
         {**inputs_dict},
         {
             "logits": 0,
-            "past_key_values": 1,
             "encoder_last_hidden_state": 2,
         },
     ],

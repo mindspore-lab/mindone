@@ -1,4 +1,5 @@
-"""Adapted from https://github.com/huggingface/transformers/tree/main/src/transformers/pipelines/text2text_generation.py."""
+"""Adapted from https://github.com/huggingface/transformers/tree/main/src/transformers/pipelines/text2text_generation.py.
+deprecated file in v4.57.1"""
 
 import enum
 import warnings

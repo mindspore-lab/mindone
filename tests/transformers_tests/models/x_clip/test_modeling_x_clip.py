@@ -18,6 +18,7 @@ import pytest
 import torch
 from huggingface_hub import hf_hub_download
 from transformers import XCLIPConfig, XCLIPProcessor, XCLIPTextConfig, XCLIPVisionConfig
+from transformers.testing_utils import slow
 
 from mindspore import tensor
 
@@ -310,7 +311,7 @@ def prepare_video():
     return list(video)
 
 
-@pytest.mark.slow
+@slow
 def test_inference():
     THRESHOLD = DTYPE_AND_THRESHOLDS["fp32"]
 
@@ -336,7 +337,7 @@ def test_inference():
     assert (np.array(diffs) < THRESHOLD).all(), f"Output difference exceeds the threshold: {diffs} > {THRESHOLD}"
 
 
-@pytest.mark.slow
+@slow
 def test_inference_interpolate_pos_encoding():
     THRESHOLD = DTYPE_AND_THRESHOLDS["fp32"]
 

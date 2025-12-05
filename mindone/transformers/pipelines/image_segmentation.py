@@ -14,7 +14,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Any, Dict, List, Union
+from typing import Any, Union, overload
 
 import numpy as np
 from transformers.utils import add_end_docstrings
@@ -39,10 +39,6 @@ if is_mindspore_available():
 
 
 logger = logging.get_logger(__name__)
-
-
-Prediction = Dict[str, Any]
-Predictions = List[Prediction]
 
 
 @add_end_docstrings(build_pipeline_init_args(has_image_processor=True))
@@ -82,6 +78,11 @@ class ImageSegmentationPipeline(Pipeline):
     [huggingface.co/models](https://huggingface.co/models?filter=image-segmentation).
     """
 
+    _load_processor = False
+    _load_image_processor = True
+    _load_feature_extractor = False
+    _load_tokenizer = None  # Oneformer uses it but no-one else does
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -112,7 +113,17 @@ class ImageSegmentationPipeline(Pipeline):
 
         return preprocess_kwargs, {}, postprocess_kwargs
 
-    def __call__(self, inputs=None, **kwargs) -> Union[Predictions, List[Prediction]]:
+    @overload
+    def __call__(self, inputs: Union[str, "Image.Image"], **kwargs: Any) -> list[dict[str, Any]]:
+        ...
+
+    @overload
+    def __call__(self, inputs: Union[list[str], list["Image.Image"]], **kwargs: Any) -> list[list[dict[str, Any]]]:
+        ...
+
+    def __call__(
+        self, inputs: Union[str, "Image.Image", list[str], list["Image.Image"]], **kwargs: Any
+    ) -> Union[list[dict[str, Any]], list[list[dict[str, Any]]]]:
         """
         Perform segmentation (detect masks & classes) in the image(s) passed as inputs.
 
@@ -141,9 +152,8 @@ class ImageSegmentationPipeline(Pipeline):
                 the call may block forever.
 
         Return:
-            A dictionary or a list of dictionaries containing the result. If the input is a single image, will return a
-            list of dictionaries, if the input is a list of several images, will return a list of list of dictionaries
-            corresponding to each image.
+            If the input is a single image, will return a list of dictionaries, if the input is a list of several images,
+            will return a list of list of dictionaries corresponding to each image.
 
             The dictionaries contain the mask, label and score (where applicable) of each detected object and contains
             the following keys:
@@ -172,7 +182,7 @@ class ImageSegmentationPipeline(Pipeline):
             inputs = self.image_processor(images=[image], return_tensors="np", **kwargs)
             if self.framework == "ms":
                 for k, v in inputs.items():
-                    inputs[k] = ms.Tensor(v, dtype=self.mindspore_dtype)
+                    inputs[k] = ms.Tensor(v, dtype=self.dtype)
             inputs["task_inputs"] = self.tokenizer(
                 inputs["task_inputs"],
                 padding="max_length",
@@ -183,7 +193,7 @@ class ImageSegmentationPipeline(Pipeline):
             inputs = self.image_processor(images=[image], return_tensors="np")
             if self.framework == "ms":
                 for k, v in inputs.items():
-                    inputs[k] = ms.Tensor(v, dtype=self.mindspore_dtype)
+                    inputs[k] = ms.Tensor(v, dtype=self.dtype)
         inputs["target_size"] = target_size
         return inputs
 

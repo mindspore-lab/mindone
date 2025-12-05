@@ -28,7 +28,7 @@ from mindspore import mint, nn
 from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
-from ...cache_utils import Cache, EncoderDecoderCache
+from ...cache_utils import Cache, DynamicCache, EncoderDecoderCache
 from ...generation import GenerationMixin
 from ...masking_utils import create_causal_mask
 from ...modeling_flash_attention_utils import is_flash_attn_available
@@ -139,7 +139,7 @@ class GPTBigCodeAttention(nn.Cell):
             )
 
         self.scale_attn_weights = config.scale_attn_weights
-        self.scaling = self.head_dim**0.5 if config.scale_attn_weights else 1.0
+        self.scaling = self.head_dim**-0.5 if config.scale_attn_weights else 1.0
         self.is_cross_attention = is_cross_attention
 
         self.layer_idx = layer_idx
@@ -197,8 +197,8 @@ class GPTBigCodeAttention(nn.Cell):
                 )
             if layer_past is not None and is_updated:
                 # reuse k,v, cross_attentions
-                key = curr_past_key_value.key_cache[self.layer_idx]
-                value = curr_past_key_value.value_cache[self.layer_idx]
+                key = curr_past_key_value.layers[self.layer_idx].keys
+                value = curr_past_key_value.layers[self.layer_idx].values
             else:
                 query = self.q_attn(hidden_states).view(*input_shape, -1, self.head_dim).transpose(1, 2)
                 key, value = self.c_attn(encoder_hidden_states).split((self.head_dim, self.head_dim), dim=-1)
@@ -477,14 +477,14 @@ class GPTBigCodeModel(GPTBigCodePreTrainedModel):
         if batch_size <= 0:
             raise ValueError("batch_size has to be defined and > 0")
 
-        return_legacy_cache = False
-        if use_cache and not isinstance(past_key_values, Cache):
+        if use_cache and past_key_values is None:
+            past_key_values = EncoderDecoderCache(DynamicCache(config=self.config), DynamicCache(config=self.config))
+        if use_cache and isinstance(past_key_values, tuple):
             logger.warning_once(
                 "Passing a tuple of `past_key_values` is deprecated and will be removed in Transformers v4.58.0. "
                 "You should pass an instance of `EncoderDecoderCache` instead, e.g. "
                 "`past_key_values=EncoderDecoderCache.from_legacy_cache(past_key_values)`."
             )
-            return_legacy_cache = True
             past_key_values = EncoderDecoderCache.from_legacy_cache(past_key_values)
 
         if inputs_embeds is None:
@@ -506,7 +506,7 @@ class GPTBigCodeModel(GPTBigCodePreTrainedModel):
             past_key_values=past_key_values,
         )
 
-        if self._use_flash_attention_2:
+        if self.config._attn_implementation == "flash_attention_2":
             encoder_attention_mask = (
                 encoder_attention_mask.bool()
                 if (encoder_attention_mask is not None and 0 in encoder_attention_mask)
@@ -577,9 +577,6 @@ class GPTBigCodeModel(GPTBigCodePreTrainedModel):
         if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)
 
-        if return_legacy_cache:
-            past_key_values = past_key_values.to_legacy_cache()
-
         return BaseModelOutputWithPastAndCrossAttentions(
             last_hidden_state=hidden_states,
             past_key_values=past_key_values,
@@ -610,7 +607,7 @@ class GPTBigCodeForCausalLM(GPTBigCodePreTrainedModel, GenerationMixin):
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
-        past_key_values: Optional[tuple[tuple[ms.Tensor]]] = None,
+        past_key_values: Optional[Cache] = None,
         attention_mask: Optional[ms.Tensor] = None,
         token_type_ids: Optional[ms.Tensor] = None,
         position_ids: Optional[ms.Tensor] = None,
@@ -717,7 +714,7 @@ class GPTBigCodeForSequenceClassification(GPTBigCodePreTrainedModel):
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
-        past_key_values: Optional[tuple[tuple[ms.Tensor]]] = None,
+        past_key_values: Optional[Cache] = None,
         attention_mask: Optional[ms.Tensor] = None,
         token_type_ids: Optional[ms.Tensor] = None,
         position_ids: Optional[ms.Tensor] = None,
@@ -848,7 +845,7 @@ class GPTBigCodeForTokenClassification(GPTBigCodePreTrainedModel):
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
-        past_key_values: Optional[tuple[tuple[ms.Tensor]]] = None,
+        past_key_values: Optional[Cache] = None,
         attention_mask: Optional[ms.Tensor] = None,
         token_type_ids: Optional[ms.Tensor] = None,
         position_ids: Optional[ms.Tensor] = None,

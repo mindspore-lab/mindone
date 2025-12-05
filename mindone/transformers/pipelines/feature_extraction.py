@@ -1,6 +1,6 @@
 # This code is adapted from https://github.com/huggingface/transformers
 # with modifications to run transformers on mindspore.
-from typing import Dict
+from typing import Any, Union
 
 from ..utils import requires_backends
 from .base import GenericTensor, Pipeline
@@ -31,6 +31,11 @@ class FeatureExtractionPipeline(Pipeline):
     [huggingface.co/models](https://huggingface.co/models).
     """
 
+    _load_processor = False
+    _load_image_processor = False
+    _load_feature_extractor = False
+    _load_tokenizer = True
+
     def _sanitize_parameters(self, truncation=None, tokenize_kwargs=None, return_tensors=None, **kwargs):
         if tokenize_kwargs is None:
             tokenize_kwargs = {}
@@ -50,7 +55,7 @@ class FeatureExtractionPipeline(Pipeline):
 
         return preprocess_params, {}, postprocess_params
 
-    def preprocess(self, inputs, **tokenize_kwargs) -> Dict[str, GenericTensor]:
+    def preprocess(self, inputs, **tokenize_kwargs) -> dict[str, GenericTensor]:
         model_inputs = self.tokenizer(inputs, return_tensors="np", **tokenize_kwargs)
         if self.framework == "ms":
             requires_backends(self, ["mindspore"])
@@ -71,12 +76,12 @@ class FeatureExtractionPipeline(Pipeline):
         if self.framework == "ms":
             return model_outputs[0].float().tolist()
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: Union[str, list[str]], **kwargs: Any) -> Union[Any, list[Any]]:
         """
         Extract the features of the input(s).
 
         Args:
-            args (`str` or `List[str]`): One or several texts (or one list of texts) to get the features of.
+            args (`str` or `list[str]`): One or several texts (or one list of texts) to get the features of.
 
         Return:
             A nested list of `float`: The features computed by the model.

@@ -51,9 +51,12 @@ def unpatch_nn_default_dtype():
 
 
 def _patched_get_parameter_new_args(data, rc, init_param=True):
+    """
+    Allocate real tensor memory when `no_init_parameters` would normally return None.
+    """
     result = _original_get_parameter_new_args(data, rc, init_param)
 
     if isinstance(data, ms.Tensor) and len(result) == 5 and result[1] is None:
-        return (ms.Tensor, mint.empty_like(data))
+        return (ms.Tensor, mint.empty_like(data, device="cpu"))
 
     return result

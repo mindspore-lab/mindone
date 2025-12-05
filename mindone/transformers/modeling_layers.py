@@ -14,7 +14,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from abc import ABC
 from typing import Optional
 
 from transformers.utils import auto_docstring, can_return_tuple
@@ -69,7 +68,7 @@ class GradientCheckpointingLayer(nn.Cell):
 
 
 @auto_docstring
-class GenericForSequenceClassification(ABC):
+class GenericForSequenceClassification:
     base_model_prefix = "model"
 
     def __init__(self, config):
@@ -144,7 +143,7 @@ class GenericForSequenceClassification(ABC):
 
 
 @auto_docstring
-class GenericForQuestionAnswering(ABC):
+class GenericForQuestionAnswering:
     base_model_prefix = "model"
 
     def __init__(self, config):
@@ -205,7 +204,7 @@ class GenericForQuestionAnswering(ABC):
 
 
 @auto_docstring
-class GenericForTokenClassification(ABC):
+class GenericForTokenClassification:
     base_model_prefix = "model"
 
     def __init__(self, config):
@@ -236,7 +235,7 @@ class GenericForTokenClassification(ABC):
         inputs_embeds: Optional[ms.Tensor] = None,
         labels: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = None,
-        **kwargs,
+        **kwargs: Unpack[TransformersKwargs],
     ) -> TokenClassifierOutput:
         outputs: BaseModelOutputWithPast = getattr(self, self.base_model_prefix)(
             input_ids,
