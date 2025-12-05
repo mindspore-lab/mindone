@@ -7,6 +7,7 @@ from mindspore import mint, nn
 SKIP_CLASSES = {nn.Dropout}
 # Store original __init__ for manual restore
 _ORIG_INITS = {}
+_original_get_parameter_new_args = ms.Parameter._get_parameter_new_args
 
 
 def patch_nn_default_dtype(dtype=ms.float32, force=False):
@@ -47,3 +48,12 @@ def unpatch_nn_default_dtype():
     for cls, orig_init in _ORIG_INITS.items():
         cls.__init__ = orig_init
     _ORIG_INITS.clear()
+
+
+def _patched_get_parameter_new_args(data, rc, init_param=True):
+    result = _original_get_parameter_new_args(data, rc, init_param)
+
+    if isinstance(data, ms.Tensor) and len(result) == 5 and result[1] is None:
+        return (ms.Tensor, mint.empty_like(data))
+
+    return result

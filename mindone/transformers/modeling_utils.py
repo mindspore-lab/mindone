@@ -64,7 +64,11 @@ from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.nn import CrossEntropyLoss, Identity
 from mindspore.nn.utils import no_init_parameters
 
-from mindone.utils.modeling_patch import patch_nn_default_dtype, unpatch_nn_default_dtype
+from mindone.utils.modeling_patch import (
+    _patched_get_parameter_new_args,
+    patch_nn_default_dtype,
+    unpatch_nn_default_dtype,
+)
 
 from .activations import get_activation
 from .generation.utils import GenerationMixin
@@ -126,6 +130,16 @@ else:
     version_mode = "set_dtype"
 
 _init_weights = True
+
+
+@contextmanager
+def patch_parameter_new_args(patched_fn):
+    original = ms.Parameter._get_parameter_new_args
+    try:
+        ms.Parameter._get_parameter_new_args = staticmethod(patched_fn)
+        yield
+    finally:
+        ms.Parameter._get_parameter_new_args = staticmethod(original)
 
 
 def _get_pt2ms_mappings(m):
@@ -1188,8 +1202,10 @@ class PreTrainedModel(
 
         if mindspore_dtype is not None:
             patch_nn_default_dtype(dtype=mindspore_dtype, force=True)
-        with no_init_parameters():
+
+        with patch_parameter_new_args(_patched_get_parameter_new_args), no_init_parameters():
             model = cls(config, **kwargs)
+
         if mindspore_dtype is not None:
             unpatch_nn_default_dtype()
 
@@ -2789,8 +2805,10 @@ class PreTrainedModel(
 
         if mindspore_dtype is not None:
             patch_nn_default_dtype(dtype=mindspore_dtype, force=True)
-        with no_init_parameters():
+
+        with patch_parameter_new_args(_patched_get_parameter_new_args), no_init_parameters():
             model = cls(config, *model_args, **model_kwargs)
+
         if mindspore_dtype is not None:
             unpatch_nn_default_dtype()
 
