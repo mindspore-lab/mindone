@@ -67,6 +67,11 @@ class ZeroShotObjectDetectionPipeline(ChunkPipeline):
     [huggingface.co/models](https://huggingface.co/models?filter=zero-shot-object-detection).
     """
 
+    _load_processor = False
+    _load_image_processor = True
+    _load_feature_extractor = False
+    _load_tokenizer = True
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         requires_backends(self, "vision")
@@ -197,7 +202,7 @@ class ZeroShotObjectDetectionPipeline(ChunkPipeline):
             text_inputs = self.tokenizer(candidate_label, return_tensors="np")
             text_inputs = {k: ms.tensor(v) for k, v in text_inputs.items()}
             image_features = self.image_processor(image, return_tensors="np")
-            image_features = {k: ms.tensor(v).to(self.mindspore_dtype) for k, v in image_features.items()}
+            image_features = {k: ms.tensor(v).to(self.dtype) for k, v in image_features.items()}
             yield {
                 "is_last": i == len(candidate_labels) - 1,
                 "target_size": target_size,

@@ -22,9 +22,9 @@ from typing import Callable, Dict, List, Optional, Set, Tuple, Union
 from transformers.models.audio_spectrogram_transformer.configuration_audio_spectrogram_transformer import ASTConfig
 
 import mindspore
+from mindspore.common.initializer import TruncatedNormal, initializer
 from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
-from ....models.utils import trunc_normal_
 from ...activations import ACT2FN
 from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling, SequenceClassifierOutput
@@ -412,7 +412,9 @@ class ASTPreTrainedModel(MSPreTrainedModel):
             # Upcast the input in `fp32` and cast it back to desired `dtype` to avoid
             # `trunc_normal_cpu` not implemented in `half` issues
             weight_type = module.weight.dtype
-            trunc_normal_(module.weight.data.to(mindspore.float32), mean=0.0, std=self.config.initializer_range)
+            mean = 0.0
+            std = self.config.initializer_range
+            module.weight = initializer(TruncatedNormal(std, mean, -2.0, -2.0), module.weight.shape, weight_type)
             module.weight = module.weight.to(weight_type)
             if module.bias is not None:
                 module.bias.data.zero_()

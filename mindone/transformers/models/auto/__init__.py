@@ -103,3 +103,4 @@ from .modeling_auto import (
     AutoModelWithLMHead,
 )
 from .processing_auto import AutoProcessor
+from .video_processing_auto import AutoVideoProcessor

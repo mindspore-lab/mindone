@@ -74,6 +74,7 @@ _yt_dlp_available = importlib.util.find_spec("yt_dlp") is not None
 _soundfile_available = _is_package_available("soundfile")
 _librosa_available = _is_package_available("librosa")
 _pytesseract_available = _is_package_available("pytesseract")
+_pyctcdecode_available = _is_package_available("pyctcdecode")
 
 
 def is_mindspore_available():
@@ -129,6 +130,15 @@ def is_pytesseract_available():
     return _pytesseract_available
 
 
+# docstyle-ignore
+AV_IMPORT_ERROR = """
+{0} requires the PyAv library but it was not found in your environment. You can install it with:
+```
+pip install av
+```
+Please note that you may need to restart your runtime after installation.
+"""
+
 MINDSPORE_IMPORT_ERROR_WITH_TF = """
 {0} requires the MindSpore library but it was not found in your environment.
 However, we were able to find a TensorFlow installation. TensorFlow classes begin
@@ -162,6 +172,7 @@ VISION_IMPORT_ERROR = """
 
 BACKENDS_MAPPING = OrderedDict(
     [
+        ("av", (is_av_available, AV_IMPORT_ERROR)),
         ("mindspore", (is_mindspore_available, MINDSPORE_IMPORT_ERROR_WITH_TF)),
         ("pandas", (is_pandas_available, PANDAS_IMPORT_ERROR)),
         ("pytesseract", (is_pytesseract_available, PYTESSERACT_IMPORT_ERROR)),
@@ -200,3 +211,7 @@ def is_soundfile_available():
 
 def is_librosa_available():
     return _librosa_available
+
+
+def is_pyctcdecode_available() -> Union[tuple[bool, str], bool]:
+    return _pyctcdecode_available

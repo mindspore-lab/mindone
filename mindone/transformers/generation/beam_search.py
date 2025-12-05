@@ -15,17 +15,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 from abc import ABC, abstractmethod
 from collections import UserDict
 from typing import Optional, Union
 
 import numpy as np
 from transformers.generation.beam_constraints import Constraint, ConstraintListState
-from transformers.utils import add_start_docstrings
+from transformers.utils import add_start_docstrings, logging
 
 import mindspore as ms
 from mindspore import mint
+
+logger = logging.get_logger(__name__)
 
 PROCESS_INPUTS_DOCSTRING = r"""
     Args:
@@ -48,8 +49,6 @@ PROCESS_INPUTS_DOCSTRING = r"""
             The id of the *end-of-sequence* token. Optionally, use a list to set multiple *end-of-sequence* tokens.
         beam_indices (`ms.Tensor`, *optional*):
             Beam indices indicating to which beam hypothesis each token correspond.
-        group_index (`int`, *optional*):
-            The index of the group of beams. Used with [`~PreTrainedModel.group_beam_search`].
 
     Return:
         `UserDict`: A dictionary composed of the fields as defined above:
@@ -163,12 +162,16 @@ class BeamSearchScorer(BeamScorer):
         self,
         batch_size: int,
         num_beams: int,
-        length_penalty: Optional[float] = 1.0,
-        do_early_stopping: Optional[Union[bool, str]] = False,
-        num_beam_hyps_to_keep: Optional[int] = 1,
-        num_beam_groups: Optional[int] = 1,
+        length_penalty: float = 1.0,
+        do_early_stopping: Union[bool, str] = False,
+        num_beam_hyps_to_keep: int = 1,
+        num_beam_groups: int = 1,
         max_length: Optional[int] = None,
     ):
+        logger.warning_once(
+            "`BeamSearchScorer` is deprecated and will be removed in v4.62.0, as constrained beam search has been moved to the Hub: "
+            "https://hf.co/transformers-community/constrained-beam-search."
+        )
         self.num_beams = num_beams
         self.length_penalty = length_penalty
         self.do_early_stopping = do_early_stopping
@@ -206,7 +209,7 @@ class BeamSearchScorer(BeamScorer):
 
     @property
     def is_done(self) -> bool:
-        return self._done.all()
+        return self._done.all().item()
 
     def process(
         self,
@@ -217,14 +220,14 @@ class BeamSearchScorer(BeamScorer):
         pad_token_id: Optional[Union[int, ms.Tensor]] = None,
         eos_token_id: Optional[Union[int, list[int], ms.Tensor]] = None,
         beam_indices: Optional[ms.Tensor] = None,
-        group_index: Optional[int] = 0,
-        decoder_prompt_len: Optional[int] = 0,
+        group_index: int = 0,
+        decoder_prompt_len: int = 0,
     ) -> dict[str, ms.Tensor]:
         # add up to the length which the next_scores is calculated on (including decoder prompt)
         cur_len = input_ids.shape[-1] + 1
         batch_size = len(self._beam_hyps) // self.num_beam_groups
 
-        if not (batch_size == (input_ids.shape[0] // self.group_size)):
+        if batch_size != (input_ids.shape[0] // self.group_size):
             if self.num_beam_groups > 1:
                 raise ValueError(
                     f"A group beam size of {input_ids.shape[0]} is used as the input, but a group beam "
@@ -322,7 +325,7 @@ class BeamSearchScorer(BeamScorer):
         pad_token_id: Optional[Union[int, ms.Tensor]] = None,
         eos_token_id: Optional[Union[int, list[int], ms.Tensor]] = None,
         beam_indices: Optional[ms.Tensor] = None,
-        decoder_prompt_len: Optional[int] = 0,
+        decoder_prompt_len: int = 0,
     ) -> tuple[ms.Tensor]:
         batch_size = len(self._beam_hyps) // self.num_beam_groups
 
@@ -438,9 +441,6 @@ class ConstrainedBeamSearchScorer(BeamScorer):
         num_beam_hyps_to_keep (`int`, *optional*, defaults to 1):
             The number of beam hypotheses that shall be returned upon calling
             [`~transformers.BeamSearchScorer.finalize`].
-        num_beam_groups (`int`, *optional*, defaults to 1):
-            Number of groups to divide `num_beams` into in order to ensure diversity among different groups of beams.
-            See [this paper](https://arxiv.org/pdf/1610.02424.pdf) for more details.
         max_length (`int`, *optional*):
             The maximum length of the sequence to be generated.
     """
@@ -450,18 +450,19 @@ class ConstrainedBeamSearchScorer(BeamScorer):
         batch_size: int,
         num_beams: int,
         constraints: list[Constraint],
-        length_penalty: Optional[float] = 1.0,
-        do_early_stopping: Optional[Union[bool, str]] = False,
-        num_beam_hyps_to_keep: Optional[int] = 1,
-        num_beam_groups: Optional[int] = 1,
+        length_penalty: float = 1.0,
+        do_early_stopping: Union[bool, str] = False,
+        num_beam_hyps_to_keep: int = 1,
         max_length: Optional[int] = None,
     ):
+        logger.warning_once(
+            "`ConstrainedBeamSearchScorer` is deprecated and will be removed in v4.62.0, "
+            "as constrained beam search has been moved to the Hub: https://hf.co/transformers-community/constrained-beam-search."
+        )
         self.num_beams = num_beams
         self.length_penalty = length_penalty
         self.do_early_stopping = do_early_stopping
         self.num_beam_hyps_to_keep = num_beam_hyps_to_keep
-        self.num_beam_groups = num_beam_groups
-        self.group_size = self.num_beams // self.num_beam_groups
         self.constraints = constraints
 
         self._is_init = False
@@ -482,15 +483,9 @@ class ConstrainedBeamSearchScorer(BeamScorer):
                 " one should make use of `greedy_search` instead."
             )
 
-        if not isinstance(num_beam_groups, int) or (num_beam_groups > num_beams) or (num_beams % num_beam_groups != 0):
-            raise ValueError(
-                "`num_beam_groups` has to be an integer smaller or equal than `num_beams` and `num_beams` has to be"
-                f" divisible by `num_beam_groups`, but is {num_beam_groups} with `num_beams` being {num_beams}."
-            )
-
     @property
     def is_done(self) -> bool:
-        return self._done.all()
+        return self._done.all().item()
 
     def make_constraint_states(self, n):
         return [ConstraintListState([constraint.copy() for constraint in self.constraints]) for _ in range(n)]
@@ -510,7 +505,7 @@ class ConstrainedBeamSearchScorer(BeamScorer):
         pad_token_id: Optional[Union[int, ms.Tensor]] = None,
         eos_token_id: Optional[Union[int, list[int], ms.Tensor]] = None,
         beam_indices: Optional[ms.Tensor] = None,
-        decoder_prompt_len: Optional[int] = 0,
+        decoder_prompt_len: int = 0,
     ) -> tuple[ms.Tensor]:
         r"""
         Args:
@@ -554,21 +549,10 @@ class ConstrainedBeamSearchScorer(BeamScorer):
         # add up to the length which the next_scores is calculated on (including decoder prompt)
         cur_len = input_ids.shape[-1] + 1
         batch_size = len(self._beam_hyps)
-        if not (batch_size == (input_ids.shape[0] // self.group_size)):
-            if self.num_beam_groups > 1:
-                raise ValueError(
-                    f"A group beam size of {input_ids.shape[0]} is used as the input, but a group beam "
-                    f"size of {self.group_size} is expected by the beam scorer."
-                )
-            else:
-                raise ValueError(
-                    f"A beam size of {input_ids.shape[0]} is used as the input, but a beam size of "
-                    f"{self.group_size} is expected by the beam scorer."
-                )
 
-        next_beam_scores = mint.zeros((batch_size, self.group_size), dtype=next_scores.dtype)
-        next_beam_tokens = mint.zeros((batch_size, self.group_size), dtype=next_tokens.dtype)
-        next_beam_indices = mint.zeros((batch_size, self.group_size), dtype=next_indices.dtype)
+        next_beam_scores = mint.zeros((batch_size, self.num_beams), dtype=next_scores.dtype)
+        next_beam_tokens = mint.zeros((batch_size, self.num_beams), dtype=next_tokens.dtype)
+        next_beam_indices = mint.zeros((batch_size, self.num_beams), dtype=next_indices.dtype)
 
         if eos_token_id is not None and not isinstance(eos_token_id, ms.Tensor):
             if isinstance(eos_token_id, int):
@@ -592,11 +576,11 @@ class ConstrainedBeamSearchScorer(BeamScorer):
             for beam_token_rank, (next_token, next_score, next_index) in enumerate(
                 zip(next_tokens[batch_idx], next_scores[batch_idx], next_indices[batch_idx])
             ):
-                batch_beam_idx = batch_idx * self.group_size + next_index
+                batch_beam_idx = batch_idx * self.num_beams + next_index
                 # add to generated hypotheses if end of sentence
                 if (eos_token_id is not None) and (next_token.item() in eos_token_id):
                     # if beam_token does not belong to top num_beams tokens, it should not be added
-                    is_beam_token_worse_than_top_num_beams = beam_token_rank >= self.group_size
+                    is_beam_token_worse_than_top_num_beams = beam_token_rank >= self.num_beams
                     if is_beam_token_worse_than_top_num_beams:
                         continue
 
@@ -624,7 +608,7 @@ class ConstrainedBeamSearchScorer(BeamScorer):
                     beam_idx += 1
 
                 # once the beam for next step is full, don't add more tokens to it.
-                if beam_idx == self.group_size:
+                if beam_idx == self.num_beams:
                     break
 
             new_scores, new_tokens, new_indices = self.step_sentence_constraint(
@@ -640,9 +624,9 @@ class ConstrainedBeamSearchScorer(BeamScorer):
             next_beam_tokens[batch_idx] = new_tokens
             next_beam_indices[batch_idx] = new_indices
 
-            if beam_idx < self.group_size:
+            if beam_idx < self.num_beams:
                 raise ValueError(
-                    f"At most {self.group_size} tokens in {next_tokens[batch_idx]} can be equal to `eos_token_id:"
+                    f"At most {self.num_beams} tokens in {next_tokens[batch_idx]} can be equal to `eos_token_id:"
                     f" {eos_token_id}`. Make sure {next_tokens[batch_idx]} are corrected."
                 )
 
@@ -679,10 +663,10 @@ class ConstrainedBeamSearchScorer(BeamScorer):
         # 2. Selecting best candidates such that we end up with highest probable candidates
         #     that fulfill our constraints.
 
-        orig_len = sent_beam_indices.size(0)
+        orig_len = sent_beam_indices.shape[0]
 
         # initialize states
-        topk_contraint_states = self.make_constraint_states(orig_len)
+        topk_constraint_states = self.make_constraint_states(orig_len)
         advance_constraint_states = self.make_constraint_states(orig_len)
 
         sidx, eidx = batch_idx * orig_len, (batch_idx + 1) * orig_len
@@ -706,7 +690,7 @@ class ConstrainedBeamSearchScorer(BeamScorer):
             # either way, we need to sort them into "banks" later, so store a "ConstraintListState" for all types of
             # hypotheses.
 
-            topk_state = topk_contraint_states[seq_idx]
+            topk_state = topk_constraint_states[seq_idx]
             topk_state.reset(full_hypotheses[seq_idx].asnumpy().tolist())
 
             advance_state = advance_constraint_states[seq_idx]
@@ -768,7 +752,7 @@ class ConstrainedBeamSearchScorer(BeamScorer):
             new_tokens = mint.stack(track_new["new_tokens"])
             new_scores = mint.stack(track_new["new_scores"])
 
-            all_states = topk_contraint_states + track_new["new_states"]
+            all_states = topk_constraint_states + track_new["new_states"]
             all_tokens = mint.cat((sent_beam_tokens, new_tokens), -1)
             all_scores = mint.cat((sent_beam_scores, new_scores), -1)
             all_banks = ms.tensor([one.get_bank() for one in all_states])
@@ -809,7 +793,7 @@ class ConstrainedBeamSearchScorer(BeamScorer):
         pad_token_id: Optional[Union[int, ms.Tensor]] = None,
         eos_token_id: Optional[Union[int, list[int], ms.Tensor]] = None,
         beam_indices: Optional[ms.Tensor] = None,
-        decoder_prompt_len: Optional[int] = 0,
+        decoder_prompt_len: int = 0,
     ) -> tuple[ms.Tensor]:
         batch_size = len(self._beam_hyps)
 
@@ -917,10 +901,16 @@ class ConstrainedBeamSearchScorer(BeamScorer):
 
 
 class BeamHypotheses:
-    def __init__(self, num_beams: int, length_penalty: float, early_stopping: bool, max_length: Optional[int] = None):
+    def __init__(
+        self, num_beams: int, length_penalty: float, early_stopping: Union[bool, str], max_length: Optional[int] = None
+    ):
         """
         Initialize n-best list of hypotheses.
         """
+        logger.warning_once(
+            "`BeamHypotheses` is deprecated and will be removed in v4.62.0, as constrained beam search has been moved to the Hub: "
+            "https://hf.co/transformers-community/constrained-beam-search."
+        )
         self.length_penalty = length_penalty
         self.early_stopping = early_stopping
         self.max_length = max_length
@@ -965,7 +955,7 @@ class BeamHypotheses:
             else:
                 self.worst_score = min(score, self.worst_score)
 
-    def is_done(self, best_sum_logprobs: float, cur_len: int, decoder_prompt_len: Optional[int] = 0) -> bool:
+    def is_done(self, best_sum_logprobs: float, cur_len: int, decoder_prompt_len: int = 0) -> bool:
         """
         If there are enough hypotheses and that none of the hypotheses being generated can become better than the worst
         one in the heap, then we are done with this sentence.

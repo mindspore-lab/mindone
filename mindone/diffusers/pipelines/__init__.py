@@ -29,6 +29,7 @@ _import_structure = {
         "AutoPipelineForText2Image",
     ],
     "blip_diffusion": ["BlipDiffusionPipeline"],
+    "bria": ["BriaPipeline"],
     "chroma": ["ChromaPipeline", "ChromaImg2ImgPipeline"],
     "cogvideo": [
         "CogVideoXPipeline",
@@ -136,6 +137,7 @@ _import_structure = {
         "Kandinsky3Img2ImgPipeline",
         "Kandinsky3Pipeline",
     ],
+    "kandinsky5": ["Kandinsky5T2VPipeline"],
     "kolors": [
         "KolorsPipeline",
         "KolorsImg2ImgPipeline",
@@ -148,6 +150,7 @@ _import_structure = {
     "ltx": ["LTXPipeline", "LTXImageToVideoPipeline", "LTXConditionPipeline", "LTXLatentUpsamplePipeline"],
     "lumina": ["LuminaPipeline", "LuminaText2ImgPipeline"],
     "lumina2": ["Lumina2Pipeline", "Lumina2Text2ImgPipeline"],
+    "lucy": ["LucyEditPipeline"],
     "marigold": [
         "MarigoldDepthPipeline",
         "MarigoldIntrinsicsPipeline",
@@ -291,6 +294,7 @@ if TYPE_CHECKING:
     from .aura_flow import AuraFlowPipeline
     from .auto_pipeline import AutoPipelineForImage2Image, AutoPipelineForInpainting, AutoPipelineForText2Image
     from .blip_diffusion import BlipDiffusionPipeline
+    from .bria import BriaPipeline
     from .chroma import ChromaImg2ImgPipeline, ChromaPipeline
     from .cogvideo import (
         CogVideoXFunControlPipeline,
@@ -382,6 +386,7 @@ if TYPE_CHECKING:
         KandinskyV22PriorPipeline,
     )
     from .kandinsky3 import Kandinsky3Img2ImgPipeline, Kandinsky3Pipeline
+    from .kandinsky5 import Kandinsky5T2VPipeline
     from .kolors import KolorsImg2ImgPipeline, KolorsPipeline
     from .latent_consistency_models import LatentConsistencyModelImg2ImgPipeline, LatentConsistencyModelPipeline
     from .latent_diffusion import LDMSuperResolutionPipeline, LDMTextToImagePipeline
@@ -393,6 +398,7 @@ if TYPE_CHECKING:
         LEditsPPPipelineStableDiffusionXL,
     )
     from .ltx import LTXConditionPipeline, LTXImageToVideoPipeline, LTXLatentUpsamplePipeline, LTXPipeline
+    from .lucy import LucyEditPipeline
     from .lumina import LuminaPipeline, LuminaText2ImgPipeline
     from .lumina2 import Lumina2Pipeline, Lumina2Text2ImgPipeline
     from .marigold import MarigoldDepthPipeline, MarigoldIntrinsicsPipeline, MarigoldNormalsPipeline

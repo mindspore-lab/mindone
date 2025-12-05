@@ -35,7 +35,7 @@ dependencies = [
     "mindcv==0.3.0",
     "huggingface-hub>=0.20.2",
     "safetensors>=0.3.1",
-    "transformers==4.54.1",
+    "transformers==4.57.1",
     "better_profanity",
     "nltk"
 ]
@@ -82,7 +82,7 @@ python = "3.9"
 
 [tool.hatch.version]
 source = "bgd"
-base-version = "0.3.0.dev0"
+base-version = "0.5.0.dev0"
 build-type = "dev"  # ['dev', 'release']
 
 [tool.hatch.build.targets.sdist]
