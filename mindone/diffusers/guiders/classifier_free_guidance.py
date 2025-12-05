@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 import mindspore as ms
 
 from ..configuration_utils import register_to_config
-from .guider_utils import BaseGuidance, rescale_noise_cfg
+from .guider_utils import BaseGuidance, GuiderOutput, rescale_noise_cfg
 
 if TYPE_CHECKING:
     from ..modular_pipelines.modular_pipeline import BlockState
@@ -108,7 +108,7 @@ class ClassifierFreeGuidance(BaseGuidance):
         if self.guidance_rescale > 0.0:
             pred = rescale_noise_cfg(pred, pred_cond, self.guidance_rescale)
 
-        return pred, {}
+        return GuiderOutput(pred=pred, pred_cond=pred_cond, pred_uncond=pred_uncond)
 
     @property
     def is_conditional(self) -> bool:

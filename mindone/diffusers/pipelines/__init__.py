@@ -186,11 +186,14 @@ _import_structure = {
         "PixArtSigmaPipeline",
     ],
     "qwenimage": [
-        "QwenImageEditPipeline",
-        "QwenImageEditInpaintPipeline",
+        "QwenImagePipeline",
         "QwenImageImg2ImgPipeline",
         "QwenImageInpaintPipeline",
-        "QwenImagePipeline",
+        "QwenImageEditPipeline",
+        "QwenImageEditPlusPipeline",
+        "QwenImageEditInpaintPipeline",
+        "QwenImageControlNetInpaintPipeline",
+        "QwenImageControlNetPipeline",
     ],
     "sana": ["SanaPipeline", "SanaSprintPipeline", "SanaControlNetPipeline", "SanaSprintImg2ImgPipeline"],
     "semantic_stable_diffusion": ["SemanticStableDiffusionPipeline"],
@@ -429,8 +432,11 @@ if TYPE_CHECKING:
     from .pipeline_utils import AudioPipelineOutput, DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
     from .pixart_alpha import PixArtAlphaPipeline, PixArtSigmaPipeline
     from .qwenimage import (
+        QwenImageControlNetInpaintPipeline,
+        QwenImageControlNetPipeline,
         QwenImageEditInpaintPipeline,
         QwenImageEditPipeline,
+        QwenImageEditPlusPipeline,
         QwenImageImg2ImgPipeline,
         QwenImageInpaintPipeline,
         QwenImagePipeline,
