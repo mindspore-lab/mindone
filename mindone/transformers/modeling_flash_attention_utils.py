@@ -130,9 +130,6 @@ def _flash_attention_forward(
     #     )
     # ):
     #     raise RuntimeError("FlashAttention's variable-length attention is not available.")
-    is_fa_with_position_ids = _is_packed_sequence(position_ids, batch_size=query_states.shape[0])
-    if is_fa_with_position_ids:
-        raise RuntimeError("FlashAttention's variable-length attention is not available.")
 
     # NOTE: `max_length_q`, `max_length_k`, `cu_seq_lens_q`, `cu_seq_lens_k` are originally for variable-length flash attn,
     # not available yet.
