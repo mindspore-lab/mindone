@@ -11,6 +11,7 @@ from mindspore.context import ParallelMode
 from mindspore.parallel._utils import _get_parallel_mode
 
 from mindone.models.modules.parallel import PARALLEL_MODULES, SPECIAL_CASE_FOR_PARALLEL_MODULES
+from mindone.utils.version_control import MS_VERSION
 
 from .train_step import TrainOneStepWrapper
 
@@ -271,7 +272,7 @@ class ZeroHelper:
 
     def get_optimizer_param_tuples(self):
         param_tuples = []
-        if ms.get_context("mode") == ms.PYNATIVE_MODE:
+        if ms.get_context("mode") == ms.PYNATIVE_MODE and MS_VERSION < "2.7.0":
             for name in self.optimizer._params_list:
                 if name in ["_parameters", "parameters"]:
                     continue
