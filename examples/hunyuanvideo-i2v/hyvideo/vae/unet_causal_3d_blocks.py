@@ -20,7 +20,7 @@
 # ==============================================================================
 from typing import Optional, Tuple, Union
 
-from hyvideo.utils.modules_utils import LayerNorm
+from hyvideo.utils.modules_utils import GroupNorm, LayerNorm
 
 import mindspore as ms
 import mindspore.mint.nn.functional as F
@@ -28,7 +28,7 @@ from mindspore import mint, nn, ops
 
 from mindone.diffusers.models.activations import get_activation
 from mindone.diffusers.models.attention_processor import Attention, SpatialNorm
-from mindone.diffusers.models.normalization import AdaGroupNorm, GroupNorm, RMSNorm
+from mindone.diffusers.models.normalization import AdaGroupNorm, RMSNorm
 from mindone.diffusers.utils import logging
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -412,7 +412,7 @@ class ResnetBlockCausal3D(nn.Cell):
         conv_3d_out_channels = conv_3d_out_channels or out_channels
         self.conv2 = CausalConv3d(out_channels, conv_3d_out_channels, kernel_size=3, stride=1)
 
-        self.nonlinearity = get_activation(non_linearity)()
+        self.nonlinearity = get_activation(non_linearity)
 
         self.upsample = self.downsample = None
         if self.up:

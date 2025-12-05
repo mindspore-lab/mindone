@@ -1,4 +1,5 @@
 import inspect
+from contextlib import contextmanager
 from functools import wraps
 
 import mindspore as ms
@@ -51,9 +52,28 @@ def unpatch_nn_default_dtype():
 
 
 def _patched_get_parameter_new_args(data, rc, init_param=True):
+    """
+    Allocate real tensor memory when `no_init_parameters` would normally return None.
+    """
     result = _original_get_parameter_new_args(data, rc, init_param)
 
     if isinstance(data, ms.Tensor) and len(result) == 5 and result[1] is None:
-        return (ms.Tensor, mint.empty_like(data))
+        return (ms.Tensor, mint.empty_like(data, device="cpu"))
 
     return result
+
+
+@contextmanager
+def patch_empty_with_dtype(dtype=ms.float32):
+    original = mint.empty
+    try:
+
+        def patched(shape, *args, **kwargs):
+            if "dtype" not in kwargs:
+                kwargs["dtype"] = ms.float32
+            return original(shape, *args, **kwargs)
+
+        mint.empty = patched
+        yield
+    finally:
+        mint.empty = original

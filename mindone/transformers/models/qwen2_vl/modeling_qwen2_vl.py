@@ -41,13 +41,7 @@ from mindspore.common.initializer import Initializer, Normal
 from mindspore.mint.nn import LayerNorm
 
 from mindone.transformers.activations import ACT2FN
-from mindone.transformers.cache_utils import (  # TODO: SlidingWindowCache
-    Cache,
-    DynamicCache,
-    get_max_length,
-    get_seq_length,
-    update,
-)
+from mindone.transformers.cache_utils import Cache, DynamicCache  # TODO: SlidingWindowCache
 from mindone.transformers.modeling_attn_mask_utils import dtype_to_min
 from mindone.transformers.modeling_flash_attention_utils import FlashAttentionKwargs
 from mindone.transformers.modeling_outputs import BaseModelOutputWithPast, ModelOutput
@@ -568,9 +562,6 @@ class Qwen2VLAttention(nn.Cell):
             if isinstance(past_key_value, Cache):
                 cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}  # Specific to RoPE models
                 key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
-            else:  # tuple static cache
-                key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
-                past_key_value = (key_states, value_states)
 
         # repeat k/v heads if n_kv_heads < n_heads
         key_states = repeat_kv(key_states, self.num_key_value_groups)
@@ -652,9 +643,6 @@ class Qwen2VLFlashAttention2(Qwen2VLAttention):
             if isinstance(past_key_value, Cache):
                 cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}  # Specific to RoPE models
                 key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
-            else:  # tuple static cache
-                key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
-                past_key_value = (key_states, value_states)
 
         # repeat k/v heads if n_kv_heads < n_heads
         key_states = repeat_kv(key_states, self.num_key_value_groups)
@@ -946,23 +934,15 @@ class Qwen2VLTextModel(Qwen2VLPreTrainedModel):
     ):
         past_seen_tokens = 0
         if past_key_values is not None:
-            past_seen_tokens = (
-                get_seq_length(past_key_values)
-                if isinstance(past_key_values, tuple)
-                else past_key_values.get_seq_length()
-            )
-        using_static_cache = isinstance(past_key_values, tuple)
+            past_seen_tokens = past_key_values.get_seq_length()
 
         dtype = input_tensor.dtype
         sequence_length = input_tensor.shape[1]
-        if using_static_cache:
-            target_length = get_max_length(past_key_values)
-        else:
-            target_length = (
-                attention_mask.shape[-1]
-                if isinstance(attention_mask, ms.Tensor)
-                else past_seen_tokens + sequence_length + 1
-            )
+        target_length = (
+            attention_mask.shape[-1]
+            if isinstance(attention_mask, ms.Tensor)
+            else past_seen_tokens + sequence_length + 1
+        )
 
         # In case the provided `attention` mask is 2D, we generate a causal mask here (4D).
         causal_mask = self._prepare_4d_causal_attention_mask_with_cache_position(
@@ -1067,11 +1047,7 @@ class Qwen2VLTextModel(Qwen2VLPreTrainedModel):
             inputs_embeds = self.embed_tokens(input_ids)
 
         if cache_position is None:
-            past_seen_tokens = 0
-            if past_key_values is not None and (isinstance(past_key_values, tuple)):
-                past_seen_tokens = get_seq_length(past_key_values)
-            else:
-                past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
+            past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
             cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
         # the hard coded `3` is for temporal, height and width.
@@ -1395,11 +1371,7 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
             # calculate RoPE index once per generation in the pre-fill stage only
             past_seen_tokens = 0
             if past_key_values is not None:
-                past_seen_tokens = (
-                    get_seq_length(past_key_values)
-                    if isinstance(past_key_values, tuple)
-                    else past_key_values.get_seq_length()
-                )
+                past_seen_tokens = past_key_values.get_seq_length()
             if (
                 (cache_position is not None and cache_position[0] == 0)
                 or self.rope_deltas is None

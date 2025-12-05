@@ -922,7 +922,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             if p.dtype != dtype:
                 try:
                     p._data = p.to(device="CPU", dtype=dtype)
-                except (RuntimeError, AttributeError):
+                except (RuntimeError, AttributeError, TypeError):
                     p.set_dtype(dtype)
         return self
 
@@ -930,7 +930,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         for p in self.get_parameters():
             try:
                 p._data = p.to(device="CPU", dtype=ms.float16)
-            except (RuntimeError, AttributeError):
+            except (RuntimeError, AttributeError, TypeError):
                 p.set_dtype(ms.float16)
         return self
 
@@ -938,7 +938,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         for p in self.get_parameters():
             try:
                 p._data = p.to(device="CPU", dtype=ms.float32)
-            except (RuntimeError, AttributeError):
+            except (RuntimeError, AttributeError, TypeError):
                 p.set_dtype(ms.float32)
         return self
 
