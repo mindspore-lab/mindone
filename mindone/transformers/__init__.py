@@ -1075,6 +1075,11 @@ from .models.phi3 import (
     Phi3Model,
     Phi3PreTrainedModel,
 )
+from .models.phi4_multimodal import(
+    Phi4MultimodalProcessor,
+    Phi4MultimodalImageProcessorFast,
+    Phi4MultimodalFeatureExtractor,
+)
 from .models.phimoe import PhimoeForCausalLM, PhimoeForSequenceClassification, PhimoeModel, PhimoePreTrainedModel
 from .models.pix2struct import (
     Pix2StructForConditionalGeneration,

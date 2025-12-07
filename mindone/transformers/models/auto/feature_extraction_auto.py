@@ -47,6 +47,7 @@ FEATURE_EXTRACTOR_MAPPING_NAMES = OrderedDict(
         ("convnext", "ConvNextFeatureExtractor"),
         ("cvt", "ConvNextFeatureExtractor"),
         ("flava", "FlavaFeatureExtractor"),
+        ("phi4_multimodal", "Phi4MultimodalFeatureExtractor"),
         ("seamless_m4t", "SeamlessM4TFeatureExtractor"),
     ]
 )
