@@ -22,16 +22,21 @@ import math
 from typing import Callable, Optional
 
 import numpy as np
+from transformers.models.phi4_multimodal.configuration_phi4_multimodal import (
+    Phi4MultimodalAudioConfig,
+    Phi4MultimodalConfig,
+)
+from transformers.utils import auto_docstring
+
 import mindspore as ms
 import mindspore.mint.nn.functional as F
-from mindspore import mint, nn, Parameter
+from mindspore import Parameter, mint, nn
 
 from ...activations import ACT2FN
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
-from transformers.utils import auto_docstring
 from ...utils.generic import TransformersKwargs
-from transformers.models.phi4_multimodal.configuration_phi4_multimodal import Phi4MultimodalAudioConfig, Phi4MultimodalConfig
+
 
 def simple_eager_attention_forward(
     module: nn.Cell,
@@ -54,6 +59,7 @@ def simple_eager_attention_forward(
     attn_output = attn_output.transpose(1, 2).contiguous()
 
     return attn_output, attn_weights
+
 
 ########################################################## AUDIO #############################################
 
@@ -235,7 +241,9 @@ class Phi4MultimodalAudioNemoConvSubsampling(nn.Cell):
         for _ in range(self.sampling_num - 1):
             layers.extend(
                 [
-                    mint.nn.Conv2d(conv_channels, conv_channels, kernel_size=3, stride=2, padding=1, groups=conv_channels),
+                    mint.nn.Conv2d(
+                        conv_channels, conv_channels, kernel_size=3, stride=2, padding=1, groups=conv_channels
+                    ),
                     mint.nn.Conv2d(conv_channels, conv_channels, kernel_size=1, stride=1, padding=0, groups=1),
                     self.act_fn,
                 ]
@@ -446,9 +454,7 @@ class Phi4MultimodalAudioModel(Phi4MultimodalAudioPreTrainedModel):
 
         feature_lens = mask.sum(1)
         padding_length = feature_lens
-        pad_mask = mint.arange(0, max_audio_length).expand(
-            padding_length.size(0), -1
-        ) < padding_length.unsqueeze(1)
+        pad_mask = mint.arange(0, max_audio_length).expand(padding_length.size(0), -1) < padding_length.unsqueeze(1)
         pad_mask = pad_mask.unsqueeze(1)
         pad_mask = pad_mask & enc_streaming_mask
         return pad_mask
@@ -535,9 +541,7 @@ class Phi4MultimodalAudioEmbedding(nn.Cell):
             positions_tuple = mint.nonzero(input_ids == self.config.audio_config.audio_token_id, as_tuple=True)
 
         up_proj = self.up_proj_for_speech if audio_projection_mode == "speech" else self.up_proj_for_vision_speech
-        down_proj = (
-            self.down_proj_for_speech if audio_projection_mode == "speech" else self.down_proj_for_vision_speech
-        )
+        down_proj = self.down_proj_for_speech if audio_projection_mode == "speech" else self.down_proj_for_vision_speech
 
         target_dtype = up_proj.bias.dtype
 
@@ -553,11 +557,8 @@ class Phi4MultimodalAudioEmbedding(nn.Cell):
         )
         merged_audio_embeds = merged_audio_embeds.to(dtype=inputs_embeds.dtype)
 
-        audio_embeds = inputs_embeds.index_put(
-            indices=positions_tuple, values=merged_audio_embeds, accumulate=False
-        )
+        audio_embeds = inputs_embeds.index_put(indices=positions_tuple, values=merged_audio_embeds, accumulate=False)
 
         audio_embeds = self.drop(audio_embeds)
 
         return audio_embeds
-

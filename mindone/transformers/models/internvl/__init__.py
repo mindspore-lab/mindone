@@ -1,0 +1,2 @@
+from .processing_internvl import InternVLProcessor
+from .video_processing_utils import InternVLVideoProcessor

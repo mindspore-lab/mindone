@@ -603,7 +603,12 @@ from .models.glpn import (
     GLPNModel,
     GLPNPreTrainedModel,
 )
-from .models.got_ocr2 import GotOcr2ForConditionalGeneration, GotOcr2PreTrainedModel
+from .models.got_ocr2 import (
+    GotOcr2ForConditionalGeneration,
+    GotOcr2ImageProcessor,
+    GotOcr2ImageProcessorFast,
+    GotOcr2PreTrainedModel,
+)
 from .models.gpt2 import (
     GPT2DoubleHeadsModel,
     GPT2ForQuestionAnswering,
@@ -721,6 +726,7 @@ from .models.instructblipvideo import (
     InstructBlipVideoQFormerModel,
     InstructBlipVideoVisionModel,
 )
+from .models.internvl import InternVLProcessor, InternVLVideoProcessor
 from .models.jamba import JambaForCausalLM, JambaForSequenceClassification, JambaModel, JambaPreTrainedModel
 from .models.jetmoe import (
     JetMoeConfig,

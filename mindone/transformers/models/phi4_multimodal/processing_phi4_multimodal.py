@@ -386,7 +386,11 @@ class Phi4MMAudioFeatureExtractor(SequenceFeatureExtractor):
         max_length = max([i.shape[0] for i in returned_input_audio_embeds])
         returned_audio_embed_sizes = []
         for i in range(len(returned_input_audio_embeds)):
-            returned_audio_embed_sizes.append(mint.nn.functional.pad(returned_input_audio_embeds[i], pad=(0, 0, 0, max_length - len(returned_input_audio_embeds[i]))))
+            returned_audio_embed_sizes.append(
+                mint.nn.functional.pad(
+                    returned_input_audio_embeds[i], pad=(0, 0, 0, max_length - len(returned_input_audio_embeds[i]))
+                )
+            )
         returned_audio_embed_sizes = mint.stack(returned_audio_embed_sizes).transpose(1, 2)
         returned_audio_embed_sizes = mint.stack(returned_audio_embed_sizes, dim=0)
         audio_frames = ms.Tensor(audio_frames_list)
