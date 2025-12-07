@@ -15,36 +15,32 @@
 """
 Processor class for Phi4MM
 """
-import re
-from typing import List, Optional, Tuple, Union
 import math
+import re
 from enum import Enum
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import scipy
+from transformers.tokenization_utils_base import PaddingStrategy, TextInput, TruncationStrategy
+
 import mindspore as ms
 from mindspore import mint
 
 from mindone.transformers import AutoFeatureExtractor, AutoImageProcessor
 from mindone.transformers.feature_extraction_sequence_utils import SequenceFeatureExtractor
 from mindone.transformers.image_processing_utils import BaseImageProcessor, BatchFeature
-from mindone.transformers.image_utils import (
-    ImageInput,
-    make_list_of_images,
-    valid_images,
-)
+from mindone.transformers.image_utils import ImageInput, make_list_of_images, valid_images
 from mindone.transformers.processing_utils import ProcessorMixin
-from transformers.tokenization_utils_base import PaddingStrategy, TextInput, TruncationStrategy
 from mindone.transformers.utils import TensorType, logging
-
 
 logger = logging.get_logger(__name__)
 
 # Special tokens
-_COMPATIBLE_IMAGE_SPECIAL_TOKEN_PATTERN = r'<\|image_\d+\|>'  # For backward compatibility
-_COMPATIBLE_AUDIO_SPECIAL_TOKEN_PATTERN = r'<\|audio_\d+\|>'  # For backward compatibility
-_IMAGE_SPECIAL_TOKEN = '<|endoftext10|>'
-_AUDIO_SPECIAL_TOKEN = '<|endoftext11|>'
+_COMPATIBLE_IMAGE_SPECIAL_TOKEN_PATTERN = r"<\|image_\d+\|>"  # For backward compatibility
+_COMPATIBLE_AUDIO_SPECIAL_TOKEN_PATTERN = r"<\|audio_\d+\|>"  # For backward compatibility
+_IMAGE_SPECIAL_TOKEN = "<|endoftext10|>"
+_AUDIO_SPECIAL_TOKEN = "<|endoftext11|>"
 _IMAGE_SPECIAL_TOKEN_ID = 200010  # '<|endoftext10|>', or we can better name it (in `tokenizer_config.json`)
 _AUDIO_SPECIAL_TOKEN_ID = 200011  # '<|endoftext11|>'
 
@@ -71,7 +67,7 @@ class Phi4MMImageProcessor(BaseImageProcessor):
         self.dynamic_hd = dynamic_hd
 
     def find_closest_aspect_ratio(self, aspect_ratio, target_ratios, width, height, image_size):
-        best_ratio_diff = float('inf')
+        best_ratio_diff = float("inf")
         best_ratio = (1, 1)
         area = width * height
         for ratio in target_ratios:
@@ -88,21 +84,25 @@ class Phi4MMImageProcessor(BaseImageProcessor):
     def dynamic_preprocess(self, image, min_num=1, max_num=12, image_size=384, mask_size=27, use_thumbnail=True):
         orig_width, orig_height = image.size
 
-        w_crop_num = math.ceil(orig_width/float(image_size))
-        h_crop_num = math.ceil(orig_height/float(image_size))
+        w_crop_num = math.ceil(orig_width / float(image_size))
+        h_crop_num = math.ceil(orig_height / float(image_size))
         if w_crop_num * h_crop_num > max_num:
-
             aspect_ratio = orig_width / orig_height
 
             # calculate the existing image aspect ratio
             target_ratios = set(
-                (i, j) for n in range(min_num, max_num + 1) for i in range(1, n + 1) for j in range(1, n + 1) if
-                i * j <= max_num and i * j >= min_num)
+                (i, j)
+                for n in range(min_num, max_num + 1)
+                for i in range(1, n + 1)
+                for j in range(1, n + 1)
+                if i * j <= max_num and i * j >= min_num
+            )
             target_ratios = sorted(target_ratios, key=lambda x: x[0] * x[1])
 
             # find the closest aspect ratio to the target
             target_aspect_ratio = self.find_closest_aspect_ratio(
-                aspect_ratio, target_ratios, orig_width, orig_height, image_size)
+                aspect_ratio, target_ratios, orig_width, orig_height, image_size
+            )
 
             # calculate the target width and height
             target_width = image_size * target_aspect_ratio[0]
@@ -124,19 +124,19 @@ class Phi4MMImageProcessor(BaseImageProcessor):
             padding_width = target_width - int(orig_width * ratio_height)
             padding_height = 0
 
-        attention_mask = mint.ones((int(mask_size*target_aspect_ratio[1]), int(mask_size*target_aspect_ratio[0])))
+        attention_mask = mint.ones((int(mask_size * target_aspect_ratio[1]), int(mask_size * target_aspect_ratio[0])))
         if padding_width >= 14:
-            attention_mask[:, -math.floor(padding_width/14):] = 0
+            attention_mask[:, -math.floor(padding_width / 14) :] = 0
         if padding_height >= 14:
-            attention_mask[-math.floor(padding_height/14):,:] = 0
+            attention_mask[-math.floor(padding_height / 14) :, :] = 0
         assert attention_mask.sum() > 0
 
         if min(new_size[1], target_height) < 10 or min(new_size[0], target_width) < 10:
-            raise ValueError(f'the aspect ratio is very extreme {new_size}')
+            raise ValueError(f"the aspect ratio is very extreme {new_size}")
 
         image = ms.dataset.vision.Resize(([new_size[1], new_size[0]]))(image)
 
-        resized_img = ms.dataset.vision.Pad([0, 0, padding_width, padding_height], fill_value=(255,255,255))(image)
+        resized_img = ms.dataset.vision.Pad([0, 0, padding_width, padding_height], fill_value=(255, 255, 255))(image)
 
         return resized_img, attention_mask
 
@@ -176,60 +176,84 @@ class Phi4MMImageProcessor(BaseImageProcessor):
         images = make_list_of_images(images)
 
         if not valid_images(images):
-            raise ValueError(
-                "Invalid image type. Must be of type PIL.Image.Image, numpy.ndarray, "
-                "ms.Tensor"
-            )
+            raise ValueError("Invalid image type. Must be of type PIL.Image.Image, numpy.ndarray, " "ms.Tensor")
 
         # Basic settings.
-        img_processor = ms.dataset.transforms.Compose([
-            ms.dataset.vision.ToTensor(),
-            ms.dataset.vision.Normalize(
-                (0.5, 0.5, 0.5),
-                (0.5, 0.5, 0.5),
-                is_hwc=False,
-            ),
-        ])
+        img_processor = ms.dataset.transforms.Compose(
+            [
+                ms.dataset.vision.ToTensor(),
+                ms.dataset.vision.Normalize(
+                    (0.5, 0.5, 0.5),
+                    (0.5, 0.5, 0.5),
+                    is_hwc=False,
+                ),
+            ]
+        )
         dyhd_base_resolution = 448
 
         # Dynamic HD
         base_resolution = dyhd_base_resolution
-        images = [image.convert('RGB') for image in images]
+        images = [image.convert("RGB") for image in images]
         # cover 384 and 448 resolution
         mask_resolution = base_resolution // 14
         elems, image_attention_masks = [], []
         for im in images:
-            elem, attention_mask = self.dynamic_preprocess(im, max_num=self.dynamic_hd, image_size=base_resolution, mask_size=mask_resolution)
+            elem, attention_mask = self.dynamic_preprocess(
+                im, max_num=self.dynamic_hd, image_size=base_resolution, mask_size=mask_resolution
+            )
             elems.append(elem)
             image_attention_masks.append(attention_mask)
         hd_images = [ms.tensor(img_processor(im)) for im in elems][0]
-        global_image = [mint.nn.functional.interpolate(im.unsqueeze(0).float(), size=(base_resolution, base_resolution), mode='bicubic') for im in hd_images]
+        global_image = [
+            mint.nn.functional.interpolate(
+                im.unsqueeze(0).float(), size=(base_resolution, base_resolution), mode="bicubic"
+            )
+            for im in hd_images
+        ]
         shapes = [[im.shape[1], im.shape[2]] for im in hd_images]
         mask_shapes = [[mask.shape[0], mask.shape[1]] for mask in image_attention_masks]
         global_attention_mask = [mint.ones((1, mask_resolution, mask_resolution)) for _ in hd_images]
-        hd_images_reshape = [im.reshape(1, 3,
-                                            h//base_resolution,
-                                            base_resolution,
-                                            w//base_resolution,
-                                            base_resolution
-                                            ).permute(0,2,4,1,3,5).reshape(-1, 3, base_resolution, base_resolution).contiguous() for im, (h, w) in zip(hd_images, shapes)]
-        attention_masks_reshape = [mask.reshape(1,
-                                            h//mask_resolution,
-                                            mask_resolution,
-                                            w//mask_resolution,
-                                            mask_resolution
-                                            ).permute(0,1,3,2,4).reshape(-1, mask_resolution, mask_resolution).contiguous() for mask, (h, w) in zip(image_attention_masks, mask_shapes)]
-        downsample_attention_masks = [mask[:,0::2,0::2].reshape(1,
-                                            h//mask_resolution,
-                                            w//mask_resolution,
-                                            mask_resolution//2+mask_resolution%2,
-                                            mask_resolution//2+mask_resolution%2
-                                            ).permute(0,1,3,2,4) for mask, (h,w) in zip(attention_masks_reshape, mask_shapes)]
-        downsample_attention_masks = [mask.reshape(mask.shape[1]*mask.shape[2], mask.shape[3]*mask.shape[4])for mask in downsample_attention_masks]
-        num_img_tokens = [256 + 1 + int(mask.sum().item()) + int(mask[:,0].sum().item()) + 16 for mask in downsample_attention_masks]
+        hd_images_reshape = [
+            im.reshape(1, 3, h // base_resolution, base_resolution, w // base_resolution, base_resolution)
+            .permute(0, 2, 4, 1, 3, 5)
+            .reshape(-1, 3, base_resolution, base_resolution)
+            .contiguous()
+            for im, (h, w) in zip(hd_images, shapes)
+        ]
+        attention_masks_reshape = [
+            mask.reshape(1, h // mask_resolution, mask_resolution, w // mask_resolution, mask_resolution)
+            .permute(0, 1, 3, 2, 4)
+            .reshape(-1, mask_resolution, mask_resolution)
+            .contiguous()
+            for mask, (h, w) in zip(image_attention_masks, mask_shapes)
+        ]
+        downsample_attention_masks = [
+            mask[:, 0::2, 0::2]
+            .reshape(
+                1,
+                h // mask_resolution,
+                w // mask_resolution,
+                mask_resolution // 2 + mask_resolution % 2,
+                mask_resolution // 2 + mask_resolution % 2,
+            )
+            .permute(0, 1, 3, 2, 4)
+            for mask, (h, w) in zip(attention_masks_reshape, mask_shapes)
+        ]
+        downsample_attention_masks = [
+            mask.reshape(mask.shape[1] * mask.shape[2], mask.shape[3] * mask.shape[4])
+            for mask in downsample_attention_masks
+        ]
+        num_img_tokens = [
+            256 + 1 + int(mask.sum().item()) + int(mask[:, 0].sum().item()) + 16 for mask in downsample_attention_masks
+        ]
 
-        hd_images_reshape = [mint.cat([_global_image] + [_im], dim=0) for _global_image, _im in zip(global_image, hd_images_reshape)]
-        hd_masks_reshape = [mint.cat([_global_mask] + [_mask], dim=0) for _global_mask, _mask in zip(global_attention_mask, attention_masks_reshape)]
+        hd_images_reshape = [
+            mint.cat([_global_image] + [_im], dim=0) for _global_image, _im in zip(global_image, hd_images_reshape)
+        ]
+        hd_masks_reshape = [
+            mint.cat([_global_mask] + [_mask], dim=0)
+            for _global_mask, _mask in zip(global_attention_mask, attention_masks_reshape)
+        ]
         max_crops = max([img.shape[0] for img in hd_images_reshape])
         image_transformed = [self.pad_to_max_num_crops(im, max_crops) for im in hd_images_reshape]
         image_transformed = mint.stack(image_transformed, dim=0)
@@ -357,12 +381,18 @@ class Phi4MMAudioFeatureExtractor(SequenceFeatureExtractor):
             returned_audio_embed_sizes.append(ms.Tensor(audio_embed_size).long())
             audio_frames_list.append(audio_frames)
 
-        returned_input_audio_embeds = pad_sequence(
-            returned_input_audio_embeds, batch_first=True
-        )
+        # TODO mindspore do not support "nn.utils.rnn.pad_sequence", we use "pad+stack" for substitution
+        # returned_input_audio_embeds = pad_sequence(returned_input_audio_embeds, batch_first=True)
+        max_length = max([i.shape[0] for i in returned_input_audio_embeds])
+        returned_audio_embed_sizes = []
+        for i in range(len(returned_input_audio_embeds)):
+            returned_audio_embed_sizes.append(mint.nn.functional.pad(returned_input_audio_embeds[i], pad=(0, 0, 0, max_length - len(returned_input_audio_embeds[i]))))
+        returned_audio_embed_sizes = mint.stack(returned_audio_embed_sizes).transpose(1, 2)
         returned_audio_embed_sizes = mint.stack(returned_audio_embed_sizes, dim=0)
         audio_frames = ms.Tensor(audio_frames_list)
-        returned_audio_attention_mask = mint.arange(0, audio_frames.max()).unsqueeze(0) < audio_frames.unsqueeze(1) if len(audios) > 1 else None
+        returned_audio_attention_mask = (
+            mint.arange(0, audio_frames.max()).unsqueeze(0) < audio_frames.unsqueeze(1) if len(audios) > 1 else None
+        )
 
         data = {
             "input_audio_embeds": returned_input_audio_embeds,
@@ -602,7 +632,7 @@ class Phi4MMProcessor(ProcessorMixin):
             input_image_embeds = images["input_image_embeds"]
             image_sizes = images["image_sizes"]
             image_attention_mask = images["image_attention_mask"]
-            num_img_tokens = images['num_img_tokens']
+            num_img_tokens = images["num_img_tokens"]
         else:
             input_image_embeds = ms.Tensor([])
             image_sizes = ms.Tensor([])
@@ -625,7 +655,9 @@ class Phi4MMProcessor(ProcessorMixin):
             text = [text]
         assert isinstance(text, list)
         processed_text = [re.sub(_COMPATIBLE_IMAGE_SPECIAL_TOKEN_PATTERN, _IMAGE_SPECIAL_TOKEN, t) for t in text]
-        processed_text = [re.sub(_COMPATIBLE_AUDIO_SPECIAL_TOKEN_PATTERN, _AUDIO_SPECIAL_TOKEN, t) for t in processed_text]
+        processed_text = [
+            re.sub(_COMPATIBLE_AUDIO_SPECIAL_TOKEN_PATTERN, _AUDIO_SPECIAL_TOKEN, t) for t in processed_text
+        ]
 
         input_ids_list = [self.tokenizer(t).input_ids for t in processed_text]
 
@@ -647,7 +679,7 @@ class Phi4MMProcessor(ProcessorMixin):
                     i += 1
                     continue
                 tokens = [token_id] * token_count
-                input_ids = input_ids[:i] + tokens + input_ids[i + 1:]
+                input_ids = input_ids[:i] + tokens + input_ids[i + 1 :]
                 i += token_count
             input_ids = ms.Tensor(input_ids, dtype=ms.int64)
             new_input_ids_list.append(input_ids)
@@ -656,20 +688,16 @@ class Phi4MMProcessor(ProcessorMixin):
         input_ids = input_ids.new_full((len(new_input_ids_list), max_len), self.tokenizer.pad_token_id)
         # batched inference requires left padding
         for i in range(len(new_input_ids_list)):
-            input_ids[i, max_len - len(new_input_ids_list[i]):] = new_input_ids_list[i]
+            input_ids[i, max_len - len(new_input_ids_list[i]) :] = new_input_ids_list[i]
 
         # If the below assertion fails, it might be that input pure-text
         # messages contain image/audio special tokens literally
         # (<|endoftext10|>, <|endoftext11|>).
-        assert (
-            img_cnt == len(num_img_tokens)
-        ), (
+        assert img_cnt == len(num_img_tokens), (
             f"Number of image tokens in prompt_token_ids ({img_cnt}) "
             f"does not match number of images ({len(num_img_tokens)})"
         )
-        assert (
-            audio_cnt == len(audio_embed_sizes)
-        ), (
+        assert audio_cnt == len(audio_embed_sizes), (
             f"Number of audio tokens in prompt_token_ids ({audio_cnt}) "
             f"does not match number of audios ({len(audio_embed_sizes)})"
         )
@@ -690,9 +718,7 @@ class Phi4MMProcessor(ProcessorMixin):
             "attention_mask": attention_mask,
         }
 
-        return BatchFeature(
-            data=data
-        )
+        return BatchFeature(data=data)
 
     # Copied from transformers.models.clip.processing_clip.CLIPProcessor.batch_decode with CLIP->Llama
     def batch_decode(self, *args, **kwargs):

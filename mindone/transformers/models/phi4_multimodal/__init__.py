@@ -1,3 +1,3 @@
-from .processing_phi4_multimodal import Phi4MMProcessor as Phi4MultimodalProcessor
-from .processing_phi4_multimodal import Phi4MMImageProcessor as Phi4MultimodalImageProcessorFast
 from .processing_phi4_multimodal import Phi4MMAudioFeatureExtractor as Phi4MultimodalFeatureExtractor
+from .processing_phi4_multimodal import Phi4MMImageProcessor as Phi4MultimodalImageProcessorFast
+from .processing_phi4_multimodal import Phi4MMProcessor as Phi4MultimodalProcessor
