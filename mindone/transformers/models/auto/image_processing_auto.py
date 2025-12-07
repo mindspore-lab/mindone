@@ -65,7 +65,7 @@ else:
             ("efficientnet", ("EfficientNetImageProcessor",)),
             ("flava", ("FlavaImageProcessor",)),
             ("got_ocr2", ("GotOcr2ImageProcessor", "GotOcr2ImageProcessorFast")),
-            ("llava_next", ("LlavaNextImageProcessor",)),
+            ("llava_next", ("LlavaNextImageProcessor", "LlavaNextImageProcessorFast")),
             ("llava_next_video", ("LlavaNextVideoImageProcessor",)),
             ("llava_onevision", ("LlavaOnevisionImageProcessor",)),
             ("maskformer", ("MaskFormerImageProcessor",)),

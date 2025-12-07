@@ -779,6 +779,7 @@ from .models.llava import LlavaConfig, LlavaForConditionalGeneration
 from .models.llava_next import (
     LlavaNextForConditionalGeneration,
     LlavaNextImageProcessor,
+    LlavaNextImageProcessorFast,
     LlavaNextPreTrainedModel,
     LlavaNextProcessor,
 )
@@ -787,6 +788,7 @@ from .models.llava_next_video import (
     LlavaNextVideoImageProcessor,
     LlavaNextVideoPreTrainedModel,
     LlavaNextVideoProcessor,
+    LlavaNextVideoVideoProcessor,
 )
 from .models.llava_onevision import (
     LlavaOnevisionForConditionalGeneration,
@@ -1350,6 +1352,7 @@ from .models.timesformer import TimesformerForVideoClassification, TimesformerMo
 from .models.trocr import TrOCRForCausalLM, TrOCRPreTrainedModel
 from .models.tvp import TvpForVideoGrounding, TvpModel, TvpPreTrainedModel
 from .models.udop import UdopEncoderModel, UdopForConditionalGeneration, UdopModel, UdopPreTrainedModel
+from .models.ultravox import UltravoxProcessor
 from .models.umt5 import (
     UMT5EncoderModel,
     UMT5ForQuestionAnswering,
@@ -1452,6 +1455,7 @@ from .models.wavlm import (
     WavLMPreTrainedModel,
 )
 from .models.whisper import (
+    WhisperFeatureExtractor,
     WhisperForAudioClassification,
     WhisperForCausalLM,
     WhisperForConditionalGeneration,

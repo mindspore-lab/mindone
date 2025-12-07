@@ -72,6 +72,7 @@ PROCESSOR_MAPPING_NAMES = OrderedDict(
         ("sam", "SamProcessor"),
         ("seamless_m4t", "SeamlessM4TProcessor"),
         ("siglip", "SiglipProcessor"),
+        ("whisper", "WhisperProcessor"),
     ]
 )
 

@@ -229,6 +229,7 @@ from . import (
     trocr,
     tvp,
     udop,
+    ultravox,
     umt5,
     unispeech,
     unispeech_sat,
