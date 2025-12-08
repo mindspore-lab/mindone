@@ -10919,8 +10919,7 @@ If None, use <code>PARALLEL_MODULES</code> from <code>mindone.models.modules.par
 
             <details class="quote">
               <summary>Source code in <code>mindone/trainers/zero.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">570</span>
-<span class="normal">571</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">571</span>
 <span class="normal">572</span>
 <span class="normal">573</span>
 <span class="normal">574</span>
@@ -10997,7 +10996,8 @@ If None, use <code>PARALLEL_MODULES</code> from <code>mindone.models.modules.par
 <span class="normal">645</span>
 <span class="normal">646</span>
 <span class="normal">647</span>
-<span class="normal">648</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">prepare_train_network</span><span class="p">(</span>
+<span class="normal">648</span>
+<span class="normal">649</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">prepare_train_network</span><span class="p">(</span>
     <span class="n">network</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">,</span>
     <span class="n">optimizer</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Optimizer</span><span class="p">,</span>
     <span class="n">scale_sense</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
