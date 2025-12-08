@@ -61,6 +61,11 @@ class ObjectDetectionPipeline(Pipeline):
     See the list of available models on [huggingface.co/models](https://huggingface.co/models?filter=object-detection).
     """
 
+    _load_processor = False
+    _load_image_processor = True
+    _load_feature_extractor = False
+    _load_tokenizer = None
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         requires_backends(self, "vision")
@@ -129,7 +134,7 @@ class ObjectDetectionPipeline(Pipeline):
         inputs = self.image_processor(images=[image], return_tensors="np")
         if self.tokenizer is not None:
             inputs = self.tokenizer(text=inputs["words"], boxes=inputs["boxes"], return_tensors="np")
-        inputs = {k: ms.tensor(v).to(self.mindspore_dtype) for k, v in inputs.items()}
+        inputs = {k: ms.tensor(v).to(self.dtype) for k, v in inputs.items()}
         inputs["target_size"] = target_size
         return inputs
 

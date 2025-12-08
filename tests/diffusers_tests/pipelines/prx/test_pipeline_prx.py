@@ -150,7 +150,7 @@ class PRXPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
             "guidance_scale": 1.0,
             "height": 32,
             "width": 32,
-            "output_type": "pt",
+            "output_type": "numpy",
             "use_resolution_binning": False,
         }
 

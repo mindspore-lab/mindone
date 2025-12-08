@@ -30,7 +30,7 @@ from mindspore import mint, nn, ops
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
-from ...cache_utils import Cache, DynamicCache, update
+from ...cache_utils import Cache, DynamicCache
 from ...generation import GenerationMixin
 from ...mindspore_adapter import dtype_to_min
 from ...modeling_attn_mask_utils import AttentionMaskConverter
@@ -87,7 +87,7 @@ class Zamba2RMSNorm(nn.Cell):
         return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
 
 
-class Zamba2HybridDynamicCache(DynamicCache):
+class Zamba2HybridDynamicCache(Cache):
     """
     A dynamic cache that can handle both the attention cache (which has a seq_len dimension) and the mamba cache
     (which has a constant shape regardless of seq_len).
@@ -420,9 +420,6 @@ class Zamba2Attention(nn.Cell):
         if past_key_value is not None:
             if isinstance(past_key_value, Cache):
                 key_states, value_states = past_key_value.update(key_states, value_states, layer_idx)
-            elif isinstance(past_key_value, tuple):
-                key_states, value_states = update(past_key_value, key_states, value_states)
-                past_key_value = (key_states, value_states)
 
         attention_interface: Callable = eager_attention_forward
         if self.config._attn_implementation != "eager":

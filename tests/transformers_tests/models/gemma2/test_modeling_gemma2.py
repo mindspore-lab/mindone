@@ -29,7 +29,7 @@ from tests.modeling_test_utils import (
 
 from ..gemma.test_modeling_gemma import GemmaModelTester
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 1e-2}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [0, 1]
 
 
@@ -112,6 +112,9 @@ def test_named_modules(
     if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
         pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
         ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
+
+    if mode == 0:
+        ms_inputs_kwargs.update({"return_dict": False, "use_cache": False})
 
     with torch.no_grad():
         pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)

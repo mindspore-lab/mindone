@@ -19,6 +19,7 @@ import requests
 import torch
 from PIL import Image
 from transformers import YolosConfig
+from transformers.testing_utils import slow
 
 import mindspore as ms
 from mindspore import mint
@@ -184,7 +185,7 @@ def prepare_img():
     return image
 
 
-@pytest.mark.slow
+@slow
 def test_inference_object_detection_head():
     THRESHOLD = DTYPE_AND_THRESHOLDS["fp32"]
 

@@ -35,14 +35,42 @@ from mindspore import mint, nn
 from mindone.models.utils import normal_, zeros_
 
 from ...activations import ACT2FN
+from ...cache_utils import Cache
 from ...generation import GenerationMixin
+from ...modeling_flash_attention_utils import FlashAttentionKwargs
 from ...modeling_outputs import ModelOutput
 from ...modeling_utils import PreTrainedModel
-from ..auto import AutoModel, AutoModelForCausalLM
+from ...processing_utils import Unpack
+from ..auto import AutoModel
 
 logger = logging.get_logger(__name__)
 
 _CONFIG_FOR_DOC = "VideoLlavaConfig"
+
+
+@dataclass
+class VideoLlavaModelOutputWithPast(ModelOutput):
+    r"""
+    past_key_values (`Cache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+        Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
+        `(batch_size, num_heads, sequence_length, embed_size_per_head)`)
+
+        Contains pre-computed hidden-states (key and values in the self-attention blocks) that can be used (see
+        `past_key_values` input) to speed up sequential decoding.
+    image_hidden_states (`ms.Tensor`, *optional*):
+        A `ms.Tensor` of size (batch_size, num_images, sequence_length, hidden_size)`.
+        image_hidden_states of the model produced by the vision encoder and after projecting the last hidden state.
+    video_hidden_states (`ms.Tensor`, *optional*):
+        A `ms.Tensor`  of size `(batch_size * num_frames, num_videos, sequence_length, hidden_size)`.
+        video_hidden_states of the model produced by the vision encoder and after projecting the last hidden state.
+    """
+
+    last_hidden_state: ms.Tensor = None
+    past_key_values: Optional[list[ms.Tensor]] = None
+    hidden_states: Optional[tuple[ms.Tensor]] = None
+    attentions: Optional[tuple[ms.Tensor]] = None
+    image_hidden_states: Optional[ms.Tensor] = None
+    video_hidden_states: Optional[ms.Tensor] = None
 
 
 @dataclass
@@ -245,11 +273,9 @@ VIDEO_LLAVA_INPUTS_DOCSTRING = r"""
 """
 
 
-@add_start_docstrings(
-    """The VideoLlava model which consists of a vision backbone and a language model.""",
-    VIDEO_LLAVA_START_DOCSTRING,
-)
-class VideoLlavaForConditionalGeneration(VideoLlavaPreTrainedModel, GenerationMixin):
+class VideoLlavaModel(VideoLlavaPreTrainedModel):
+    _checkpoint_conversion_mapping = {"language_model.model": "language_model"}
+
     def __init__(self, config: VideoLlavaConfig):
         super().__init__(config)
         # config.vision_config._attn_implementation = config._attn_implementation # FIXME: CLIP no support FA yet
@@ -260,7 +286,7 @@ class VideoLlavaForConditionalGeneration(VideoLlavaPreTrainedModel, GenerationMi
 
         self.multi_modal_projector = VideoLlavaMultiModalProjector(config)
         self.vocab_size = config.text_config.vocab_size
-        self.language_model = AutoModelForCausalLM.from_config(config.text_config)
+        self.language_model = AutoModel.from_config(config.text_config)
         if self.language_model._tied_weights_keys is not None:
             self._tied_weights_keys = [f"language_model.{k}" for k in self.language_model._tied_weights_keys]
 
@@ -365,6 +391,140 @@ class VideoLlavaForConditionalGeneration(VideoLlavaPreTrainedModel, GenerationMi
 
         return video_features, num_frames
 
+    def construct(
+        self,
+        input_ids: ms.Tensor = None,
+        pixel_values_images: ms.Tensor = None,
+        pixel_values_videos: ms.Tensor = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_values: Optional[Cache] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        vision_feature_layer: Optional[Union[int, list[int]]] = None,
+        vision_feature_select_strategy: Optional[str] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
+        cache_position: Optional[ms.Tensor] = None,
+        logits_to_keep: Union[int, ms.Tensor] = 0,
+        **kwargs: Unpack[FlashAttentionKwargs],
+    ) -> Union[tuple, VideoLlavaModelOutputWithPast]:
+        r"""
+        pixel_values_images (`ms.Tensor` of shape `(batch_size, num_channels, image_size, image_size)):
+            The tensors corresponding to the input images. Pixel values can be obtained using
+            [`AutoImageProcessor`]. See [`VideoLlavaImageProcessor.__call__`] for details ([]`LlavaProcessor`] uses
+            [`VideoLlavaImageProcessor`] for processing images).
+        """
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
+        output_hidden_states = (
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        vision_feature_layer = (
+            vision_feature_layer if vision_feature_layer is not None else self.config.vision_feature_layer
+        )
+        vision_feature_select_strategy = (
+            vision_feature_select_strategy
+            if vision_feature_select_strategy is not None
+            else self.config.vision_feature_select_strategy
+        )
+
+        if (input_ids is None) != (inputs_embeds is not None):
+            raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
+
+        if (pixel_values_images is not None or pixel_values_videos is not None) and inputs_embeds is not None:
+            raise ValueError(
+                "You cannot specify both `pixel_values_images`/`pixel_values_videos` and `inputs_embeds` at the same "
+                "time, and must specify either one"
+            )
+
+        if inputs_embeds is None:
+            inputs_embeds = self.get_input_embeddings()(input_ids)
+
+        image_features = None
+        if pixel_values_images is not None:
+            image_features = self.get_image_features(
+                pixel_values_images,
+                vision_feature_layer=vision_feature_layer,
+                vision_feature_select_strategy=vision_feature_select_strategy,
+            )
+            special_image_mask = (input_ids == self.config.image_token_index).unsqueeze(-1)
+            special_image_mask = special_image_mask.expand_as(inputs_embeds)
+            if inputs_embeds[special_image_mask].numel() != image_features.numel():
+                n_image_tokens = (input_ids == self.config.image_token_index).sum()
+                n_image_features = image_features.shape[0] * image_features.shape[1]
+                raise ValueError(
+                    f"Image features and image tokens do not match: tokens: {n_image_tokens}, features {n_image_features}"
+                )
+            image_features = image_features.float()
+            inputs_embeds = (
+                inputs_embeds.float().masked_scatter(special_image_mask, image_features).to(inputs_embeds.dtype)
+            )
+
+        video_features = None
+        if pixel_values_videos is not None:
+            video_features, num_frames = self.get_video_features(
+                pixel_values_videos=pixel_values_videos, vision_feature_layer=vision_feature_layer
+            )
+
+            special_image_mask = (input_ids == self.config.video_token_index).unsqueeze(-1)
+            special_image_mask = special_image_mask.expand_as(inputs_embeds)
+            if inputs_embeds[special_image_mask].numel() != video_features.numel():
+                n_video_tokens = (input_ids == self.config.video_token_index).sum()
+                n_video_features = video_features.shape[0] * video_features.shape[1]
+                raise ValueError(
+                    f"Video features and video tokens do not match: tokens: {n_video_tokens}, features {n_video_features}"
+                )
+            video_features = video_features.float()
+            inputs_embeds = (
+                inputs_embeds.float().masked_scatter(special_image_mask, video_features).to(inputs_embeds.dtype)
+            )
+
+        outputs = self.language_model(
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            past_key_values=past_key_values,
+            inputs_embeds=inputs_embeds,
+            use_cache=use_cache,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+            cache_position=cache_position,
+            logits_to_keep=logits_to_keep,
+            **kwargs,
+        )
+
+        return VideoLlavaModelOutputWithPast(
+            last_hidden_state=outputs.last_hidden_state,
+            past_key_values=outputs.past_key_values,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
+            image_hidden_states=image_features if pixel_values_images is not None else None,
+            video_hidden_states=video_features if pixel_values_videos is not None else None,
+        )
+
+
+@add_start_docstrings(
+    """The VideoLlava model which consists of a vision backbone and a language model.""",
+    VIDEO_LLAVA_START_DOCSTRING,
+)
+class VideoLlavaForConditionalGeneration(VideoLlavaPreTrainedModel, GenerationMixin):
+    _checkpoint_conversion_mapping = {
+        "^language_model.model": "model.language_model",
+        "^image_tower": "model.image_tower",
+        "^video_tower": "model.video_tower",
+        "^multi_modal_projector": "model.multi_modal_projector",
+        "^language_model.lm_head": "lm_head",
+    }
+    _tied_weights_keys = ["lm_head.weight"]
+
+    def __init__(self, config: VideoLlavaConfig):
+        super().__init__(config)
+        self.model = VideoLlavaModel(config)
+        self.lm_head = mint.nn.Linear(config.text_config.hidden_size, config.text_config.vocab_size, bias=False)
+        self.post_init()
+
     @deprecate_kwarg("num_logits_to_keep", version="4.50", new_name="logits_to_keep")
     @add_start_docstrings_to_model_forward(VIDEO_LLAVA_INPUTS_DOCSTRING)
     @replace_return_docstrings(output_type=VideoLlavaCausalLMOutputWithPast, config_class=_CONFIG_FOR_DOC)
@@ -386,7 +546,7 @@ class VideoLlavaForConditionalGeneration(VideoLlavaPreTrainedModel, GenerationMi
         return_dict: Optional[bool] = None,
         cache_position: Optional[ms.Tensor] = None,
         logits_to_keep: Union[int, ms.Tensor] = 0,
-        **lm_kwargs,
+        **kwargs,
     ) -> Union[Tuple, VideoLlavaCausalLMOutputWithPast]:
         r"""
             labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
@@ -499,92 +659,34 @@ class VideoLlavaForConditionalGeneration(VideoLlavaPreTrainedModel, GenerationMi
             else self.config.vision_feature_select_strategy
         )
 
-        if (input_ids is None) != (inputs_embeds is not None):
-            raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
-
-        if (pixel_values_images is not None or pixel_values_videos is not None) and inputs_embeds is not None:
-            raise ValueError(
-                "You cannot specify both `pixel_values_images`/`pixel_values_videos` and `inputs_embeds` at the same "
-                "time, and must specify either one"
-            )
-
-        if inputs_embeds is None:
-            inputs_embeds = self.get_input_embeddings()(input_ids)
-
-        image_features = None
-        if pixel_values_images is not None:
-            image_features = self.get_image_features(
-                pixel_values_images,
-                vision_feature_layer=vision_feature_layer,
-                vision_feature_select_strategy=vision_feature_select_strategy,
-            )
-            special_image_mask = (input_ids == self.config.image_token_index).unsqueeze(-1)
-            special_image_mask = special_image_mask.expand_as(inputs_embeds)
-            if inputs_embeds[special_image_mask].numel() != image_features.numel():
-                n_image_tokens = (input_ids == self.config.image_token_index).sum()
-                n_image_features = image_features.shape[0] * image_features.shape[1]
-                raise ValueError(
-                    f"Image features and image tokens do not match: tokens: {n_image_tokens}, features {n_image_features}"
-                )
-            image_features = image_features.float()
-            inputs_embeds = (
-                inputs_embeds.float().masked_scatter(special_image_mask, image_features).to(inputs_embeds.dtype)
-            )
-
-        video_features = None
-        if pixel_values_videos is not None:
-            video_features, num_frames = self.get_video_features(
-                pixel_values_videos=pixel_values_videos, vision_feature_layer=vision_feature_layer
-            )
-
-            special_image_mask = (input_ids == self.config.video_token_index).unsqueeze(-1)
-            special_image_mask = special_image_mask.expand_as(inputs_embeds)
-            if inputs_embeds[special_image_mask].numel() != video_features.numel():
-                n_video_tokens = (input_ids == self.config.video_token_index).sum()
-                n_video_features = video_features.shape[0] * video_features.shape[1]
-                raise ValueError(
-                    f"Video features and video tokens do not match: tokens: {n_video_tokens}, features {n_video_features}"
-                )
-            video_features = video_features.float()
-            inputs_embeds = (
-                inputs_embeds.float().masked_scatter(special_image_mask, video_features).to(inputs_embeds.dtype)
-            )
-
-        outputs = self.language_model(
+        outputs = self.model(
+            input_ids=input_ids,
+            pixel_values_images=pixel_values_images,
+            pixel_values_videos=pixel_values_videos,
             attention_mask=attention_mask,
             position_ids=position_ids,
             past_key_values=past_key_values,
             inputs_embeds=inputs_embeds,
             use_cache=use_cache,
+            vision_feature_layer=vision_feature_layer,
+            vision_feature_select_strategy=vision_feature_select_strategy,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
+            return_dict=True,
             cache_position=cache_position,
-            logits_to_keep=logits_to_keep,
-            **lm_kwargs,
+            **kwargs,
         )
 
-        logits = outputs[0]
+        hidden_states = outputs[0]
+        # Only compute necessary logits, and do not upcast them to float if we are not computing the loss
+        slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
+        logits = self.lm_head(hidden_states[:, slice_indices, :])
 
         loss = None
         if labels is not None:
-            # Shift so that tokens < n predict n
-            if attention_mask is not None:
-                # we use the input attention mask to shift the logits and labels, because it is 2D.
-                # we also crop attn mask in case it is longer, which happens in PrefixTuning with peft
-                shift_attention_mask = attention_mask[:, -(logits.shape[1] - 1) :]
-                shift_logits = logits[..., :-1, :][shift_attention_mask != 0].contiguous()
-                shift_labels = labels[..., 1:][shift_attention_mask != 0].contiguous()
-            else:
-                shift_logits = logits[..., :-1, :].contiguous()
-                shift_labels = labels[..., 1:].contiguous()
-            # Flatten the tokens
-            loss_fct = mint.nn.CrossEntropyLoss()
-            loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
-
-        if not return_dict:
-            output = (logits,) + outputs[1:]
-            return (loss,) + output if loss is not None else output
+            loss = self.loss_function(
+                logits=logits, labels=labels, vocab_size=self.config.text_config.vocab_size, **kwargs
+            )
 
         return VideoLlavaCausalLMOutputWithPast(
             loss=loss,
@@ -592,8 +694,8 @@ class VideoLlavaForConditionalGeneration(VideoLlavaPreTrainedModel, GenerationMi
             past_key_values=outputs.past_key_values,
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
-            image_hidden_states=image_features if pixel_values_images is not None else None,
-            video_hidden_states=video_features if pixel_values_videos is not None else None,
+            image_hidden_states=outputs.image_hidden_states,
+            video_hidden_states=outputs.video_hidden_states,
         )
 
     def prepare_inputs_for_generation(

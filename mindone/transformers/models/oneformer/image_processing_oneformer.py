@@ -21,7 +21,6 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 import numpy as np
 from huggingface_hub import hf_hub_download
 from huggingface_hub.utils import RepositoryNotFoundError
-from transformers.image_utils import PILImageResampling
 from transformers.utils import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD, logging
 from transformers.utils.deprecation import deprecate_kwarg
 
@@ -40,6 +39,7 @@ from ...image_transforms import (
 from ...image_utils import (
     ChannelDimension,
     ImageInput,
+    PILImageResampling,
     get_image_size,
     infer_channel_dimension_format,
     is_scaled_image,
