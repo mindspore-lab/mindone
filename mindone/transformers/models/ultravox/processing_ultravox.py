@@ -8,9 +8,9 @@ import mindspore as ms
 import mindspore.mint.nn.functional as F
 from mindspore import mint
 
-from mindone.transformers.models.auto import AutoProcessor
 from mindone.transformers.data.data_collator import DataCollatorForSeq2Seq
 from mindone.transformers.image_processing_base import BatchFeature
+from mindone.transformers.models.auto import AutoProcessor
 from mindone.transformers.processing_utils import ProcessorMixin
 from mindone.transformers.utils import TensorType
 
