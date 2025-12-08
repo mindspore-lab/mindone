@@ -19,93 +19,53 @@
 
 import math
 from dataclasses import dataclass
-from typing import Any, Optional, Tuple, Union
+from typing import Any, Callable, Optional, Union
 
 from transformers.models.siglip.configuration_siglip import SiglipConfig, SiglipTextConfig, SiglipVisionConfig
-from transformers.utils import (
-    ModelOutput,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
+from transformers.utils import logging
 
 import mindspore as ms
 from mindspore import mint, nn
-from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
-from mindspore.ops.operations.nn_ops import FlashAttentionScore as MSFlashAttention
 
 from ...activations import ACT2FN
 from ...mindspore_adapter.nn.MultiheadAttention import MultiheadAttention
 from ...modeling_attn_mask_utils import _prepare_4d_attention_mask
+from ...modeling_layers import GradientCheckpointingLayer
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling, ImageClassifierOutput
-from ...modeling_utils import PreTrainedModel
+from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
+from ...processing_utils import Unpack
+from ...utils import ModelOutput, TransformersKwargs, can_return_tuple, filter_out_non_signature_kwargs
+from ...utils.generic import check_model_inputs
 
 logger = logging.get_logger(__name__)
-
-# General docstring
-_CONFIG_FOR_DOC = "SiglipConfig"
-_CHECKPOINT_FOR_DOC = "google/siglip-base-patch16-224"
 
 
 @dataclass
 # Copied from transformers.models.clip.modeling_clip.CLIPVisionModelOutput with CLIP->Siglip
 class SiglipVisionModelOutput(ModelOutput):
-    """
-    Base class for vision model's outputs that also contains image embeddings of the pooling of the last hidden states.
-
-    Args:
-        image_embeds (`ms.Tensor` of shape `(batch_size, output_dim)` *optional* returned when model is initialized with `with_projection=True`):
-            The image embeddings obtained by applying the projection layer to the pooler_output.
-        last_hidden_state (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
-            Sequence of hidden-states at the output of the last layer of the model.
-        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
-            one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
-
-            Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
-        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
-            sequence_length)`.
-
-            Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
-            heads.
+    r"""
+    image_embeds (`ms.Tensor` of shape `(batch_size, output_dim)` *optional* returned when model is initialized with `with_projection=True`):
+        The image embeddings obtained by applying the projection layer to the pooler_output.
     """
 
     image_embeds: Optional[ms.Tensor] = None
-    last_hidden_state: ms.Tensor = None
-    hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
-    attentions: Optional[Tuple[ms.Tensor, ...]] = None
+    last_hidden_state: Optional[ms.Tensor] = None
+    hidden_states: Optional[tuple[ms.Tensor, ...]] = None
+    attentions: Optional[tuple[ms.Tensor, ...]] = None
 
 
 @dataclass
 # Copied from transformers.models.clip.modeling_clip.CLIPTextModelOutput with CLIP->Siglip
 class SiglipTextModelOutput(ModelOutput):
-    """
-    Base class for text model's outputs that also contains a pooling of the last hidden states.
-
-    Args:
-        text_embeds (`ms.Tensor` of shape `(batch_size, output_dim)` *optional* returned when model is initialized with `with_projection=True`):
-            The text embeddings obtained by applying the projection layer to the pooler_output.
-        last_hidden_state (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
-            Sequence of hidden-states at the output of the last layer of the model.
-        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
-            one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
-
-            Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
-        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
-            sequence_length)`.
-
-            Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
-            heads.
+    r"""
+    text_embeds (`ms.Tensor` of shape `(batch_size, output_dim)` *optional* returned when model is initialized with `with_projection=True`):
+        The text embeddings obtained by applying the projection layer to the pooler_output.
     """
 
     text_embeds: Optional[ms.Tensor] = None
     last_hidden_state: ms.Tensor = None
-    hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
-    attentions: Optional[Tuple[ms.Tensor, ...]] = None
+    hidden_states: Optional[tuple[ms.Tensor, ...]] = None
+    attentions: Optional[tuple[ms.Tensor, ...]] = None
 
 
 @dataclass
@@ -139,7 +99,7 @@ class SiglipOutput(ModelOutput):
     text_model_output: BaseModelOutputWithPooling = None
     vision_model_output: BaseModelOutputWithPooling = None
 
-    def to_tuple(self) -> Tuple[Any]:
+    def to_tuple(self) -> tuple[Any]:
         return tuple(
             self[k] if k not in ["text_model_output", "vision_model_output"] else getattr(self, k).to_tuple()
             for k in self.keys()
@@ -154,13 +114,12 @@ class SiglipVisionEmbeddings(nn.Cell):
         self.image_size = config.image_size
         self.patch_size = config.patch_size
 
-        self.patch_embedding = nn.Conv2d(
+        self.patch_embedding = mint.nn.Conv2d(
             in_channels=config.num_channels,
             out_channels=self.embed_dim,
             kernel_size=self.patch_size,
             stride=self.patch_size,
-            pad_mode="valid",
-            has_bias=True,
+            padding="valid",
         )
 
         self.num_patches = (self.image_size // self.patch_size) ** 2
@@ -196,7 +155,7 @@ class SiglipVisionEmbeddings(nn.Cell):
         patch_pos_embed = patch_pos_embed.reshape(1, sqrt_num_positions, sqrt_num_positions, dim)
         patch_pos_embed = patch_pos_embed.permute(0, 3, 1, 2)
 
-        patch_pos_embed = mint.nn.functional.interpolate(
+        patch_pos_embed = mint.functional.interpolate(
             patch_pos_embed,
             scale_factor=(new_height / math.sqrt(num_positions), new_width / math.sqrt(num_positions)),
             mode="bicubic",
@@ -261,10 +220,32 @@ class SiglipTextEmbeddings(nn.Cell):
         return embeddings
 
 
+def eager_attention_forward(
+    module: nn.Cell,
+    query: ms.Tensor,
+    key: ms.Tensor,
+    value: ms.Tensor,
+    attention_mask: Optional[ms.Tensor],
+    scaling: float,
+    dropout: float = 0.0,
+    **kwargs,
+):
+    attn_weights = mint.matmul(query, key.transpose(-1, -2)) * scaling
+    if attention_mask is not None:
+        attn_weights = attn_weights + attention_mask
+
+    attn_weights = mint.functional.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query.dtype)
+    attn_weights = mint.functional.dropout(attn_weights, p=dropout, training=module.training)
+
+    attn_output = mint.matmul(attn_weights, value)
+    attn_output = attn_output.transpose(1, 2).contiguous()
+
+    return attn_output, attn_weights
+
+
 class SiglipAttention(nn.Cell):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
 
-    # Copied from transformers.models.clip.modeling_clip.CLIPAttention.__init__
     def __init__(self, config):
         super().__init__()
         self.config = config
@@ -278,6 +259,7 @@ class SiglipAttention(nn.Cell):
             )
         self.scale = self.head_dim**-0.5
         self.dropout = config.attention_dropout
+        self.is_causal = False
 
         self.k_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
         self.v_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
@@ -288,148 +270,39 @@ class SiglipAttention(nn.Cell):
         self,
         hidden_states: ms.Tensor,
         attention_mask: Optional[ms.Tensor] = None,
-        output_attentions: Optional[bool] = False,
-    ) -> Tuple[ms.Tensor, Optional[ms.Tensor]]:
+        **kwargs,
+    ) -> tuple[ms.Tensor, Optional[ms.Tensor]]:
         """Input shape: Batch x Time x Channel"""
 
-        batch_size, q_len, _ = hidden_states.shape
+        batch_size, seq_length, embed_dim = hidden_states.shape
 
-        query_states = self.q_proj(hidden_states)
-        key_states = self.k_proj(hidden_states)
-        value_states = self.v_proj(hidden_states)
+        queries = self.q_proj(hidden_states)
+        keys = self.k_proj(hidden_states)
+        values = self.v_proj(hidden_states)
 
-        query_states = query_states.view(batch_size, q_len, self.num_heads, self.head_dim).swapaxes(1, 2)
-        key_states = key_states.view(batch_size, q_len, self.num_heads, self.head_dim).swapaxes(1, 2)
-        value_states = value_states.view(batch_size, q_len, self.num_heads, self.head_dim).swapaxes(1, 2)
+        queries = queries.view(batch_size, seq_length, self.num_heads, self.head_dim).transpose(1, 2)
+        keys = keys.view(batch_size, seq_length, self.num_heads, self.head_dim).transpose(1, 2)
+        values = values.view(batch_size, seq_length, self.num_heads, self.head_dim).transpose(1, 2)
 
-        k_v_seq_len = key_states.shape[-2]
-        attn_weights = mint.matmul(query_states, key_states.swapaxes(2, 3)) * self.scale
+        attention_interface: Callable = eager_attention_forward
+        if self.config._attn_implementation != "eager":
+            attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
 
-        if attn_weights.shape != (batch_size, self.num_heads, q_len, k_v_seq_len):
-            raise ValueError(
-                f"Attention weights should be of size {(batch_size, self.num_heads, q_len, k_v_seq_len)}, but is"
-                f" {attn_weights.shape}"
-            )
-
-        if attention_mask is not None:
-            if attention_mask.shape != (batch_size, 1, q_len, k_v_seq_len):
-                raise ValueError(
-                    f"Attention mask should be of size {(batch_size, 1, q_len, k_v_seq_len)}, but is {attention_mask.shape}"
-                )
-            attn_weights = attn_weights + attention_mask
-
-        # upcast attention to fp32
-        attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query_states.dtype)
-        attn_weights = mint.nn.functional.dropout(attn_weights, p=self.dropout, training=self.training)
-        attn_output = mint.matmul(attn_weights, value_states)
-
-        if attn_output.shape != (batch_size, self.num_heads, q_len, self.head_dim):
-            raise ValueError(
-                f"`attn_output` should be of size {(batch_size, self.num_heads, q_len, self.head_dim)}, but is"
-                f" {attn_output.shape}"
-            )
-
-        attn_output = attn_output.swapaxes(1, 2).contiguous()
-        attn_output = attn_output.reshape(batch_size, q_len, self.embed_dim)
-
-        attn_output = self.out_proj(attn_output)
-
-        return attn_output, attn_weights
-
-
-class SiglipFlashAttention2(SiglipAttention):
-    """
-    SiglipAttention flash attention module. This module inherits from `SiglipAttention` as the weights of the module stays
-    untouched. The only required change would be on the construct pass where it needs to correctly call the public API of
-    flash attention and deal with padding tokens in case the input contains any of them.
-    """
-
-    is_causal = False
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if self.training:
-            self.dropout_rate = self.dropout
-        else:
-            self.dropout_rate = 0.0
-        self.flash_attention = MSFlashAttention(
-            scale_value=self.head_dim**-0.5,
-            head_num=self.num_heads,
-            keep_prob=1 - self.dropout_rate,
-            input_layout="BSND",
+        attn_output, attn_weights = attention_interface(
+            self,
+            queries,
+            keys,
+            values,
+            attention_mask,
+            is_causal=self.is_causal,
+            scaling=self.scale,
+            dropout=0.0 if not self.training else self.dropout,
         )
 
-    # Adapted from transformers.models.llama.modeling_llama.LlamaFlashAttention2.construct
-    def construct(
-        self,
-        hidden_states: ms.Tensor,
-        attention_mask: Optional[ms.Tensor] = None,
-        output_attentions: bool = False,
-    ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
-        output_attentions = False
-
-        batch_size, q_len, _ = hidden_states.shape
-
-        query_states = self.q_proj(hidden_states)
-        key_states = self.k_proj(hidden_states)
-        value_states = self.v_proj(hidden_states)
-
-        # Flash attention requires the input to have the shape
-        # batch_size x seq_length x head_dim x hidden_dim
-        # therefore we just need to keep the original shape
-        query_states = query_states.view(batch_size, q_len, self.num_heads, self.head_dim)
-        key_states = key_states.view(batch_size, q_len, self.num_heads, self.head_dim)
-        value_states = value_states.view(batch_size, q_len, self.num_heads, self.head_dim)
-
-        # In PEFT, usually we cast the layer norms in float32 for training stability reasons
-        # therefore the input hidden states gets silently casted in float32. Hence, we need
-        # cast them back in the correct dtype just to be sure everything works as expected.
-        # This might slowdown training & inference so it is recommended to not cast the LayerNorms
-        # in fp32.
-
-        input_dtype = query_states.dtype
-        if input_dtype == ms.float32:
-            # Handle the case where the model is quantized
-            if hasattr(self.config, "_pre_quantization_dtype"):
-                target_dtype = self.config._pre_quantization_dtype
-            else:
-                target_dtype = self.q_proj.weight.dtype
-
-            logger.warning_once(
-                f"The input hidden states seems to be silently casted in float32, this might be related to"
-                f" the fact you have upcasted embedding or layer norm layers in float32. We will cast back the input in"
-                f" {target_dtype}."
-            )
-
-            query_states = query_states.to(target_dtype)
-            key_states = key_states.to(target_dtype)
-            value_states = value_states.to(target_dtype)
-        if attention_mask is not None:
-            attention_mask = (-attention_mask).to(ms.bool_)
-        attn_output = self.flash_attention(
-            query_states,
-            key_states,
-            value_states,
-            None,
-            None,
-            None,
-            attention_mask,
-        )[3]
-
-        attn_output = attn_output.reshape(batch_size, q_len, self.embed_dim).contiguous()
+        attn_output = attn_output.reshape(batch_size, seq_length, embed_dim).contiguous()
         attn_output = self.out_proj(attn_output)
 
-        if not output_attentions:
-            attn_weights = None
-
         return attn_output, attn_weights
-
-
-SIGLIP_ATTENTION_CLASSES = {
-    "eager": SiglipAttention,
-    "flash_attention_2": SiglipFlashAttention2,
-    # "sdpa": SiglipSdpaAttention,
-}
 
 
 # Copied from transformers.models.clip.modeling_clip.CLIPMLP with CLIP->Siglip
@@ -448,39 +321,29 @@ class SiglipMLP(nn.Cell):
         return hidden_states
 
 
-class SiglipEncoderLayer(nn.Cell):
-    def __init__(self, config: SiglipConfig):
+class SiglipEncoderLayer(GradientCheckpointingLayer):
+    def __init__(self, config: Union[SiglipVisionConfig, SiglipTextConfig]):
         super().__init__()
         self.embed_dim = config.hidden_size
-        self.self_attn = SIGLIP_ATTENTION_CLASSES[config._attn_implementation](config=config)
         self.layer_norm1 = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
-        self.mlp = SiglipMLP(config)
+        self.self_attn = SiglipAttention(config)
         self.layer_norm2 = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
+        self.mlp = SiglipMLP(config)
 
     # Ignore copy
     def construct(
         self,
         hidden_states: ms.Tensor,
         attention_mask: ms.Tensor,
-        output_attentions: Optional[bool] = False,
-    ) -> Tuple[ms.Tensor]:
-        """
-        Args:
-            hidden_states (`ms.Tensor`):
-                Input to the layer of shape `(batch, seq_len, embed_dim)`.
-            attention_mask (`ms.Tensor`):
-                Attention mask of shape `(batch, 1, q_len, k_v_seq_len)` where padding elements are indicated by very large negative values.
-            output_attentions (`bool`, *optional*, defaults to `False`):
-                Whether or not to return the attentions tensors of all attention layers. See `attentions` under
-                returned tensors for more detail.
-        """
+        **kwargs: Unpack[TransformersKwargs],
+    ) -> tuple[ms.Tensor]:
         residual = hidden_states
 
         hidden_states = self.layer_norm1(hidden_states)
-        hidden_states, attn_weights = self.self_attn(
+        hidden_states, _ = self.self_attn(
             hidden_states=hidden_states,
             attention_mask=attention_mask,
-            output_attentions=output_attentions,
+            **kwargs,
         )
         hidden_states = residual + hidden_states
 
@@ -489,138 +352,33 @@ class SiglipEncoderLayer(nn.Cell):
         hidden_states = self.mlp(hidden_states)
         hidden_states = residual + hidden_states
 
-        outputs = (hidden_states,)
-
-        if output_attentions:
-            outputs += (attn_weights,)
-
-        return outputs
+        return hidden_states
 
 
 class SiglipPreTrainedModel(PreTrainedModel):
-    """
-    An abstract class to handle weights initialization and a simple interface for downloading and loading pretrained
-    models.
-    """
-
-    config_class = SiglipConfig
+    config: SiglipConfig
     base_model_prefix = "siglip"
     supports_gradient_checkpointing = True
 
     _no_split_modules = [
         "SiglipTextEmbeddings",
-        "SiglipEncoderLayer",
         "SiglipVisionEmbeddings",
         "SiglipEncoderLayer",
         "SiglipMultiheadAttentionPoolingHead",
     ]
-    _supports_flash_attn_2 = True
+    _supports_flash_attn = True
     _supports_sdpa = True
+    _supports_flex_attn = True
+    _supports_attention_backend = True
+
+    _can_record_outputs = {
+        "hidden_states": SiglipEncoderLayer,
+        "attentions": SiglipAttention,
+    }
 
     def _init_weights(self, module):
         """Initialize the weights"""
         pass
-
-
-SIGLIP_START_DOCSTRING = r"""
-    This model inherits from [`PreTrainedModel`]. Check the superclass documentation for the generic methods the
-    library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
-    etc.)
-
-
-    Parameters:
-        config ([`SiglipConfig`]): Model configuration class with all the parameters of the model.
-            Initializing with a config file does not load the weights associated with the model, only the
-            configuration. Check out the [`~PreTrainedModel.from_pretrained`] method to load the model weights.
-"""
-
-SIGLIP_TEXT_INPUTS_DOCSTRING = r"""
-    Args:
-        input_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`):
-            Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide
-            it.
-
-            Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
-            [`PreTrainedTokenizer.__call__`] for details.
-
-            [What are input IDs?](../glossary#input-ids)
-        attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
-            Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
-
-            - 1 for tokens that are **not masked**,
-            - 0 for tokens that are **masked**.
-
-            [What are attention masks?](../glossary#attention-mask)
-        position_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
-            Indices of positions of each input sequence tokens in the position embeddings. Selected in the range `[0,
-            config.max_position_embeddings - 1]`.
-
-            [What are position IDs?](../glossary#position-ids)
-        output_attentions (`bool`, *optional*):
-            Whether or not to return the attentions tensors of all attention layers. See `attentions` under returned
-            tensors for more detail.
-        output_hidden_states (`bool`, *optional*):
-            Whether or not to return the hidden states of all layers. See `hidden_states` under returned tensors for
-            more detail.
-        return_dict (`bool`, *optional*):
-            Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
-"""
-
-SIGLIP_VISION_INPUTS_DOCSTRING = r"""
-    Args:
-        pixel_values (`ms.Tensor` of shape `(batch_size, num_channels, height, width)`):
-            Pixel values. Padding will be ignored by default should you provide it. Pixel values can be obtained using
-            [`AutoImageProcessor`]. See [`CLIPImageProcessor.__call__`] for details.
-        output_attentions (`bool`, *optional*):
-            Whether or not to return the attentions tensors of all attention layers. See `attentions` under returned
-            tensors for more detail.
-        output_hidden_states (`bool`, *optional*):
-            Whether or not to return the hidden states of all layers. See `hidden_states` under returned tensors for
-            more detail.
-        interpolate_pos_encoding (`bool`, *optional*, defaults to `False`):
-            Whether to interpolate the pre-trained position encodings.
-        return_dict (`bool`, *optional*):
-            Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
-"""
-
-SIGLIP_INPUTS_DOCSTRING = r"""
-    Args:
-        input_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`):
-            Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide
-            it.
-
-            Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
-            [`PreTrainedTokenizer.__call__`] for details.
-
-            [What are input IDs?](../glossary#input-ids)
-        attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
-            Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
-
-            - 1 for tokens that are **not masked**,
-            - 0 for tokens that are **masked**.
-
-            [What are attention masks?](../glossary#attention-mask)
-        position_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
-            Indices of positions of each input sequence tokens in the position embeddings. Selected in the range `[0,
-            config.max_position_embeddings - 1]`.
-
-            [What are position IDs?](../glossary#position-ids)
-        pixel_values (`ms.Tensor` of shape `(batch_size, num_channels, height, width)`):
-            Pixel values. Padding will be ignored by default should you provide it. Pixel values can be obtained using
-            [`AutoImageProcessor`]. See [`CLIPImageProcessor.__call__`] for details.
-        return_loss (`bool`, *optional*):
-            Whether or not to return the contrastive loss.
-        output_attentions (`bool`, *optional*):
-            Whether or not to return the attentions tensors of all attention layers. See `attentions` under returned
-            tensors for more detail.
-        output_hidden_states (`bool`, *optional*):
-            Whether or not to return the hidden states of all layers. See `hidden_states` under returned tensors for
-            more detail.
-        interpolate_pos_encoding (`bool`, *optional*, defaults to `False`):
-            Whether to interpolate the pre-trained position encodings.
-        return_dict (`bool`, *optional*):
-            Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
-"""
 
 
 # Copied from transformers.models.altclip.modeling_altclip.AltCLIPEncoder with AltCLIP->Siglip
@@ -644,70 +402,17 @@ class SiglipEncoder(nn.Cell):
         self,
         inputs_embeds,
         attention_mask: Optional[ms.Tensor] = None,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
-    ) -> Union[Tuple, BaseModelOutput]:
-        r"""
-        Args:
-            inputs_embeds (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
-                Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation.
-                This is useful if you want more control over how to convert `input_ids` indices into associated vectors
-                than the model's internal embedding lookup matrix.
-            attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
-                Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
-
-                - 1 for tokens that are **not masked**,
-                - 0 for tokens that are **masked**.
-
-                [What are attention masks?](../glossary#attention-mask)
-            output_attentions (`bool`, *optional*):
-                Whether or not to return the attentions tensors of all attention layers. See `attentions` under
-                returned tensors for more detail.
-            output_hidden_states (`bool`, *optional*):
-                Whether or not to return the hidden states of all layers. See `hidden_states` under returned tensors
-                for more detail.
-            return_dict (`bool`, *optional*):
-                Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
-        """
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
-        )
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
-        encoder_states = () if output_hidden_states else None
-        all_attentions = () if output_attentions else None
-
+        **kwargs: Unpack[TransformersKwargs],
+    ) -> BaseModelOutput:
         hidden_states = inputs_embeds
         for encoder_layer in self.layers:
-            if output_hidden_states:
-                encoder_states = encoder_states + (hidden_states,)
-            if self.gradient_checkpointing and self.training:
-                layer_outputs = self._gradient_checkpointing_func(
-                    encoder_layer.__call__,
-                    hidden_states,
-                    attention_mask,
-                    output_attentions,
-                )
-            else:
-                layer_outputs = encoder_layer(
-                    hidden_states,
-                    attention_mask,
-                    output_attentions=output_attentions,
-                )
+            hidden_states = encoder_layer(
+                hidden_states,
+                attention_mask,
+                **kwargs,
+            )
 
-            hidden_states = layer_outputs[0]
-
-            if output_attentions:
-                all_attentions = all_attentions + (layer_outputs[1],)
-
-        if output_hidden_states:
-            encoder_states = encoder_states + (hidden_states,)
-
-        if not return_dict:
-            return tuple(v for v in [hidden_states, encoder_states, all_attentions] if v is not None)
-        return BaseModelOutput(last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions)
+        return BaseModelOutput(last_hidden_state=hidden_states)
 
 
 class SiglipTextTransformer(nn.Cell):
@@ -720,29 +425,15 @@ class SiglipTextTransformer(nn.Cell):
         self.final_layer_norm = mint.nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)
 
         self.head = mint.nn.Linear(embed_dim, config.projection_size)
-        self._use_flash_attention_2 = config._attn_implementation == "flash_attention_2"
 
-    @add_start_docstrings_to_model_forward(SIGLIP_TEXT_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=BaseModelOutputWithPooling, config_class=SiglipTextConfig)
+    @can_return_tuple
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
         attention_mask: Optional[ms.Tensor] = None,
         position_ids: Optional[ms.Tensor] = None,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
-    ) -> Union[Tuple, BaseModelOutputWithPooling]:
-        r"""
-        Returns:
-
-        """
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
-        )
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
+        **kwargs: Unpack[TransformersKwargs],
+    ) -> BaseModelOutputWithPooling:
         if input_ids is None:
             raise ValueError("You have to specify input_ids")
 
@@ -753,42 +444,34 @@ class SiglipTextTransformer(nn.Cell):
 
         # note: SigLIP's text model does not use a causal mask, unlike the original CLIP model.
         # expand attention_mask
-        if attention_mask is not None:
+        uses_flash_attention = "flash" in self.config._attn_implementation
+        if uses_flash_attention:
+            attention_mask = None
+        elif attention_mask is not None and not uses_flash_attention:
             # [batch_size, seq_len] -> [batch_size, 1, tgt_seq_len, src_seq_len]
             attention_mask = _prepare_4d_attention_mask(attention_mask, hidden_states.dtype)
 
-        encoder_outputs = self.encoder(
+        encoder_outputs: BaseModelOutput = self.encoder(
             inputs_embeds=hidden_states,
             attention_mask=attention_mask,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
+            **kwargs,
         )
 
-        last_hidden_state = encoder_outputs[0]
+        last_hidden_state = encoder_outputs.last_hidden_state
         last_hidden_state = self.final_layer_norm(last_hidden_state)
 
         # Assuming "sticky" EOS tokenization, last token is always EOS.
         pooled_output = last_hidden_state[:, -1, :]
         pooled_output = self.head(pooled_output)
 
-        if not return_dict:
-            return (last_hidden_state, pooled_output) + encoder_outputs[1:]
-
         return BaseModelOutputWithPooling(
             last_hidden_state=last_hidden_state,
             pooler_output=pooled_output,
-            hidden_states=encoder_outputs.hidden_states,
-            attentions=encoder_outputs.attentions,
         )
 
 
-@add_start_docstrings(
-    """The text model from SigLIP without any head or projection on top.""",
-    SIGLIP_START_DOCSTRING,
-)
 class SiglipTextModel(SiglipPreTrainedModel):
-    config_class = SiglipTextConfig
+    config: SiglipTextConfig
 
     def __init__(self, config: SiglipTextConfig):
         super().__init__(config)
@@ -802,20 +485,15 @@ class SiglipTextModel(SiglipPreTrainedModel):
     def set_input_embeddings(self, value):
         self.text_model.embeddings.token_embedding = value
 
-    @add_start_docstrings_to_model_forward(SIGLIP_TEXT_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=BaseModelOutputWithPooling, config_class=SiglipTextConfig)
+    @check_model_inputs
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
         attention_mask: Optional[ms.Tensor] = None,
         position_ids: Optional[ms.Tensor] = None,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
-    ) -> Union[Tuple, BaseModelOutputWithPooling]:
+        **kwargs: Unpack[TransformersKwargs],
+    ) -> BaseModelOutputWithPooling:
         r"""
-        Returns:
-
         Examples:
 
         ```python
@@ -839,15 +517,12 @@ class SiglipTextModel(SiglipPreTrainedModel):
         >>> last_hidden_state = outputs.last_hidden_state
         >>> pooled_output = outputs.pooler_output  # pooled (EOS token) states
         ```"""
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         return self.text_model(
             input_ids=input_ids,
             attention_mask=attention_mask,
             position_ids=position_ids,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
+            **kwargs,
         )
 
 
@@ -864,47 +539,28 @@ class SiglipVisionTransformer(nn.Cell):
         if self.use_head:
             self.head = SiglipMultiheadAttentionPoolingHead(config)
 
-    @add_start_docstrings_to_model_forward(SIGLIP_VISION_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=BaseModelOutputWithPooling, config_class=SiglipVisionConfig)
+    @can_return_tuple
     def construct(
         self,
         pixel_values,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
         interpolate_pos_encoding: Optional[bool] = False,
-    ) -> Union[Tuple, BaseModelOutputWithPooling]:
-        r"""
-        Returns:
-
-        """
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
-        )
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
+        **kwargs: Unpack[TransformersKwargs],
+    ) -> BaseModelOutputWithPooling:
         hidden_states = self.embeddings(pixel_values, interpolate_pos_encoding=interpolate_pos_encoding)
 
-        encoder_outputs = self.encoder(
+        encoder_outputs: BaseModelOutput = self.encoder(
             inputs_embeds=hidden_states,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
+            **kwargs,
         )
 
-        last_hidden_state = encoder_outputs[0]
+        last_hidden_state = encoder_outputs.last_hidden_state
         last_hidden_state = self.post_layernorm(last_hidden_state)
 
         pooler_output = self.head(last_hidden_state) if self.use_head else None
-        if not return_dict:
-            return (last_hidden_state, pooler_output) + encoder_outputs[1:]
 
         return BaseModelOutputWithPooling(
             last_hidden_state=last_hidden_state,
             pooler_output=pooler_output,
-            hidden_states=encoder_outputs.hidden_states,
-            attentions=encoder_outputs.attentions,
         )
 
 
@@ -932,12 +588,8 @@ class SiglipMultiheadAttentionPoolingHead(nn.Cell):
         return hidden_state[:, 0]
 
 
-@add_start_docstrings(
-    """The vision model from SigLIP without any head or projection on top.""",
-    SIGLIP_START_DOCSTRING,
-)
 class SiglipVisionModel(SiglipPreTrainedModel):
-    config_class = SiglipVisionConfig
+    config: SiglipVisionConfig
     main_input_name = "pixel_values"
 
     def __init__(self, config: SiglipVisionConfig):
@@ -951,19 +603,14 @@ class SiglipVisionModel(SiglipPreTrainedModel):
     def get_input_embeddings(self) -> nn.Cell:
         return self.vision_model.embeddings.patch_embedding
 
-    @add_start_docstrings_to_model_forward(SIGLIP_VISION_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=BaseModelOutputWithPooling, config_class=SiglipVisionConfig)
+    @check_model_inputs
     def construct(
         self,
         pixel_values,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
         interpolate_pos_encoding: bool = False,
-    ) -> Union[Tuple, BaseModelOutputWithPooling]:
+        **kwargs: Unpack[TransformersKwargs],
+    ) -> BaseModelOutputWithPooling:
         r"""
-        Returns:
-
         Examples:
 
         ```python
@@ -991,20 +638,16 @@ class SiglipVisionModel(SiglipPreTrainedModel):
         >>> last_hidden_state = outputs.last_hidden_state
         >>> pooled_output = outputs.pooler_output  # pooled features
         ```"""
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         return self.vision_model(
             pixel_values=pixel_values,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
             interpolate_pos_encoding=interpolate_pos_encoding,
+            **kwargs,
         )
 
 
-@add_start_docstrings(SIGLIP_START_DOCSTRING)
 class SiglipModel(SiglipPreTrainedModel):
-    config_class = SiglipConfig
+    config: SiglipConfig
 
     def __init__(self, config: SiglipConfig):
         super().__init__(config)
@@ -1022,9 +665,7 @@ class SiglipModel(SiglipPreTrainedModel):
             )
 
         text_config = config.text_config
-        text_config._attn_implementation = config._attn_implementation
         vision_config = config.vision_config
-        vision_config._attn_implementation = config._attn_implementation
 
         # First, initialize the text and vision models with proper attention implementation
         text_model = SiglipTextModel._from_config(text_config)
@@ -1040,15 +681,12 @@ class SiglipModel(SiglipPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @add_start_docstrings_to_model_forward(SIGLIP_TEXT_INPUTS_DOCSTRING)
+    @filter_out_non_signature_kwargs()
     def get_text_features(
         self,
-        input_ids: Optional[ms.Tensor] = None,
+        input_ids: ms.Tensor,
         attention_mask: Optional[ms.Tensor] = None,
         position_ids: Optional[ms.Tensor] = None,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
     ) -> ms.Tensor:
         r"""
         Returns:
@@ -1075,34 +713,21 @@ class SiglipModel(SiglipPreTrainedModel):
         >>>         inputs[key] = ms.tensor(value)
         >>> text_features = model.get_text_features(**inputs)
         ```"""
-        # Use SigLIP model's config for some fields (if specified) instead of those of vision & text components.
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
-        )
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
         text_outputs = self.text_model(
             input_ids=input_ids,
             attention_mask=attention_mask,
             position_ids=position_ids,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
         )
-
-        pooled_output = text_outputs[1]
+        pooled_output = text_outputs.pooler_output
 
         return pooled_output
 
-    @add_start_docstrings_to_model_forward(SIGLIP_VISION_INPUTS_DOCSTRING)
+    @filter_out_non_signature_kwargs()
     def get_image_features(
         self,
-        pixel_values: Optional[ms.Tensor] = None,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
+        pixel_values: ms.Tensor,
         interpolate_pos_encoding: bool = False,
+        **kwargs: Unpack[TransformersKwargs],
     ) -> ms.Tensor:
         r"""
         Returns:
@@ -1134,27 +759,17 @@ class SiglipModel(SiglipPreTrainedModel):
 
         >>> image_features = model.get_image_features(**inputs)
         ```"""
-        # Use SiglipModel's config for some fields (if specified) instead of those of vision & text components.
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
-        )
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
-        vision_outputs = self.vision_model(
+        vision_outputs: BaseModelOutputWithPooling = self.vision_model(
             pixel_values=pixel_values,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
             interpolate_pos_encoding=interpolate_pos_encoding,
+            **kwargs,
         )
-
-        pooled_output = vision_outputs[1]
+        pooled_output = vision_outputs.pooler_output
 
         return pooled_output
 
-    @add_start_docstrings_to_model_forward(SIGLIP_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=SiglipOutput, config_class=SiglipConfig)
+    # NOTE: SiglipModel uses Pretrained backbones, so we don't need to add `check_model_inputs` here
+    @can_return_tuple
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
@@ -1162,13 +777,12 @@ class SiglipModel(SiglipPreTrainedModel):
         attention_mask: Optional[ms.Tensor] = None,
         position_ids: Optional[ms.Tensor] = None,
         return_loss: Optional[bool] = None,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
         interpolate_pos_encoding: bool = False,
-    ) -> Union[Tuple, SiglipOutput]:
+        **kwargs: Unpack[TransformersKwargs],
+    ) -> SiglipOutput:
         r"""
-        Returns:
+        return_loss (`bool`, *optional*):
+            Whether or not to return the contrastive loss.
 
         Examples:
 
@@ -1202,33 +816,21 @@ class SiglipModel(SiglipPreTrainedModel):
         >>> print(f"{probs[0][0]:.1%} that image 0 is '{texts[0]}'")
         31.9% that image 0 is 'a photo of 2 cats'
         ```"""
-        # Use SigLIP model's config for some fields (if specified) instead of those of vision & text components.
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
-        )
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
-        vision_outputs = self.vision_model(
+        vision_outputs: BaseModelOutputWithPooling = self.vision_model(
             pixel_values=pixel_values,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
             interpolate_pos_encoding=interpolate_pos_encoding,
+            **kwargs,
         )
 
-        text_outputs = self.text_model(
+        text_outputs: BaseModelOutputWithPooling = self.text_model(
             input_ids=input_ids,
             attention_mask=attention_mask,
             position_ids=position_ids,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
+            **kwargs,
         )
 
-        image_embeds = vision_outputs[1]
-        text_embeds = text_outputs[1]
-
+        image_embeds = vision_outputs.pooler_output
+        text_embeds = text_outputs.pooler_output
         compute_dtype = image_embeds.dtype
         image_embeds = image_embeds.float()
         text_embeds = text_embeds.float()
@@ -1253,10 +855,6 @@ class SiglipModel(SiglipPreTrainedModel):
             nll = -mint.sum(loglik, dim=-1)
             loss = nll.mean()
 
-        if not return_dict:
-            output = (logits_per_image, logits_per_text, text_embeds, image_embeds, text_outputs, vision_outputs)
-            return ((loss,) + output) if loss is not None else output
-
         return SiglipOutput(
             loss=loss,
             logits_per_image=logits_per_image,
@@ -1268,13 +866,6 @@ class SiglipModel(SiglipPreTrainedModel):
         )
 
 
-@add_start_docstrings(
-    """
-    SigLIP vision encoder with an image classification head on top (a linear layer on top of the pooled final hidden states of
-    the patch tokens) e.g. for ImageNet.
-    """,
-    SIGLIP_START_DOCSTRING,
-)
 class SiglipForImageClassification(SiglipPreTrainedModel):
     main_input_name = "pixel_values"
 
@@ -1298,17 +889,14 @@ class SiglipForImageClassification(SiglipPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @add_start_docstrings_to_model_forward(SIGLIP_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=ImageClassifierOutput, config_class=_CONFIG_FOR_DOC)
+    @check_model_inputs
     def construct(
         self,
         pixel_values: Optional[ms.Tensor] = None,
         labels: Optional[ms.Tensor] = None,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
         interpolate_pos_encoding: bool = False,
-    ) -> Union[tuple, ImageClassifierOutput]:
+        **kwargs: Unpack[TransformersKwargs],
+    ) -> ImageClassifierOutput:
         r"""
         labels (`ms.Tensor` of shape `(batch_size,)`, *optional*):
             Labels for computing the image classification/regression loss. Indices should be in `[0, ...,
@@ -1348,21 +936,13 @@ class SiglipForImageClassification(SiglipPreTrainedModel):
         >>> print("Predicted class:", model.config.id2label[predicted_class_idx])
         Predicted class: LABEL_1
         ```"""
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
-        )
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
-        outputs = self.vision_model(
+        outputs: BaseModelOutputWithPooling = self.vision_model(
             pixel_values,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
             interpolate_pos_encoding=interpolate_pos_encoding,
+            **kwargs,
         )
 
-        sequence_output = outputs[0]
+        sequence_output = outputs.last_hidden_state
 
         # average pool the patch tokens
         sequence_output = mint.mean(sequence_output, dim=1)
@@ -1371,38 +951,11 @@ class SiglipForImageClassification(SiglipPreTrainedModel):
 
         loss = None
         if labels is not None:
-            # move labels to correct device to enable model parallelism
-            labels = labels
-            if self.config.problem_type is None:
-                if self.num_labels == 1:
-                    self.config.problem_type = "regression"
-                elif self.num_labels > 1 and (labels.dtype == ms.int32 or labels.dtype == ms.int64):
-                    self.config.problem_type = "single_label_classification"
-                else:
-                    self.config.problem_type = "multi_label_classification"
-
-            if self.config.problem_type == "regression":
-                loss_fct = MSELoss()
-                if self.num_labels == 1:
-                    loss = loss_fct(logits.squeeze(), labels.squeeze())
-                else:
-                    loss = loss_fct(logits, labels)
-            elif self.config.problem_type == "single_label_classification":
-                loss_fct = CrossEntropyLoss()
-                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-            elif self.config.problem_type == "multi_label_classification":
-                loss_fct = BCEWithLogitsLoss()
-                loss = loss_fct(logits, labels)
-
-        if not return_dict:
-            output = (logits,) + outputs[2:]
-            return ((loss,) + output) if loss is not None else output
+            loss = self.loss_function(labels, logits, self.config)
 
         return ImageClassifierOutput(
             loss=loss,
             logits=logits,
-            hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
         )
 
 
