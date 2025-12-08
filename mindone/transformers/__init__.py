@@ -541,6 +541,13 @@ from .models.flava import (
     FlavaProcessor,
     FlavaTextModel,
 )
+from .models.florence2 import (
+    Florence2ForConditionalGeneration,
+    Florence2Model,
+    Florence2PreTrainedModel,
+    Florence2VisionBackbone,
+    Florence2VisionPreTrainedModel,
+)
 from .models.fnet import (
     FNetForMaskedLM,
     FNetForMultipleChoice,
