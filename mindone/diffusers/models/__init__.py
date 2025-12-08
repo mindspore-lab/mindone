@@ -71,6 +71,7 @@ _import_structure = {
     "transformers.transformer_2d": ["Transformer2DModel"],
     "transformers.transformer_allegro": ["AllegroTransformer3DModel"],
     "transformers.transformer_bria": ["BriaTransformer2DModel"],
+    "transformers.transformer_bria_fibo": ["BriaFiboTransformer2DModel"],
     "transformers.transformer_chroma": ["ChromaTransformer2DModel"],
     "transformers.transformer_cogview3plus": ["CogView3PlusTransformer2DModel"],
     "transformers.transformer_cogview4": ["CogView4Transformer2DModel"],
@@ -147,6 +148,7 @@ if TYPE_CHECKING:
     from .transformers import (
         AllegroTransformer3DModel,
         AuraFlowTransformer2DModel,
+        BriaFiboTransformer2DModel,
         BriaTransformer2DModel,
         ChromaTransformer2DModel,
         CogVideoXTransformer3DModel,
