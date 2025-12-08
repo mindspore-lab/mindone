@@ -18,9 +18,11 @@ import inspect
 import numpy as np
 import pytest
 import torch
+from transformers import Dots1Config
 
 import mindspore as ms
 
+from mindone.transformers import Dots1Model
 from tests.modeling_test_utils import (
     MS_DTYPE_MAPPING,
     PT_DTYPE_MAPPING,
@@ -36,6 +38,9 @@ MODES = [1]
 
 
 class Dots1ModelTester(CausalLMModelTester):
+    config_class = Dots1Config
+    base_model_class = Dots1Model
+
     def __init__(
         self,
         parent=None,
@@ -58,6 +63,16 @@ config, inputs_dict = model_tester.prepare_config_and_inputs_for_common()
 
 Dots1_CASES = [
     [
+        "Dots1Model",
+        "transformers.Dots1Model",
+        "mindone.transformers.Dots1Model",
+        (config,),
+        {},
+        (),
+        inputs_dict,
+        {"last_hidden_state": 0},
+    ],
+    [
         "Dots1ForCausalLM",
         "transformers.Dots1ForCausalLM",
         "mindone.transformers.Dots1ForCausalLM",
@@ -66,7 +81,7 @@ Dots1_CASES = [
         (),
         inputs_dict,
         {"logits": "logits"},
-    ]
+    ],
 ]
 
 
