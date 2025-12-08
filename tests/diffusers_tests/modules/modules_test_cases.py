@@ -834,6 +834,36 @@ AURAFLOW_TRANSFORMER2D_CASES = [
 ]
 
 
+BRIA_TRANSFORMER2D_CASES = [
+    [
+        "BriaTransformer2DModel",
+        "diffusers.models.transformers.transformer_bria.BriaTransformer2DModel",
+        "mindone.diffusers.models.transformers.transformer_bria.BriaTransformer2DModel",
+        (),
+        {
+            "patch_size": 1,
+            "in_channels": 4,
+            "num_layers": 1,
+            "num_single_layers": 1,
+            "attention_head_dim": 8,
+            "num_attention_heads": 2,
+            "joint_attention_dim": 32,
+            "pooled_projection_dim": None,
+            "axes_dims_rope": [0, 4, 4],
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(1, 16, 4),
+            "encoder_hidden_states": np.random.randn(1, 48, 32),
+            "img_ids": np.random.randn(48, 3),
+            "txt_ids": np.random.randn(16, 3),
+            "timestep": np.full(1, 1.0, dtype=np.float32),
+            "return_dict": False,
+        },
+    ],
+]
+
+
 COGVIDEOX_TRANSFORMER3D_CASES = [
     [
         "CogVideoXTransformer3DModel",
@@ -1592,6 +1622,7 @@ CHROMA_TRANSFORMER2D_CASES = [
 TRANSFORMERS_CASES = (
     ALLEGRO_TRANSFORMER3D_CASES
     + AURAFLOW_TRANSFORMER2D_CASES
+    + BRIA_TRANSFORMER2D_CASES
     + COSMOS_TRANSFORMER3D_CASES
     + COGVIDEOX_TRANSFORMER3D_CASES
     + COGVIEW3PLUS_TRANSFORMER2D_CASES

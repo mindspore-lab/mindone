@@ -20,9 +20,10 @@ Key Features:
         - **group_norm**: Native post 2.3.0; custom for earlier versions.
         - **multinomial**: Native post 2.4.1; custom for earlier versions.
         - **pad**: Native post 2.3.0; custom for earlier versions.
-
         [2025/01/14]
         - **unflatten**: Always custom due to framework limitations.
+        [2025/10/22]
+        - **RMSNorm**: Always custom due to framework limitations.
 
         [2025/10/28]
         - **scaled_dot_product_attention**
@@ -39,7 +40,8 @@ Todo:
 """
 
 import math
-from typing import Optional
+import numbers
+from typing import Optional, Union
 
 from packaging.version import parse
 
@@ -47,7 +49,10 @@ import mindspore as ms
 from mindspore import mint, nn, ops
 from mindspore._c_expression.amp import AmpLevel, create_amp_strategy
 from mindspore.common.api import _function_forbid_reuse
+from mindspore.common.initializer import One, initializer
 from mindspore.ops.function.nn_func import _interploate_ext_make_tuple, _interpolate_ext_scale_factor_convert_size
+
+from ..utils.mindspore_utils import dtype_to_eps
 
 __all__ = [
     "conv_transpose1d",
@@ -61,6 +66,7 @@ __all__ = [
     "pad",
     "view_as_complex",
     "unflatten",
+    "RMSNorm",
 ]
 
 MINDSPORE_VERSION = parse(ms.__version__)
@@ -650,3 +656,62 @@ def flash_attention_op(
     return ops.operations.nn_ops.FlashAttentionScore(
         head_num=head_num, keep_prob=keep_prob, scale_value=scale, input_layout=input_layout
     )(query, key, value, None, None, None, attn_mask)[3]
+
+
+# ================================================================================
+# RMSNorm
+# ================================================================================
+class RMSNorm(nn.Cell):
+    """
+    Equivalence of `torch.nn.RMSNorm`
+    """
+
+    __constants__ = ["normalized_shape", "eps", "elementwise_affine"]
+    normalized_shape: tuple[int, ...]
+    eps: Optional[float]
+    elementwise_affine: bool
+
+    def __init__(
+        self,
+        normalized_shape: Union[int, list[int], tuple[int, ...]],
+        eps: Optional[float] = None,
+        elementwise_affine: bool = True,
+        dtype=None,
+    ) -> None:
+        factory_kwargs = {"dtype": dtype}
+        super().__init__()
+        if isinstance(normalized_shape, numbers.Integral):
+            # mypy error: incompatible types in assignment
+            normalized_shape = (normalized_shape,)  # type: ignore[assignment]
+        self.normalized_shape = tuple(normalized_shape)  # type: ignore[arg-type]
+        self.eps = eps
+        self.elementwise_affine = elementwise_affine
+        if self.elementwise_affine:
+            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **factory_kwargs))
+        else:
+            self.register_parameter("weight", None)
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        """
+        Resets parameters based on their initialization used in __init__.
+        """
+        if self.elementwise_affine:
+            self.weight.set_data(initializer(One(), self.weight.shape, self.weight.dtype))
+
+    def construct(self, x: ms.Tensor) -> ms.Tensor:
+        """
+        Runs the construct pass.
+        """
+        res = x.float() * mint.rsqrt(
+            mint.pow(x.float(), 2).mean(-1, keepdim=True)
+            + (self.eps if self.eps is not None else dtype_to_eps(x.dtype))
+        )
+        res = res.to(x.dtype) * self.weight
+        return res
+
+    def extra_repr(self) -> str:
+        """
+        Return the extra representation of the module.
+        """
+        return "{normalized_shape}, eps={eps}, " "elementwise_affine={elementwise_affine}".format(**self.__dict__)
