@@ -1513,6 +1513,34 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../../parallel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parallel inference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     
     
     
@@ -1527,10 +1555,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5_4" >
         
           
-          <label class="md-nav__link" for="__nav_2_5_3" id="__nav_2_5_3_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_5_4" id="__nav_2_5_4_label" tabindex="0">
             
   
   
@@ -1548,8 +1576,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_5_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_5_3">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_5_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_5_4">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -10959,7 +10987,49 @@ specific language governing permissions and limitations under the License. -->
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/transformers/transformer_ltx.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">418</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">376</span>
+<span class="normal">377</span>
+<span class="normal">378</span>
+<span class="normal">379</span>
+<span class="normal">380</span>
+<span class="normal">381</span>
+<span class="normal">382</span>
+<span class="normal">383</span>
+<span class="normal">384</span>
+<span class="normal">385</span>
+<span class="normal">386</span>
+<span class="normal">387</span>
+<span class="normal">388</span>
+<span class="normal">389</span>
+<span class="normal">390</span>
+<span class="normal">391</span>
+<span class="normal">392</span>
+<span class="normal">393</span>
+<span class="normal">394</span>
+<span class="normal">395</span>
+<span class="normal">396</span>
+<span class="normal">397</span>
+<span class="normal">398</span>
+<span class="normal">399</span>
+<span class="normal">400</span>
+<span class="normal">401</span>
+<span class="normal">402</span>
+<span class="normal">403</span>
+<span class="normal">404</span>
+<span class="normal">405</span>
+<span class="normal">406</span>
+<span class="normal">407</span>
+<span class="normal">408</span>
+<span class="normal">409</span>
+<span class="normal">410</span>
+<span class="normal">411</span>
+<span class="normal">412</span>
+<span class="normal">413</span>
+<span class="normal">414</span>
+<span class="normal">415</span>
+<span class="normal">416</span>
+<span class="normal">417</span>
+<span class="normal">418</span>
 <span class="normal">419</span>
 <span class="normal">420</span>
 <span class="normal">421</span>
@@ -11092,37 +11162,7 @@ specific language governing permissions and limitations under the License. -->
 <span class="normal">548</span>
 <span class="normal">549</span>
 <span class="normal">550</span>
-<span class="normal">551</span>
-<span class="normal">552</span>
-<span class="normal">553</span>
-<span class="normal">554</span>
-<span class="normal">555</span>
-<span class="normal">556</span>
-<span class="normal">557</span>
-<span class="normal">558</span>
-<span class="normal">559</span>
-<span class="normal">560</span>
-<span class="normal">561</span>
-<span class="normal">562</span>
-<span class="normal">563</span>
-<span class="normal">564</span>
-<span class="normal">565</span>
-<span class="normal">566</span>
-<span class="normal">567</span>
-<span class="normal">568</span>
-<span class="normal">569</span>
-<span class="normal">570</span>
-<span class="normal">571</span>
-<span class="normal">572</span>
-<span class="normal">573</span>
-<span class="normal">574</span>
-<span class="normal">575</span>
-<span class="normal">576</span>
-<span class="normal">577</span>
-<span class="normal">578</span>
-<span class="normal">579</span>
-<span class="normal">580</span>
-<span class="normal">581</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LTXVideoTransformer3DModel</span><span class="p">(</span>
+<span class="normal">551</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LTXVideoTransformer3DModel</span><span class="p">(</span>
     <span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">AttentionMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">,</span> <span class="n">PeftAdapterMixin</span><span class="p">,</span> <span class="n">CacheMixin</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
@@ -11154,6 +11194,18 @@ specific language governing permissions and limitations under the License. -->
     <span class="n">_supports_gradient_checkpointing</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="n">_skip_layerwise_casting_patterns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;norm&quot;</span><span class="p">]</span>
     <span class="n">_repeated_blocks</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;LTXVideoTransformerBlock&quot;</span><span class="p">]</span>
+    <span class="n">_cp_plan</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;hidden_states&quot;</span><span class="p">:</span> <span class="n">ContextParallelInput</span><span class="p">(</span><span class="n">split_dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">expected_dims</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">split_output</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
+            <span class="s2">&quot;encoder_hidden_states&quot;</span><span class="p">:</span> <span class="n">ContextParallelInput</span><span class="p">(</span><span class="n">split_dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">expected_dims</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">split_output</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
+            <span class="s2">&quot;encoder_attention_mask&quot;</span><span class="p">:</span> <span class="n">ContextParallelInput</span><span class="p">(</span><span class="n">split_dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">expected_dims</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">split_output</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;rope&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="mi">0</span><span class="p">:</span> <span class="n">ContextParallelInput</span><span class="p">(</span><span class="n">split_dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">expected_dims</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">split_output</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+            <span class="mi">1</span><span class="p">:</span> <span class="n">ContextParallelInput</span><span class="p">(</span><span class="n">split_dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">expected_dims</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">split_output</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;proj_out&quot;</span><span class="p">:</span> <span class="n">ContextParallelOutput</span><span class="p">(</span><span class="n">gather_dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">expected_dims</span><span class="o">=</span><span class="mi">3</span><span class="p">),</span>
+    <span class="p">}</span>
 
     <span class="nd">@register_to_config</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
