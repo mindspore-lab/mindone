@@ -44,7 +44,7 @@ model_name = "Qwen/Qwen3-0.6B"  # or replace the local path here
 model = Qwen3ForCausalLM.from_pretrained(
     model_name,
     mindspore_dtype=mindspore.bfloat16,
-    attn_implementation="paged_attention",
+    attn_implementation="flash_paged",
 )
 
 jitconfig = JitConfig(jit_level="O0", infer_boost="on")

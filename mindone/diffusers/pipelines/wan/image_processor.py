@@ -16,6 +16,7 @@ from typing import Optional, Tuple, Union
 
 import numpy as np
 import PIL.Image
+
 import mindspore as ms
 
 from ...configuration_utils import register_to_config

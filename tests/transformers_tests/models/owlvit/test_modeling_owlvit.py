@@ -21,6 +21,7 @@ import requests
 import torch
 from PIL import Image
 from transformers import OwlViTConfig, OwlViTTextConfig, OwlViTVisionConfig
+from transformers.testing_utils import slow
 
 import mindspore as ms
 
@@ -324,7 +325,7 @@ def prepare_img():
     return Image.open(requests.get(url, stream=True).raw)
 
 
-@pytest.mark.slow
+@slow
 def test_inference():
     THRESHOLD = DTYPE_AND_THRESHOLDS["fp32"]
 
@@ -353,7 +354,7 @@ def test_inference():
     assert (np.array(diffs) < THRESHOLD).all(), f"Output difference exceeds the threshold: {diffs} > {THRESHOLD}"
 
 
-@pytest.mark.slow
+@slow
 def test_inference_interpolate_pos_encoding():
     THRESHOLD = DTYPE_AND_THRESHOLDS["fp32"]
 
@@ -476,7 +477,7 @@ def test_inference_interpolate_pos_encoding():
     assert outputs.target_pred_boxes.shape == (1, num_queries, 4)
 
 
-@pytest.mark.slow
+@slow
 def test_inference_object_detection():
     THRESHOLD = DTYPE_AND_THRESHOLDS["fp32"]
 
@@ -515,7 +516,7 @@ def test_inference_object_detection():
     assert objects_text_labels == ["a photo of a cat", "a photo of a cat"]
 
 
-@pytest.mark.slow
+@slow
 def test_inference_one_shot_object_detection():
     THRESHOLD = DTYPE_AND_THRESHOLDS["fp32"]
 
@@ -539,7 +540,7 @@ def test_inference_one_shot_object_detection():
     assert (np.array(diffs) < THRESHOLD).all(), f"Output difference exceeds the threshold: {diffs} > {THRESHOLD}"
 
 
-@pytest.mark.slow
+@slow
 def test_inference_one_shot_object_detection_fp16():
     model_name = "google/owlvit-base-patch32"
     model = OwlViTForObjectDetection.from_pretrained(model_name, mindspore_dtype=ms.float16)

@@ -16,9 +16,9 @@ import math
 from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
+import mindspore.mint.nn.functional as F
 import mindspore.nn as nn
 from mindspore import mint
-import mindspore.mint.nn.functional as F
 from mindspore.nn.utils import no_init_parameters
 
 from ...configuration_utils import ConfigMixin, register_to_config
@@ -28,11 +28,10 @@ from ..attention import AttentionMixin, AttentionModuleMixin, FeedForward
 from ..attention_dispatch import dispatch_attention_fn
 from ..cache_utils import CacheMixin
 from ..embeddings import PixArtAlphaTextProjection, TimestepEmbedding, Timesteps, get_1d_rotary_pos_embed
+from ..layers_compat import RMSNorm, unflatten
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import FP32LayerNorm
-from ..layers_compat import unflatten, RMSNorm
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -1073,7 +1072,9 @@ class WanAnimateTransformer3DModel(
         # 1. Patch & position embedding
         self.rope = WanRotaryPosEmbed(attention_head_dim, patch_size, rope_max_seq_len)
         self.patch_embedding = mint.nn.Conv3d(in_channels, inner_dim, kernel_size=patch_size, stride=patch_size)
-        self.pose_patch_embedding = mint.nn.Conv3d(latent_channels, inner_dim, kernel_size=patch_size, stride=patch_size)
+        self.pose_patch_embedding = mint.nn.Conv3d(
+            latent_channels, inner_dim, kernel_size=patch_size, stride=patch_size
+        )
 
         # 2. Condition embeddings
         self.condition_embedder = WanTimeTextImageEmbedding(

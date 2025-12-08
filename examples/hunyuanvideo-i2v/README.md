@@ -25,12 +25,13 @@ Here is the development plan of the project:
 
 | MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
 |:---------:|:-------------:|:-----------:|:-------------------:|
-|   2.5.0   |  24.1.RC2     | 7.5.0.2.220 |  8.0.RC3.beta1      |
+|   2.6.0    |    24.1.RC3    | 7.5.T11.0.B088 |   8.1.RC1     |
+|   2.7.0    |    24.1.RC3    | 7.5.T11.0.B088 |   8.2.RC1     |
 
 </div>
 
 1. Install
-   [CANN 8.0.RC3.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC3.beta1)
+   [CANN 8.1.RC1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.1.RC1) or [CANN 8.2.RC1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1)
    and MindSpore according to the [official instructions](https://www.mindspore.cn/install).
 2. Install requirements
     ```shell
@@ -118,6 +119,23 @@ bash scripts/hyvideo-i2v/run_sample_image2video_stability.sh # or run_sample_ima
 If you want change to another prompt, please set `--prompt` to the new prompt.
 
 To run image-to-video inference with LoRA weight, please refer to `scripts/hyvideo-i2v/run_sample_image2video_lora.sh`.
+
+## Performance
+
+### Inference
+
+The following experiments are tested on Ascend Atlas 800T A2 machines with **mindspore 2.7.0 pynative mode**.
+
+| model | cards | batch size | resolution | num of frames | num of steps | step time (sec) |
+|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+|  HYVideo-T/2 | 1 | 1  | 720p |  129 | 50 | 86.02 |
+
+The following experiments are tested on Ascend Atlas 800T A2 machines with **mindspore 2.6.0 pynative mode**.
+
+| model | cards | batch size | resolution | num of frames | num of steps | step time (sec) |
+|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+|  HYVideo-T/2 | 1 | 1  | 720p |  129 | 50 | 85.94 |
+
 
 
 ## Acknowledgements

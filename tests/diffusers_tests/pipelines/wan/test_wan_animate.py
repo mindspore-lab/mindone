@@ -15,7 +15,6 @@
 import unittest
 
 import numpy as np
-import pytest
 import torch
 from ddt import data, ddt, unpack
 from PIL import Image
@@ -23,14 +22,9 @@ from transformers import CLIPVisionConfig
 
 import mindspore as ms
 
-from mindone.diffusers import AutoencoderKLWan, WanImageToVideoPipeline
-from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
-from mindone.transformers import CLIPVisionModel
-
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
-    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -182,7 +176,7 @@ class WanAnimatePipelineFastTests(PipelineTesterMixin, unittest.TestCase):
             "max_sequence_length": 16,
         }
         return inputs
-        
+
     @data(*test_cases)
     @unpack
     def test_inference(self, mode, dtype):
