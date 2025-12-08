@@ -161,7 +161,6 @@ class GotOcr2ImageProcessorFast(BaseImageProcessorFast):
         do_normalize: bool,
         image_mean: Optional[Union[float, list[float]]],
         image_std: Optional[Union[float, list[float]]],
-        disable_grouping: Optional[bool],
         return_tensors: Optional[Union[str, TensorType]],
         **kwargs,
     ) -> BatchFeature:

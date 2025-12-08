@@ -2,12 +2,13 @@ import dataclasses
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
-from transformers import AutoConfig, AutoProcessor, AutoTokenizer, PreTrainedTokenizerBase
+from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 import mindspore as ms
 import mindspore.mint.nn.functional as F
 from mindspore import mint
 
+from mindone.transformers.models.auto import AutoProcessor
 from mindone.transformers.data.data_collator import DataCollatorForSeq2Seq
 from mindone.transformers.image_processing_base import BatchFeature
 from mindone.transformers.processing_utils import ProcessorMixin
@@ -115,7 +116,7 @@ class UltravoxProcessor(ProcessorMixin):
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path: str, **kwargs):
-        config: UltravoxConfig = AutoConfig.from_pretrained(pretrained_model_name_or_path, **kwargs)
+        config: UltravoxConfig = UltravoxConfig.from_pretrained(pretrained_model_name_or_path, **kwargs)
         audio_processor = AutoProcessor.from_pretrained(
             config.audio_model_id or config.audio_config._name_or_path or "openai/whisper-tiny"
         )

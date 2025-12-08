@@ -346,12 +346,25 @@ class BaseImageProcessorFast(BaseImageProcessor):
                 f" {size}."
             )
         # Fixme different with torchvision resize, which has inout `antialias`
-        resize = vision.Resize(new_size, interpolation=interpolation)
-        # image ms.tensor-->numpy-->PIL
-        image = image.permute(1, 2, 0).asnumpy()
-        image = (image * 255).clip(0, 255).astype(np.uint8)
-        image = Image.fromarray(image)
-        return ms.tensor(np.array(resize(image))).permute(2, 0, 1)
+        resize_op = vision.Resize(new_size, interpolation=interpolation)
+        original_shape = image.shape
+        batch_dims = original_shape[:-3]
+        num_batch = 1
+        for dim in batch_dims:
+            num_batch *= dim
+        image_flat = image.view(num_batch, *original_shape[-3:])  # (N, C, H, W)
+        resized_images = []
+        for i in range(num_batch):
+            img = image_flat[i]  # (C, H, W)
+            # image ms.tensor-->numpy-->PIL
+            img_np = img.permute(1, 2, 0).asnumpy()
+            img_np = (img_np * 255).clip(0, 255).astype(np.uint8)
+            img_pil = Image.fromarray(img_np)
+            resized_img = ms.tensor(np.array(resize_op(img_pil))).permute(2, 0, 1)
+            resized_images.append(resized_img)
+        resized_flat = mint.stack(resized_images, dim=0)
+        _, new_C, new_H, new_W = resized_flat.shape
+        return resized_flat.view(*batch_dims, new_C, new_H, new_W)
 
     @staticmethod
     def compile_friendly_resize(
