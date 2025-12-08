@@ -20,8 +20,11 @@
 import unittest
 
 import numpy as np
+import pytest
 import torch
+import transformers
 from ddt import data, ddt, unpack
+from packaging.version import Version
 from transformers import ClapAudioConfig, ClapConfig, ClapTextConfig, GPT2Config, SpeechT5HifiGanConfig, T5Config
 
 import mindspore as ms
@@ -240,6 +243,11 @@ class AudioLDM2PipelineFastTests(PipelineTesterMixin, unittest.TestCase):
     @data(*test_cases)
     @unpack
     def test_audioldm2(self, mode, dtype):
+        last_supported_version = Version("4.50.0")
+        current_version = Version(transformers.__version__)
+        if current_version > last_supported_version:
+            pytest.skip(f"AudioLDM2Pipeline is not supported in transformers version {current_version}")
+
         ms.set_context(mode=mode)
 
         pt_components, ms_components = self.get_dummy_components()

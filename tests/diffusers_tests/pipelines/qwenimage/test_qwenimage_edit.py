@@ -150,7 +150,7 @@ class QwenImageEditPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         [
             "processor",
             "transformers.models.qwen2_vl.processing_qwen2_vl.Qwen2VLProcessor",
-            "transformers.models.qwen2_vl.processing_qwen2_vl.Qwen2VLProcessor",
+            "mindone.transformers.models.qwen2_vl.processing_qwen2_vl.Qwen2VLProcessor",
             dict(
                 pretrained_model_name_or_path="hf-internal-testing/tiny-random-Qwen2VLForConditionalGeneration",
                 trust_remote_code=True,

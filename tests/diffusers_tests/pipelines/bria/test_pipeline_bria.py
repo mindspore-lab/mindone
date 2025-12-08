@@ -17,9 +17,12 @@
 
 import unittest
 
+import diffusers
 import numpy as np
+import pytest
 import torch
 from ddt import data, ddt, unpack
+from packaging.version import Version
 
 import mindspore as ms
 
@@ -137,6 +140,11 @@ class BriaPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
     @data(*test_cases)
     @unpack
     def test_bria(self, mode, dtype):
+        required_version = Version("0.35.2")
+        current_version = Version(diffusers.__version__)
+        if current_version <= required_version:
+            pytest.skip(f"BriaPipeline is not supported in diffusers version {current_version}")
+
         ms.set_context(mode=mode)
 
         pt_components, ms_components = self.get_dummy_components()

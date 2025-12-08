@@ -1,4 +1,4 @@
-# Copyright 2025 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The Wan Team and The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
@@ -25,12 +25,18 @@ from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
 from ...utils import logging
 from ..attention import FeedForward
-from ..attention_processor import Attention
+from ..cache_utils import CacheMixin
 from ..layers_compat import unflatten
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import FP32LayerNorm
-from .transformer_wan import WanAttnProcessor2_0, WanRotaryPosEmbed, WanTimeTextImageEmbedding, WanTransformerBlock
+from .transformer_wan import (
+    WanAttention,
+    WanAttnProcessor,
+    WanRotaryPosEmbed,
+    WanTimeTextImageEmbedding,
+    WanTransformerBlock,
+)
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -57,33 +63,22 @@ class WanVACETransformerBlock(nn.Cell):
 
         # 2. Self-attention
         self.norm1 = FP32LayerNorm(dim, eps, elementwise_affine=False)
-        self.attn1 = Attention(
-            query_dim=dim,
+        self.attn1 = WanAttention(
+            dim=dim,
             heads=num_heads,
-            kv_heads=num_heads,
             dim_head=dim // num_heads,
-            qk_norm=qk_norm,
             eps=eps,
-            bias=True,
-            cross_attention_dim=None,
-            out_bias=True,
-            processor=WanAttnProcessor2_0(),
+            processor=WanAttnProcessor(),
         )
 
         # 3. Cross-attention
-        self.attn2 = Attention(
-            query_dim=dim,
+        self.attn2 = WanAttention(
+            dim=dim,
             heads=num_heads,
-            kv_heads=num_heads,
             dim_head=dim // num_heads,
-            qk_norm=qk_norm,
             eps=eps,
-            bias=True,
-            cross_attention_dim=None,
-            out_bias=True,
             added_kv_proj_dim=added_kv_proj_dim,
-            added_proj_bias=True,
-            processor=WanAttnProcessor2_0(),
+            processor=WanAttnProcessor(),
         )
         self.norm2 = FP32LayerNorm(dim, eps, elementwise_affine=True) if cross_attn_norm else mint.nn.Identity()
 
@@ -118,12 +113,12 @@ class WanVACETransformerBlock(nn.Cell):
         norm_hidden_states = (self.norm1(control_hidden_states.float()) * (1 + scale_msa) + shift_msa).type_as(
             control_hidden_states
         )
-        attn_output = self.attn1(hidden_states=norm_hidden_states, rotary_emb=rotary_emb)
+        attn_output = self.attn1(norm_hidden_states, None, None, rotary_emb)
         control_hidden_states = (control_hidden_states.float() + attn_output * gate_msa).type_as(control_hidden_states)
 
         # 2. Cross-attention
         norm_hidden_states = self.norm2(control_hidden_states.float()).type_as(control_hidden_states)
-        attn_output = self.attn2(hidden_states=norm_hidden_states, encoder_hidden_states=encoder_hidden_states)
+        attn_output = self.attn2(norm_hidden_states, encoder_hidden_states, None, None)
         control_hidden_states = control_hidden_states + attn_output
 
         # 3. Feed-forward
@@ -142,7 +137,7 @@ class WanVACETransformerBlock(nn.Cell):
         return conditioning_states, control_hidden_states
 
 
-class WanVACETransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginalModelMixin):
+class WanVACETransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginalModelMixin, CacheMixin):
     r"""
     A Transformer model for video-like data used in the Wan model.
 
@@ -219,11 +214,9 @@ class WanVACETransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromO
 
         # 1. Patch & position embedding
         self.rope = WanRotaryPosEmbed(attention_head_dim, patch_size, rope_max_seq_len)
-        self.patch_embedding = mint.nn.Conv3d(
-            in_channels, inner_dim, kernel_size=tuple(patch_size), stride=tuple(patch_size)
-        )
+        self.patch_embedding = mint.nn.Conv3d(in_channels, inner_dim, kernel_size=patch_size, stride=patch_size)
         self.vace_patch_embedding = mint.nn.Conv3d(
-            vace_in_channels, inner_dim, kernel_size=tuple(patch_size), stride=tuple(patch_size)
+            vace_in_channels, inner_dim, kernel_size=patch_size, stride=patch_size
         )
 
         # 2. Condition embeddings
@@ -272,8 +265,6 @@ class WanVACETransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromO
 
         self.gradient_checkpointing = False
 
-        self.p_t, self.p_h, self.p_w = self.config.patch_size
-
     def construct(
         self,
         hidden_states: ms.Tensor,
@@ -285,11 +276,23 @@ class WanVACETransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromO
         return_dict: bool = True,
         attention_kwargs: Optional[Dict[str, Any]] = None,
     ) -> Union[ms.Tensor, Dict[str, ms.Tensor]]:
-        batch_size, num_channels, num_frames, height, width = hidden_states.shape
+        if attention_kwargs is not None and "scale" in attention_kwargs:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer here
+            # and remove `lora_scale` from each PEFT layer at the end.
+            # scale_lora_layers & unscale_lora_layers maybe contains some operation forbidden in graph mode
+            raise RuntimeError(
+                f"You are trying to set scaling of lora layer by passing {attention_kwargs['scale']=}. "
+                f"However it's not allowed in on-the-fly model forwarding. "
+                f"Please manually call `scale_lora_layers(model, lora_scale)` before model forwarding and "
+                f"`unscale_lora_layers(model, lora_scale)` after model forwarding. "
+                f"For example, it can be done in a pipeline call like `StableDiffusionPipeline.__call__`."
+            )
 
-        post_patch_num_frames = num_frames // self.p_t
-        post_patch_height = height // self.p_h
-        post_patch_width = width // self.p_w
+        batch_size, num_channels, num_frames, height, width = hidden_states.shape
+        p_t, p_h, p_w = self.config["patch_size"]
+        post_patch_num_frames = num_frames // p_t
+        post_patch_height = height // p_h
+        post_patch_width = width // p_w
 
         if control_hidden_states_scale is None:
             control_hidden_states_scale = control_hidden_states.new_ones(len(self.config.vace_layers))
@@ -305,10 +308,10 @@ class WanVACETransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromO
 
         # 2. Patch embedding
         hidden_states = self.patch_embedding(hidden_states)
-        hidden_states = mint.transpose(hidden_states.flatten(2), 1, 2)
+        hidden_states = hidden_states.flatten(2).swapaxes(1, 2)
 
         control_hidden_states = self.vace_patch_embedding(control_hidden_states)
-        control_hidden_states = mint.transpose(control_hidden_states.flatten(2), 1, 2)
+        control_hidden_states = control_hidden_states.flatten(2).swapaxes(1, 2)
         control_hidden_states_padding = control_hidden_states.new_zeros(
             (batch_size, hidden_states.shape[1] - control_hidden_states.shape[1], control_hidden_states.shape[2])
         )
@@ -318,7 +321,6 @@ class WanVACETransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromO
         temb, timestep_proj, encoder_hidden_states, encoder_hidden_states_image = self.condition_embedder(
             timestep, encoder_hidden_states, encoder_hidden_states_image
         )
-        # timestep_proj = self.unflatten(timestep_proj)
         timestep_proj = unflatten(timestep_proj, 1, (6, -1))
 
         # 4. Image embedding
@@ -326,27 +328,6 @@ class WanVACETransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromO
             encoder_hidden_states = mint.concat([encoder_hidden_states_image, encoder_hidden_states], dim=1)
 
         # 5. Transformer blocks
-        # mindspore not support gradient_checkpointing
-        # if self.gradient_checkpointing:
-        #     # Prepare VACE hints
-        #     control_hidden_states_list = []
-        #     for i, block in enumerate(self.vace_blocks):
-        #         conditioning_states, control_hidden_states = self._gradient_checkpointing_func(block, hidden_states,
-        #                                                                                        encoder_hidden_states,
-        #                                                                                        control_hidden_states,
-        #                                                                                        timestep_proj,
-        #                                                                                        rotary_emb)
-        #         control_hidden_states_list.append((conditioning_states, control_hidden_states_scale[i]))
-        #     control_hidden_states_list = control_hidden_states_list[::-1]
-        #
-        #     for i, block in enumerate(self.blocks):
-        #         hidden_states = self._gradient_checkpointing_func(block, hidden_states, encoder_hidden_states,
-        #                                                           timestep_proj, rotary_emb)
-        #         if i in self.config.vace_layers:
-        #             control_hint, scale = control_hidden_states_list[-1]
-        #             hidden_states = hidden_states + control_hint * scale
-        #             control_hidden_states_list = control_hidden_states_list[:-1]
-        # else:
         # Prepare VACE hints
         control_hidden_states_list = []
         for i, block in enumerate(self.vace_blocks):
@@ -370,7 +351,7 @@ class WanVACETransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromO
         hidden_states = self.proj_out(hidden_states)
 
         hidden_states = hidden_states.reshape(
-            batch_size, post_patch_num_frames, post_patch_height, post_patch_width, self.p_t, self.p_h, self.p_w, -1
+            batch_size, post_patch_num_frames, post_patch_height, post_patch_width, p_t, p_h, p_w, -1
         )
         hidden_states = hidden_states.permute(0, 7, 1, 4, 2, 5, 3, 6)
         output = hidden_states.flatten(6, 7).flatten(4, 5).flatten(2, 3)

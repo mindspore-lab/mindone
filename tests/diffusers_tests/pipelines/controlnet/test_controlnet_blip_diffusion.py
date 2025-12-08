@@ -18,9 +18,12 @@
 
 import unittest
 
+import diffusers
 import numpy as np
+import pytest
 import torch
 from ddt import data, ddt, unpack
+from packaging.version import Version
 from PIL import Image
 from transformers import Blip2Config, CLIPTextConfig
 
@@ -215,6 +218,11 @@ class BlipDiffusionControlNetPipelineFastTests(PipelineTesterMixin, unittest.Tes
     @data(*test_cases)
     @unpack
     def test_blipdiffusion_controlnet(self, mode, dtype):
+        last_supported_version = Version("0.33.1")
+        current_version = Version(diffusers.__version__)
+        if current_version > last_supported_version:
+            pytest.skip(f"BlipDiffusionControlNetPipeline is not supported in diffusers version {current_version}")
+
         ms.set_context(mode=mode)
 
         pt_components, ms_components = self.get_dummy_components()
@@ -251,6 +259,11 @@ class BlipDiffusionControlNetPipelineIntegrationTests(PipelineTesterMixin, unitt
     @data(*test_cases)
     @unpack
     def test_blipdiffusion_controlnet(self, mode, dtype):
+        last_supported_version = Version("0.33.1")
+        current_version = Version(diffusers.__version__)
+        if current_version > last_supported_version:
+            pytest.skip(f"BlipDiffusionControlNetPipeline is not supported in diffusers version {current_version}")
+
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
 
