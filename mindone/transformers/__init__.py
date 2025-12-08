@@ -46,6 +46,8 @@ from .image_processing_utils_fast import BaseImageProcessorFast
 from .image_utils import ImageFeatureExtractionMixin
 from .masking_utils import AttentionMaskInterface
 from .modeling_utils import MSPreTrainedModel, PreTrainedModel
+from .modeling_utils import MSPreTrainedModel
+from .models.aimv2 import Aimv2Model, Aimv2PreTrainedModel, Aimv2TextModel, Aimv2VisionModel
 from .models.albert import (
     AlbertForMaskedLM,
     AlbertForMultipleChoice,
@@ -446,6 +448,10 @@ from .models.dinov2_with_registers import (
     Dinov2WithRegistersModel,
     Dinov2WithRegistersPreTrainedModel,
 )
+from .models.kosmos2_5 import *
+from .models.metaclip_2 import *
+from .models.lfm2_vl import *
+from .models.lfm2 import *
 from .models.distilbert import (
     DistilBertForMaskedLM,
     DistilBertForMultipleChoice,
@@ -571,6 +577,12 @@ from .models.funnel import (
     FunnelForTokenClassification,
     FunnelModel,
     FunnelPreTrainedModel,
+)
+from .models.efficientloftr import (
+    EfficientLoFTRForKeypointMatching,
+    EfficientLoFTRImageProcessor,
+    EfficientLoFTRModel,
+    EfficientLoFTRPreTrainedModel,
 )
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
@@ -1403,6 +1415,7 @@ from .models.vitpose import VitPoseForPoseEstimation, VitPosePreTrainedModel
 from .models.vitpose_backbone import VitPoseBackbone, VitPoseBackbonePreTrainedModel
 from .models.vits import VitsModel, VitsPreTrainedModel
 from .models.vivit import VivitForVideoClassification, VivitModel, VivitPreTrainedModel
+from .models.voxtral import VoxtralEncoder, VoxtralForConditionalGeneration, VoxtralPreTrainedModel, VoxtralProcessor
 from .models.wav2vec2 import (
     Wav2Vec2FeatureExtractor,
     Wav2Vec2ForAudioFrameClassification,
