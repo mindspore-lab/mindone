@@ -105,15 +105,15 @@ class LTXLatentUpsamplePipeline(DiffusionPipeline):
         tensor.
 
         Args:
-            latent (`torch.Tensor`):
+            latent (`ms.Tensor`):
                 Input latents to normalize
-            reference_latents (`torch.Tensor`):
+            reference_latents (`ms.Tensor`):
                 The reference latents providing style statistics.
             factor (`float`):
                 Blending factor between original and transformed latent. Range: -10.0 to 10.0, Default: 1.0
 
         Returns:
-            torch.Tensor: The transformed latent tensor
+            ms.Tensor: The transformed latent tensor
         """
         result = latents.clone()
 
@@ -126,6 +126,35 @@ class LTXLatentUpsamplePipeline(DiffusionPipeline):
 
         result = mint.lerp(latents, result, factor)
         return result
+
+    def tone_map_latents(self, latents: ms.Tensor, compression: float) -> ms.Tensor:
+        """
+        Applies a non-linear tone-mapping function to latent values to reduce their dynamic range in a perceptually
+        smooth way using a sigmoid-based compression.
+        This is useful for regularizing high-variance latents or for conditioning outputs during generation, especially
+        when controlling dynamic behavior with a `compression` factor.
+        Args:
+            latents : ms.Tensor
+                Input latent tensor with arbitrary shape. Expected to be roughly in [-1, 1] or [0, 1] range.
+            compression : float
+                Compression strength in the range [0, 1].
+                - 0.0: No tone-mapping (identity transform)
+                - 1.0: Full compression effect
+        Returns:
+            ms.Tensor
+                The tone-mapped latent tensor of the same shape as input.
+        """
+        # Remap [0-1] to [0-0.75] and apply sigmoid compression in one shot
+        scale_factor = compression * 0.75
+        abs_latents = mint.abs(latents)
+
+        # Sigmoid compression: sigmoid shifts large values toward 0.2, small values stay ~1.0
+        # When scale_factor=0, sigmoid term vanishes, when scale_factor=0.75, full effect
+        sigmoid_term = mint.sigmoid(4.0 * scale_factor * (abs_latents - 1.0))
+        scales = 1.0 - 0.8 * scale_factor * sigmoid_term
+
+        filtered = latents * scales
+        return filtered
 
     @staticmethod
     # Copied from diffusers.pipelines.ltx.pipeline_ltx.LTXPipeline._normalize_latents
@@ -178,7 +207,7 @@ class LTXLatentUpsamplePipeline(DiffusionPipeline):
         """
         self.vae.disable_tiling()
 
-    def check_inputs(self, video, height, width, latents):
+    def check_inputs(self, video, height, width, latents, tone_map_compression_ratio):
         if height % self.vae_spatial_compression_ratio != 0 or width % self.vae_spatial_compression_ratio != 0:
             raise ValueError(f"`height` and `width` have to be divisible by 32 but are {height} and {width}.")
 
@@ -186,6 +215,9 @@ class LTXLatentUpsamplePipeline(DiffusionPipeline):
             raise ValueError("Only one of `video` or `latents` can be provided.")
         if video is None and latents is None:
             raise ValueError("One of `video` or `latents` has to be provided.")
+
+        if not (0 <= tone_map_compression_ratio <= 1):
+            raise ValueError("`tone_map_compression_ratio` must be in the range [0, 1]")
 
     def __call__(
         self,
@@ -196,6 +228,7 @@ class LTXLatentUpsamplePipeline(DiffusionPipeline):
         decode_timestep: Union[float, List[float]] = 0.0,
         decode_noise_scale: Optional[Union[float, List[float]]] = None,
         adain_factor: float = 0.0,
+        tone_map_compression_ratio: float = 0.0,
         generator: Optional[Union[np.random.Generator, List[np.random.Generator]]] = None,
         output_type: Optional[str] = "pil",
         return_dict: bool = True,
@@ -205,6 +238,7 @@ class LTXLatentUpsamplePipeline(DiffusionPipeline):
             height=height,
             width=width,
             latents=latents,
+            tone_map_compression_ratio=tone_map_compression_ratio,
         )
 
         if video is not None:
@@ -242,6 +276,9 @@ class LTXLatentUpsamplePipeline(DiffusionPipeline):
             latents = self.adain_filter_latent(latents_upsampled, latents, adain_factor)
         else:
             latents = latents_upsampled
+
+        if tone_map_compression_ratio > 0.0:
+            latents = self.tone_map_latents(latents, tone_map_compression_ratio)
 
         if output_type == "latent":
             latents = self._normalize_latents(

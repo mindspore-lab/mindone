@@ -1,4 +1,4 @@
-<!-- Copyright 2024 The HuggingFace Team. All rights reserved.
+<!-- Copyright 2025 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,172 +12,51 @@
 # See the License for the specific language governing permissions and
 # limitations under the License. -->
 
-# LTX Video
-
-<div class="flex flex-wrap space-x-1">
-  <img alt="LoRA" src="https://img.shields.io/badge/LoRA-d8b4fe?style=flat"/>
+<div style="float: right;">
+  <div class="flex flex-wrap space-x-1">
+    <a href="https://huggingface.co/docs/diffusers/main/en/tutorials/using_peft_for_inference" target="_blank" rel="noopener">
+      <img alt="LoRA" src="https://img.shields.io/badge/LoRA-d8b4fe?style=flat"/>
+  </div>
 </div>
 
-[LTX Video](https://huggingface.co/Lightricks/LTX-Video) is the first DiT-based video generation model capable of generating high-quality videos in real-time. It produces 24 FPS videos at a 768x512 resolution faster than they can be watched. Trained on a large-scale dataset of diverse videos, the model generates high-resolution videos with realistic and varied content. We provide a model for both text-to-video as well as image + text-to-video usecases.
+# LTX-Video
 
-!!! tip
+[LTX-Video](https://huggingface.co/Lightricks/LTX-Video) is a diffusion transformer designed for fast and real-time generation of high-resolution videos from text and images. The main feature of LTX-Video is the Video-VAE. The Video-VAE has a higher pixel to latent compression ratio (1:192) which enables more efficient video data processing and faster generation speed. To support and prevent finer details from being lost during generation, the Video-VAE decoder performs the latent to pixel conversion *and* the last denoising step.
 
-Make sure to check out the Schedulers [guide](../../using-diffusers/schedulers.md) to learn how to explore the tradeoff between scheduler speed and quality, and see the [reuse components across pipelines](../../using-diffusers/loading.md#reuse-a-pipeline) section to learn how to efficiently load the same components into multiple pipelines.
+You can find all the original LTX-Video checkpoints under the [Lightricks](https://huggingface.co/Lightricks) organization.
 
-Available models:
+!!! tip "Click on the LTX-Video models in the right sidebar for more examples of other video generation tasks."
 
-|                                                             Model name                                                              | Recommended dtype |
-|:-----------------------------------------------------------------------------------------------------------------------------------:|:-----------------:|
-|             [`LTX Video 2B 0.9.0`](https://huggingface.co/Lightricks/LTX-Video/blob/main/ltx-video-2b-v0.9.safetensors)             |   `ms.bfloat16`   |
-|            [`LTX Video 2B 0.9.1`](https://huggingface.co/Lightricks/LTX-Video/blob/main/ltx-video-2b-v0.9.1.safetensors)            |  `ms.bfloat16`    |
-|            [`LTX Video 2B 0.9.5`](https://huggingface.co/Lightricks/LTX-Video/blob/main/ltx-video-2b-v0.9.5.safetensors)            |   `ms.bfloat16`   |
-|            [`LTX Video 13B 0.9.7`](https://huggingface.co/Lightricks/LTX-Video/blob/main/ltxv-13b-0.9.7-dev.safetensors)            |   `ms.bfloat16`   |
-| [`LTX Video Spatial Upscaler 0.9.7`](https://huggingface.co/Lightricks/LTX-Video/blob/main/ltxv-spatial-upscaler-0.9.7.safetensors) |   `ms.bfloat16`   |
+The example below demonstrates how to inference speed.
 
-Note: The recommended dtype is for the transformer component. The VAE and text encoders can be either `ms.float32`, `ms.bfloat16` or `ms.float16` but the recommended dtype is `ms.bfloat16` as used in the original repository.
+</hfoption>
+<hfoption id="inference speed">
 
-## Recommended settings for generation
+Compilation is slow the first time but subsequent calls to the pipeline are faster.
 
-For the best results, it is recommended to follow the guidelines mentioned in the official LTX Video [repository](https://github.com/Lightricks/LTX-Video).
-
-- Some variants of LTX Video are guidance-distilled. For guidance-distilled models, `guidance_scale` must be set to `1.0`. For any other models, `guidance_scale` should be set higher (e.g., `5.0`) for good generation quality.
-- For variants with a timestep-aware VAE (LTXV 0.9.1 and above), it is recommended to set `decode_timestep` to `0.05` and `image_cond_noise_scale` to `0.025`.
-- For variants that support interpolation between multiple conditioning images and videos (LTXV 0.9.5 and above), it is recommended to use similar looking images/videos for the best results. High divergence between the conditionings may lead to abrupt transitions in the generated video.
-
-## Using LTX Video 13B 0.9.7
-
-LTX Video 0.9.7 comes with a spatial latent upscaler and a 13B parameter transformer. The inference involves generating a low resolution video first, which is very fast, followed by upscaling and refining the generated video.
-
-<!-- TODO(aryan): modify when official checkpoints are available -->
-
-```python
-import mindspore as ms
-from mindone.diffusers import LTXConditionPipeline, LTXLatentUpsamplePipeline
-from mindone.diffusers.pipelines.ltx.pipeline_ltx_condition import LTXVideoCondition
-from mindone.diffusers.utils import export_to_video, load_video
-import numpy as np
-
-pipe = LTXConditionPipeline.from_pretrained("a-r-r-o-w/LTX-Video-0.9.7-diffusers", mindspore_dtype=ms.bfloat16)
-pipe_upsample = LTXLatentUpsamplePipeline.from_pretrained("a-r-r-o-w/LTX-Video-0.9.7-Latent-Spatial-Upsampler-diffusers", vae=pipe.vae, mindspore_dtype=ms.bfloat16)
-pipe.vae.enable_tiling()
-
-def round_to_nearest_resolution_acceptable_by_vae(height, width):
-    height = height - (height % pipe.vae_temporal_compression_ratio)
-    width = width - (width % pipe.vae_temporal_compression_ratio)
-    return height, width
-
-video = load_video(
-    "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/cosmos/cosmos-video2world-input-vid.mp4"
-)[:21]  # Use only the first 21 frames as conditioning
-condition1 = LTXVideoCondition(video=video, frame_index=0)
-
-prompt = "The video depicts a winding mountain road covered in snow, with a single vehicle traveling along it. The road is flanked by steep, rocky cliffs and sparse vegetation. The landscape is characterized by rugged terrain and a river visible in the distance. The scene captures the solitude and beauty of a winter drive through a mountainous region."
-negative_prompt = "worst quality, inconsistent motion, blurry, jittery, distorted"
-expected_height, expected_width = 768, 1152
-downscale_factor = 2 / 3
-num_frames = 161
-
-# Part 1. Generate video at smaller resolution
-# Text-only conditioning is also supported without the need to pass `conditions`
-downscaled_height, downscaled_width = int(expected_height * downscale_factor), int(expected_width * downscale_factor)
-downscaled_height, downscaled_width = round_to_nearest_resolution_acceptable_by_vae(downscaled_height, downscaled_width)
-latents = pipe(
-    conditions=[condition1],
-    prompt=prompt,
-    negative_prompt=negative_prompt,
-    width=downscaled_width,
-    height=downscaled_height,
-    num_frames=num_frames,
-    num_inference_steps=30,
-    generator=np.random.Generator(np.random.PCG64(seed=0)),
-    output_type="latent",
-)[0]
-
-# Part 2. Upscale generated video using latent upsampler with fewer inference steps
-# The available latent upsampler upscales the height/width by 2x
-upscaled_height, upscaled_width = downscaled_height * 2, downscaled_width * 2
-upscaled_latents = pipe_upsample(
-    latents=latents,
-    output_type="latent"
-)[0]
-
-# Part 3. Denoise the upscaled video with few steps to improve texture (optional, but recommended)
-video = pipe(
-    conditions=[condition1],
-    prompt=prompt,
-    negative_prompt=negative_prompt,
-    width=upscaled_width,
-    height=upscaled_height,
-    num_frames=num_frames,
-    denoise_strength=0.4,  # Effectively, 4 inference steps out of 10
-    num_inference_steps=10,
-    latents=upscaled_latents,
-    decode_timestep=0.05,
-    image_cond_noise_scale=0.025,
-    generator=np.random.Generator(np.random.PCG64(seed=0)),
-    output_type="pil",
-)[0][0]
-
-# Part 4. Downscale the video to the expected resolution
-video = [frame.resize((expected_width, expected_height)) for frame in video]
-
-export_to_video(video, "output.mp4", fps=24)
-```
-
-## Loading Single Files
-
-Loading the original LTX Video checkpoints is also possible with [`~ModelMixin.from_single_file`]. We recommend using `from_single_file` for the Lightricks series of models, as they plan to release multiple models in the future in the single file format.
-
-```python
-import mindspore as ms
-from mindone.diffusers import AutoencoderKLLTXVideo, LTXImageToVideoPipeline, LTXVideoTransformer3DModel
-
-# `single_file_url` could also be https://huggingface.co/Lightricks/LTX-Video/ltx-video-2b-v0.9.1.safetensors
-single_file_url = "https://huggingface.co/Lightricks/LTX-Video/ltx-video-2b-v0.9.safetensors"
-transformer = LTXVideoTransformer3DModel.from_single_file(
-  single_file_url, mindspore_dtype=ms.bfloat16
-)
-vae = AutoencoderKLLTXVideo.from_single_file(single_file_url, mindspore_dtype=ms.bfloat16)
-pipe = LTXImageToVideoPipeline.from_pretrained(
-  "Lightricks/LTX-Video", transformer=transformer, vae=vae, mindspore_dtype=ms.bfloat16
-)
-
-# ... inference code ...
-```
-
-Alternatively, the pipeline can be used to load the weights with [`~FromSingleFileMixin.from_single_file`].
-
-```python
-import mindspore as ms
-from mindone.diffusers import LTXImageToVideoPipeline
-from mindone.transformers import T5EncoderModel
-from transformers import T5Tokenizer
-
-single_file_url = "https://huggingface.co/Lightricks/LTX-Video/ltx-video-2b-v0.9.safetensors"
-text_encoder = T5EncoderModel.from_pretrained(
-  "Lightricks/LTX-Video", subfolder="text_encoder", mindspore_dtype=ms.bfloat16
-)
-tokenizer = T5Tokenizer.from_pretrained(
-  "Lightricks/LTX-Video", subfolder="tokenizer", mindspore_dtype=ms.bfloat16
-)
-pipe = LTXImageToVideoPipeline.from_single_file(
-  single_file_url, text_encoder=text_encoder, tokenizer=tokenizer, mindspore_dtype=ms.bfloat16
-)
-```
-
-Loading and running inference with [LTX Video 0.9.1](https://huggingface.co/Lightricks/LTX-Video/blob/main/ltx-video-2b-v0.9.1.safetensors) weights.
-
-```python
+```py
 import mindspore as ms
 from mindone.diffusers import LTXPipeline
 from mindone.diffusers.utils import export_to_video
 
-pipe = LTXPipeline.from_pretrained("a-r-r-o-w/LTX-Video-0.9.1-diffusers", mindspore_dtype=ms.bfloat16)
+pipeline = LTXPipeline.from_pretrained(
+    "Lightricks/LTX-Video", mindspore_dtype=ms.bfloat16
+)
 
-prompt = "A woman with long brown hair and light skin smiles at another woman with long blonde hair. The woman with brown hair wears a black jacket and has a small, barely noticeable mole on her right cheek. The camera angle is a close-up, focused on the woman with brown hair's face. The lighting is warm and natural, likely from the setting sun, casting a soft glow on the scene. The scene appears to be real-life footage"
+# mindspore.jit
+pipeline.transformer.construct = ms.jit(
+    pipeline.transformer.construct
+)
+
+prompt = """
+A woman with long brown hair and light skin smiles at another woman with long blonde hair.
+The woman with brown hair wears a black jacket and has a small, barely noticeable mole on her right cheek.
+The camera angle is a close-up, focused on the woman with brown hair's face. The lighting is warm and
+natural, likely from the setting sun, casting a soft glow on the scene. The scene appears to be real-life footage
+"""
 negative_prompt = "worst quality, inconsistent motion, blurry, jittery, distorted"
 
-video = pipe(
+video = pipeline(
     prompt=prompt,
     negative_prompt=negative_prompt,
     width=768,
@@ -190,7 +69,326 @@ video = pipe(
 export_to_video(video, "output.mp4", fps=24)
 ```
 
-Refer to [this section](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/cogvideox/#memory-optimization) to learn more about optimizing memory consumption.
+</hfoption>
+</hfoptions>
+
+### Notes
+
+- Refer to the following recommended settings for generation from the [LTX-Video](https://github.com/Lightricks/LTX-Video) repository.
+
+  - The recommended dtype for the transformer, VAE, and text encoder is `mindspore.bfloat16`. The VAE and text encoder can also be `mindspore.float32` or `mindspore.float16`.
+  - For guidance-distilled variants of LTX-Video, set `guidance_scale` to `1.0`. The `guidance_scale` for any other model should be set higher, like `5.0`, for good generation quality.
+  - For timestep-aware VAE variants (LTX-Video 0.9.1 and above), set `decode_timestep` to `0.05` and `image_cond_noise_scale` to `0.025`.
+  - For variants that support interpolation between multiple conditioning images and videos (LTX-Video 0.9.5 and above), use similar images and videos for the best results. Divergence from the conditioning inputs may lead to abrupt transitionts in the generated video.
+
+- LTX-Video 0.9.7 includes a spatial latent upscaler and a 13B parameter transformer. During inference, a low resolution video is quickly generated first and then upscaled and refined.
+
+  <details>
+  <summary>Show example code</summary>
+
+  ```py
+  import mindspore as ms
+  from mindone.diffusers import LTXConditionPipeline, LTXLatentUpsamplePipeline
+  from mindone.diffusers.pipelines.ltx.pipeline_ltx_condition import LTXVideoCondition
+  from mindone.diffusers.utils import export_to_video, load_video
+  import numpy as np
+
+  pipeline = LTXConditionPipeline.from_pretrained("Lightricks/LTX-Video-0.9.7-dev", mindspore_dtype=ms.bfloat16)
+  pipeline_upsample = LTXLatentUpsamplePipeline.from_pretrained("Lightricks/ltxv-spatial-upscaler-0.9.7", vae=pipeline.vae, mindspore_dtype=ms.bfloat16)
+  pipeline.vae.enable_tiling()
+
+  def round_to_nearest_resolution_acceptable_by_vae(height, width):
+      height = height - (height % pipeline.vae_temporal_compression_ratio)
+      width = width - (width % pipeline.vae_temporal_compression_ratio)
+      return height, width
+
+  video = load_video(
+      "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/cosmos/cosmos-video2world-input-vid.mp4"
+  )[:21]  # only use the first 21 frames as conditioning
+  condition1 = LTXVideoCondition(video=video, frame_index=0)
+
+  prompt = """
+  The video depicts a winding mountain road covered in snow, with a single vehicle
+  traveling along it. The road is flanked by steep, rocky cliffs and sparse vegetation.
+  The landscape is characterized by rugged terrain and a river visible in the distance.
+  The scene captures the solitude and beauty of a winter drive through a mountainous region.
+  """
+  negative_prompt = "worst quality, inconsistent motion, blurry, jittery, distorted"
+  expected_height, expected_width = 768, 1152
+  downscale_factor = 2 / 3
+  num_frames = 161
+
+  # 1. Generate video at smaller resolution
+  # Text-only conditioning is also supported without the need to pass `conditions`
+  downscaled_height, downscaled_width = int(expected_height * downscale_factor), int(expected_width * downscale_factor)
+  downscaled_height, downscaled_width = round_to_nearest_resolution_acceptable_by_vae(downscaled_height, downscaled_width)
+  latents = pipeline(
+      conditions=[condition1],
+      prompt=prompt,
+      negative_prompt=negative_prompt,
+      width=downscaled_width,
+      height=downscaled_height,
+      num_frames=num_frames,
+      num_inference_steps=30,
+      decode_timestep=0.05,
+      decode_noise_scale=0.025,
+      image_cond_noise_scale=0.0,
+      guidance_scale=5.0,
+      guidance_rescale=0.7,
+      generator=np.random.Generator(np.random.PCG64(0)),
+      output_type="latent",
+  )[0]
+
+  # 2. Upscale generated video using latent upsampler with fewer inference steps
+  # The available latent upsampler upscales the height/width by 2x
+  upscaled_height, upscaled_width = downscaled_height * 2, downscaled_width * 2
+  upscaled_latents = pipe_upsample(
+      latents=latents,
+      output_type="latent"
+  )[0]
+
+  # 3. Denoise the upscaled video with few steps to improve texture (optional, but recommended)
+  video = pipeline(
+      conditions=[condition1],
+      prompt=prompt,
+      negative_prompt=negative_prompt,
+      width=upscaled_width,
+      height=upscaled_height,
+      num_frames=num_frames,
+      denoise_strength=0.4,  # Effectively, 4 inference steps out of 10
+      num_inference_steps=10,
+      latents=upscaled_latents,
+      decode_timestep=0.05,
+      decode_noise_scale=0.025,
+      image_cond_noise_scale=0.0,
+      guidance_scale=5.0,
+      guidance_rescale=0.7,
+      generator=np.random.Generator(np.random.PCG64(0)),
+      output_type="pil",
+  )[0][0]
+
+  # 4. Downscale the video to the expected resolution
+  video = [frame.resize((expected_width, expected_height)) for frame in video]
+
+  export_to_video(video, "output.mp4", fps=24)
+  ```
+
+  </details>
+
+- LTX-Video 0.9.7 distilled model is guidance and timestep-distilled to speedup generation. It requires `guidance_scale` to be set to `1.0` and `num_inference_steps` should be set between `4` and `10` for good generation quality. You should also use the following custom timesteps for the best results.
+
+  - Base model inference to prepare for upscaling: `[1000, 993, 987, 981, 975, 909, 725, 0.03]`.
+  - Upscaling: `[1000, 909, 725, 421, 0]`.
+
+  <details>
+  <summary>Show example code</summary>
+
+  ```py
+  import mindspore as ms
+  from mindone.diffusers import LTXConditionPipeline, LTXLatentUpsamplePipeline
+  from mindone.diffusers.pipelines.ltx.pipeline_ltx_condition import LTXVideoCondition
+  from mindone.diffusers.utils import export_to_video, load_video
+  import numpy as np
+
+  pipeline = LTXConditionPipeline.from_pretrained("Lightricks/LTX-Video-0.9.7-distilled", mindspore_dtype=ms.bfloat16)
+  pipe_upsample = LTXLatentUpsamplePipeline.from_pretrained("Lightricks/ltxv-spatial-upscaler-0.9.7", vae=pipeline.vae, mindspore_dtype=ms.bfloat16)
+  pipeline.vae.enable_tiling()
+
+  def round_to_nearest_resolution_acceptable_by_vae(height, width):
+      height = height - (height % pipeline.vae_spatial_compression_ratio)
+      width = width - (width % pipeline.vae_spatial_compression_ratio)
+      return height, width
+
+  prompt = """
+  artistic anatomical 3d render, utlra quality, human half full male body with transparent
+  skin revealing structure instead of organs, muscular, intricate creative patterns,
+  monochromatic with backlighting, lightning mesh, scientific concept art, blending biology
+  with botany, surreal and ethereal quality, unreal engine 5, ray tracing, ultra realistic,
+  16K UHD, rich details. camera zooms out in a rotating fashion
+  """
+  negative_prompt = "worst quality, inconsistent motion, blurry, jittery, distorted"
+  expected_height, expected_width = 768, 1152
+  downscale_factor = 2 / 3
+  num_frames = 161
+
+  # 1. Generate video at smaller resolution
+  downscaled_height, downscaled_width = int(expected_height * downscale_factor), int(expected_width * downscale_factor)
+  downscaled_height, downscaled_width = round_to_nearest_resolution_acceptable_by_vae(downscaled_height, downscaled_width)
+  latents = pipeline(
+      prompt=prompt,
+      negative_prompt=negative_prompt,
+      width=downscaled_width,
+      height=downscaled_height,
+      num_frames=num_frames,
+      timesteps=[1000, 993, 987, 981, 975, 909, 725, 0.03],
+      decode_timestep=0.05,
+      decode_noise_scale=0.025,
+      image_cond_noise_scale=0.0,
+      guidance_scale=1.0,
+      guidance_rescale=0.7,
+      generator=np.random.Generator(np.random.PCG64(0)),
+      output_type="latent",
+  )[0]
+
+  # 2. Upscale generated video using latent upsampler with fewer inference steps
+  # The available latent upsampler upscales the height/width by 2x
+  upscaled_height, upscaled_width = downscaled_height * 2, downscaled_width * 2
+  upscaled_latents = pipe_upsample(
+      latents=latents,
+      adain_factor=1.0,
+      output_type="latent"
+  )[0]
+
+  # 3. Denoise the upscaled video with few steps to improve texture (optional, but recommended)
+  video = pipeline(
+      prompt=prompt,
+      negative_prompt=negative_prompt,
+      width=upscaled_width,
+      height=upscaled_height,
+      num_frames=num_frames,
+      denoise_strength=0.999,  # Effectively, 4 inference steps out of 5
+      timesteps=[1000, 909, 725, 421, 0],
+      latents=upscaled_latents,
+      decode_timestep=0.05,
+      decode_noise_scale=0.025,
+      image_cond_noise_scale=0.0,
+      guidance_scale=1.0,
+      guidance_rescale=0.7,
+      generator=np.random.Generator(np.random.PCG64(0)),
+      output_type="pil",
+  )[0][0]
+
+  # 4. Downscale the video to the expected resolution
+  video = [frame.resize((expected_width, expected_height)) for frame in video]
+
+  export_to_video(video, "output.mp4", fps=24)
+  ```
+
+  </details>
+
+- LTX-Video 0.9.8 distilled model is similar to the 0.9.7 variant. It is guidance and timestep-distilled, and similar inference code can be used as above. An improvement of this version is that it supports generating very long videos. Additionally, it supports using tone mapping to improve the quality of the generated video using the `tone_map_compression_ratio` parameter. The default value of `0.6` is recommended.
+
+  <details>
+  <summary>Show example code</summary>
+
+  ```python
+  import mindspore as ms
+  from mindone.diffusers import LTXConditionPipeline, LTXLatentUpsamplePipeline
+  from mindone.diffusers.pipelines.ltx.pipeline_ltx_condition import LTXVideoCondition
+  from mindone.diffusers.pipelines.ltx.modeling_latent_upsampler import LTXLatentUpsamplerModel
+  from mindone.diffusers.utils import export_to_video, load_video
+  import numpy as np
+
+  pipeline = LTXConditionPipeline.from_pretrained("Lightricks/LTX-Video-0.9.8-13B-distilled", mindspore_dtype=ms.bfloat16)
+  # TODO: Update the checkpoint here once updated in LTX org
+  upsampler = LTXLatentUpsamplerModel.from_pretrained("a-r-r-o-w/LTX-0.9.8-Latent-Upsampler", mindspore_dtype=ms.bfloat16)
+  pipe_upsample = LTXLatentUpsamplePipeline(vae=pipeline.vae, latent_upsampler=upsampler).to(ms.bfloat16)
+  pipeline.vae.enable_tiling()
+
+  def round_to_nearest_resolution_acceptable_by_vae(height, width):
+      height = height - (height % pipeline.vae_spatial_compression_ratio)
+      width = width - (width % pipeline.vae_spatial_compression_ratio)
+      return height, width
+
+  prompt = """The camera pans over a snow-covered mountain range, revealing a vast expanse of snow-capped peaks and valleys.The mountains are covered in a thick layer of snow, with some areas appearing almost white while others have a slightly darker, almost grayish hue. The peaks are jagged and irregular, with some rising sharply into the sky while others are more rounded. The valleys are deep and narrow, with steep slopes that are also covered in snow. The trees in the foreground are mostly bare, with only a few leaves remaining on their branches. The sky is overcast, with thick clouds obscuring the sun. The overall impression is one of peace and tranquility, with the snow-covered mountains standing as a testament to the power and beauty of nature."""
+  # prompt = """A woman walks away from a white Jeep parked on a city street at night, then ascends a staircase and knocks on a door. The woman, wearing a dark jacket and jeans, walks away from the Jeep parked on the left side of the street, her back to the camera; she walks at a steady pace, her arms swinging slightly by her sides; the street is dimly lit, with streetlights casting pools of light on the wet pavement; a man in a dark jacket and jeans walks past the Jeep in the opposite direction; the camera follows the woman from behind as she walks up a set of stairs towards a building with a green door; she reaches the top of the stairs and turns left, continuing to walk towards the building; she reaches the door and knocks on it with her right hand; the camera remains stationary, focused on the doorway; the scene is captured in real-life footage."""
+  negative_prompt = "bright colors, symbols, graffiti, watermarks, worst quality, inconsistent motion, blurry, jittery, distorted"
+  expected_height, expected_width = 480, 832
+  downscale_factor = 2 / 3
+  # num_frames = 161
+  num_frames = 361
+
+  # 1. Generate video at smaller resolution
+  downscaled_height, downscaled_width = int(expected_height * downscale_factor), int(expected_width * downscale_factor)
+  downscaled_height, downscaled_width = round_to_nearest_resolution_acceptable_by_vae(downscaled_height, downscaled_width)
+  latents = pipeline(
+      prompt=prompt,
+      negative_prompt=negative_prompt,
+      width=downscaled_width,
+      height=downscaled_height,
+      num_frames=num_frames,
+      timesteps=[1000, 993, 987, 981, 975, 909, 725, 0.03],
+      decode_timestep=0.05,
+      decode_noise_scale=0.025,
+      image_cond_noise_scale=0.0,
+      guidance_scale=1.0,
+      guidance_rescale=0.7,
+      generator=np.random.Generator(np.random.PCG64(0)),
+      output_type="latent",
+  )[0]
+
+  # 2. Upscale generated video using latent upsampler with fewer inference steps
+  # The available latent upsampler upscales the height/width by 2x
+  upscaled_height, upscaled_width = downscaled_height * 2, downscaled_width * 2
+  upscaled_latents = pipe_upsample(
+      latents=latents,
+      adain_factor=1.0,
+      tone_map_compression_ratio=0.6,
+      output_type="latent"
+  )[0]
+
+  # 3. Denoise the upscaled video with few steps to improve texture (optional, but recommended)
+  video = pipeline(
+      prompt=prompt,
+      negative_prompt=negative_prompt,
+      width=upscaled_width,
+      height=upscaled_height,
+      num_frames=num_frames,
+      denoise_strength=0.999,  # Effectively, 4 inference steps out of 5
+      timesteps=[1000, 909, 725, 421, 0],
+      latents=upscaled_latents,
+      decode_timestep=0.05,
+      decode_noise_scale=0.025,
+      image_cond_noise_scale=0.0,
+      guidance_scale=1.0,
+      guidance_rescale=0.7,
+      generator=np.random.Generator(np.random.PCG64(0)),
+      output_type="pil",
+  )[0][0]
+
+  # 4. Downscale the video to the expected resolution
+  video = [frame.resize((expected_width, expected_height)) for frame in video]
+
+  export_to_video(video, "output.mp4", fps=24)
+  ```
+
+  </details>
+
+- LTX-Video supports LoRAs with [`~loaders.LTXVideoLoraLoaderMixin.load_lora_weights`].
+
+  <details>
+  <summary>Show example code</summary>
+
+  ```py
+  import mindspore as ms
+  from mindone.diffusers import LTXConditionPipeline
+  from mindone.diffusers.utils import export_to_video, load_image
+
+  pipeline = LTXConditionPipeline.from_pretrained(
+      "Lightricks/LTX-Video-0.9.5", mindspore_dtype=ms.bfloat16
+  )
+
+  pipeline.load_lora_weights("Lightricks/LTX-Video-Cakeify-LoRA", adapter_name="cakeify")
+  pipeline.set_adapters("cakeify")
+
+  # use "CAKEIFY" to trigger the LoRA
+  prompt = "CAKEIFY a person using a knife to cut a cake shaped like a Pikachu plushie"
+  image = load_image("https://huggingface.co/Lightricks/LTX-Video-Cakeify-LoRA/resolve/main/assets/images/pikachu.png")
+
+  video = pipeline(
+      prompt=prompt,
+      image=image,
+      width=576,
+      height=576,
+      num_frames=161,
+      decode_timestep=0.03,
+      decode_noise_scale=0.025,
+      num_inference_steps=50,
+  )[0][0]
+  export_to_video(video, "output.mp4", fps=26)
+  ```
+
+  </details>
 
 ::: mindone.diffusers.LTXPipeline
 
