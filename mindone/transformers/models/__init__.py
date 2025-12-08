@@ -18,6 +18,7 @@ import transformers
 from packaging import version
 
 from . import (
+    aimv2,
     albert,
     aria,
     audio_spectrogram_transformer,
@@ -38,6 +39,9 @@ from . import (
     bloom,
     bridgetower,
     camembert,
+    kosmos2_5,
+    lfm2_vl,
+    metaclip_2,
     canine,
     chameleon,
     chinese_clip,
@@ -55,6 +59,7 @@ from . import (
     ctrl,
     cvt,
     dac,
+    lfm2,
     data2vec,
     dbrx,
     deit,
@@ -83,6 +88,7 @@ from . import (
     focalnet,
     fsmt,
     funnel,
+    efficientloftr,
     fuyu,
     gemma,
     gemma2,
@@ -248,6 +254,7 @@ from . import (
     vitpose_backbone,
     vits,
     vivit,
+    voxtral,
     wav2vec2,
     wav2vec2_bert,
     wav2vec2_conformer,

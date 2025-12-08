@@ -51,6 +51,7 @@ logger = logging.get_logger(__name__)
 
 PROCESSOR_MAPPING_NAMES = OrderedDict(
     [
+        ("aimv2", "CLIPProcessor"),
         ("blip", "BlipProcessor"),
         ("chameleon", "ChameleonProcessor"),
         ("chinese_clip", "ChineseCLIPProcessor"),
@@ -58,10 +59,13 @@ PROCESSOR_MAPPING_NAMES = OrderedDict(
         ("flava", "FlavaProcessor"),
         ("idefics", "IdeficsProcessor"),
         ("instructblip", "InstructBlipProcessor"),
+        ("kosmos-2.5", "Kosmos2_5Processor"),
         ("layoutlmv3", "LayoutMv3Processor"),
+        ("lfm2_vl", "Lfm2VlProcessor"),
         ("llava_next", "LlavaNextProcessor"),
         ("llava_next_video", "LlavaNextVideoProcessor"),
         ("llava_onevision", "LlavaOnevisionProcessor"),
+        ("metaclip_2", "CLIPProcessor"),
         ("oneformer", "OneFormerProcessor"),
         ("owlv2", "Owlv2Processor"),
         ("owlvit", "OwlViTProcessor"),
@@ -70,6 +74,7 @@ PROCESSOR_MAPPING_NAMES = OrderedDict(
         ("sam", "SamProcessor"),
         ("seamless_m4t", "SeamlessM4TProcessor"),
         ("siglip", "SiglipProcessor"),
+        ("voxtral", "VoxtralProcessor"),
     ]
 )
 

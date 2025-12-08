@@ -32,6 +32,7 @@ logger = logging.get_logger(__name__)
 MODEL_MAPPING_NAMES = OrderedDict(
     [
         # Base model mapping
+        ("aimv2", "Aimv2Model"),
         ("albert", "AlbertModel"),
         ("align", "AlignModel"),
         ("altclip", "AltCLIPModel"),
@@ -87,6 +88,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("distilbert", "DistilBertModel"),
         ("dpr", "DPRQuestionEncoder"),
         ("dpt", "DPTModel"),
+        ("efficientloftr", "EfficientLoFTRModel"),
         ("efficientnet", "EfficientNetModel"),
         ("electra", "ElectraModel"),
         ("encodec", "EncodecModel"),
@@ -130,10 +132,13 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("jamba", "JambaModel"),
         ("jetmoe", "JetMoeModel"),
         ("kosmos-2", "Kosmos2Model"),
+        ("kosmos-2.5", "Kosmos2_5Model"),
         ("layoutlm", "LayoutLMModel"),
         ("layoutlmv3", "LayoutLMv3Model"),
         ("led", "LEDModel"),
         ("levit", "LevitModel"),
+        ("lfm2", "Lfm2Model"),
+        ("lfm2_vl", "Lfm2VlModel"),
         ("lilt", "LiltModel"),
         ("llama", "LlamaModel"),
         ("longformer", "LongformerModel"),
@@ -149,6 +154,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("maskformer-swin", "MaskFormerSwinModel"),
         ("mbart", "MBartModel"),
         ("megatron-bert", "MegatronBertModel"),
+        ("metaclip_2", "MetaClip2Model"),
         ("mgp-str", "MgpstrForSceneTextRecognition"),
         ("mimi", "MimiModel"),
         ("mistral", "MistralModel"),
@@ -215,6 +221,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("sew-d", "SEWDModel"),
         ("siglip", "SiglipModel"),
         ("siglip2", "Siglip2Model"),
+        ("siglip2_vision_model", "Siglip2VisionModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
         ("smolvlm", "SmolVLMModel"),
         ("smolvlm_vision", "SmolVLMVisionTransformer"),
@@ -245,6 +252,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("vit_msn", "ViTMSNModel"),
         ("vitdet", "VitDetModel"),
         ("vivit", "VivitModel"),
+        ("voxtral", "VoxtralForConditionalGeneration"),
+        ("voxtral_encoder", "VoxtralEncoder"),
         ("wav2vec2", "Wav2Vec2Model"),
         ("wav2vec2-bert", "Wav2Vec2BertModel"),
         ("wav2vec2-conformer", "Wav2Vec2ConformerModel"),
@@ -328,6 +337,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("vipllava", "VipLlavaForConditionalGeneration"),
         ("visual_bert", "VisualBertForPreTraining"),
         ("vit_mae", "ViTMAEForPreTraining"),
+        ("voxtral", "VoxtralForConditionalGeneration"),
         ("wav2vec2", "Wav2Vec2ForPreTraining"),
         ("wav2vec2-conformer", "Wav2Vec2ConformerForPreTraining"),
         ("xlm", "XLMWithLMHeadModel"),
@@ -452,6 +462,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("jetmoe", "JetMoeForCausalLM"),
         ("layoutlm", "LayoutLMForMaskedLM"),
         ("jamba", "JambaForCausalLM"),
+        ("lfm2", "Lfm2ForCausalLM"),
         ("llama", "LlamaForCausalLM"),
         ("mamba", "MambaForCausalLM"),
         ("mamba2", "Mamba2ForCausalLM"),
@@ -590,6 +601,7 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
             "levit",
             ("LevitForImageClassification", "LevitForImageClassificationWithTeacher"),
         ),
+        ("metaclip_2", "MetaClip2ForImageClassification"),
         ("mobilenet_v1", "MobileNetV1ForImageClassification"),
         ("mobilenet_v2", "MobileNetV2ForImageClassification"),
         ("mobilevit", "MobileViTForImageClassification"),
@@ -678,6 +690,7 @@ MODEL_FOR_VISION_2_SEQ_MAPPING_NAMES = OrderedDict(
         ("instructblip", "InstructBlipForConditionalGeneration"),
         ("instructblipvideo", "InstructBlipVideoForConditionalGeneration"),
         ("kosmos-2", "Kosmos2ForConditionalGeneration"),
+        ("kosmos-2.5", "Kosmos2_5ForConditionalGeneration"),
         ("llava", "LlavaForConditionalGeneration"),
         ("llava_next", "LlavaNextForConditionalGeneration"),
         ("llava_next_video", "LlavaNextVideoForConditionalGeneration"),
@@ -716,6 +729,8 @@ MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES = OrderedDict(
         ("idefics3", "Idefics3ForConditionalGeneration"),
         ("instructblip", "InstructBlipForConditionalGeneration"),
         ("kosmos-2", "Kosmos2ForConditionalGeneration"),
+        ("kosmos-2.5", "Kosmos2_5ForConditionalGeneration"),
+        ("lfm2_vl", "Lfm2VlForConditionalGeneration"),
         ("llava", "LlavaForConditionalGeneration"),
         ("llava_next", "LlavaNextForConditionalGeneration"),
         ("llava_onevision", "LlavaOnevisionForConditionalGeneration"),
@@ -832,6 +847,7 @@ MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("squeezebert", "SqueezeBertForSequenceClassification"),
         ("t5", "T5ForConditionalGeneration"),
         ("umt5", "UMT5ForConditionalGeneration"),
+        ("voxtral", "VoxtralForConditionalGeneration"),
         ("xlm-prophetnet", "XLMProphetNetForConditionalGeneration"),
     ]
 )
@@ -1199,6 +1215,7 @@ MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("blip-2", "Blip2ForImageTextRetrieval"),
         ("chinese_clip", "ChineseCLIPModel"),
         ("clipseg", "CLIPSegModel"),
+        ("metaclip_2", "MetaClip2Model"),
         ("siglip", "SiglipModel"),
     ]
 )
@@ -1232,7 +1249,11 @@ MODEL_FOR_MASK_GENERATION_MAPPING_NAMES = OrderedDict(
 )
 
 
-MODEL_FOR_KEYPOINT_DETECTION_MAPPING_NAMES = OrderedDict()
+MODEL_FOR_KEYPOINT_DETECTION_MAPPING_NAMES = OrderedDict(
+    [
+        ("efficientloftr", "EfficientLoFTRForKeypointMatching"),
+    ]
+)
 
 MODEL_FOR_KEYPOINT_MATCHING_MAPPING_NAMES = OrderedDict()
 
