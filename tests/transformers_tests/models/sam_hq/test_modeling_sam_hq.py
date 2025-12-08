@@ -19,13 +19,7 @@
 import numpy as np
 import pytest
 import torch
-
-from transformers import (
-    SamHQConfig,
-    SamHQMaskDecoderConfig,
-    SamHQPromptEncoderConfig,
-    SamHQVisionConfig,
-)
+from transformers import SamHQConfig, SamHQMaskDecoderConfig, SamHQPromptEncoderConfig, SamHQVisionConfig
 
 import mindspore as ms
 
@@ -34,7 +28,6 @@ from tests.transformers_tests.models.modeling_common import floats_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
-
 
 
 class SamHQVisionModelTester:
@@ -316,6 +309,7 @@ class SamHQModelTester:
         inputs_dict = {"pixel_values": pixel_values}
         return config, inputs_dict
 
+
 vision_model_tester = SamHQVisionModelTester()
 vision_config, vision_inputs_dict = vision_model_tester.prepare_config_and_inputs_for_common()
 model_tester = SamHQModelTester()
@@ -331,9 +325,7 @@ TEST_CASES = [
         {},
         (),
         vision_inputs_dict,
-        {
-            "last_hidden_state": 0
-        },
+        {"last_hidden_state": 0},
     ],
     [
         "SamHQModel",
@@ -365,7 +357,6 @@ TEST_CASES = [
         for mode in MODES
     ],
 )
-
 def test_named_modules(
     name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map, dtype, mode
 ):

@@ -23,14 +23,13 @@ from copy import deepcopy
 from typing import Optional, Union
 
 import numpy as np
+from transformers.tokenization_utils_base import AudioInput, BatchEncoding, PreTokenizedInput, TextInput
+
+import mindspore as ms
 
 from ...image_utils import ImageInput
 from ...processing_utils import ImagesKwargs, ProcessingKwargs, ProcessorMixin, Unpack
 from ...video_utils import VideoInput
-from transformers.tokenization_utils_base import AudioInput, BatchEncoding, PreTokenizedInput, TextInput
-
-import mindspore as ms
-from mindspore import mint
 
 
 class SamHQImagesKwargs(ImagesKwargs):

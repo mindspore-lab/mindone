@@ -20,13 +20,19 @@ from dataclasses import dataclass
 from typing import Callable, Optional, Union
 
 import numpy as np
+from transformers.models.sam_hq.configuration_sam_hq import (
+    SamHQConfig,
+    SamHQMaskDecoderConfig,
+    SamHQPromptEncoderConfig,
+    SamHQVisionConfig,
+)
+from transformers.utils import auto_docstring, logging
+
 import mindspore as ms
 import mindspore.mint.nn.functional as F
-from mindspore import Tensor, nn, mint
-from mindone.models.utils import zeros_
+from mindspore import Tensor, mint, nn
 
-from transformers.models.sam_hq.configuration_sam_hq import SamHQConfig, SamHQMaskDecoderConfig, SamHQPromptEncoderConfig, SamHQVisionConfig
-from transformers.utils import auto_docstring, logging
+from mindone.models.utils import zeros_
 
 from ...activations import ACT2FN
 from ...mindspore_adapter.attention import scaled_dot_product_attention
@@ -35,7 +41,6 @@ from ...modeling_outputs import BaseModelOutput, ModelOutput
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
 from ...utils.generic import OutputRecorder, TransformersKwargs, check_model_inputs
-
 
 logger = logging.get_logger(__name__)
 
@@ -431,7 +436,7 @@ class SamHQPreTrainedModel(PreTrainedModel):
                 zeros_(module.rel_pos_h)
                 zeros_(module.rel_pos_w)
         elif isinstance(module, SamHQVisionEncoder):
-            if self.config.use_abs_pos:
+            if module.config.use_abs_pos:
                 zeros_(module.pos_embed)
 
 
@@ -477,7 +482,9 @@ class SamHQVisionNeck(nn.Cell):
 
         self.conv1 = mint.nn.Conv2d(config.hidden_size, config.output_channels, kernel_size=1, bias=False)
         self.layer_norm1 = SamHQLayerNorm(config.output_channels, data_format="channels_first")
-        self.conv2 = mint.nn.Conv2d(config.output_channels, config.output_channels, kernel_size=3, padding=1, bias=False)
+        self.conv2 = mint.nn.Conv2d(
+            config.output_channels, config.output_channels, kernel_size=3, padding=1, bias=False
+        )
         self.layer_norm2 = SamHQLayerNorm(config.output_channels, data_format="channels_first")
 
     def construct(self, hidden_states):
@@ -506,12 +513,14 @@ class SamHQVisionEncoder(SamHQPreTrainedModel):
         if config.use_abs_pos:
             # Initialize absolute positional embedding with pretrain image size.
             self.pos_embed = ms.Parameter(
-                mint.zeros((
-                    1,
-                    config.image_size // config.patch_size,
-                    config.image_size // config.patch_size,
-                    config.hidden_size,
-                ))
+                mint.zeros(
+                    (
+                        1,
+                        config.image_size // config.patch_size,
+                        config.image_size // config.patch_size,
+                        config.hidden_size,
+                    )
+                )
             )
 
         self.layers = nn.CellList()
@@ -819,9 +828,7 @@ class SamHQTwoWayTransformer(nn.Cell):
 
 
 class SamHQFeedForward(nn.Cell):
-    def __init__(
-        self, input_dim: int, hidden_dim: int, output_dim: int, num_layers: int, sigmoid_output: bool = False
-    ):
+    def __init__(self, input_dim: int, hidden_dim: int, output_dim: int, num_layers: int, sigmoid_output: bool = False):
         super().__init__()
         self.num_layers = num_layers
         self.activation = mint.nn.ReLU()
@@ -856,7 +863,9 @@ class SamHQMaskDecoder(nn.Cell):
         self.transformer = SamHQTwoWayTransformer(config)
 
         self.upscale_conv1 = mint.nn.ConvTranspose2d(self.hidden_size, self.hidden_size // 4, kernel_size=2, stride=2)
-        self.upscale_conv2 = mint.nn.ConvTranspose2d(self.hidden_size // 4, self.hidden_size // 8, kernel_size=2, stride=2)
+        self.upscale_conv2 = mint.nn.ConvTranspose2d(
+            self.hidden_size // 4, self.hidden_size // 8, kernel_size=2, stride=2
+        )
         self.upscale_layer_norm = SamHQLayerNorm(self.hidden_size // 4, data_format="channels_first")
         self.activation = mint.nn.GELU()
 
@@ -876,17 +885,25 @@ class SamHQMaskDecoder(nn.Cell):
         # Compress ViT features
         self.compress_vit_conv1 = mint.nn.ConvTranspose2d(config.vit_dim, self.hidden_size, kernel_size=2, stride=2)
         self.compress_vit_norm = SamHQLayerNorm(self.hidden_size, data_format="channels_first")
-        self.compress_vit_conv2 = mint.nn.ConvTranspose2d(self.hidden_size, self.hidden_size // 8, kernel_size=2, stride=2)
+        self.compress_vit_conv2 = mint.nn.ConvTranspose2d(
+            self.hidden_size, self.hidden_size // 8, kernel_size=2, stride=2
+        )
 
         # Embedding encoder
         self.encoder_conv1 = mint.nn.ConvTranspose2d(self.hidden_size, self.hidden_size // 4, kernel_size=2, stride=2)
         self.encoder_norm = SamHQLayerNorm(self.hidden_size // 4, data_format="channels_first")
-        self.encoder_conv2 = mint.nn.ConvTranspose2d(self.hidden_size // 4, self.hidden_size // 8, kernel_size=2, stride=2)
+        self.encoder_conv2 = mint.nn.ConvTranspose2d(
+            self.hidden_size // 4, self.hidden_size // 8, kernel_size=2, stride=2
+        )
 
         # Embedding mask feature
-        self.mask_conv1 = mint.nn.Conv2d(self.hidden_size // 8, self.hidden_size // 4, kernel_size=3, stride=1, padding=1)
+        self.mask_conv1 = mint.nn.Conv2d(
+            self.hidden_size // 8, self.hidden_size // 4, kernel_size=3, stride=1, padding=1
+        )
         self.mask_norm = SamHQLayerNorm(self.hidden_size // 4, data_format="channels_first")
-        self.mask_conv2 = mint.nn.Conv2d(self.hidden_size // 4, self.hidden_size // 8, kernel_size=3, stride=1, padding=1)
+        self.mask_conv2 = mint.nn.Conv2d(
+            self.hidden_size // 4, self.hidden_size // 8, kernel_size=3, stride=1, padding=1
+        )
 
     def construct(
         self,
@@ -1143,8 +1160,8 @@ class SamHQPromptEncoder(nn.Cell):
         if pad:
             target_point_shape = (points.shape[0], points.shape[1], 1, points.shape[-1])
             target_labels_shape = (points.shape[0], points.shape[1], 1)
-            padding_point = mint.zeros(target_point_shape)
-            padding_label = -mint.ones(target_labels_shape)
+            padding_point = mint.zeros(target_point_shape, dtype=points.dtype)
+            padding_label = -mint.ones(target_labels_shape, dtype=labels.dtype)
             points = mint.cat([points, padding_point], dim=2)
             labels = mint.cat([labels, padding_label], dim=2)
         input_shape = (self.input_image_size, self.input_image_size)
@@ -1248,8 +1265,8 @@ class SamHQModel(SamHQPreTrainedModel):
         self.post_init()
 
     def _tie_weights(self):
-        self.prompt_encoder.shared_embedding.positional_embedding.data = (
-            self.shared_image_embedding.positional_embedding.data
+        self.prompt_encoder.shared_embedding.positional_embedding.set_data = (
+            self.shared_image_embedding.positional_embedding.value()
         )
 
     def get_input_embeddings(self):
@@ -1415,6 +1432,9 @@ class SamHQModel(SamHQPreTrainedModel):
 
         >>> # For high-quality mask only
         >>> outputs = model(**inputs, hq_token_only=True)
+
+        >>> scores = outputs.iou_scores
+        >>> print("scores", scores)
 
         >>> # Postprocess masks
         >>> masks = processor.post_process_masks(
