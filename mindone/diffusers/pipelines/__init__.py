@@ -193,6 +193,7 @@ _import_structure = {
         "QwenImagePipeline",
     ],
     "sana": ["SanaPipeline", "SanaSprintPipeline", "SanaControlNetPipeline", "SanaSprintImg2ImgPipeline"],
+    "sana_video": ["SanaVideoPipeline", "SanaImageToVideoPipeline"],
     "semantic_stable_diffusion": ["SemanticStableDiffusionPipeline"],
     "shap_e": ["ShapEImg2ImgPipeline", "ShapEPipeline"],
     "stable_audio": ["StableAudioProjectionModel", "StableAudioPipeline"],
@@ -436,6 +437,7 @@ if TYPE_CHECKING:
         QwenImagePipeline,
     )
     from .sana import SanaControlNetPipeline, SanaPipeline, SanaSprintImg2ImgPipeline, SanaSprintPipeline
+    from .sana_video import SanaImageToVideoPipeline, SanaVideoPipeline
     from .semantic_stable_diffusion import SemanticStableDiffusionPipeline
     from .shap_e import ShapEImg2ImgPipeline, ShapEPipeline
     from .skyreels_v2 import (
