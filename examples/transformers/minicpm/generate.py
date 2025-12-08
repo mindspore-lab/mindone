@@ -16,7 +16,7 @@ def generate(args):
         _attn_implementation=args.attn_implementation,
     )
 
-    if args.attn_implementation == "paged_attention":
+    if args.attn_implementation == "flash_paged":
         # infer boost
         from mindspore import JitConfig
 
@@ -53,8 +53,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--attn_implementation",
         type=str,
-        default="paged_attention",
-        choices=["paged_attention", "flash_attention_2", "eager"],
+        default="flash_paged",
+        choices=["flash_paged", "flash_attention_2", "eager"],
     )
     parser.add_argument("--use_cache", type=ast.literal_eval, default=False)
     parser.add_argument("--do_sample", type=ast.literal_eval, default=False)

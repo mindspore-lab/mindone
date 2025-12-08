@@ -197,7 +197,6 @@ The following experiments are tested on Ascend Atlas 800T A2 machines with minds
 | MMaDA-8B-Base  | 8 |  4 | zero2  | finetune  | 1.30 |
 
 
-
 ## 🤝 Acknowledgments
 
 We would like to thank the contributors to the [MMaDA](https://github.com/Gen-Verse/MMaDA), [LLaDA](https://github.com/ML-GSAI/LLaDA), [maskgit](https://github.com/google-research/maskgit), [transformers](https://github.com/huggingface/transformers), [transformers](https://github.com/huggingface/transformers), and [webdataset](https://github.com/webdataset/webdataset)repositories, for their open research and exploration.

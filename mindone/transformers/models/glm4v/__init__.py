@@ -16,6 +16,7 @@
 # limitations under the License.
 
 from .image_processing_glm4v import Glm4vImageProcessor
+from .image_processing_glm4v_fast import Glm4vImageProcessorFast
 from .modeling_glm4v import (
     Glm4vForConditionalGeneration,
     Glm4vModel,
@@ -24,3 +25,4 @@ from .modeling_glm4v import (
     Glm4vVisionModel,
 )
 from .processing_glm4v import Glm4vProcessor
+from .video_processing_glm4v import Glm4vVideoProcessor
