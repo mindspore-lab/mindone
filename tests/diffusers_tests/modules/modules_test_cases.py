@@ -1618,6 +1618,34 @@ CHROMA_TRANSFORMER2D_CASES = [
     ]
 ]
 
+
+PRX_TRANSFORMER2D_CASES = [
+    [
+        "PRXTransformer2DModel",
+        "diffusers.models.transformers.transformer_prx.PRXTransformer2DModel",
+        "mindone.diffusers.models.transformers.transformer_prx.PRXTransformer2DModel",
+        (),
+        {
+            "in_channels": 16,
+            "patch_size": 2,
+            "context_in_dim": 1792,
+            "hidden_size": 1792,
+            "mlp_ratio": 3.5,
+            "num_heads": 28,
+            "depth": 4,  # Smaller depth for testing
+            "axes_dim": [32, 32],
+            "theta": 10_000,
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(1, 16, 16, 16),
+            "timestep": np.ones(1),
+            "encoder_hidden_states": np.random.randn(1, 16, 1792),
+        },
+    ]
+]
+
+
 TRANSFORMERS_CASES = (
     ALLEGRO_TRANSFORMER3D_CASES
     + AURAFLOW_TRANSFORMER2D_CASES
@@ -1645,6 +1673,7 @@ TRANSFORMERS_CASES = (
     + LUMINA_NEXTDIT2D_CASES
     + LUMINA2_TRANSFORMER2D_CASES
     + CHROMA_TRANSFORMER2D_CASES
+    + PRX_TRANSFORMER2D_CASES
 )
 
 
