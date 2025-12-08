@@ -1618,6 +1618,50 @@ CHROMA_TRANSFORMER2D_CASES = [
     ]
 ]
 
+
+WANANIMATE_TRANSFORMER3D_CASES = [
+    [
+        "WanAnimateTransformer3DModel",
+        "diffusers.models.transformers.transformer_wan_animate.WanAnimateTransformer3DModel",
+        "mindone.diffusers.models.transformers.transformer_wan_animate.WanAnimateTransformer3DModel",
+        (),
+        {
+            "patch_size": (1, 2, 2),
+            "num_attention_heads": 2,
+            "attention_head_dim": 12,
+            "in_channels": 12,  # 2 * C + 4 = 2 * 4 + 4 = 12
+            "latent_channels": 4,
+            "out_channels": 4,
+            "text_dim": 16,
+            "freq_dim": 256,
+            "ffn_dim": 32,
+            "num_layers": 2,
+            "cross_attn_norm": True,
+            "qk_norm": "rms_norm_across_heads",
+            "image_dim": 16,
+            "rope_max_seq_len": 32,
+            "motion_encoder_channel_sizes": {"4": 16, "8": 16, "16": 16},  # Start of Wan Animate-specific config
+            "motion_encoder_size": 16,  # Ensures that there will be 2 motion encoder resblocks
+            "motion_style_dim": 8,
+            "motion_dim": 4,
+            "motion_encoder_dim": 16,
+            "face_encoder_hidden_dim": 16,
+            "face_encoder_num_heads": 2,
+            "inject_face_latents_blocks": 2,
+        },
+        (),
+        {
+            "hidden_states": np.random.randn((1, 2 * 4 + 4, 20 + 1, 16, 16)),
+            "timestep": np.random.randint(0, 1000, size=(1,)),
+            "encoder_hidden_states": np.random.randn((1, 12, 16)),
+            "encoder_hidden_states_image": np.random.randn((1, 12, 16)),
+            "pose_hidden_states": np.random.randn((1, 4, 20, 16, 16)),
+            "face_pixel_values": np.random.randn((1, 3, 77, 16, 16)),
+        },
+    ]
+]
+
+
 TRANSFORMERS_CASES = (
     ALLEGRO_TRANSFORMER3D_CASES
     + AURAFLOW_TRANSFORMER2D_CASES
@@ -1645,6 +1689,7 @@ TRANSFORMERS_CASES = (
     + LUMINA_NEXTDIT2D_CASES
     + LUMINA2_TRANSFORMER2D_CASES
     + CHROMA_TRANSFORMER2D_CASES
+    + WANANIMATE_TRANSFORMER3D_CASES
 )
 
 
