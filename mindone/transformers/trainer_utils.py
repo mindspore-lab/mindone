@@ -25,6 +25,8 @@ import numpy as np
 
 import mindspore as ms
 
+from .utils import ExplicitEnum
+
 
 def enable_full_determinism(seed: int):
     """
@@ -94,3 +96,37 @@ class RemoveColumnsCollator:
     def __call__(self, features: list[dict], BatchInfo: ms.dataset.BatchInfo):
         features = [self._remove_columns(feature) for feature in features]
         return self.data_collator(features)
+
+
+class HPSearchBackend(ExplicitEnum):
+    OPTUNA = "optuna"
+    RAY = "ray"
+    SIGOPT = "sigopt"
+    WANDB = "wandb"
+
+
+class IntervalStrategy(ExplicitEnum):
+    NO = "no"
+    STEPS = "steps"
+    EPOCH = "epoch"
+
+
+class SaveStrategy(ExplicitEnum):
+    NO = "no"
+    STEPS = "steps"
+    EPOCH = "epoch"
+    BEST = "best"
+
+
+def has_length(dataset):
+    """
+    Checks if the dataset implements __len__() and it doesn't raise an error
+    """
+    try:
+        return len(dataset) is not None
+    except TypeError:
+        # TypeError: len() of unsized object
+        return False
+    except AttributeError:
+        # Ray DataSets raises an AttributeError: https://github.com/ray-project/ray/blob/master/python/ray/data/dataset.py#L5616
+        return False

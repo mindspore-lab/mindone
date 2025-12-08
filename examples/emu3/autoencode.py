@@ -10,7 +10,7 @@ from emu3.tokenizer import Emu3VisionVQImageProcessor, Emu3VisionVQModel
 from PIL import Image
 
 import mindspore as ms
-from mindspore import Tensor, nn, ops
+from mindspore import Tensor, mint, ops
 
 from mindone.diffusers.training_utils import pynative_no_grad as no_grad
 from mindone.utils.amp import auto_mixed_precision
@@ -26,7 +26,7 @@ MODEL_HUB = "BAAI/Emu3-VisionTokenizer"
 MS_DTYPE = ms.bfloat16  # float16 fail to reconstruct
 model = Emu3VisionVQModel.from_pretrained(MODEL_HUB, use_safetensors=True, mindspore_dtype=MS_DTYPE).set_train(False)
 model = auto_mixed_precision(
-    model, amp_level="O2", dtype=MS_DTYPE, custom_fp32_cells=[nn.BatchNorm3d]
+    model, amp_level="O2", dtype=MS_DTYPE, custom_fp32_cells=[mint.nn.BatchNorm3d]
 )  # NOTE: nn.Conv3d used float16
 processor = Emu3VisionVQImageProcessor.from_pretrained(MODEL_HUB)
 # Same as using AutoModel/AutoImageProcessor:

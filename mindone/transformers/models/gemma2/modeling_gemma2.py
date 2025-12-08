@@ -610,9 +610,6 @@ class Gemma2Model(Gemma2PreTrainedModel):
         dtype = input_tensor.dtype
         sequence_length = input_tensor.shape[1]
         if isinstance(past_key_values, (HybridCache, StaticCache)):
-            raise NotImplementedError(
-                "Gemma2 is only used as diffusers text-encoder and will not be called sequently, it need no cache."
-            )
             target_length = past_key_values.get_max_cache_shape()
         else:
             target_length = attention_mask.shape[-1] if attention_mask is not None else input_tensor.shape[1]
