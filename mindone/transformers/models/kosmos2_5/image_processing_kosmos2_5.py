@@ -151,7 +151,7 @@ class Kosmos2_5ImageProcessor(BaseImageProcessor):
             size=(resized_height, resized_width),
             mode="bilinear",
             align_corners=False,
-            antialias=True,
+            # antialias=True,  # FIXME: MindSpore interpolate doesn't support antialias.
         ).squeeze(0)
 
         # [1, rows, columns, patch_height * patch_width * image_channels]

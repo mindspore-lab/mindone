@@ -1051,7 +1051,7 @@ class Kosmos2_5TextTransformer(mindspore.nn.Cell):
         cache_position: Optional[mindspore.Tensor] = None,
         **kwargs: Unpack[TransformersKwargs],
     ) -> BaseModelOutputWithPastAndCrossAttentions:
-        default_dtype = self.embed_positions.weights.dtype
+        default_dtype = self.embed_tokens.weight.dtype
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -1073,8 +1073,6 @@ class Kosmos2_5TextTransformer(mindspore.nn.Cell):
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
-        inputs_embeds = inputs_embeds.to(default_dtype)  # TODO: remove cast
-
         # Ignore copy
         if image_embeds is not None:
             inputs_embeds[image_embeds_position_mask == 1] = image_embeds.view(
@@ -1089,7 +1087,7 @@ class Kosmos2_5TextTransformer(mindspore.nn.Cell):
             inputs_embeds=inputs_embeds,
             past_key_values_length=0,
             position_ids=position_ids,
-        )
+        ).to(default_dtype)  # TODO: remove cast
 
         # Ignore copy
         if image_embeds_position_mask is not None:

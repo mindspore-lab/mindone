@@ -177,7 +177,7 @@ class Kosmos2_5ImageProcessorFast(BaseImageProcessorFast):
             size=(resized_height, resized_width),
             mode="bilinear",
             align_corners=False,
-            antialias=True,
+            # antialias=True,  # FIXME: MindSpore interpolate doesn't support antialias.
         )
 
         # [batch_size, rows, columns, patch_height * patch_width * image_channels]
