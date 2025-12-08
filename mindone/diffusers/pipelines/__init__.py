@@ -103,6 +103,7 @@ _import_structure = {
     ],
     "hidream_image": ["HiDreamImagePipeline"],
     "hunyuandit": ["HunyuanDiTPipeline"],
+    "hunyuan_image": ["HunyuanImagePipeline", "HunyuanImageRefinerPipeline"],
     "hunyuan_video": [
         "HunyuanVideoPipeline",
         "HunyuanSkyreelsImageToVideoPipeline",
@@ -356,6 +357,7 @@ if TYPE_CHECKING:
         ReduxImageEncoder,
     )
     from .hidream_image import HiDreamImagePipeline
+    from .hunyuan_image import HunyuanImagePipeline, HunyuanImageRefinerPipeline
     from .hunyuan_video import (
         HunyuanSkyreelsImageToVideoPipeline,
         HunyuanVideoFramepackPipeline,
