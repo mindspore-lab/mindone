@@ -13,6 +13,8 @@ def create_transport(
     seq_len=1024,  # corresponding to 512x512
     dynamic_time_shift: bool = False,
     time_shift_version: str = "v1",
+    rank: int = 0,
+    world_size: int = 1,
 ):
     """function for creating Transport object
     **Note**: model prediction defaults to velocity
@@ -66,6 +68,8 @@ def create_transport(
         seq_len=seq_len,
         dynamic_time_shift=dynamic_time_shift,
         time_shift_version=time_shift_version,
+        rank=rank,
+        world_size=world_size,
     )
 
     return state

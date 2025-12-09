@@ -1,0 +1,79 @@
+name: ft_lora
+
+env:
+  debug: False
+  seed: 2233
+  device_specific_seed: True
+
+models:
+  transformer:
+    pretrained_model_name_or_path: OmniGen2/OmniGen2
+    mindspore_dtype: bfloat16
+  vae:
+    pretrained_model_name_or_path: black-forest-labs/FLUX.1-dev
+    mindspore_dtype: bfloat16
+  text_encoder:
+    pretrained_model_name_or_path: Qwen/Qwen2.5-VL-3B-Instruct
+    mindspore_dtype: bfloat16
+
+data:
+  config_path: configs/finetune/data/mix.yml
+  use_chat_template: True
+  max_input_pixels: [ 1048576, 1048576, 589824, 262144 ]  # [1024 * 1024, 1024 * 1024, 768 * 768, 512 * 512]
+  max_output_pixels: 1048576  # 1024 * 1024
+  max_side_length: 2048
+  prompt_dropout_prob: 0.0001
+  ref_img_dropout_prob: 0.5
+
+dataloader:
+  batch_size: 1
+  shuffle: True
+  num_workers: 4
+  python_multiprocessing: False
+  project_columns: [ "input_images", "output_image", "text_ids", "text_mask" ]
+
+collator:
+  maximum_text_tokens: 888
+
+transport:
+  path_type: Linear
+  prediction: velocity
+  snr_type: lognorm
+  do_shift: True
+  dynamic_time_shift: True
+  time_shift_version: v1
+
+train:
+  steps: 4000
+  gradient_checkpointing: True
+  resume_from_checkpoint: latest
+
+  settings:
+    clip_grad: True
+    clip_norm: 1.0
+    gradient_accumulation_steps: 1
+    zero_stage: 0
+    drop_overflow_update: False
+
+  lr_scheduler:
+    name: constant
+    lr: 8.0e-7
+    warmup_steps: 500
+
+  optimizer:
+    name: adamw_bf16
+    betas: [ 0.9, 0.95 ]
+    weight_decay: 0.01
+    eps: 1e-08
+
+  lora:
+    target_modules: [ "to_k", "to_q", "to_v", "to_out.0" ]
+    r: 8
+    lora_alpha: 8
+    lora_dropout: 0
+    init_lora_weights: gaussian
+
+save:
+  checkpointing_steps: 1000
+  checkpoints_total_limit: null
+  train_visualization_steps: 100

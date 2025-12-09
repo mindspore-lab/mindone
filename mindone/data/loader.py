@@ -1,3 +1,4 @@
+import logging
 from typing import List, Optional, Union
 
 import mindspore as ms
@@ -5,6 +6,8 @@ from mindspore.communication import get_local_rank, get_local_rank_size
 
 from ..utils.version_control import MS_VERSION
 from .dataset import BaseDataset
+
+_logger = logging.getLogger(__name__)
 
 
 def create_dataloader(
@@ -90,9 +93,11 @@ def create_dataloader(
         shuffle=shuffle,
     )
 
-    if max_rowsize is None:
-        # MS 2.3 and above: allocate memory dynamically
-        max_rowsize = -1 if MS_VERSION >= "2.3" else 64
+    map_kwargs = {}
+    if MS_VERSION >= "2.6" and max_rowsize is not None:
+        _logger.warning("`max_rowsize` is deprecated in MindSpore 2.6 and will be removed in future releases.")
+    else:
+        map_kwargs.update({"max_rowsize": max_rowsize or (-1 if MS_VERSION >= "2.3" else 64)})
 
     if transforms is not None:
         if isinstance(transforms, dict):
@@ -103,11 +108,8 @@ def create_dataloader(
                 **transform,
                 python_multiprocessing=python_multiprocessing,
                 num_parallel_workers=num_workers,
-                max_rowsize=max_rowsize,
+                **map_kwargs,
             )
-
-    if project_columns:
-        dataloader = dataloader.project(project_columns)
 
     if getattr(dataset, "pad_info", None):
         if batch_size > 0:
@@ -133,5 +135,8 @@ def create_dataloader(
                         num_parallel_workers=num_workers,
                         max_rowsize=max_rowsize,
                     )
+
+    if project_columns:
+        dataloader = dataloader.project(project_columns)
 
     return dataloader

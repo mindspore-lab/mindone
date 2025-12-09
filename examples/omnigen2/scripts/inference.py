@@ -9,13 +9,12 @@ from omnigen2.pipelines.omnigen2 import OmniGen2ChatPipeline, OmniGen2Pipeline
 from omnigen2.schedulers import DPMSolverMultistepScheduler, FlowMatchEulerDiscreteScheduler
 from omnigen2.utils.img_util import create_collage
 from PIL import Image, ImageOps
-from transformers import Qwen2_5_VLProcessor
 
 from mindspore import dtype
 from mindspore.nn import no_init_parameters
 
 from mindone.diffusers import AutoencoderKL
-from mindone.transformers import Qwen2_5_VLForConditionalGeneration
+from mindone.transformers import Qwen2_5_VLForConditionalGeneration, Qwen2_5_VLProcessor
 
 
 def parse_args() -> argparse.Namespace:
