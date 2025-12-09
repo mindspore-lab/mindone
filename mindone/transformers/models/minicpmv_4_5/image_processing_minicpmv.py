@@ -11,7 +11,6 @@ from PIL import Image
 import mindspore as ms
 from mindspore import mint
 
-from mindone.transformers import AutoImageProcessor
 from mindone.transformers.image_processing_utils import BaseImageProcessor, BatchFeature
 from mindone.transformers.image_transforms import to_channel_dimension_format
 from mindone.transformers.image_utils import (
@@ -24,6 +23,7 @@ from mindone.transformers.image_utils import (
     to_numpy_array,
     valid_images,
 )
+from mindone.transformers.models.auto import AutoImageProcessor
 from mindone.transformers.utils import TensorType, is_mindspore_dtype, requires_backends
 
 
@@ -324,11 +324,13 @@ class MiniCPMVImageProcessor(BaseImageProcessor):
         """
         image = ms.tensor(image)
         patch_size = self.patch_size
+        image = image.unsqueeze(0)
         patches = mint.nn.functional.unfold(image, (patch_size, patch_size), stride=(patch_size, patch_size))
+        patches = patches.squeeze(1)
 
-        patches = patches.reshape(image.size(0), patch_size, patch_size, -1)
-        patches = patches.permute(0, 1, 3, 2).reshape(image.size(0), patch_size, -1)
-        return patches.numpy()
+        patches = patches.reshape(image.shape[0], patch_size, patch_size, -1)
+        patches = patches.permute(0, 1, 3, 2).reshape(image.shape[0], patch_size, -1)
+        return patches.asnumpy()
 
     def preprocess(
         self,

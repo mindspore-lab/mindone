@@ -17,12 +17,13 @@ Processor class for MiniCPMV.
 """
 
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import List, Optional, Union
 
-import torch
-from transformers.tokenization_utils_base import PaddingStrategy, PreTokenizedInput, TextInput, TruncationStrategy
+from transformers.tokenization_utils_base import PreTokenizedInput, TextInput
 
-from mindone.transformers.image_processing_utils import BatchFeature
+import mindspore as ms
+from mindspore import mint
+
 from mindone.transformers.image_utils import ImageInput
 from mindone.transformers.processing_utils import ProcessorMixin
 from mindone.transformers.utils import TensorType
@@ -42,8 +43,8 @@ class MiniCPMVProcessor(ProcessorMixin):
             The tokenizer is a required input.
     """
     attributes = ["image_processor", "tokenizer"]
-    image_processor_class = "AutoImageProcessor"
-    tokenizer_class = "AutoTokenizer"
+    image_processor_class = "MiniCPMVImageProcessor"
+    tokenizer_class = "MiniCPMVTokenizerFast"
 
     def __init__(self, image_processor=None, tokenizer=None):
         super().__init__(image_processor, tokenizer)
@@ -58,7 +59,7 @@ class MiniCPMVProcessor(ProcessorMixin):
         max_slice_nums: int = None,
         use_image_id: bool = None,
         temporal_ids: Optional[Union[List[List[int]], List[List[List[int]]]]] = None,
-        return_tensors: Optional[Union[str, TensorType]] = TensorType.PYTORCH,
+        return_tensors: Optional[Union[str, TensorType]] = TensorType.MINDSPORE,
         **kwargs,
     ) -> MiniCPMVBatchFeature:
         if images is not None:
@@ -122,18 +123,18 @@ class MiniCPMVProcessor(ProcessorMixin):
             input_ids = [self.tokenizer.bos_id] + self.tokenizer.encode(input_str)
         if max_inp_length is not None:
             input_ids = input_ids[:max_inp_length]
-        input_ids = torch.tensor(input_ids, dtype=torch.int32)
+        input_ids = ms.tensor(input_ids, dtype=ms.int32)
 
         start_cond = (input_ids == self.tokenizer.im_start_id) | (input_ids == self.tokenizer.slice_start_id)
         end_cond = (input_ids == self.tokenizer.im_end_id) | (input_ids == self.tokenizer.slice_end_id)
 
-        image_start_tokens = torch.where(start_cond)[0]
+        image_start_tokens = mint.where(start_cond)[0]
         image_start_tokens += 1
-        image_end_tokens = torch.where(end_cond)[0]
+        image_end_tokens = mint.where(end_cond)[0]
 
         valid_image_nums = max(len(image_start_tokens), len(image_end_tokens))
 
-        image_bounds = torch.hstack(
+        image_bounds = mint.hstack(
             [
                 image_start_tokens[:valid_image_nums].unsqueeze(-1),
                 image_end_tokens[:valid_image_nums].unsqueeze(-1),
@@ -223,12 +224,12 @@ class MiniCPMVProcessor(ProcessorMixin):
     def pad(self, inputs, max_length=None, padding_value=0, padding_side="left"):
         items = []
         if isinstance(inputs[0], list):
-            assert isinstance(inputs[0][0], torch.Tensor)
+            assert isinstance(inputs[0][0], ms.Tensor)
             for it in inputs:
                 for tr in it:
                     items.append(tr)
         else:
-            assert isinstance(inputs[0], torch.Tensor)
+            assert isinstance(inputs[0], ms.Tensor)
             items = inputs
 
         batch_size = len(items)
@@ -242,13 +243,13 @@ class MiniCPMVProcessor(ProcessorMixin):
         dtype = items[0].dtype
 
         if dim == 0:
-            return torch.stack([item for item in items], dim=0), [0]
+            return mint.stack([item for item in items], dim=0), [0]
         elif dim == 1:
             if max_length == min_length:
-                return torch.stack([item for item in items], dim=0), [0] * batch_size
-            tensor = torch.zeros((batch_size, max_length), dtype=dtype) + padding_value
+                return mint.stack([item for item in items], dim=0), [0] * batch_size
+            tensor = mint.zeros((batch_size, max_length), dtype=dtype) + padding_value
         else:
-            tensor = torch.zeros((batch_size, max_length, shape[-1]), dtype=dtype) + padding_value
+            tensor = mint.zeros((batch_size, max_length, shape[-1]), dtype=dtype) + padding_value
 
         padding_length = []
         for i, item in enumerate(items):

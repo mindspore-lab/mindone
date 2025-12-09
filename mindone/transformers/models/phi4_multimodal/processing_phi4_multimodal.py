@@ -707,6 +707,7 @@ class Phi4MMProcessor(ProcessorMixin):
         )
 
         # prepare attention mask
+        max_len = max_len.item()
         seq_range = mint.arange(max_len - 1, -1, -1)
         attention_mask = seq_range.unsqueeze(0) < lengths.unsqueeze(1)
 

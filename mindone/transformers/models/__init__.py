@@ -138,6 +138,7 @@ from . import (
     mgp_str,
     mimi,
     minicpm4,
+    minicpmv_4_5,
     mistral,
     mistral3,
     mixtral,

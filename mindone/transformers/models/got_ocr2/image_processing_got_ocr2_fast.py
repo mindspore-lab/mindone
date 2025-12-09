@@ -29,6 +29,7 @@ from ...image_processing_utils_fast import (
     group_images_by_shape,
     reorder_images,
 )
+from ...image_transforms import resize
 from ...image_utils import OPENAI_CLIP_MEAN, OPENAI_CLIP_STD, ImageInput, PILImageResampling, SizeDict
 from ...processing_utils import Unpack
 from ...utils import TensorType
@@ -119,9 +120,12 @@ class GotOcr2ImageProcessorFast(BaseImageProcessorFast):
         num_blocks = num_columns * num_rows
 
         # resize the image so that each patch is of patch_size
-        resized_image = self.resize(
-            images, SizeDict(height=target_height, width=target_width), interpolation=interpolation
-        )
+        resized_image = []
+        for i in range(images.shape[0]):
+            resized_image.append(ms.tensor(resize(
+                images[i].asnumpy(), (target_height, target_width), resample=interpolation
+            )))
+        resized_image = mint.stack(resized_image)
         # split the image into patches
         processed_images = []
         for i in range(num_blocks):
@@ -138,7 +142,10 @@ class GotOcr2ImageProcessorFast(BaseImageProcessorFast):
             processed_images.append(patch_image)
 
         if use_thumbnail and len(processed_images) != 1:
-            thumbnail_img = self.resize(images, patch_size, interpolation=interpolation)
+            thumbnail_img = []
+            for i in range(images.shape[0]):
+                thumbnail_img.append(ms.tensor(resize(images[i].asnumpy(), (patch_size.height, patch_size.width), resample=interpolation)))
+            thumbnail_img = mint.stack(thumbnail_img)
             processed_images.append(thumbnail_img)
 
         processed_images = mint.stack(processed_images, dim=0).transpose(0, 1).contiguous()

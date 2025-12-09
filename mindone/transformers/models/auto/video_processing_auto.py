@@ -46,6 +46,7 @@ else:
         [
             ("glm4v", "Glm4vVideoProcessor"),
             ("internvl", "InternVLVideoProcessor"),
+            ("llava_next_video", "LlavaNextVideoVideoProcessor"),
             ("qwen2_5_vl", "Qwen2VLVideoProcessor"),
         ]
     )
