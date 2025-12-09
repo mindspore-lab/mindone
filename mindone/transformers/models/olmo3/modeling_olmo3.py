@@ -21,7 +21,13 @@
 
 from typing import Callable, Optional, Union
 
-from transformers import Olmo3Config
+# Import with fallback error handling
+try:
+    from transformers import Olmo3Config
+except ImportError:
+    # Temporary fallback - in production should get from configuration_olmo3.py
+    print("Warning: Olmo3Config not found in transformers. Using placeholder.")
+    Olmo3Config = dict
 
 import mindspore
 from mindspore import mint

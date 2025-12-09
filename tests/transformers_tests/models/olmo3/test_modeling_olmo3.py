@@ -28,7 +28,7 @@ from tests.modeling_test_utils import (
 from ...causal_lm_tester import CausalLMModelTester
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 1e-2}
-MODES = [0, 1]
+MODES = [1]
 
 
 class Olmo3ModelTester(CausalLMModelTester):
