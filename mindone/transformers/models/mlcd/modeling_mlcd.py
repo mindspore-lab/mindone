@@ -481,7 +481,7 @@ class MLCDVisionTransformer(mindspore.nn.Cell):
         num_patches_height = pixel_values.shape[-2] // self.config.patch_size
         num_patches_width = pixel_values.shape[-1] // self.config.patch_size
         rotary_pos_emb = self.vision_rotary_embedding(num_patches_height, num_patches_width)
-        rotary_pos_emb = mint.cat([self.class_pos_emb, rotary_pos_emb], dim=0)
+        rotary_pos_emb = mint.cat([self.class_pos_emb, rotary_pos_emb.to(self.class_pos_emb.dtype)], dim=0)
         emb = mint.cat((rotary_pos_emb, rotary_pos_emb), dim=-1)
         position_embeddings = (emb.cos(), emb.sin())
 

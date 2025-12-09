@@ -28,9 +28,8 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import floats_numpy
 
-# PadV3 not support bf16
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-3, "fp16": 5e-2}
-MODES = [0, 1]
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-3, "fp16": 5e-2, "bf16": 5e-2}
+MODES = [1]
 
 
 class MLCDVisionModelTester:
@@ -93,7 +92,7 @@ model_tester = MLCDVisionModelTester()
 config, pixel_values = model_tester.prepare_config_and_inputs()
 
 
-BIT_CASES = [
+MLCD_CASES = [
     [
         "MLCDVisionModel",
         "transformers.MLCDVisionModel",
@@ -103,7 +102,7 @@ BIT_CASES = [
         (pixel_values,),
         {},
         {
-            "feature_maps": 0,
+            "last_hidden_state": 0,
         },
     ],
 ]
@@ -119,7 +118,7 @@ BIT_CASES = [
         + [
             mode,
         ]
-        for case in BIT_CASES
+        for case in MLCD_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],
