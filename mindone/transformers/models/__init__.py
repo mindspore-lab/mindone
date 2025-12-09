@@ -91,6 +91,7 @@ from . import (
     evolla,
     exaone4,
     falcon,
+    falcon_h1,
     falcon_mamba,
     fastspeech2_conformer,
     flaubert,

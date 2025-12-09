@@ -549,7 +549,7 @@ class FalconH1Mixer(mindspore.nn.Cell):
         self.ssm_in_multiplier = config.ssm_in_multiplier
 
     # fmt: off
-    def forward(
+    def _forward(
         self,
         input_states,
         cache_params: Optional[FalconHybridMambaAttentionDynamicCache] = None,
@@ -773,7 +773,7 @@ class FalconH1Mixer(mindspore.nn.Cell):
             # tune out hidden states for pad tokens, see https://github.com/state-spaces/mamba/issues/66
             hidden_states = (hidden_states * attention_mask[:, :, None]).to(dtype)
 
-        return self.forward(hidden_states, cache_params, cache_position, attention_mask)
+        return self._forward(hidden_states, cache_params, cache_position, attention_mask)
 
 
 class FalconH1MLP(mindspore.nn.Cell):
