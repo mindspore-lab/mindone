@@ -132,7 +132,7 @@ class DeepseekVLPreTrainedModel(PreTrainedModel):
         if isinstance(module, mint.nn.Linear):
             module.weight.set_data(
                 initializer(
-                    Normal(mean=0.0, std=self.config.text_config.initializer_range),
+                    Normal(mean=0.0, sigma=self.config.text_config.initializer_range),
                     module.weight.shape,
                     module.weight.dtype,
                 )
@@ -217,6 +217,7 @@ class DeepseekVLModel(DeepseekVLPreTrainedModel):
             use_cache=use_cache,
             cache_position=cache_position,
             logits_to_keep=logits_to_keep,
+            return_dict=True,
             **kwargs,
         )
 

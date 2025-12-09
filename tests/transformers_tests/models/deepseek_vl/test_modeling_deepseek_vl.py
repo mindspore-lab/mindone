@@ -104,6 +104,7 @@ class DeepseekVLModelTester:
             ]
         )
         # fill image_tokens
+        input_ids[input_ids == self.num_image_tokens] = config.text_config.pad_token_id
         input_ids[:, : self.num_image_tokens] = self.image_token_id
 
         return config, input_ids, attention_mask, pixel_values
@@ -121,7 +122,7 @@ Deepseek_vl_CASES = [
         (config,),
         {},
         (),
-        {"input_ids": input_ids, "attention_mask": attention_mask, "pixel_values": pixel_values},
+        {"input_ids": input_ids, "attention_mask": attention_mask},
         {"last_hidden_state": 0},
     ],
     [
@@ -131,7 +132,7 @@ Deepseek_vl_CASES = [
         (config,),
         {},
         (),
-        {"input_ids": input_ids, "attention_mask": attention_mask, "pixel_values": pixel_values},
+        {"input_ids": input_ids, "attention_mask": attention_mask},
         {"logits": "logits"},
     ],
 ]
