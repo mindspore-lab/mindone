@@ -58,6 +58,14 @@ from .models.albert import (
 )
 from .models.align import AlignModel, AlignPreTrainedModel, AlignTextModel, AlignVisionModel
 from .models.altclip import AltCLIPModel, AltCLIPPreTrainedModel, AltCLIPTextModel, AltCLIPVisionModel
+from .models.arcee import (
+    ArceeForCausalLM,
+    ArceeForQuestionAnswering,
+    ArceeForSequenceClassification,
+    ArceeForTokenClassification,
+    ArceeModel,
+    ArceePreTrainedModel,
+)
 from .models.aria import (
     AriaForConditionalGeneration,
     AriaPreTrainedModel,
