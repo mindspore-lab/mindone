@@ -1198,7 +1198,7 @@ class FalconH1Model(FalconH1PreTrainedModel):
             min_dtype = dtype_to_min(dtype)
             causal_mask = mindspore.mint.full(
                 (sequence_length, target_length),
-                fill_value=min_dtype,
+                fill_value=min_dtype.item(),
                 dtype=dtype,
             )
             if sequence_length != 1:
