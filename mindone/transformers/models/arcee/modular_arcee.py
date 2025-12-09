@@ -27,6 +27,7 @@ from ..llama.modeling_llama import (
     LlamaForTokenClassification,
 )
 from ..nemotron.modeling_nemotron import NemotronMLP
+from .modeling_arcee import ArceeModel, ArceePreTrainedModel
 
 logger = logging.get_logger(__name__)
 
@@ -222,6 +223,6 @@ __all__ = [
     "ArceeForQuestionAnswering",
     "ArceeForSequenceClassification",
     "ArceeForTokenClassification",
-    "ArceeModel",  # noqa: F822
-    "ArceePreTrainedModel",  # noqa: F822
+    "ArceeModel",
+    "ArceePreTrainedModel",
 ]
