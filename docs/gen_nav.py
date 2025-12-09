@@ -21,6 +21,7 @@ def on_config(config: MkDocsConfig) -> MkDocsConfig:
         ("diffusers", "Diffusers"),
         ("transformers", "Transformers"),
         ("peft", "PEFT"),
+        ("tools", "Tools"),
     ]:
         toc_file = f"{Path(__file__).parent.absolute()}/{package}/_toctree.yml"
         with open(toc_file, "r", encoding="utf-8") as f:
