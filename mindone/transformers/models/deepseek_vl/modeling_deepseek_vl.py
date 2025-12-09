@@ -25,6 +25,7 @@ from transformers import DeepseekVLConfig
 
 import mindspore
 from mindspore import mint
+from mindspore.common.initializer import Constant, Normal, initializer
 
 from ...cache_utils import Cache
 from ...generation import GenerationMixin
@@ -129,9 +130,21 @@ class DeepseekVLPreTrainedModel(PreTrainedModel):
         """Initialize the weights"""
         # Required only for Linear layer in DeepseekVLAligner
         if isinstance(module, mint.nn.Linear):
-            module.weight.data.normal_(mean=0.0, std=self.config.text_config.initializer_range)
+            module.weight.set_data(
+                initializer(
+                    Normal(mean=0.0, std=self.config.text_config.initializer_range),
+                    module.weight.shape,
+                    module.weight.dtype,
+                )
+            )
             if module.bias is not None:
-                module.bias.data.zero_()
+                module.bias.set_data(
+                    initializer(
+                        Constant(0.0),
+                        module.bias.shape,
+                        module.bias.dtype,
+                    )
+                )
 
 
 class DeepseekVLModel(DeepseekVLPreTrainedModel):
