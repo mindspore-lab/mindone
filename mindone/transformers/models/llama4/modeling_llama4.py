@@ -24,7 +24,6 @@ from transformers.utils import auto_docstring
 from transformers.utils.deprecation import deprecate_kwarg
 
 import mindspore as ms
-import mindspore.mint.nn.functional as F
 from mindspore import mint, nn, ops
 
 from ...activations import ACT2FN
@@ -119,7 +118,7 @@ class Llama4TextRMSNorm(nn.Cell):
         """
         super().__init__()
         self.eps = eps
-        self.weight = ms.Parameter(mint.ones(hidden_size))
+        self.weight = ms.Parameter(mint.empty(hidden_size, device="cpu"))
 
     def _norm(self, x):
         return x * mint.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
@@ -992,8 +991,10 @@ class Llama4VisionModel(Llama4PreTrainedModel):
 
         self.patch_embedding = Llama4UnfoldConvolution(config)
 
-        self.class_embedding = ms.Parameter(self.scale * mint.randn(self.hidden_size))
-        self.positional_embedding_vlm = ms.Parameter(self.scale * mint.randn(self.num_patches, self.hidden_size))
+        self.class_embedding = ms.Parameter(self.scale * mint.empty(self.hidden_size, device="cpu"))
+        self.positional_embedding_vlm = ms.Parameter(
+            self.scale * mint.empty(self.num_patches, self.hidden_size, device="cpu")
+        )
         self.rotary_embedding = Llama4VisionRotaryEmbedding(config)
 
         # layer norms

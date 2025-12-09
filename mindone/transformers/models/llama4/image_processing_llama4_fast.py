@@ -25,9 +25,7 @@ from typing import Optional, Union
 from transformers.utils import auto_docstring
 
 import mindspore as ms
-from mindspore import mint, nn
-
-# from torchvision.transforms.v2 import functional as F
+from mindspore import mint
 from mindspore.mint import functional as F
 
 from ...image_processing_utils import BatchFeature
