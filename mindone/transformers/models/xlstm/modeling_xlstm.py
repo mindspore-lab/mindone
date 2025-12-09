@@ -1309,14 +1309,14 @@ class xLSTMCache:
             The configuration file defining the shape-related attributes required to initialize the static cache.
         max_batch_size (`int`):
             The batch size with which the model will be used.
-        dtype (`torch.dtype`, *optional*, defaults to `torch.bfloat16`):
+        dtype (`ms.dtype`, *optional*, defaults to `ms.bfloat16`):
             The default `dtype` to use when initializing the layer.
-        device (`torch.device` or `str`, *optional*):
+        device (`ms.device` or `str`, *optional*):
             The device on which the cache should be initialized. Should be the same as the layer.
 
     Attributes:
         seqlen_offset: int
-        dtype: torch.dtype
+        dtype: ms.dtype
 
     Example:
 
@@ -1506,9 +1506,9 @@ class xLSTMModel(xLSTMPreTrainedModel):
 @dataclass
 class xLSTMCausalLMOutput(ModelOutput):
     r"""
-    loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
+    loss (`ms.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
         Language modeling loss (for next-token prediction).
-    logits (`torch.FloatTensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
+    logits (`ms.Tensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
         Prediction scores of the language modeling head (scores for each vocabulary token before SoftMax).
     cache_params (`xLSTMCache`, *optional*, carrying the RNN states):
         The state of the model at the last time step. Can be used in a forward method with the next `input_ids` to

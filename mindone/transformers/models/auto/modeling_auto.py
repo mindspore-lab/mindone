@@ -250,6 +250,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("wav2vec2-conformer", "Wav2Vec2ConformerModel"),
         ("wavlm", "WavLMModel"),
         ("whisper", "WhisperModel"),
+        ("xlstm", "xLSTMModel"),
         ("xglm", "XGLMModel"),
         ("xclip", "XCLIPModel"),
         ("xlm", "XLMModel"),
