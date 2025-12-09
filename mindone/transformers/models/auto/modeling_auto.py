@@ -85,6 +85,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("dinov2", "Dinov2Model"),
         ("dinov2_with_registers", "Dinov2WithRegistersModel"),
         ("distilbert", "DistilBertModel"),
+        ("donut-swin", "DonutSwinModel"),
         ("dpr", "DPRQuestionEncoder"),
         ("dpt", "DPTModel"),
         ("efficientnet", "EfficientNetModel"),
