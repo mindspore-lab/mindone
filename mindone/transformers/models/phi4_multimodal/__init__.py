@@ -12,21 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-from typing import TYPE_CHECKING
-
-from ...utils import _LazyModule
-from ...utils.import_utils import define_import_structure
-
-
-if TYPE_CHECKING:
-    from .configuration_phi4_multimodal import *
-    from .feature_extraction_phi4_multimodal import *
-    from .image_processing_phi4_multimodal_fast import *
-    from .modeling_phi4_multimodal import *
-    from .processing_phi4_multimodal import *
-else:
-    import sys
-
-    _file = globals()["__file__"]
-    sys.modules[__name__] = _LazyModule(__name__, _file, define_import_structure(_file), module_spec=__spec__)
+from .feature_extraction_phi4_multimodal import *
+from .image_processing_phi4_multimodal_fast import *
+from .modeling_phi4_multimodal import *
+from .processing_phi4_multimodal import *

@@ -26,7 +26,6 @@ import numpy as np
 import mindspore
 import mindspore.mint.nn.functional as F
 from mindspore import nn
-#from mindspore.mint.nn.init import _calculate_fan_in_and_fan_out
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache

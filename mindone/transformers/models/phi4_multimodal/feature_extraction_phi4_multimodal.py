@@ -20,13 +20,12 @@ from typing import Optional, Union
 
 import numpy as np
 
+import mindspore
+
 from ...audio_utils import AudioInput, mel_filter_bank
 from ...feature_extraction_sequence_utils import SequenceFeatureExtractor
 from ...image_processing_utils import BatchFeature
 from ...utils import TensorType, logging
-
-import mindspore
-
 
 logger = logging.get_logger(__name__)
 
@@ -185,7 +184,9 @@ class Phi4MultimodalFeatureExtractor(SequenceFeatureExtractor):
         audio_embed_sizes = self._compute_audio_embed_size(feature_lengths)
 
         feature_attention_mask = (
-            mindspore.mint.arange(0, feature_lengths.max()) if is_torch_available() else np.arange(0, feature_lengths.max())
+            mindspore.mint.arange(0, feature_lengths.max())
+            if is_torch_available()
+            else np.arange(0, feature_lengths.max())
         )
         feature_attention_mask = (
             feature_attention_mask[None, :] < feature_lengths[:, None] if len(feature_lengths) > 1 else None
@@ -238,7 +239,9 @@ class Phi4MultimodalFeatureExtractor(SequenceFeatureExtractor):
                 offset_idx = batch_idxs_down.min()
                 max_idx = batch_idxs_up.max()
 
-                mask = mindspore.mint.arange(max_idx - offset_idx, ).expand(to_mask_batch_idxs.shape[0], -1)
+                mask = mindspore.mint.arange(
+                    max_idx - offset_idx,
+                ).expand(to_mask_batch_idxs.shape[0], -1)
                 mask = ((batch_idxs_down - offset_idx).unsqueeze(1) <= mask) & (
                     mask < (batch_idxs_up - offset_idx).unsqueeze(1)
                 )

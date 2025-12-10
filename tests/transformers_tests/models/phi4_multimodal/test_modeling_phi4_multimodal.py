@@ -36,7 +36,7 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import ids_numpy, floats_numpy
+from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
 MODES = [0, 1]
@@ -131,9 +131,7 @@ class Phi4MultimodalModelTester:
         # The shapes corresponds to the inputs for image of size 16x16
         image_pixel_values = floats_numpy([self.batch_size, 2, self.num_channels, self.image_size, self.image_size])
         image_attention_mask = np.ones(self.batch_size, 2, 1, 1)
-        image_sizes = ms.tensor(
-            [[self.image_size, self.image_size]] * self.batch_size, dtype=ms.int64
-        )
+        image_sizes = ms.tensor([[self.image_size, self.image_size]] * self.batch_size, dtype=ms.int64)
 
         # Feature sizes returned by an audio of size 10000
         audio_input_features = floats_numpy([self.batch_size, 61, 80])

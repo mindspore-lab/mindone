@@ -15,22 +15,13 @@
 import math
 from typing import Optional, Union
 
-import mindspore
 from mindsporevision.transforms.v2 import functional as F
 
-from ...image_processing_utils_fast import (
-    BaseImageProcessorFast,
-    BatchFeature,
-    DefaultFastImageProcessorKwargs,
-    Unpack,
-)
-from ...image_utils import ImageInput, PILImageResampling, SizeDict
-from ...utils import (
-    TensorType,
-    auto_docstring,
-    logging,
-)
+import mindspore
 
+from ...image_processing_utils_fast import BaseImageProcessorFast, BatchFeature, DefaultFastImageProcessorKwargs, Unpack
+from ...image_utils import ImageInput, PILImageResampling, SizeDict
+from ...utils import TensorType, auto_docstring, logging
 
 logger = logging.get_logger(__name__)
 
@@ -123,7 +114,9 @@ class Phi4MultimodalImageProcessorFast(BaseImageProcessorFast):
             padding_width = target_width - int(orig_width * ratio_height)
             padding_height = 0
 
-        attention_mask = mindspore.mint.ones((int(mask_size * target_aspect_ratio[1]), int(mask_size * target_aspect_ratio[0])))
+        attention_mask = mindspore.mint.ones(
+            (int(mask_size * target_aspect_ratio[1]), int(mask_size * target_aspect_ratio[0]))
+        )
         if padding_width >= patch_size:
             attention_mask[:, -math.floor(padding_width / patch_size) :] = 0
         if padding_height >= patch_size:
@@ -143,14 +136,25 @@ class Phi4MultimodalImageProcessorFast(BaseImageProcessorFast):
         """
         B, _, H, W = images.shape
         if B < max_crops:
-            pad = mindspore.mint.zeros(max_crops - B, 3, H, W, dtype=images.dtype, )
+            pad = mindspore.mint.zeros(
+                max_crops - B,
+                3,
+                H,
+                W,
+                dtype=images.dtype,
+            )
             images = mindspore.mint.cat([images, pad], dim=0)
         return images
 
     def pad_mask_to_max_num_crops(self, masks, max_crops=5):
         B, H, W = masks.shape
         if B < max_crops:
-            pad = mindspore.mint.ones(max_crops - B, H, W, dtype=masks.dtype, )
+            pad = mindspore.mint.ones(
+                max_crops - B,
+                H,
+                W,
+                dtype=masks.dtype,
+            )
             masks = mindspore.mint.cat([masks, pad], dim=0)
         return masks
 
