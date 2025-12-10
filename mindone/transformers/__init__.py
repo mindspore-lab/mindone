@@ -1087,7 +1087,10 @@ from .models.phi3 import (
 )
 from .models.phi4_multimodal import (
     Phi4MultimodalFeatureExtractor,
+    Phi4MultimodalForCausalLM,
     Phi4MultimodalImageProcessorFast,
+    Phi4MultimodalModel,
+    Phi4MultimodalPreTrainedModel,
     Phi4MultimodalProcessor,
 )
 from .models.phimoe import PhimoeForCausalLM, PhimoeForSequenceClassification, PhimoeModel, PhimoePreTrainedModel
