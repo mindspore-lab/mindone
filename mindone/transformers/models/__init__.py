@@ -110,6 +110,7 @@ from . import (
     imagegpt,
     instructblip,
     instructblipvideo,
+    janus,
     jamba,
     jetmoe,
     kosmos2,
