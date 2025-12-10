@@ -325,42 +325,6 @@ class Phi4MultimodalVisionPreTrainedModel(PreTrainedModel):
     def _init_weights(self, module):
         """Initialize the weights"""
         pass
-        # if isinstance(module, Phi4MultimodalVisionEmbeddings):
-        #     width = (
-        #         self.config.hidden_size
-        #         if isinstance(self.config, Phi4MultimodalVisionConfig)
-        #         else self.config.hidden_size
-        #     )
-        #     nn.init.normal_(module.position_embedding.weight, std=1 / np.sqrt(width))
-        # elif isinstance(module, mindspore.mint.nn.Embedding):
-        #     pass
-        #     # default_flax_embed_init(module.weight)
-        # elif isinstance(module, Phi4MultimodalVisionAttention):
-        #     nn.init.normal_(module.q_proj.weight)
-        #     nn.init.normal_(module.k_proj.weight)
-        #     nn.init.normal_(module.v_proj.weight)
-        #     nn.init.normal_(module.out_proj.weight)
-        #     nn.init.zeros_(module.q_proj.bias)
-        #     nn.init.zeros_(module.k_proj.bias)
-        #     nn.init.zeros_(module.v_proj.bias)
-        #     nn.init.zeros_(module.out_proj.bias)
-        # elif isinstance(module, Phi4MultimodalVisionMLP):
-        #     nn.init.normal_(module.fc1.weight)
-        #     nn.init.normal_(module.fc2.weight)
-        #     nn.init.normal_(module.fc1.bias, std=1e-6)
-        #     nn.init.normal_(module.fc2.bias, std=1e-6)
-        # elif isinstance(module, Phi4MultimodalVisionMultiheadAttentionPoolingHead):
-        #     nn.init.normal_(module.probe.data)
-        #     nn.init.normal_(module.attention.in_proj_weight.data)
-        #     nn.init.zeros_(module.attention.in_proj_bias.data)
-        # elif isinstance(module, (mindspore.mint.nn.Linear, mindspore.mint.nn.Conv2d)):
-        #     pass
-        #     # lecun_normal_(module.weight)
-        #     # if module.bias is not None:
-        #     #     nn.init.zeros_(module.bias)
-        # elif isinstance(module, mindspore.mint.nn.LayerNorm):
-        #     module.bias.data.zero_()
-        #     module.weight.data.fill_(1.0)
 
 
 class Phi4MultimodalVisionEmbeddings(mindspore.nn.Cell):
@@ -786,8 +750,8 @@ class Phi4MultimodalAudioGluPointWiseConv(mindspore.nn.Cell):
 
         self.ext_pw_conv_1d = nn.Conv1d(config.hidden_size, config.ext_pw_out_channel * 2, kernel_size=1, stride=1)
         self.glu_act = ACT2FN[config.conv_glu_type]
-        self.b1 = mindspore.Parameter(mindspore.mint.zeros(1, config.ext_pw_out_channel, 1))
-        self.b2 = mindspore.Parameter(mindspore.mint.zeros(1, config.ext_pw_out_channel, 1))
+        self.b1 = mindspore.Parameter(mindspore.mint.zeros((1, config.ext_pw_out_channel, 1)))
+        self.b2 = mindspore.Parameter(mindspore.mint.zeros((1, config.ext_pw_out_channel, 1)))
 
     def construct(self, hidden_states):
         # we assume the input always has the #channel (#dim) in the last dimension of the
