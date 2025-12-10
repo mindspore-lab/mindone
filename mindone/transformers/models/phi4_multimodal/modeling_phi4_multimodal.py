@@ -726,7 +726,7 @@ class Phi4MultimodalAudioAttention(mindspore.nn.Cell):
 class Phi4MultimodalAudioDepthWiseSeparableConv1d(mindspore.nn.Cell):
     def __init__(self, config: Phi4MultimodalAudioConfig, padding: int = 0):
         super().__init__()
-        self.dw_conv = nn.Conv1d(
+        self.dw_conv = mindspore.mint.nn.Conv1d(
             config.hidden_size,
             config.hidden_size * config.depthwise_multiplier,
             config.kernel_size,
@@ -734,7 +734,7 @@ class Phi4MultimodalAudioDepthWiseSeparableConv1d(mindspore.nn.Cell):
             padding=padding,
             groups=config.hidden_size,
         )
-        self.pw_conv = nn.Conv1d(
+        self.pw_conv = mindspore.mint.nn.Conv1d(
             config.hidden_size * config.depthwise_multiplier, config.depthwise_separable_out_channel, 1, 1, 0
         )
 
@@ -748,7 +748,7 @@ class Phi4MultimodalAudioGluPointWiseConv(mindspore.nn.Cell):
         self.config = config
         self.output_dim = config.ext_pw_out_channel
 
-        self.ext_pw_conv_1d = nn.Conv1d(config.hidden_size, config.ext_pw_out_channel * 2, kernel_size=1, stride=1)
+        self.ext_pw_conv_1d = mindspore.mint.nn.Conv1d(config.hidden_size, config.ext_pw_out_channel * 2, kernel_size=1, stride=1)
         self.glu_act = ACT2FN[config.conv_glu_type]
         self.b1 = mindspore.Parameter(mindspore.mint.zeros((1, config.ext_pw_out_channel, 1)))
         self.b2 = mindspore.Parameter(mindspore.mint.zeros((1, config.ext_pw_out_channel, 1)))
@@ -773,7 +773,7 @@ class Phi4MultimodalAudioConvModule(mindspore.nn.Cell):
         self.glu = Phi4MultimodalAudioGluPointWiseConv(config)
         self.dw_sep_conv_1d = Phi4MultimodalAudioDepthWiseSeparableConv1d(config, padding=config.kernel_size - 1)
         self.act = ACT2FN[config.conv_activation]
-        self.ext_pw_conv_1d = nn.Conv1d(config.hidden_size, config.ext_pw_out_channel, kernel_size=1, stride=1)
+        self.ext_pw_conv_1d = mindspore.mint.nn.Conv1d(config.hidden_size, config.ext_pw_out_channel, kernel_size=1, stride=1)
         self.dropout = mindspore.mint.nn.Dropout(config.dropout_rate)
 
     def construct(self, hidden_states: mindspore.Tensor):
