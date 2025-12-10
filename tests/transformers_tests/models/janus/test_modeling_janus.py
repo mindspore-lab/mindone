@@ -204,5 +204,3 @@ def test_named_modules(
         f"ms_dtype: {ms_dtype}, pt_type:{pt_dtype}, "
         f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}"
     )
-
-

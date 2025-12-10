@@ -18,10 +18,10 @@ import collections.abc
 from dataclasses import dataclass
 from typing import Callable, Optional, Union
 
+from transformers import InternVLConfig, InternVLVisionConfig
+
 import mindspore as ms
-from mindspore import Parameter
-from mindspore import nn
-from mindspore import mint
+from mindspore import Parameter, mint, nn
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache
@@ -32,14 +32,8 @@ from ...modeling_layers import GradientCheckpointingLayer
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPast, BaseModelOutputWithPooling
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
-from ...utils import (
-    ModelOutput,
-    TransformersKwargs,
-    auto_docstring,
-    can_return_tuple,
-)
+from ...utils import ModelOutput, TransformersKwargs, auto_docstring, can_return_tuple
 from ..auto import AutoModel
-from transformers import InternVLConfig, InternVLVisionConfig
 
 
 # modified from mindone.transformers.utils.generic.mindspore_int for adapting graph mode
@@ -190,6 +184,7 @@ class InternVLVisionPreTrainedModel(PreTrainedModel):
         super()._init_weights(module)
         if isinstance(module, InternVLVisionEmbeddings):
             from mindspore.common.initializer import Constant, initializer
+
             module.cls_token.set_data(initializer(Constant(0.0), module.cls_token.shape, module.cls_token.dtype))
             if module.mask_token is not None:
                 module.mask_token.set_data(initializer(Constant(0.0), module.mask_token.shape, module.mask_token.dtype))
@@ -199,6 +194,7 @@ class InternVLVisionPreTrainedModel(PreTrainedModel):
                 )
         elif isinstance(module, InternVLVisionLayer):
             from mindspore.common.initializer import Constant, initializer
+
             module.lambda_1.set_data(
                 initializer(Constant(self.config.layer_scale_init_value), module.lambda_1.shape, module.lambda_1.dtype)
             )
@@ -468,7 +464,9 @@ class InternVLVisionModel(InternVLVisionPreTrainedModel):
         self.encoder = InternVLVisionEncoder(config)
 
         self.layernorm = (
-            mint.nn.Identity() if config.use_mean_pooling else mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+            mint.nn.Identity()
+            if config.use_mean_pooling
+            else mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         )
 
         # Initialize weights and apply final processing
@@ -1009,4 +1007,3 @@ __all__ = [
     "InternVLModel",
     "InternVLForConditionalGeneration",
 ]
-

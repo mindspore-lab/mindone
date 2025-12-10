@@ -728,14 +728,8 @@ from .models.internvl import (
     InternVLVisionModel,
     InternVLVisionPreTrainedModel,
 )
-from .models.janus import (
-    JanusModel,
-    JanusPreTrainedModel,
-    JanusForConditionalGeneration,
-    JanusVQVAE,
-    JanusVisionModel,
-)
 from .models.jamba import JambaForCausalLM, JambaForSequenceClassification, JambaModel, JambaPreTrainedModel
+from .models.janus import JanusForConditionalGeneration, JanusModel, JanusPreTrainedModel, JanusVisionModel, JanusVQVAE
 from .models.jetmoe import (
     JetMoeConfig,
     JetMoeForCausalLM,

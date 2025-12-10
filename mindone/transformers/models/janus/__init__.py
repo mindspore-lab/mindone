@@ -16,5 +16,3 @@
 # limitations under the License.
 
 from .modeling_janus import *
-
-

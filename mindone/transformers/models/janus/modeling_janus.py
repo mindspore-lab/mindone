@@ -17,9 +17,10 @@ import copy
 from dataclasses import dataclass
 from typing import Callable, Optional, Union
 
+from transformers import JanusConfig, JanusVisionConfig, JanusVQVAEConfig
+
 import mindspore as ms
-from mindspore import nn
-from mindspore import mint
+from mindspore import mint, nn
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache
@@ -29,16 +30,8 @@ from ...modeling_layers import GradientCheckpointingLayer
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling, ModelOutput
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
-from ...utils import (
-    TransformersKwargs,
-    auto_docstring,
-    can_return_tuple,
-    logging,
-    mindspore_int,
-)
-from ..auto import AutoModel, AutoConfig, AutoModelForCausalLM
-from transformers import JanusConfig, JanusVisionConfig, JanusVQVAEConfig
-
+from ...utils import TransformersKwargs, auto_docstring, can_return_tuple, logging, mindspore_int
+from ..auto import AutoModel
 
 logger = logging.get_logger(__name__)
 
@@ -61,7 +54,7 @@ class JanusPreTrainedModel(PreTrainedModel):
 @auto_docstring(
     custom_intro="""
     Base class for Janus VQ-VAE mode model outputs.
-    
+
     See the [example scripts](https://github.com/mindspore-lab/mindone/tree/master/examples/transformers/janus) for usage examples.
     """
 )
@@ -1002,17 +995,17 @@ class JanusVQVAEHead(nn.Cell):
 @auto_docstring(
     custom_intro="""
     The Janus model which consists of a siglip vision backbone, a Llama language model and a VQ model.
-    
+
     Example:
         ```python
         >>> from mindone.transformers import JanusForConditionalGeneration
         >>> from PIL import Image
         >>> import mindspore as ms
-        
+
         >>> # Load model
         >>> model = JanusForConditionalGeneration.from_pretrained("deepseek-ai/Janus-Pro-1B")
         >>> model.set_train(False)
-        
+
         >>> # For text generation (VQA)
         >>> from transformers import AutoTokenizer
         >>> tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/Janus-Pro-1B")
@@ -1021,7 +1014,7 @@ class JanusVQVAEHead(nn.Cell):
         >>> input_ids = tokenizer(prompt, return_tensors="np")["input_ids"]
         >>> input_ids = ms.Tensor(input_ids, dtype=ms.int32)
         >>> outputs = model.generate(input_ids=input_ids, pixel_values=pixel_values, max_new_tokens=512)
-        
+
         >>> # For image generation
         >>> prompt = "a beautiful sunset"
         >>> input_ids = tokenizer(prompt, return_tensors="np")["input_ids"]
@@ -1044,7 +1037,9 @@ class JanusModel(JanusPreTrainedModel):
 
         # Below generation_* modules are used for Image generation.
         # Embeddings used for image generation, instead of Janus vision embeddings.
-        self.generation_embeddings = mint.nn.Embedding(self.vqmodel.config.num_embeddings, self.vqmodel.config.embed_dim)
+        self.generation_embeddings = mint.nn.Embedding(
+            self.vqmodel.config.num_embeddings, self.vqmodel.config.embed_dim
+        )
         self.generation_aligner = JanusVQVAEAlignerMLP(self.vqmodel.config)
         self.generation_head = JanusVQVAEHead(self.vqmodel.config)
 
@@ -1089,9 +1084,7 @@ class JanusModel(JanusPreTrainedModel):
 
         if pixel_values is not None:
             if input_ids is None:
-                image_token_embed = self.get_input_embeddings()(
-                    ms.Tensor([self.config.image_token_id], dtype=ms.int64)
-                )
+                image_token_embed = self.get_input_embeddings()(ms.Tensor([self.config.image_token_id], dtype=ms.int64))
                 image_attention_mask = inputs_embeds == image_token_embed
                 image_attention_mask = image_attention_mask.all(-1)
             else:
@@ -1103,7 +1096,9 @@ class JanusModel(JanusPreTrainedModel):
             image_features = image_features.astype(inputs_embeds.dtype)
             # TODO: masked_scatter does not support bf16 in some versions
             inputs_embeds = (
-                inputs_embeds.astype(ms.float32).masked_scatter(image_attention_mask, image_features.astype(ms.float32)).astype(inputs_embeds.dtype)
+                inputs_embeds.astype(ms.float32)
+                .masked_scatter(image_attention_mask, image_features.astype(ms.float32))
+                .astype(inputs_embeds.dtype)
             )
 
         lm_output = self.language_model(
@@ -1446,4 +1441,3 @@ class JanusForConditionalGeneration(JanusPreTrainedModel, GenerationMixin):
 
 
 __all__ = ["JanusPreTrainedModel", "JanusForConditionalGeneration", "JanusModel", "JanusVQVAE", "JanusVisionModel"]
-
