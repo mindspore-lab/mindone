@@ -30,13 +30,12 @@ from ...modeling_layers import GradientCheckpointingLayer
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling, ModelOutput
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
-from ...utils import TransformersKwargs, auto_docstring, can_return_tuple, logging, mindspore_int
+from ...utils import TransformersKwargs, can_return_tuple, logging, mindspore_int
 from ..auto import AutoModel
 
 logger = logging.get_logger(__name__)
 
 
-@auto_docstring
 class JanusPreTrainedModel(PreTrainedModel):
     config: JanusConfig
     base_model_prefix = "model"
@@ -51,13 +50,6 @@ class JanusPreTrainedModel(PreTrainedModel):
 
 
 @dataclass
-@auto_docstring(
-    custom_intro="""
-    Base class for Janus VQ-VAE mode model outputs.
-
-    See the [example scripts](https://github.com/mindspore-lab/mindone/tree/master/examples/transformers/janus) for usage examples.
-    """
-)
 class JanusVQVAEOutput(ModelOutput):
     r"""
     decoded_pixel_values (`mindspore.Tensor` of shape `(batch_size, num_channels, image_size, image_size)`):
@@ -71,11 +63,6 @@ class JanusVQVAEOutput(ModelOutput):
 
 
 @dataclass
-@auto_docstring(
-    custom_intro="""
-    Base class for Janus model's outputs that may also contain a past key/values (to speed up sequential decoding).
-    """
-)
 class JanusBaseModelOutputWithPast(ModelOutput):
     r"""
     last_hidden_state (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
@@ -107,11 +94,6 @@ class JanusBaseModelOutputWithPast(ModelOutput):
 
 
 @dataclass
-@auto_docstring(
-    custom_intro="""
-    Base class for Janus causal language model (or autoregressive) outputs.
-    """
-)
 class JanusCausalLMOutputWithPast(ModelOutput):
     r"""
     loss (`mindspore.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
@@ -476,7 +458,6 @@ class JanusVisionEncoder(nn.Cell):
         )
 
 
-@auto_docstring
 class JanusVisionModel(JanusPreTrainedModel):
     main_input_name = "pixel_values"
     config: JanusVisionConfig
@@ -492,7 +473,6 @@ class JanusVisionModel(JanusPreTrainedModel):
 
         self.post_init()
 
-    @auto_docstring
     def construct(
         self,
         pixel_values: Optional[ms.Tensor] = None,
@@ -889,14 +869,6 @@ class JanusVQVAEDecoder(nn.Cell):
         return hidden_state
 
 
-@auto_docstring(
-    custom_intro="""
-    The VQ-VAE model used in Janus for encoding/decoding images into discrete tokens.
-    This model follows the "Make-a-scene: Scene-based text-to-image generation with human priors" paper from
-    [ Oran Gafni, Adam Polyak, Oron Ashual, Shelly Sheynin, Devi Parikh, and Yaniv
-    Taigman](https://huggingface.co/papers/2203.13131).
-    """
-)
 class JanusVQVAE(JanusPreTrainedModel):
     config: JanusVQVAEConfig
     _no_split_modules = [
@@ -946,7 +918,6 @@ class JanusVQVAE(JanusPreTrainedModel):
         return pixel_values
 
     @can_return_tuple
-    @auto_docstring
     def construct(
         self,
         pixel_values: ms.Tensor,
@@ -992,39 +963,6 @@ class JanusVQVAEHead(nn.Cell):
         return hidden_states
 
 
-@auto_docstring(
-    custom_intro="""
-    The Janus model which consists of a siglip vision backbone, a Llama language model and a VQ model.
-
-    Example:
-        ```python
-        >>> from mindone.transformers import JanusForConditionalGeneration
-        >>> from PIL import Image
-        >>> import mindspore as ms
-
-        >>> # Load model
-        >>> model = JanusForConditionalGeneration.from_pretrained("deepseek-ai/Janus-Pro-1B")
-        >>> model.set_train(False)
-
-        >>> # For text generation (VQA)
-        >>> from transformers import AutoTokenizer
-        >>> tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/Janus-Pro-1B")
-        >>> image = Image.open("path/to/image.jpg")
-        >>> prompt = "What is in this image?"
-        >>> input_ids = tokenizer(prompt, return_tensors="np")["input_ids"]
-        >>> input_ids = ms.Tensor(input_ids, dtype=ms.int32)
-        >>> outputs = model.generate(input_ids=input_ids, pixel_values=pixel_values, max_new_tokens=512)
-
-        >>> # For image generation
-        >>> prompt = "a beautiful sunset"
-        >>> input_ids = tokenizer(prompt, return_tensors="np")["input_ids"]
-        >>> input_ids = ms.Tensor(input_ids, dtype=ms.int32)
-        >>> image_tokens = model.generate(inputs=input_ids, generation_mode="image", max_new_tokens=576)
-        >>> images = model.decode_image_tokens(image_tokens)
-        ```
-
-    """
-)
 class JanusModel(JanusPreTrainedModel):
     def __init__(self, config: JanusConfig):
         super().__init__(config)
@@ -1061,7 +999,6 @@ class JanusModel(JanusPreTrainedModel):
         return image_embeds
 
     @can_return_tuple
-    @auto_docstring
     def construct(
         self,
         input_ids: ms.Tensor = None,
@@ -1152,7 +1089,6 @@ class JanusForConditionalGeneration(JanusPreTrainedModel, GenerationMixin):
         return self.model
 
     @can_return_tuple
-    @auto_docstring
     def construct(
         self,
         input_ids: ms.Tensor = None,

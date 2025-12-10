@@ -31,7 +31,7 @@ from ...modeling_layers import GradientCheckpointingLayer
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPast, BaseModelOutputWithPooling
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
-from ...utils import ModelOutput, TransformersKwargs, auto_docstring, can_return_tuple
+from ...utils import ModelOutput, TransformersKwargs, can_return_tuple
 from ..auto import AutoModel
 
 
@@ -165,7 +165,6 @@ class InternVLVisionAttention(nn.Cell):
         return outputs
 
 
-@auto_docstring
 class InternVLVisionPreTrainedModel(PreTrainedModel):
     config: InternVLVisionConfig
     base_model_prefix = "internvl_vision"
@@ -202,11 +201,6 @@ class InternVLVisionPreTrainedModel(PreTrainedModel):
 
 
 @dataclass
-@auto_docstring(
-    custom_intro="""
-    Class for outputs of [`InternVLVisionModel`].
-    """
-)
 class InternVLVisionModelOutputWithPooling(BaseModelOutputWithPooling):
     r"""
     pooler_output (`mindspore.Tensor` of shape `(batch_size, hidden_size)`):
@@ -452,7 +446,6 @@ class InternVLVisionEncoder(nn.Cell):
         )
 
 
-@auto_docstring
 class InternVLVisionModel(InternVLVisionPreTrainedModel):
     def __init__(self, config: InternVLVisionConfig) -> None:
         super().__init__(config)
@@ -474,7 +467,6 @@ class InternVLVisionModel(InternVLVisionPreTrainedModel):
         return self.embeddings.patch_embeddings
 
     @can_return_tuple
-    @auto_docstring
     def construct(
         self,
         pixel_values: ms.Tensor,
@@ -508,7 +500,6 @@ class InternVLVisionModel(InternVLVisionPreTrainedModel):
         )
 
 
-@auto_docstring
 class InternVLPreTrainedModel(PreTrainedModel):
     config: InternVLConfig
     base_model_prefix = ""
@@ -542,11 +533,6 @@ class InternVLMultiModalProjector(nn.Cell):
 
 
 @dataclass
-@auto_docstring(
-    custom_intro="""
-    Base class for InternVL outputs, with hidden states and attentions.
-    """
-)
 class InternVLModelOutputWithPast(BaseModelOutputWithPast):
     r"""
     past_key_values (`Cache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
@@ -563,11 +549,6 @@ class InternVLModelOutputWithPast(BaseModelOutputWithPast):
     image_hidden_states: Optional[ms.Tensor] = None
 
 
-@auto_docstring(
-    custom_intro="""
-    The InternVL model which consists of a vision backbone and a language model, without a language modeling head.
-    """
-)
 class InternVLModel(InternVLPreTrainedModel):
     _checkpoint_conversion_mapping = {"language_model.model": "language_model"}
 
@@ -645,7 +626,6 @@ class InternVLModel(InternVLPreTrainedModel):
         return vision_features
 
     @can_return_tuple
-    @auto_docstring
     def construct(
         self,
         input_ids: ms.Tensor = None,
@@ -767,11 +747,6 @@ class InternVLModel(InternVLPreTrainedModel):
 
 
 @dataclass
-@auto_docstring(
-    custom_intro="""
-    Base class for InternVL causal language model (or autoregressive) outputs.
-    """
-)
 class InternVLCausalLMOutputWithPast(ModelOutput):
     r"""
     loss (`mindspore.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
@@ -797,11 +772,6 @@ class InternVLCausalLMOutputWithPast(ModelOutput):
     image_hidden_states: Optional[ms.Tensor] = None
 
 
-@auto_docstring(
-    custom_intro="""
-    The INTERNVL model which consists of a vision backbone and a language model.
-    """
-)
 class InternVLForConditionalGeneration(InternVLPreTrainedModel, GenerationMixin):
     _checkpoint_conversion_mapping = {
         "^language_model.model": "model.language_model",
@@ -860,7 +830,6 @@ class InternVLForConditionalGeneration(InternVLPreTrainedModel, GenerationMixin)
         return self.model.multi_modal_projector
 
     @can_return_tuple
-    @auto_docstring
     def construct(
         self,
         input_ids: ms.Tensor = None,
