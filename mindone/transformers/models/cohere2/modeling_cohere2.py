@@ -71,7 +71,7 @@ class Cohere2RotaryEmbedding(nn.Cell):
     @ms._no_grad()
     @dynamic_rope_update  # power user: used with advanced RoPE types (e.g. dynamic rope)
     def construct(self, x, position_ids):
-        inv_freq_expanded = self.inv_freq[None, :, None].float().expand(position_ids.shape[0], -1, 1)
+        inv_freq_expanded = self.inv_freq[None, :, None].float().expand((position_ids.shape[0], -1, 1))
         position_ids_expanded = position_ids[:, None, :].float()
         # Force float32 (see https://github.com/huggingface/transformers/pull/29285)
         freqs = mint.matmul(inv_freq_expanded.float(), position_ids_expanded.float()).swapaxes(1, 2)

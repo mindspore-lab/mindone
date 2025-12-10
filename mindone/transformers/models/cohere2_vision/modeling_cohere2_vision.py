@@ -21,9 +21,11 @@
 from dataclasses import dataclass
 from typing import Optional, Union
 
-import mindspore as ms
-from mindspore import nn, mint
+from transformers import Cohere2VisionConfig
+from transformers.utils import auto_docstring
 
+import mindspore as ms
+from mindspore import mint, nn
 
 from ...cache_utils import Cache
 from ...generation import GenerationMixin
@@ -34,8 +36,6 @@ from ...processing_utils import Unpack
 from ...utils import TransformersKwargs
 from ...utils.generic import check_model_inputs
 from ..auto import AutoModel
-from transformers import Cohere2VisionConfig
-from transformers.utils import auto_docstring
 
 
 class Cohere2VisionMultiModalProjector(nn.Cell):
@@ -191,9 +191,7 @@ class Cohere2VisionModel(Cohere2VisionPreTrainedModel):
         image_features = self.multi_modal_projector(selected_image_feature)
         return image_features
 
-    def get_placeholder_mask(
-        self, input_ids: ms.Tensor, inputs_embeds: ms.Tensor, image_features: ms.Tensor
-    ):
+    def get_placeholder_mask(self, input_ids: ms.Tensor, inputs_embeds: ms.Tensor, image_features: ms.Tensor):
         """
         Obtains multimodal placeholder mask from `input_ids` or `inputs_embeds`, and checks that the placeholder token count is
         equal to the length of multimodal features. If the lengths are different, an error is raised.

@@ -1582,6 +1582,11 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     from .models.vjepa2 import VJEPA2ForVideoClassification, VJEPA2Model, VJEPA2PreTrainedModel
 
 if version.parse(transformers.__version__) >= version.parse("4.57.0"):
+    from .models.cohere2_vision import (
+        Cohere2VisionForConditionalGeneration,
+        Cohere2VisionModel,
+        Cohere2VisionPreTrainedModel,
+    )
     from .models.qwen3_vl import (
         Qwen3VLForConditionalGeneration,
         Qwen3VLModel,

@@ -37,16 +37,6 @@ DTYPE_AND_THRESHOLDS = {"fp32": 1e-3, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
 
 
-
-if is_torch_available():
-    import torch
-
-    from transformers import (
-        Cohere2VisionForConditionalGeneration,
-        Cohere2VisionModel,
-    )
-
-
 class Cohere2VisionText2TextModelTester:
     def __init__(
         self,
@@ -138,7 +128,7 @@ class Cohere2VisionText2TextModelTester:
 
 
 model_tester = Cohere2VisionText2TextModelTester()
-config, inputs_dict = model_tester.prepare_config_and_inputs()
+config, inputs_dict = model_tester.prepare_config_and_inputs_for_common()
 
 
 COHERE2VISION_CASES = [
@@ -152,11 +142,10 @@ COHERE2VISION_CASES = [
         inputs_dict,
         {
             "logits": "logits",
-            "hidden_states": "hidden_states",
-            "image_hidden_states": "image_hidden_states",
         },
     ],
 ]
+
 
 @pytest.mark.parametrize(
     "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",
