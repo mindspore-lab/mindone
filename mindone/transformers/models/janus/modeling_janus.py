@@ -1047,6 +1047,7 @@ class JanusModel(JanusPreTrainedModel):
             use_cache=use_cache,
             cache_position=cache_position,
             logits_to_keep=logits_to_keep,
+            return_dict=True,
             **kwargs,
         )
 
