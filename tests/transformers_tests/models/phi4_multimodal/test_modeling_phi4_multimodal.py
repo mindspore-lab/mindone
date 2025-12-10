@@ -48,7 +48,6 @@ logger = logging.getLogger(__name__)
 class Phi4MultimodalModelTester:
     def __init__(
         self,
-        parent,
         batch_size=2,
         seq_length=12,
         image_seq_length=275,
@@ -85,7 +84,6 @@ class Phi4MultimodalModelTester:
             initializer_range=1e-5,
         ),
     ):
-        self.parent = parent
         self.num_hidden_layers = num_hidden_layers
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
