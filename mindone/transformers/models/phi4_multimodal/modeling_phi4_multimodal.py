@@ -23,6 +23,12 @@ import warnings
 from typing import Callable, Optional, Union
 
 import numpy as np
+from transformers.models.phi4_multimodal.configuration_phi4_multimodal import (
+    Phi4MultimodalAudioConfig,
+    Phi4MultimodalConfig,
+    Phi4MultimodalVisionConfig,
+)
+
 import mindspore
 import mindspore.mint.nn.functional as F
 from mindspore import nn
@@ -45,7 +51,6 @@ from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
 from ...utils import can_return_tuple
 from ...utils.generic import TransformersKwargs, check_model_inputs
-from transformers.models.phi4_multimodal.configuration_phi4_multimodal import Phi4MultimodalAudioConfig, Phi4MultimodalConfig, Phi4MultimodalVisionConfig
 
 
 class Phi4MultimodalVisionMLP(mindspore.nn.Cell):
@@ -78,7 +83,9 @@ def simple_eager_attention_forward(
         causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
         attn_weights = attn_weights + causal_mask
 
-    attn_weights = mindspore.mint.nn.functional.softmax(attn_weights, dim=-1, dtype=mindspore.float32).to(query_states.dtype)
+    attn_weights = mindspore.mint.nn.functional.softmax(attn_weights, dim=-1, dtype=mindspore.float32).to(
+        query_states.dtype
+    )
     attn_weights = mindspore.mint.nn.functional.dropout(attn_weights, p=dropout, training=module.training)
     attn_output = mindspore.mint.matmul(attn_weights, value_states)
     attn_output = attn_output.transpose(1, 2).contiguous()
@@ -267,7 +274,7 @@ def trunc_normal_tf_(
 
 
 def variance_scaling_(tensor, scale=1.0, mode="fan_in", distribution="normal"):
-    fan_in, fan_out = 0.5, 0.5 #_calculate_fan_in_and_fan_out(tensor)
+    fan_in, fan_out = 0.5, 0.5  # _calculate_fan_in_and_fan_out(tensor)
     if mode == "fan_in":
         denom = fan_in
     elif mode == "fan_out":
@@ -299,7 +306,6 @@ def default_flax_embed_init(tensor):
     variance_scaling_(tensor, mode="fan_in", distribution="normal")
 
 
-
 class Phi4MultimodalVisionPreTrainedModel(PreTrainedModel):
     config: Phi4MultimodalVisionConfig
     base_model_prefix = "phi4_vision"
@@ -327,7 +333,7 @@ class Phi4MultimodalVisionPreTrainedModel(PreTrainedModel):
             nn.init.normal_(module.position_embedding.weight, std=1 / np.sqrt(width))
         elif isinstance(module, mindspore.mint.nn.Embedding):
             pass
-            #default_flax_embed_init(module.weight)
+            # default_flax_embed_init(module.weight)
         elif isinstance(module, Phi4MultimodalVisionAttention):
             nn.init.normal_(module.q_proj.weight)
             nn.init.normal_(module.k_proj.weight)
@@ -445,7 +451,9 @@ class Phi4MultimodalVisionMultiheadAttentionPoolingHead(mindspore.nn.Cell):
         super().__init__()
 
         self.probe = mindspore.Parameter(mindspore.mint.randn(1, 1, config.hidden_size))
-        self.attention = mindspore.nn.MultiheadAttention(config.hidden_size, config.num_attention_heads, batch_first=True)
+        self.attention = mindspore.nn.MultiheadAttention(
+            config.hidden_size, config.num_attention_heads, batch_first=True
+        )
         self.layernorm = mindspore.mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.mlp = Phi4MultimodalVisionMLP(config)
 
@@ -499,7 +507,7 @@ class Phi4MultimodalVisionModel(Phi4MultimodalVisionPreTrainedModel):
                     pixel_values.shape[3] // self.config.patch_size,
                 ),
                 dtype=mindspore.bool_,
-                )
+            )
 
         hidden_states = self.embeddings(pixel_values=pixel_values, patch_attention_mask=patch_attention_mask)
 
@@ -596,7 +604,9 @@ class Phi4MultimodalImageEmbedding(mindspore.nn.Cell):
 
         img_features = self.get_img_features(
             image_pixel_values.flatten(0, 1),
-            attention_mask=image_attention_mask.flatten(0, 1).to(dtype=bool, ),
+            attention_mask=image_attention_mask.flatten(0, 1).to(
+                dtype=bool,
+            ),
         )
         base_feat_size = int(np.sqrt(img_features.shape[1]))
         img_features = img_features.view(batch_size, -1, base_feat_size**2, self.image_dim_out)
@@ -651,16 +661,18 @@ class Phi4MultimodalImageEmbedding(mindspore.nn.Cell):
             img_set_tensor.append(img_feature_proj)
 
         merged_img_set_tensor = mindspore.mint.cat(img_set_tensor, dim=1).squeeze(0)
-        merged_img_set_tensor = merged_img_set_tensor.to(dtype=inputs_embeds.dtype, )
+        merged_img_set_tensor = merged_img_set_tensor.to(
+            dtype=inputs_embeds.dtype,
+        )
 
         with mindspore._no_grad():
-            positions_tuple = mindspore.mint.nonzero(input_ids == self.config.vision_config.image_token_id, as_tuple=True)
+            positions_tuple = mindspore.mint.nonzero(
+                input_ids == self.config.vision_config.image_token_id, as_tuple=True
+            )
 
         # Temporarily disable autocast to avoid issue on bf16 tensors
         # Ref: https://github.com/pytorch/pytorch/issues/132715
-        image_embeds = inputs_embeds.index_put(
-            indices=positions_tuple, values=merged_img_set_tensor, accumulate=False
-        )
+        image_embeds = inputs_embeds.index_put(indices=positions_tuple, values=merged_img_set_tensor, accumulate=False)
 
         image_embeds = self.drop(image_embeds)
 
@@ -700,10 +712,18 @@ class Phi4MultimodalAudioAttention(mindspore.nn.Cell):
         self.attention_dropout = config.dropout_rate
         self.is_causal = True
 
-        self.q_proj = mindspore.mint.nn.Linear(config.hidden_size, config.num_attention_heads * self.head_dim, bias=True)
-        self.k_proj = mindspore.mint.nn.Linear(config.hidden_size, config.num_attention_heads * self.head_dim, bias=True)
-        self.v_proj = mindspore.mint.nn.Linear(config.hidden_size, config.num_attention_heads * self.head_dim, bias=True)
-        self.o_proj = mindspore.mint.nn.Linear(config.num_attention_heads * self.head_dim, config.hidden_size, bias=True)
+        self.q_proj = mindspore.mint.nn.Linear(
+            config.hidden_size, config.num_attention_heads * self.head_dim, bias=True
+        )
+        self.k_proj = mindspore.mint.nn.Linear(
+            config.hidden_size, config.num_attention_heads * self.head_dim, bias=True
+        )
+        self.v_proj = mindspore.mint.nn.Linear(
+            config.hidden_size, config.num_attention_heads * self.head_dim, bias=True
+        )
+        self.o_proj = mindspore.mint.nn.Linear(
+            config.num_attention_heads * self.head_dim, config.hidden_size, bias=True
+        )
 
     def construct(
         self,
@@ -847,8 +867,12 @@ class Phi4MultimodalAudioNemoConvSubsampling(mindspore.nn.Cell):
         for _ in range(self.sampling_num - 1):
             layers.extend(
                 [
-                    mindspore.mint.nn.Conv2d(conv_channels, conv_channels, kernel_size=3, stride=2, padding=1, groups=conv_channels),
-                    mindspore.mint.nn.Conv2d(conv_channels, conv_channels, kernel_size=1, stride=1, padding=0, groups=1),
+                    mindspore.mint.nn.Conv2d(
+                        conv_channels, conv_channels, kernel_size=3, stride=2, padding=1, groups=conv_channels
+                    ),
+                    mindspore.mint.nn.Conv2d(
+                        conv_channels, conv_channels, kernel_size=1, stride=1, padding=0, groups=1
+                    ),
                     self.act_fn,
                 ]
             )
@@ -872,7 +896,10 @@ class Phi4MultimodalAudioNemoConvSubsampling(mindspore.nn.Cell):
         max_audio_length = hidden_states.shape[1]
         feature_lens = mask.sum(1)
         padding_length = mindspore.mint.ceil(feature_lens / self.subsampling_factor)
-        arange_ = mindspore.mint.arange(0, max_audio_length, )
+        arange_ = mindspore.mint.arange(
+            0,
+            max_audio_length,
+        )
         pad_mask = arange_.expand(padding_length.shape[0], -1) < padding_length.unsqueeze(1)
         return hidden_states, pad_mask.unsqueeze(1)
 
@@ -920,7 +947,6 @@ class Phi4MultimodalAudioMeanVarianceNormLayer(mindspore.nn.Cell):
         return (x - self.global_mean) * self.global_invstd
 
 
-
 class Phi4MultimodalAudioPreTrainedModel(PreTrainedModel):
     config: Phi4MultimodalAudioConfig
     supports_gradient_checkpointing = True
@@ -946,7 +972,9 @@ def unfold_tensor(tensor, max_seq_len):
     _, _, D = tensor.shape
     tensor = tensor.transpose(-1, -2)
     # N x D x 1 x T => N x (D x max_seq_len) x T'
-    tensor = mindspore.mint.nn.functional.unfold(tensor[..., None, :], kernel_size=(1, max_seq_len), stride=(1, max_seq_len))
+    tensor = mindspore.mint.nn.functional.unfold(
+        tensor[..., None, :], kernel_size=(1, max_seq_len), stride=(1, max_seq_len)
+    )
 
     new_bsz, _, slen = tensor.shape
     tensor = tensor.view(new_bsz, -1, max_seq_len, slen)
@@ -1059,7 +1087,10 @@ class Phi4MultimodalAudioModel(Phi4MultimodalAudioPreTrainedModel):
 
         feature_lens = mask.sum(1)
         padding_length = feature_lens
-        pad_mask = mindspore.mint.arange(0, max_audio_length, ).expand(
+        pad_mask = mindspore.mint.arange(
+            0,
+            max_audio_length,
+        ).expand(
             padding_length.shape[0], -1
         ) < padding_length.unsqueeze(1)
         pad_mask = pad_mask.unsqueeze(1)
@@ -1082,7 +1113,9 @@ class Phi4MultimodalAudioModel(Phi4MultimodalAudioPreTrainedModel):
             else:
                 chunk_pad_size = 0
             if chunk_pad_size > 0:
-                hidden_states_pad = mindspore.mint.nn.functional.pad(hidden_states, (0, 0, 0, chunk_pad_size), "constant", 0)
+                hidden_states_pad = mindspore.mint.nn.functional.pad(
+                    hidden_states, (0, 0, 0, chunk_pad_size), "constant", 0
+                )
                 hidden_states = hidden_states_pad
 
             hidden_states = unfold_tensor(hidden_states, max_seq_len)
@@ -1145,12 +1178,12 @@ class Phi4MultimodalAudioEmbedding(mindspore.nn.Cell):
         audio_projection_mode="speech",
     ) -> mindspore.Tensor:
         with mindspore._no_grad():
-            positions_tuple = mindspore.mint.nonzero(input_ids == self.config.audio_config.audio_token_id, as_tuple=True)
+            positions_tuple = mindspore.mint.nonzero(
+                input_ids == self.config.audio_config.audio_token_id, as_tuple=True
+            )
 
         up_proj = self.up_proj_for_speech if audio_projection_mode == "speech" else self.up_proj_for_vision_speech
-        down_proj = (
-            self.down_proj_for_speech if audio_projection_mode == "speech" else self.down_proj_for_vision_speech
-        )
+        down_proj = self.down_proj_for_speech if audio_projection_mode == "speech" else self.down_proj_for_vision_speech
 
         target_dtype = up_proj.bias.dtype
 
@@ -1164,12 +1197,12 @@ class Phi4MultimodalAudioEmbedding(mindspore.nn.Cell):
         merged_audio_embeds = mindspore.mint.cat(
             [audio_embeds[i, : audio_embed_sizes[i], :] for i in range(len(audio_embed_sizes))], dim=0
         )
-        merged_audio_embeds = merged_audio_embeds.to(dtype=inputs_embeds.dtype, )
+        merged_audio_embeds = merged_audio_embeds.to(
+            dtype=inputs_embeds.dtype,
+        )
         # Temporarily disable autocast to avoid issue on bf16 tensors
         # Ref: https://github.com/pytorch/pytorch/issues/132715
-        audio_embeds = inputs_embeds.index_put(
-            indices=positions_tuple, values=merged_audio_embeds, accumulate=False
-        )
+        audio_embeds = inputs_embeds.index_put(indices=positions_tuple, values=merged_audio_embeds, accumulate=False)
 
         audio_embeds = self.drop(audio_embeds)
 
@@ -1306,7 +1339,9 @@ class Phi4MultimodalAttention(mindspore.nn.Cell):
         self.is_causal = True
 
         op_size = config.num_attention_heads * self.head_dim + 2 * (config.num_key_value_heads * self.head_dim)
-        self.o_proj = mindspore.mint.nn.Linear(config.num_attention_heads * self.head_dim, config.hidden_size, bias=False)
+        self.o_proj = mindspore.mint.nn.Linear(
+            config.num_attention_heads * self.head_dim, config.hidden_size, bias=False
+        )
         self.qkv_proj = mindspore.mint.nn.Linear(config.hidden_size, op_size, bias=False)
 
     def construct(
@@ -1380,7 +1415,9 @@ class Phi4MultimodalDecoderLayer(GradientCheckpointingLayer):
         past_key_values: Optional[Cache] = None,
         use_cache: Optional[bool] = False,
         cache_position: Optional[mindspore.Tensor] = None,
-        position_embeddings: Optional[tuple[mindspore.Tensor, mindspore.Tensor]] = None,  # necessary, but kept here for BC
+        position_embeddings: Optional[
+            tuple[mindspore.Tensor, mindspore.Tensor]
+        ] = None,  # necessary, but kept here for BC
         **kwargs: Unpack[FlashAttentionKwargs],
     ) -> tuple[mindspore.Tensor, Optional[tuple[mindspore.Tensor, mindspore.Tensor]]]:
         residual = hidden_states
@@ -1498,7 +1535,6 @@ class Phi4MultimodalRotaryEmbedding(mindspore.nn.Cell):
         return cos.to(dtype=x.dtype), sin.to(dtype=x.dtype)
 
 
-
 class Phi4MultimodalPreTrainedModel(PreTrainedModel):
     config: Phi4MultimodalConfig
     base_model_prefix = "model"
@@ -1522,7 +1558,6 @@ class Phi4MultimodalPreTrainedModel(PreTrainedModel):
         if isinstance(module, Phi4MultimodalImageEmbedding):
             module.global_img_feature_extensor.data.zero_()
             module.sub_img_feature_extensor.data.zero_()
-
 
 
 class Phi4MultimodalModel(Phi4MultimodalPreTrainedModel):
@@ -1604,7 +1639,9 @@ class Phi4MultimodalModel(Phi4MultimodalPreTrainedModel):
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
             cache_position = mindspore.mint.arange(
-                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1], )
+                past_seen_tokens,
+                past_seen_tokens + inputs_embeds.shape[1],
+            )
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
 
@@ -1641,7 +1678,6 @@ class Phi4MultimodalModel(Phi4MultimodalPreTrainedModel):
         )
 
 
-
 class Phi4MultimodalForCausalLM(Phi4MultimodalPreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
     _tp_plan = {"lm_head": "colwise_rep"}
@@ -1657,7 +1693,6 @@ class Phi4MultimodalForCausalLM(Phi4MultimodalPreTrainedModel, GenerationMixin):
         self.post_init()
 
     @can_return_tuple
-
     def construct(
         self,
         input_ids: Optional[mindspore.Tensor] = None,

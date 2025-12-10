@@ -128,7 +128,7 @@ class Phi4MultimodalModelTester:
 
         # The shapes corresponds to the inputs for image of size 16x16
         image_pixel_values = floats_numpy([self.batch_size, 2, self.num_channels, self.image_size, self.image_size])
-        image_attention_mask = np.ones(self.batch_size, 2, 1, 1)
+        image_attention_mask = np.ones((self.batch_size, 2, 1, 1))
         image_sizes = ms.tensor([[self.image_size, self.image_size]] * self.batch_size, dtype=ms.int64)
 
         # Feature sizes returned by an audio of size 10000
@@ -144,31 +144,23 @@ class Phi4MultimodalModelTester:
         attention_mask[-1, 0] = 0  # mask the last text token
         config = self.get_config()
 
-        return (
-            config,
-            input_ids,
-            attention_mask,
-            image_pixel_values,
-            image_attention_mask,
-            image_sizes,
-            audio_input_features,
-            audio_embed_sizes,
-        )
+        return config, input_ids, attention_mask, image_pixel_values, image_attention_mask, image_sizes, audio_input_features, audio_embed_sizes
 
 
 model_tester = Phi4MultimodalModelTester()
 (
     config,
     input_ids,
-    token_type_ids,
-    input_mask,
-    sequence_labels,
-    token_labels,
-    choice_labels,
+    attention_mask,
+    image_pixel_values,
+    image_attention_mask,
+    image_sizes,
+    audio_input_features,
+    audio_embed_sizes,
 ) = model_tester.prepare_config_and_inputs()
 
 
-PHI3_CASES = [
+PHI4_CASES = [
     [
         "Phi4MultimodalModel",
         "transformers.Phi4MultimodalModel",
@@ -177,7 +169,7 @@ PHI3_CASES = [
         {},
         (input_ids,),
         {
-            "attention_mask": input_mask,
+            "attention_mask": attention_mask,
         },
         {
             "last_hidden_state": 0,
