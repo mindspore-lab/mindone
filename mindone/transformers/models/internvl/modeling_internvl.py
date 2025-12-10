@@ -257,9 +257,9 @@ class InternVLVisionEmbeddings(nn.Cell):
     def __init__(self, config: InternVLVisionConfig) -> None:
         super().__init__()
 
-        self.cls_token = Parameter(mint.zeros(1, 1, config.hidden_size))
+        self.cls_token = Parameter(mint.zeros((1, 1, config.hidden_size)))
         if config.use_mask_token:
-            self.mask_token = Parameter(mint.zeros(1, 1, config.hidden_size))
+            self.mask_token = Parameter(mint.zeros((1, 1, config.hidden_size)))
         else:
             self.mask_token = None
         self.patch_embeddings = InternVLVisionPatchEmbeddings(config)
@@ -271,7 +271,7 @@ class InternVLVisionEmbeddings(nn.Cell):
         )
         num_patches = self.patch_embeddings.num_patches
         if config.use_absolute_position_embeddings:
-            self.position_embeddings = Parameter(mint.zeros(1, num_patches + 1, config.hidden_size))
+            self.position_embeddings = Parameter(mint.zeros((1, num_patches + 1, config.hidden_size)))
         else:
             self.position_embeddings = None
         self.dropout = mint.nn.Dropout(config.hidden_dropout_prob)
