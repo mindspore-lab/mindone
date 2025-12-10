@@ -26,7 +26,6 @@ from mindspore import Parameter, mint, nn
 from ...activations import ACT2FN
 from ...cache_utils import Cache
 from ...generation import GenerationMixin
-from ...integrations import use_kernel_forward_from_hub
 from ...modeling_flash_attention_utils import FlashAttentionKwargs
 from ...modeling_layers import GradientCheckpointingLayer
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPast, BaseModelOutputWithPooling
@@ -44,7 +43,6 @@ def mindspore_int(x):
     return x.to(ms.int64) if isinstance(x, ms.Tensor) else int(x)
 
 
-@use_kernel_forward_from_hub("RMSNorm")
 class InternVLVisionRMSNorm(nn.Cell):
     def __init__(self, hidden_size, eps=1e-6):
         """
