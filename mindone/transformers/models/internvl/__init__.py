@@ -14,21 +14,5 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .configuration_internvl import InternVLConfig, InternVLVisionConfig
-from .modeling_internvl import (
-    InternVLForConditionalGeneration,
-    InternVLModel,
-    InternVLPreTrainedModel,
-    InternVLVisionModel,
-    InternVLVisionPreTrainedModel,
-)
 
-__all__ = [
-    "InternVLConfig",
-    "InternVLVisionConfig",
-    "InternVLForConditionalGeneration",
-    "InternVLModel",
-    "InternVLPreTrainedModel",
-    "InternVLVisionModel",
-    "InternVLVisionPreTrainedModel",
-]
+from .modeling_internvl import *
