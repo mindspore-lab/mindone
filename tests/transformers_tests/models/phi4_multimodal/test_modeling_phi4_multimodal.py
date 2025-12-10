@@ -1,4 +1,4 @@
-"""Adapted from https://github.com/huggingface/transformers/tree/main/tests//models/phi4_multimodal/test_modeling_phi3.py."""
+"""Adapted from https://github.com/huggingface/transformers/tree/main/tests//models/phi4_multimodal/test_modeling_phi4_multimodal.py."""
 
 # This module contains test cases that are defined in the `.test_cases.py` file, structured as lists or tuples like
 #     [name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map].
@@ -16,16 +16,7 @@ import logging
 import numpy as np
 import pytest
 import torch
-from transformers import (
-    AutoModelForCausalLM,
-    AutoProcessor,
-    GenerationConfig,
-    Phi4MultimodalAudioConfig,
-    Phi4MultimodalConfig,
-    Phi4MultimodalForCausalLM,
-    Phi4MultimodalModel,
-    Phi4MultimodalVisionConfig,
-)
+from transformers import Phi4MultimodalAudioConfig, Phi4MultimodalConfig, Phi4MultimodalVisionConfig
 
 import mindspore as ms
 
@@ -144,7 +135,16 @@ class Phi4MultimodalModelTester:
         attention_mask[-1, 0] = 0  # mask the last text token
         config = self.get_config()
 
-        return config, input_ids, attention_mask, image_pixel_values, image_attention_mask, image_sizes, audio_input_features, audio_embed_sizes
+        return (
+            config,
+            input_ids,
+            attention_mask,
+            image_pixel_values,
+            image_attention_mask,
+            image_sizes,
+            audio_input_features,
+            audio_embed_sizes,
+        )
 
 
 model_tester = Phi4MultimodalModelTester()
@@ -189,7 +189,7 @@ PHI4_CASES = [
         + [
             mode,
         ]
-        for case in PHI3_CASES
+        for case in PHI4_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],

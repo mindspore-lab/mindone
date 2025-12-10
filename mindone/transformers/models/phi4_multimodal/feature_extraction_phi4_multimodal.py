@@ -25,7 +25,7 @@ import mindspore
 from ...audio_utils import AudioInput, mel_filter_bank
 from ...feature_extraction_sequence_utils import SequenceFeatureExtractor
 from ...image_processing_utils import BatchFeature
-from ...utils import TensorType, logging
+from ...utils import TensorType, logging, is_mindspore_available
 
 logger = logging.get_logger(__name__)
 
@@ -88,7 +88,7 @@ class Phi4MultimodalFeatureExtractor(SequenceFeatureExtractor):
         the STFT computation if available, otherwise a slower NumPy based one.
 
         Args:
-            raw_speech (`np.ndarray`, `torch.Tensor`, `list[np.ndarray]`, `list[torch.Tensor]`):
+            raw_speech (`np.ndarray`, `mindspore.tensor`, `list[np.ndarray]`, `list[mindspore.tensor]`):
                 The sequence or batch of sequences to be processed. Each sequence can be a numpy array or PyTorch tensor.
                 For batched inputs, sequences can be a list of numpy arrays or PyTorch tensors, or a single numpy array or
                 PyTorch tensor with first dimension being the batch size.
@@ -105,7 +105,7 @@ class Phi4MultimodalFeatureExtractor(SequenceFeatureExtractor):
                 Activates truncation to cut input sequences longer than *max_length* to *max_length*.
             return_tensors (`str` or [`~utils.TensorType`], *optional*):
                 If set, will return tensors instead of numpy arrays. Acceptable values are:
-                - `'pt'`: Return PyTorch `torch.Tensor` objects.
+                - `'pt'`: Return PyTorch `mindspore.tensor` objects.
                 - `'np'`: Return Numpy `np.ndarray` objects.
                 - `'tf'`: Return TensorFlow `tf.constant` objects.
             return_attention_mask (`bool`, *optional*, defaults to `True`):
@@ -185,7 +185,7 @@ class Phi4MultimodalFeatureExtractor(SequenceFeatureExtractor):
 
         feature_attention_mask = (
             mindspore.mint.arange(0, feature_lengths.max())
-            if is_torch_available()
+            if is_mindspore_available()
             else np.arange(0, feature_lengths.max())
         )
         feature_attention_mask = (
@@ -203,24 +203,24 @@ class Phi4MultimodalFeatureExtractor(SequenceFeatureExtractor):
 
     # TODO; @eustlb, move this to audio_utils in a general spectogram_batch function that handles torch and numpy
     def _torch_extract_fbank_features(
-        self, waveform: "torch.FloatTensor", audio_lengths: "torch.Tensor", device: str = "cpu"
-    ) -> "torch.FloatTensor":
+        self, waveform: "mindspore.tensor", audio_lengths: "mindspore.tensor", device: str = "cpu"
+    ) -> "mindspore.tensor":
         """
         Compute the log mel-scaled spectrogram of batched waveforms using PyTorch's FFT implementation.
 
         Args:
-            waveform (torch.FloatTensor` of shape `(batch_size, max_audio_length)`):
-                The batched waveforms.
-            audio_lengths (`torch.Tensor` of shape `(batch_size,)`):
+            waveform (mindspore.tensor` of shape `(batch_size, max_audio_length)`):
+                The batched waveformindspore.
+            audio_lengths (`mindspore.tensor` of shape `(batch_size,)`):
                 The lengths of the waveforms along the max_audio_length dimension.
             device (`str`, *optional*, defaults to "cpu"):
                 The device to run the computation on. (e.g., "cpu", "cuda")
 
         Returns:
-            `torch.FloatTensor` of shape `(batch_size, max_feature_length, feature_size)`:
-                The log mel-scaled spectrogram of the batched waveforms.
+            `mindspore.tensor` of shape `(batch_size, max_feature_length, feature_size)`:
+                The log mel-scaled spectrogram of the batched waveformindspore.
         """
-        fft_window = torch.hamming_window(self.win_length, periodic=False, dtype=mindspore.float64)
+        fft_window = mindspore.hamming_window(self.win_length, periodic=False, dtype=mindspore.float64)
 
         # batched implementation
         batch_size = waveform.shape[0]
@@ -256,7 +256,7 @@ class Phi4MultimodalFeatureExtractor(SequenceFeatureExtractor):
         frames = (frames - self.preemphasis * frames_prev) * 32768
 
         # apply fft
-        S = torch.fft.rfft(fft_window * frames.view(-1, self.win_length), n=self.n_fft, dim=1)
+        S = mindspore.fft.rfft(fft_window * frames.view(-1, self.win_length), n=self.n_fft, dim=1)
         S = S.view(frames.shape[0], -1, S.shape[-1])
         S = S.to(mindspore.complex64)
 

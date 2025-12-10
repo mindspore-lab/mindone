@@ -15,13 +15,21 @@
 import math
 from typing import Optional, Union
 
-from mindsporevision.transforms.v2 import functional as F
-
 import mindspore
+import mindspore.dataset.vision as vision
 
-from ...image_processing_utils_fast import BaseImageProcessorFast, BatchFeature, DefaultFastImageProcessorKwargs, Unpack
+from ...image_processing_utils_fast import (
+    BaseImageProcessorFast,
+    BatchFeature,
+    DefaultFastImageProcessorKwargs,
+    Unpack,
+)
 from ...image_utils import ImageInput, PILImageResampling, SizeDict
-from ...utils import TensorType, auto_docstring, logging
+from ...utils import (
+    TensorType,
+    logging,
+)
+
 
 logger = logging.get_logger(__name__)
 
@@ -38,7 +46,6 @@ class Phi4MultimodalFastImageProcessorKwargs(DefaultFastImageProcessorKwargs):
     dynamic_hd: Optional[int]
 
 
-@auto_docstring
 class Phi4MultimodalImageProcessorFast(BaseImageProcessorFast):
     resample = PILImageResampling.BICUBIC
     size = {"height": 448, "width": 448}
@@ -114,9 +121,7 @@ class Phi4MultimodalImageProcessorFast(BaseImageProcessorFast):
             padding_width = target_width - int(orig_width * ratio_height)
             padding_height = 0
 
-        attention_mask = mindspore.mint.ones(
-            (int(mask_size * target_aspect_ratio[1]), int(mask_size * target_aspect_ratio[0]))
-        )
+        attention_mask = mindspore.mint.ones((int(mask_size * target_aspect_ratio[1]), int(mask_size * target_aspect_ratio[0])))
         if padding_width >= patch_size:
             attention_mask[:, -math.floor(padding_width / patch_size) :] = 0
         if padding_height >= patch_size:
@@ -125,8 +130,8 @@ class Phi4MultimodalImageProcessorFast(BaseImageProcessorFast):
         if min(new_size[1], target_height) < 10 or min(new_size[0], target_width) < 10:
             raise ValueError(f"the aspect ratio is very extreme {new_size}")
 
-        image = F.resize(image, [new_size[1], new_size[0]])
-        resized_img = F.pad(image, [0, 0, padding_width, padding_height], fill=[255, 255, 255])
+        image = vision.resize(image, [new_size[1], new_size[0]])
+        resized_img = vision.pad(image, [0, 0, padding_width, padding_height], fill=[255, 255, 255])
 
         return resized_img, attention_mask
 
@@ -136,29 +141,17 @@ class Phi4MultimodalImageProcessorFast(BaseImageProcessorFast):
         """
         B, _, H, W = images.shape
         if B < max_crops:
-            pad = mindspore.mint.zeros(
-                max_crops - B,
-                3,
-                H,
-                W,
-                dtype=images.dtype,
-            )
+            pad = mindspore.mint.zeros(max_crops - B, 3, H, W, dtype=images.dtype, )
             images = mindspore.mint.cat([images, pad], dim=0)
         return images
 
     def pad_mask_to_max_num_crops(self, masks, max_crops=5):
         B, H, W = masks.shape
         if B < max_crops:
-            pad = mindspore.mint.ones(
-                max_crops - B,
-                H,
-                W,
-                dtype=masks.dtype,
-            )
+            pad = mindspore.mint.ones(max_crops - B, H, W, dtype=masks.dtype, )
             masks = mindspore.mint.cat([masks, pad], dim=0)
         return masks
 
-    @auto_docstring
     def preprocess(
         self,
         images: ImageInput,
@@ -168,7 +161,7 @@ class Phi4MultimodalImageProcessorFast(BaseImageProcessorFast):
 
     def _preprocess(
         self,
-        images: list["torch.Tensor"],
+        images: list["mindspore.Tensor"],
         size: SizeDict,
         interpolation: Optional["F.InterpolationMode"],
         patch_size: int,
