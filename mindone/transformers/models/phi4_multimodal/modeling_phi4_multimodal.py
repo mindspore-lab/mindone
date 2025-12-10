@@ -324,42 +324,43 @@ class Phi4MultimodalVisionPreTrainedModel(PreTrainedModel):
 
     def _init_weights(self, module):
         """Initialize the weights"""
-        if isinstance(module, Phi4MultimodalVisionEmbeddings):
-            width = (
-                self.config.hidden_size
-                if isinstance(self.config, Phi4MultimodalVisionConfig)
-                else self.config.hidden_size
-            )
-            nn.init.normal_(module.position_embedding.weight, std=1 / np.sqrt(width))
-        elif isinstance(module, mindspore.mint.nn.Embedding):
-            pass
-            # default_flax_embed_init(module.weight)
-        elif isinstance(module, Phi4MultimodalVisionAttention):
-            nn.init.normal_(module.q_proj.weight)
-            nn.init.normal_(module.k_proj.weight)
-            nn.init.normal_(module.v_proj.weight)
-            nn.init.normal_(module.out_proj.weight)
-            nn.init.zeros_(module.q_proj.bias)
-            nn.init.zeros_(module.k_proj.bias)
-            nn.init.zeros_(module.v_proj.bias)
-            nn.init.zeros_(module.out_proj.bias)
-        elif isinstance(module, Phi4MultimodalVisionMLP):
-            nn.init.normal_(module.fc1.weight)
-            nn.init.normal_(module.fc2.weight)
-            nn.init.normal_(module.fc1.bias, std=1e-6)
-            nn.init.normal_(module.fc2.bias, std=1e-6)
-        elif isinstance(module, Phi4MultimodalVisionMultiheadAttentionPoolingHead):
-            nn.init.normal_(module.probe.data)
-            nn.init.normal_(module.attention.in_proj_weight.data)
-            nn.init.zeros_(module.attention.in_proj_bias.data)
-        elif isinstance(module, (mindspore.mint.nn.Linear, mindspore.mint.nn.Conv2d)):
-            pass
-            # lecun_normal_(module.weight)
-            # if module.bias is not None:
-            #     nn.init.zeros_(module.bias)
-        elif isinstance(module, mindspore.mint.nn.LayerNorm):
-            module.bias.data.zero_()
-            module.weight.data.fill_(1.0)
+        pass
+        # if isinstance(module, Phi4MultimodalVisionEmbeddings):
+        #     width = (
+        #         self.config.hidden_size
+        #         if isinstance(self.config, Phi4MultimodalVisionConfig)
+        #         else self.config.hidden_size
+        #     )
+        #     nn.init.normal_(module.position_embedding.weight, std=1 / np.sqrt(width))
+        # elif isinstance(module, mindspore.mint.nn.Embedding):
+        #     pass
+        #     # default_flax_embed_init(module.weight)
+        # elif isinstance(module, Phi4MultimodalVisionAttention):
+        #     nn.init.normal_(module.q_proj.weight)
+        #     nn.init.normal_(module.k_proj.weight)
+        #     nn.init.normal_(module.v_proj.weight)
+        #     nn.init.normal_(module.out_proj.weight)
+        #     nn.init.zeros_(module.q_proj.bias)
+        #     nn.init.zeros_(module.k_proj.bias)
+        #     nn.init.zeros_(module.v_proj.bias)
+        #     nn.init.zeros_(module.out_proj.bias)
+        # elif isinstance(module, Phi4MultimodalVisionMLP):
+        #     nn.init.normal_(module.fc1.weight)
+        #     nn.init.normal_(module.fc2.weight)
+        #     nn.init.normal_(module.fc1.bias, std=1e-6)
+        #     nn.init.normal_(module.fc2.bias, std=1e-6)
+        # elif isinstance(module, Phi4MultimodalVisionMultiheadAttentionPoolingHead):
+        #     nn.init.normal_(module.probe.data)
+        #     nn.init.normal_(module.attention.in_proj_weight.data)
+        #     nn.init.zeros_(module.attention.in_proj_bias.data)
+        # elif isinstance(module, (mindspore.mint.nn.Linear, mindspore.mint.nn.Conv2d)):
+        #     pass
+        #     # lecun_normal_(module.weight)
+        #     # if module.bias is not None:
+        #     #     nn.init.zeros_(module.bias)
+        # elif isinstance(module, mindspore.mint.nn.LayerNorm):
+        #     module.bias.data.zero_()
+        #     module.weight.data.fill_(1.0)
 
 
 class Phi4MultimodalVisionEmbeddings(mindspore.nn.Cell):
