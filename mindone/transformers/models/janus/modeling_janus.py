@@ -24,7 +24,7 @@ from mindspore import mint, nn
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache
-from ...generation import ClassifierFreeGuidanceLogitsProcessor, GenerationMixin, GenerationMode, LogitsProcessorList
+from ...generation import ClassifierFreeGuidanceLogitsProcessor, GenerationMixin, LogitsProcessorList
 from ...generation.utils import GenerateDecoderOnlyOutput
 from ...modeling_layers import GradientCheckpointingLayer
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling, ModelOutput
@@ -1207,13 +1207,6 @@ class JanusForConditionalGeneration(JanusPreTrainedModel, GenerationMixin):
             )
 
         model_kwargs = generation_config.update(**kwargs)  # All unused kwargs must be model kwargs
-
-        # Validate generation mode
-        if generation_config.get_generation_mode() not in (GenerationMode.SAMPLE, GenerationMode.GREEDY_SEARCH):
-            raise ValueError(
-                "Got incompatible mode for Image Generation, should be one of greedy or sampling. "
-                "Ensure that beam search is de-activated by setting `num_beams=1` and `num_beam_groups=1`."
-            )
 
         # Validate the configuration and model kwargs
         generation_config.validate()
