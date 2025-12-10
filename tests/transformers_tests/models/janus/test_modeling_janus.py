@@ -16,15 +16,15 @@ MODES = [1]  # not support graph mode yet
 class JanusModelTester:
     def __init__(
         self,
-        image_token_id=100581,
-        seq_length=7,
+        image_token_id=98,
+        seq_length=None,  # Will be computed
         text_config={
             "model_type": "llama",
-            "seq_length": 7,
-            "is_training": False,  # inference only
+            "seq_length": 579,  # Will be updated based on num_image_tokens
+            "is_training": False,
             "use_input_mask": True,
             "use_token_type_ids": False,
-            "use_labels": False,  # inference only
+            "use_labels": False,
             "vocab_size": 99,
             "hidden_size": 32,
             "num_hidden_layers": 2,
@@ -84,6 +84,12 @@ class JanusModelTester:
         self.vq_config = vq_config
         self.pad_token_id = text_config["pad_token_id"]
 
+        # Compute seq_length based on num_image_tokens if not provided
+        if seq_length is None:
+            seq_length = vision_config["num_image_tokens"] + 3
+        # Update text_config seq_length to match
+        text_config["seq_length"] = seq_length
+
         self.num_hidden_layers = text_config["num_hidden_layers"]
         self.vocab_size = text_config["vocab_size"]
         self.hidden_size = text_config["hidden_size"]
@@ -121,12 +127,16 @@ class JanusModelTester:
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
         config, pixel_values = config_and_inputs
-        input_ids = ids_numpy([self.batch_size, self.seq_length], config.text_config.vocab_size - 2) + 2
+
+        # Use num_image_tokens from vision config
+        num_image_tokens = config.vision_config.num_image_tokens  # 576
+        seq_length = num_image_tokens + 3  # Add some text tokens
+
+        input_ids = ids_numpy([self.batch_size, seq_length], config.text_config.vocab_size - 2) + 2
         attention_mask = np.ones(input_ids.shape, dtype=np.int64)
         input_ids[input_ids == config.image_token_id] = self.pad_token_id
 
-        # Add some image tokens
-        num_image_tokens = 4
+        # Set image tokens - must match num_image_tokens from vision config
         input_ids[:, :num_image_tokens] = config.image_token_id
 
         inputs_dict = {
