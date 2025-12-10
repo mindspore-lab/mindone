@@ -721,6 +721,20 @@ from .models.instructblipvideo import (
     InstructBlipVideoQFormerModel,
     InstructBlipVideoVisionModel,
 )
+from .models.internvl import (
+    InternVLForConditionalGeneration,
+    InternVLModel,
+    InternVLPreTrainedModel,
+    InternVLVisionModel,
+    InternVLVisionPreTrainedModel,
+)
+from .models.janus import (
+    JanusModel,
+    JanusPreTrainedModel,
+    JanusForConditionalGeneration,
+    JanusVQVAE,
+    JanusVisionModel,
+)
 from .models.jamba import JambaForCausalLM, JambaForSequenceClassification, JambaModel, JambaPreTrainedModel
 from .models.jetmoe import (
     JetMoeConfig,
