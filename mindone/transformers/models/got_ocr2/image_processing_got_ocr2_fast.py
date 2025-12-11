@@ -122,9 +122,9 @@ class GotOcr2ImageProcessorFast(BaseImageProcessorFast):
         # resize the image so that each patch is of patch_size
         resized_image = []
         for i in range(images.shape[0]):
-            resized_image.append(ms.tensor(resize(
-                images[i].asnumpy(), (target_height, target_width), resample=interpolation
-            )))
+            resized_image.append(
+                ms.tensor(resize(images[i].asnumpy(), (target_height, target_width), resample=interpolation))
+            )
         resized_image = mint.stack(resized_image)
         # split the image into patches
         processed_images = []
@@ -144,7 +144,11 @@ class GotOcr2ImageProcessorFast(BaseImageProcessorFast):
         if use_thumbnail and len(processed_images) != 1:
             thumbnail_img = []
             for i in range(images.shape[0]):
-                thumbnail_img.append(ms.tensor(resize(images[i].asnumpy(), (patch_size.height, patch_size.width), resample=interpolation)))
+                thumbnail_img.append(
+                    ms.tensor(
+                        resize(images[i].asnumpy(), (patch_size.height, patch_size.width), resample=interpolation)
+                    )
+                )
             thumbnail_img = mint.stack(thumbnail_img)
             processed_images.append(thumbnail_img)
 

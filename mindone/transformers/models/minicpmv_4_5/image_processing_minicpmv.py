@@ -15,11 +15,8 @@ from mindone.transformers.image_processing_utils import BaseImageProcessor, Batc
 from mindone.transformers.image_transforms import to_channel_dimension_format
 from mindone.transformers.image_utils import (
     ChannelDimension,
-    ImageInput,
     infer_channel_dimension_format,
-    is_batched,
     is_mindspore_tensor,
-    make_list_of_images,
     to_numpy_array,
     valid_images,
 )
@@ -78,30 +75,25 @@ class MiniCPMVBatchFeature(BatchFeature):
         return self
 
     def to(self, *args, **kwargs) -> "MiniCPMVBatchFeature":
-        requires_backends(self, ["torch"])
-        import torch
+        requires_backends(self, ["mindspore"])
+        from mindspore import ops
 
         def cast_tensor(v):
             # check if v is a floating point
-            if torch.is_floating_point(v):
+            if ops.is_floating_point(v):
                 # cast and send to device
                 return v.to(*args, **kwargs)
-            elif device is not None:
-                return v.to(device=device)
             else:
                 return v
 
         new_data = {}
-        device = kwargs.get("device")
         # Check if the args are a device or a dtype
-        if device is None and len(args) > 0:
+        if len(args) > 0:
             # device should be always the first argument
             arg = args[0]
             if is_mindspore_dtype(arg):
                 # The first argument is a dtype
                 pass
-            elif isinstance(arg, str) or isinstance(arg, int):
-                device = arg
             else:
                 # it's something else
                 raise ValueError(f"Attempting to cast a BatchFeature to type {str(arg)}. This is not supported.")
@@ -323,13 +315,14 @@ class MiniCPMVImageProcessor(BaseImageProcessor):
         :return: [3, patch_size, HW/patch_size]
         """
         image = ms.tensor(image)
+        c, h, w = image.shape
         patch_size = self.patch_size
         image = image.unsqueeze(0)
         patches = mint.nn.functional.unfold(image, (patch_size, patch_size), stride=(patch_size, patch_size))
-        patches = patches.squeeze(1)
+        patches = patches.squeeze(0)
 
-        patches = patches.reshape(image.shape[0], patch_size, patch_size, -1)
-        patches = patches.permute(0, 1, 3, 2).reshape(image.shape[0], patch_size, -1)
+        patches = patches.reshape(c, patch_size, patch_size, -1)
+        patches = patches.permute(0, 1, 3, 2).reshape(c, patch_size, -1)
         return patches.asnumpy()
 
     def preprocess(
