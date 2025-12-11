@@ -1,0 +1,250 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/tests//models/falcon_h1/test_modeling_falcon_h1.py."""
+
+# This module contains test cases that are defined in the `.test_cases.py` file, structured as lists or tuples like
+#     [name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map].
+#
+# Each defined case corresponds to a pair consisting of PyTorch and MindSpore modules, including their respective
+# initialization parameters and inputs for the forward. The testing framework adopted here is designed to generically
+# parse these parameters to assess and compare the precision of forward outcomes between the two frameworks.
+
+import inspect
+
+import numpy as np
+import pytest
+import torch
+from transformers import FalconH1Config
+
+import mindspore as ms
+
+from tests.modeling_test_utils import (
+    MS_DTYPE_MAPPING,
+    PT_DTYPE_MAPPING,
+    compute_diffs,
+    generalized_parse_args,
+    get_modules,
+)
+from tests.transformers_tests.models.modeling_common import ids_numpy
+
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
+MODES = [1]  # 0: graph mode, 1: pynative mode
+
+
+class FalconH1ModelTester:
+    config_class = FalconH1Config
+
+    def __init__(
+        self,
+        batch_size=13,
+        seq_length=7,
+        is_training=True,
+        use_input_mask=True,
+        use_labels=True,
+        vocab_size=99,
+        hidden_size=32,
+        num_hidden_layers=4,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        intermediate_size=64,
+        hidden_act="silu",
+        attention_dropout=0.0,
+        attn_layer_indices=None,
+        attn_rotary_emb=8,
+        max_position_embeddings=512,
+        type_vocab_size=16,
+        initializer_range=0.02,
+        num_labels=3,
+        pad_token_id=0,
+        mamba_n_groups=1,
+        mamba_n_heads=16,
+        mamba_d_state=16,
+        mamba_d_conv=4,
+        mamba_expand=2,
+        mamba_chunk_size=16,
+        scope=None,
+    ):
+        self.batch_size = batch_size
+        self.seq_length = seq_length
+        self.is_training = is_training
+        self.use_input_mask = use_input_mask
+        self.use_labels = use_labels
+        self.vocab_size = vocab_size
+        self.hidden_size = hidden_size
+        self.num_hidden_layers = num_hidden_layers
+        self.num_attention_heads = num_attention_heads
+        self.num_key_value_heads = num_key_value_heads
+        self.intermediate_size = intermediate_size
+        self.hidden_act = hidden_act
+        self.attention_dropout = attention_dropout
+        self.attn_layer_indices = attn_layer_indices
+        self.attn_rotary_emb = attn_rotary_emb
+        self.max_position_embeddings = max_position_embeddings
+        self.type_vocab_size = type_vocab_size
+        self.initializer_range = initializer_range
+        self.num_labels = num_labels
+        self.pad_token_id = pad_token_id
+        self.scope = scope
+        self.mamba_n_groups = mamba_n_groups
+        self.mamba_n_heads = mamba_n_heads
+        self.mamba_d_state = mamba_d_state
+        self.mamba_d_conv = mamba_d_conv
+        self.mamba_expand = mamba_expand
+        self.mamba_chunk_size = mamba_chunk_size
+
+    def prepare_config_and_inputs(self):
+        input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
+
+        input_mask = None
+        if self.use_input_mask:
+            input_mask = np.tril(np.ones_like(input_ids))
+
+        token_labels = None
+        if self.use_labels:
+            token_labels = ids_numpy([self.batch_size, self.seq_length], self.num_labels)
+        config = self.get_config()
+
+        return config, input_ids, input_mask, token_labels
+
+    def get_config(self):
+        # Fix for SDPA tests, force at least 4 layers
+        if self.num_hidden_layers < 4:
+            self.num_hidden_layers = 4
+        if self.attn_layer_indices is None:
+            d = [x for x in range(2, self.num_hidden_layers) if self.num_hidden_layers % x == 0]
+            if len(d) == 0:
+                raise ValueError("num_hidden_layers is prime, cannot automatically set attn_layer_indices.")
+            d = d[-1]  # get the largest divisor
+            self.attn_layer_indices = [x + 1 for x in range(0, self.num_hidden_layers, d)]
+
+        return FalconH1Config(
+            vocab_size=self.vocab_size,
+            hidden_size=self.hidden_size,
+            num_hidden_layers=self.num_hidden_layers,
+            num_attention_heads=self.num_attention_heads,
+            num_key_value_heads=self.num_key_value_heads,
+            intermediate_size=self.intermediate_size,
+            hidden_act=self.hidden_act,
+            attention_dropout=self.attention_dropout,
+            attn_layer_indices=self.attn_layer_indices,
+            attn_rotary_emb=self.attn_rotary_emb,
+            max_position_embeddings=self.max_position_embeddings,
+            initializer_range=self.initializer_range,
+            pad_token_id=self.pad_token_id,
+            mamba_n_groups=self.mamba_n_groups,
+            mamba_n_heads=self.mamba_n_heads,
+            mamba_d_state=self.mamba_d_state,
+            mamba_d_conv=self.mamba_d_conv,
+            mamba_expand=self.mamba_expand,
+            mamba_chunk_size=self.mamba_chunk_size,
+        )
+
+
+model_tester = FalconH1ModelTester()
+(
+    config,
+    input_ids,
+    input_mask,
+    token_labels,
+) = model_tester.prepare_config_and_inputs()
+
+
+FALCON_H1_CASES = [
+    [
+        "FalconH1Model",
+        "transformers.FalconH1Model",
+        "mindone.transformers.FalconH1Model",
+        (config,),
+        {},
+        (input_ids,),
+        {
+            "attention_mask": input_mask,
+        },
+        {
+            "last_hidden_state": 0,
+        },
+    ],
+    [
+        "FalconH1ForCausalLM",
+        "transformers.FalconH1ForCausalLM",
+        "mindone.transformers.FalconH1ForCausalLM",
+        (config,),
+        {},
+        (input_ids,),
+        {
+            "attention_mask": input_mask,
+        },
+        {
+            "logits": 0,
+        },
+    ],
+]
+
+
+@pytest.mark.parametrize(
+    "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",
+    [
+        case
+        + [
+            dtype,
+        ]
+        + [
+            mode,
+        ]
+        for case in FALCON_H1_CASES
+        for dtype in DTYPE_AND_THRESHOLDS.keys()
+        for mode in MODES
+    ],
+)
+def test_named_modules(
+    name,
+    pt_module,
+    ms_module,
+    init_args,
+    init_kwargs,
+    inputs_args,
+    inputs_kwargs,
+    outputs_map,
+    dtype,
+    mode,
+):
+    ms.set_context(mode=mode)
+
+    (
+        pt_model,
+        ms_model,
+        pt_dtype,
+        ms_dtype,
+    ) = get_modules(pt_module, ms_module, dtype, *init_args, **init_kwargs)
+    pt_inputs_args, pt_inputs_kwargs, ms_inputs_args, ms_inputs_kwargs = generalized_parse_args(
+        pt_dtype, ms_dtype, *inputs_args, **inputs_kwargs
+    )
+    # set `hidden_dtype` if requiring, for some modules always compute in float
+    # precision and require specific `hidden_dtype` to cast before return
+    if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
+        pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
+        ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
+
+    with torch.no_grad():
+        pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
+    ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
+
+    if outputs_map:
+        pt_outputs_n = []
+        ms_outputs_n = []
+        for pt_key, ms_idx in outputs_map.items():
+            pt_output = getattr(pt_outputs, pt_key)
+            ms_output = ms_outputs[ms_idx]
+            if isinstance(pt_output, (list, tuple)):
+                pt_outputs_n += list(pt_output)
+                ms_outputs_n += list(ms_output)
+            else:
+                pt_outputs_n.append(pt_output)
+                ms_outputs_n.append(ms_output)
+        diffs = compute_diffs(pt_outputs_n, ms_outputs_n)
+    else:
+        diffs = compute_diffs(pt_outputs, ms_outputs)
+
+    THRESHOLD = DTYPE_AND_THRESHOLDS[ms_dtype]
+    assert (np.array(diffs) < THRESHOLD).all(), (
+        f"ms_dtype: {ms_dtype}, pt_type:{pt_dtype}, "
+        f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}"
+    )
