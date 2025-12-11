@@ -367,7 +367,8 @@ class Phi4MMAudioFeatureExtractor(SequenceFeatureExtractor):
         audios: List[AudioInput],
         return_tensors: Optional[Union[str, TensorType]] = None,
     ):
-        # Ref: https://github.com/huggingface/transformers/blob/v4.47.0/src/transformers/models/audio_spectrogram_transformer/feature_extraction_audio_spectrogram_transformer.py#L161
+        # Ref: https://github.com/huggingface/transformers/blob/v4.47.0/src/
+        # transformers/models/audio_spectrogram_transformer/feature_extraction_audio_spectrogram_transformer.py#L161
         returned_input_audio_embeds = []
         returned_audio_embed_sizes = []
         audio_frames_list = []

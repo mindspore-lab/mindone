@@ -61,9 +61,6 @@ def simple_eager_attention_forward(
     return attn_output, attn_weights
 
 
-########################################################## AUDIO #############################################
-
-
 class Phi4MultimodalAudioMLP(nn.Cell):
     def __init__(self, config: Phi4MultimodalAudioConfig):
         super().__init__()

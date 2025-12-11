@@ -258,7 +258,7 @@ class DataCollatorForSeq2Seq:
                     batch["labels"] = [np.concatenate([label, []]) for label in labels]
             else:
                 max_padding = self.padding == PaddingStrategy.MAX_LENGTH and self.max_length is not None
-                max_label_length = max(len(l) for l in labels) if not max_padding else self.max_length
+                max_label_length = max(len(length) for length in labels) if not max_padding else self.max_length
                 if self.pad_to_multiple_of is not None:
                     max_label_length = (
                         (max_label_length + self.pad_to_multiple_of - 1)

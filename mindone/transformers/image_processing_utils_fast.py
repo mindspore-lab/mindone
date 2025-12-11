@@ -358,7 +358,9 @@ class BaseImageProcessorFast(BaseImageProcessor):
             img = image_flat[i]  # (C, H, W)
             # image ms.tensor-->numpy-->PIL
             img_np = img.permute(1, 2, 0).asnumpy()
-            img_np = (img_np * 255).clip(0, 255).astype(np.uint8)
+            if img_np.max() <= 1.0:
+                img_np = img_np * 255
+            img_np = img_np.clip(0, 255).astype(np.uint8)
             img_pil = Image.fromarray(img_np)
             resized_img = ms.tensor(np.array(resize_op(img_pil))).permute(2, 0, 1)
             resized_images.append(resized_img)
@@ -533,7 +535,9 @@ class BaseImageProcessorFast(BaseImageProcessor):
             img = image_flat[i]  # (C, H, W)
             # image ms.tensor-->numpy-->PIL
             img_np = img.permute(1, 2, 0).asnumpy()
-            img_np = (img_np * 255).clip(0, 255).astype(np.uint8)
+            if img_np.max() <= 1.0:
+                img_np = img_np * 255
+            img_np = img_np.clip(0, 255).astype(np.uint8)
             img_pil = Image.fromarray(img_np)
             cropped_img = ms.tensor(np.array(center_crop(img_pil))).permute(2, 0, 1)
             cropped_images.append(cropped_img)
