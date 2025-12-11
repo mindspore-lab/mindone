@@ -162,6 +162,20 @@ FALCON_H1_CASES = [
             "last_hidden_state": 0,
         },
     ],
+    [
+        "FalconH1ForCausalLM",
+        "transformers.FalconH1ForCausalLM",
+        "mindone.transformers.FalconH1ForCausalLM",
+        (config,),
+        {},
+        (input_ids,),
+        {
+            "attention_mask": input_mask,
+        },
+        {
+            "logits": 0,
+        },
+    ],
 ]
 
 
