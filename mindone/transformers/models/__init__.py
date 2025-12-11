@@ -160,6 +160,7 @@ from . import (
     nystromformer,
     olmo,
     olmo2,
+    olmo3,
     olmoe,
     oneformer,
     opt,
