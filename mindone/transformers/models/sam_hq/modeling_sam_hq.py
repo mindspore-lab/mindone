@@ -916,7 +916,7 @@ class SamHQMaskDecoder(nn.Cell):
         intermediate_embeddings: Optional[list[ms.Tensor]] = None,
         attention_similarity: Optional[ms.Tensor] = None,
         target_embedding: Optional[ms.Tensor] = None,
-    ) -> SamHQMMaskDecoderOutputs:
+    ) -> tuple[ms.Tensor, ms.Tensor]:
         """
         Predict high-quality masks given image and prompt embeddings.
 
@@ -1201,7 +1201,7 @@ class SamHQPromptEncoder(nn.Cell):
 
     def construct(
         self,
-        input_points: Optional[tuple[ms.Tensor, ms.Tensor]],
+        input_points: Optional[ms.Tensor],
         input_labels: Optional[ms.Tensor],
         input_boxes: Optional[ms.Tensor],
         input_masks: Optional[ms.Tensor],
@@ -1265,7 +1265,7 @@ class SamHQModel(SamHQPreTrainedModel):
         self.post_init()
 
     def _tie_weights(self):
-        self.prompt_encoder.shared_embedding.positional_embedding.set_data = (
+        self.prompt_encoder.shared_embedding.positional_embedding.set_data(
             self.shared_image_embedding.positional_embedding.value()
         )
 
@@ -1423,9 +1423,7 @@ class SamHQModel(SamHQPreTrainedModel):
         >>> img_url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/model_doc/sam-car.png"
         >>> raw_image = Image.open(requests.get(img_url, stream=True).raw).convert("RGB")
         >>> input_points = [[[400, 650]]]  # 2D location of a window on the car
-        >>> inputs = processor(images=raw_image, input_points=input_points, return_tensors="np")
-        >>> for k, v in inputs.items():
-        ...    inputs[k] = ms.Tensor(v)
+        >>> inputs = processor(images=raw_image, input_points=input_points, return_tensors="ms")
 
         >>> # Get high-quality segmentation mask
         >>> outputs = model(**inputs)
