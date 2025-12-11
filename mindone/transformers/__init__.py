@@ -455,6 +455,7 @@ from .models.distilbert import (
     DistilBertModel,
     DistilBertPreTrainedModel,
 )
+from .models.dots1 import Dots1ForCausalLM, Dots1Model, Dots1PreTrainedModel
 from .models.dpr import (
     DPRContextEncoder,
     DPRPretrainedContextEncoder,
