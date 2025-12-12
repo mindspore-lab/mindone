@@ -92,7 +92,7 @@ class GotOcr2ImageProcessorFast(BaseImageProcessorFast):
         The aspect ratio of the patches grid is chosen to be the closest to the original image aspect ratio.
 
         Args:
-            images (`torch.Tensor`):
+            images (`ms.Tensor`):
                 The images to be cropped.
             min_patches (`int`):
                 The minimum number of patches to be extracted from the image.
