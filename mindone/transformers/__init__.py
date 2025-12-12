@@ -58,6 +58,7 @@ from .models.albert import (
 )
 from .models.align import AlignModel, AlignPreTrainedModel, AlignTextModel, AlignVisionModel
 from .models.altclip import AltCLIPModel, AltCLIPPreTrainedModel, AltCLIPTextModel, AltCLIPVisionModel
+from .models.arcee import *
 from .models.aria import (
     AriaForConditionalGeneration,
     AriaPreTrainedModel,
@@ -769,6 +770,7 @@ from .models.lilt import (
     LiltPreTrainedModel,
 )
 from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
+from .models.llama4 import *
 from .models.llava import LlavaConfig, LlavaForConditionalGeneration
 from .models.llava_next import (
     LlavaNextForConditionalGeneration,
