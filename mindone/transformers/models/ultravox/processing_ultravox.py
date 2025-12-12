@@ -14,7 +14,7 @@ from mindone.transformers.models.auto import AutoProcessor
 from mindone.transformers.processing_utils import ProcessorMixin
 from mindone.transformers.utils import TensorType
 
-from .ultravox_config import UltravoxConfig
+from .configuration_ultravox import UltravoxConfig
 
 
 @dataclasses.dataclass

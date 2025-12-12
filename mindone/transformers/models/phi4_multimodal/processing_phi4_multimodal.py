@@ -385,14 +385,14 @@ class Phi4MMAudioFeatureExtractor(SequenceFeatureExtractor):
         # TODO mindspore do not support "nn.utils.rnn.pad_sequence", we use "pad+stack" for substitution
         # returned_input_audio_embeds = pad_sequence(returned_input_audio_embeds, batch_first=True)
         max_length = max([i.shape[0] for i in returned_input_audio_embeds])
-        returned_audio_embed_sizes = []
+        returned_input_audio_embeds_pad = []
         for i in range(len(returned_input_audio_embeds)):
-            returned_audio_embed_sizes.append(
+            returned_input_audio_embeds_pad.append(
                 mint.nn.functional.pad(
                     returned_input_audio_embeds[i], pad=(0, 0, 0, max_length - len(returned_input_audio_embeds[i]))
                 )
             )
-        returned_audio_embed_sizes = mint.stack(returned_audio_embed_sizes).transpose(1, 2)
+        returned_input_audio_embeds = mint.stack(returned_input_audio_embeds_pad)
         returned_audio_embed_sizes = mint.stack(returned_audio_embed_sizes, dim=0)
         audio_frames = ms.Tensor(audio_frames_list)
         returned_audio_attention_mask = (
