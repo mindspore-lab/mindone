@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Inc. team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,6 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .image_processing_got_ocr2 import GotOcr2ImageProcessor
-from .image_processing_got_ocr2_fast import GotOcr2ImageProcessorFast
-from .modeling_got_ocr2 import GotOcr2ForConditionalGeneration, GotOcr2PreTrainedModel
+from .image_processing_minicpmv import *
+from .processing_minicpmv import *
+from .tokenization_minicpmv_fast import *

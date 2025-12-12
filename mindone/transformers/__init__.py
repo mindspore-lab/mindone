@@ -603,7 +603,12 @@ from .models.glpn import (
     GLPNModel,
     GLPNPreTrainedModel,
 )
-from .models.got_ocr2 import GotOcr2ForConditionalGeneration, GotOcr2PreTrainedModel
+from .models.got_ocr2 import (
+    GotOcr2ForConditionalGeneration,
+    GotOcr2ImageProcessor,
+    GotOcr2ImageProcessorFast,
+    GotOcr2PreTrainedModel,
+)
 from .models.gpt2 import (
     GPT2DoubleHeadsModel,
     GPT2ForQuestionAnswering,
@@ -721,6 +726,7 @@ from .models.instructblipvideo import (
     InstructBlipVideoQFormerModel,
     InstructBlipVideoVisionModel,
 )
+from .models.internvl import InternVLProcessor, InternVLVideoProcessor
 from .models.jamba import JambaForCausalLM, JambaForSequenceClassification, JambaModel, JambaPreTrainedModel
 from .models.jetmoe import (
     JetMoeConfig,
@@ -773,6 +779,7 @@ from .models.llava import LlavaConfig, LlavaForConditionalGeneration
 from .models.llava_next import (
     LlavaNextForConditionalGeneration,
     LlavaNextImageProcessor,
+    LlavaNextImageProcessorFast,
     LlavaNextPreTrainedModel,
     LlavaNextProcessor,
 )
@@ -781,6 +788,7 @@ from .models.llava_next_video import (
     LlavaNextVideoImageProcessor,
     LlavaNextVideoPreTrainedModel,
     LlavaNextVideoProcessor,
+    LlavaNextVideoVideoProcessor,
 )
 from .models.llava_onevision import (
     LlavaOnevisionForConditionalGeneration,
@@ -853,6 +861,7 @@ from .models.megatron_bert import (
 from .models.mgp_str import MgpstrForSceneTextRecognition, MgpstrModel, MgpstrPreTrainedModel, MgpstrProcessor
 from .models.mimi import MimiModel, MimiPreTrainedModel
 from .models.minicpm4 import MiniCPMForCausalLM, MiniCPMForSequenceClassification, MiniCPMModel
+from .models.minicpmv_4_5 import MiniCPMVImageProcessor, MiniCPMVProcessor, MiniCPMVTokenizerFast
 from .models.mistral import (
     MistralForCausalLM,
     MistralForQuestionAnswering,
@@ -1074,6 +1083,11 @@ from .models.phi3 import (
     Phi3ForTokenClassification,
     Phi3Model,
     Phi3PreTrainedModel,
+)
+from .models.phi4_multimodal import (
+    Phi4MultimodalFeatureExtractor,
+    Phi4MultimodalImageProcessorFast,
+    Phi4MultimodalProcessor,
 )
 from .models.phimoe import PhimoeForCausalLM, PhimoeForSequenceClassification, PhimoeModel, PhimoePreTrainedModel
 from .models.pix2struct import (
@@ -1339,6 +1353,7 @@ from .models.timesformer import TimesformerForVideoClassification, TimesformerMo
 from .models.trocr import TrOCRForCausalLM, TrOCRPreTrainedModel
 from .models.tvp import TvpForVideoGrounding, TvpModel, TvpPreTrainedModel
 from .models.udop import UdopEncoderModel, UdopForConditionalGeneration, UdopModel, UdopPreTrainedModel
+from .models.ultravox import UltravoxProcessor
 from .models.umt5 import (
     UMT5EncoderModel,
     UMT5ForQuestionAnswering,
@@ -1441,6 +1456,7 @@ from .models.wavlm import (
     WavLMPreTrainedModel,
 )
 from .models.whisper import (
+    WhisperFeatureExtractor,
     WhisperForAudioClassification,
     WhisperForCausalLM,
     WhisperForConditionalGeneration,
