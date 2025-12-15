@@ -3,7 +3,7 @@
 
 import warnings
 from collections import UserDict
-from typing import List, Union
+from typing import Any, Union, overload
 
 from transformers.utils import add_end_docstrings
 
@@ -58,25 +58,47 @@ class ZeroShotImageClassificationPipeline(Pipeline):
     [huggingface.co/models](https://huggingface.co/models?filter=zero-shot-image-classification).
     """
 
+    _load_processor = False
+    _load_image_processor = True
+    _load_feature_extractor = False
+    _load_tokenizer = True
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
         requires_backends(self, "vision")
         self.check_model_type(MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES)
 
-    def __call__(self, image: Union[str, List[str], "Image", List["Image"]] = None, **kwargs):
+    @overload
+    def __call__(
+        self, image: Union[str, "Image.Image"], candidate_labels: list[str], **kwargs: Any
+    ) -> list[dict[str, Any]]:
+        ...
+
+    @overload
+    def __call__(
+        self, image: Union[list[str], list["Image.Image"]], candidate_labels: list[str], **kwargs: Any
+    ) -> list[list[dict[str, Any]]]:
+        ...
+
+    def __call__(
+        self,
+        image: Union[str, list[str], "Image.Image", list["Image.Image"]],
+        candidate_labels: list[str],
+        **kwargs: Any,
+    ) -> Union[list[dict[str, Any]], list[list[dict[str, Any]]]]:
         """
         Assign labels to the image(s) passed as inputs.
 
         Args:
-            image (`str`, `List[str]`, `PIL.Image` or `List[PIL.Image]`):
+            image (`str`, `list[str]`, `PIL.Image` or `list[PIL.Image]`):
                 The pipeline handles three types of images:
 
                 - A string containing a http link pointing to an image
                 - A string containing a local path to an image
                 - An image loaded in PIL directly
 
-            candidate_labels (`List[str]`):
+            candidate_labels (`list[str]`):
                 The candidate labels for this image. They will be formatted using *hypothesis_template*.
 
             hypothesis_template (`str`, *optional*, defaults to `"This is a photo of {}"`):
@@ -100,7 +122,7 @@ class ZeroShotImageClassificationPipeline(Pipeline):
             image = kwargs.pop("images")
         if image is None:
             raise ValueError("Cannot call the zero-shot-image-classification pipeline without an images argument!")
-        return super().__call__(image, **kwargs)
+        return super().__call__(image, candidate_labels=candidate_labels, **kwargs)
 
     def _sanitize_parameters(self, tokenizer_kwargs=None, **kwargs):
         preprocess_params = {}
@@ -134,7 +156,7 @@ class ZeroShotImageClassificationPipeline(Pipeline):
         for k, v in inputs.items():
             inputs[k] = ms.tensor(v)
         if self.framework == "ms":
-            inputs = inputs.to(self.mindspore_dtype)
+            inputs = inputs.to(self.dtype)
         inputs["candidate_labels"] = candidate_labels
         sequences = [hypothesis_template.format(x) for x in candidate_labels]
         tokenizer_default_kwargs = {"padding": True}

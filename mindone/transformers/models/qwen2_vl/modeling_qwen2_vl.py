@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-from transformers.models.qwen2_vl import Qwen2VLConfig
+from transformers.models.qwen2_vl import Qwen2VLConfig, Qwen2VLTextConfig
 from transformers.utils import (
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
@@ -39,20 +39,16 @@ import mindspore as ms
 from mindspore import mint, nn, ops
 from mindspore.common.initializer import Initializer, Normal
 from mindspore.mint.nn import LayerNorm
-from mindspore.nn import CrossEntropyLoss
 
 from mindone.transformers.activations import ACT2FN
-from mindone.transformers.cache_utils import (  # TODO: SlidingWindowCache
-    Cache,
-    DynamicCache,
-    get_max_length,
-    get_seq_length,
-    update,
-)
+from mindone.transformers.cache_utils import Cache, DynamicCache  # TODO: SlidingWindowCache
 from mindone.transformers.modeling_attn_mask_utils import dtype_to_min
+from mindone.transformers.modeling_flash_attention_utils import FlashAttentionKwargs
 from mindone.transformers.modeling_outputs import BaseModelOutputWithPast, ModelOutput
 from mindone.transformers.modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from mindone.transformers.modeling_utils import PreTrainedModel
+from mindone.transformers.processing_utils import Unpack
+from mindone.transformers.utils import TransformersKwargs
 
 try:
     from transformers.models.qwen2_vl import Qwen2VLVisionConfig  # transformers >= 4.48.0
@@ -62,6 +58,26 @@ except ImportError:
 logger = logging.get_logger(__name__)
 
 _CONFIG_FOR_DOC = "Qwen2VLConfig"
+
+
+@dataclass
+class Qwen2VLModelOutputWithPast(ModelOutput):
+    r"""
+    past_key_values (`Cache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+        Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
+        `(batch_size, num_heads, sequence_length, embed_size_per_head)`)
+
+        Contains pre-computed hidden-states (key and values in the self-attention blocks) that can be used (see
+        `past_key_values` input) to speed up sequential decoding.
+    rope_deltas (`ms.Tensor` of shape `(batch_size, )`, *optional*):
+        The rope index difference between sequence length and multimodal rope.
+    """
+
+    last_hidden_state: ms.Tensor = None
+    past_key_values: Optional[list[ms.Tensor]] = None
+    hidden_states: Optional[tuple[ms.Tensor]] = None
+    attentions: Optional[tuple[ms.Tensor]] = None
+    rope_deltas: Optional[ms.Tensor] = None
 
 
 @dataclass
@@ -546,9 +562,6 @@ class Qwen2VLAttention(nn.Cell):
             if isinstance(past_key_value, Cache):
                 cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}  # Specific to RoPE models
                 key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
-            else:  # tuple static cache
-                key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
-                past_key_value = (key_states, value_states)
 
         # repeat k/v heads if n_kv_heads < n_heads
         key_states = repeat_kv(key_states, self.num_key_value_groups)
@@ -630,9 +643,6 @@ class Qwen2VLFlashAttention2(Qwen2VLAttention):
             if isinstance(past_key_value, Cache):
                 cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}  # Specific to RoPE models
                 key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
-            else:  # tuple static cache
-                key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
-                past_key_value = (key_states, value_states)
 
         # repeat k/v heads if n_kv_heads < n_heads
         key_states = repeat_kv(key_states, self.num_key_value_groups)
@@ -893,12 +903,10 @@ class Qwen2VisionTransformerPretrainedModel(Qwen2VLPreTrainedModel):
         return self.merger(hidden_states)
 
 
-@add_start_docstrings(
-    "The bare Qwen2VL Model outputting raw hidden-states without any specific head on top.",
-    QWEN2VL_START_DOCSTRING,
-)
-class Qwen2VLModel(Qwen2VLPreTrainedModel):
-    def __init__(self, config: Qwen2VLConfig):
+class Qwen2VLTextModel(Qwen2VLPreTrainedModel):
+    config: Qwen2VLTextConfig
+
+    def __init__(self, config: Qwen2VLTextConfig):
         super().__init__(config)
         self.padding_idx = config.pad_token_id
         self.vocab_size = config.vocab_size
@@ -915,25 +923,102 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    def get_input_embeddings(self):
-        return self.embed_tokens
+    # Copied from transformers.models.phi3.modeling_phi3.Phi3Model._update_causal_mask
+    def _update_causal_mask(
+        self,
+        attention_mask: ms.Tensor,
+        input_tensor: ms.Tensor,
+        cache_position: ms.Tensor,
+        past_key_values: Optional[Cache],
+        output_attentions: bool = False,
+    ):
+        past_seen_tokens = 0
+        if past_key_values is not None:
+            past_seen_tokens = past_key_values.get_seq_length()
 
-    def set_input_embeddings(self, value):
-        self.embed_tokens = value
+        dtype = input_tensor.dtype
+        sequence_length = input_tensor.shape[1]
+        target_length = (
+            attention_mask.shape[-1]
+            if isinstance(attention_mask, ms.Tensor)
+            else past_seen_tokens + sequence_length + 1
+        )
+
+        # In case the provided `attention` mask is 2D, we generate a causal mask here (4D).
+        causal_mask = self._prepare_4d_causal_attention_mask_with_cache_position(
+            attention_mask,
+            sequence_length=sequence_length,
+            target_length=target_length,
+            dtype=dtype,
+            cache_position=cache_position,
+            batch_size=input_tensor.shape[0],
+        )
+
+        return causal_mask
+
+    @staticmethod
+    # Copied from transformers.models.mistral.modeling_mistral.MistralModel._prepare_4d_causal_attention_mask_with_cache_position with Mistral->Qwen2VL
+    def _prepare_4d_causal_attention_mask_with_cache_position(
+        attention_mask: ms.Tensor,
+        sequence_length: int,
+        dtype: ms.Type,
+        target_length: int,
+        cache_position: ms.Tensor,
+        batch_size: int,
+    ):
+        """
+        Creates a causal 4D mask of shape `(batch_size, 1, query_length, key_value_length)` from a 2D mask of shape
+        `(batch_size, key_value_length)`, or if the input `attention_mask` is already 4D, do nothing.
+
+        Args:
+            attention_mask (`ms.Tensor`):
+                A 2D attention mask of shape `(batch_size, key_value_length)` or a 4D attention mask of shape `(batch_size, 1, query_length, key_value_length)`.
+            sequence_length (`int`):
+                The sequence length being processed.
+            target_length (`int`):
+                The target length: when generating with static cache, the mask should be as long as the static cache, to account for the 0 padding,
+                the part of the cache that is not filled yet.                .
+            cache_position (`ms.Tensor`):
+                Indices depicting the position of the input sequence tokens in the sequence.
+            batch_size (`ms.Tensor`):
+                Batch size.
+        """
+        if attention_mask is not None and attention_mask.ndim == 4:
+            # In this case we assume that the mask comes already in inverted form and requires no inversion or slicing.
+            causal_mask = attention_mask
+        else:
+            # dtype to use for the 4D attention mask, note FlashAttention supports mask in uint8 or fp16.
+            min_dtype = dtype_to_min(dtype)
+            causal_mask = mint.full((sequence_length, target_length), fill_value=min_dtype.item(), dtype=dtype)
+            diagonal_attend_mask = mint.arange(target_length) > cache_position.reshape(-1, 1)
+            causal_mask *= diagonal_attend_mask
+            causal_mask = causal_mask[None, None, :, :].broadcast_to((batch_size, 1, -1, -1))
+            if attention_mask is not None:
+                causal_mask = causal_mask.clone()
+                if attention_mask.shape[-1] > target_length:
+                    attention_mask = attention_mask[:, :target_length]
+                mask_length = attention_mask.shape[-1]
+                padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :]
+                padding_mask = padding_mask == 0
+                causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(
+                    padding_mask, min_dtype
+                )
+        return causal_mask
 
     def construct(
         self,
-        input_ids: ms.Tensor = None,
+        input_ids: Optional[ms.Tensor] = None,
         attention_mask: Optional[ms.Tensor] = None,
         position_ids: Optional[ms.Tensor] = None,
-        past_key_values: Optional[List[ms.Tensor]] = None,
+        past_key_values: Optional[Cache] = None,
         inputs_embeds: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-        cache_position: Optional[ms.Tensor] = None,  # Long
-    ) -> Union[Tuple, BaseModelOutputWithPast]:
+        cache_position: Optional[ms.Tensor] = None,
+        **kwargs: Unpack[FlashAttentionKwargs],
+    ) -> Union[tuple, BaseModelOutputWithPast]:
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -962,11 +1047,7 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
             inputs_embeds = self.embed_tokens(input_ids)
 
         if cache_position is None:
-            past_seen_tokens = 0
-            if past_key_values is not None and (isinstance(past_key_values, tuple)):
-                past_seen_tokens = get_seq_length(past_key_values)
-            else:
-                past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
+            past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
             cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
         # the hard coded `3` is for temporal, height and width.
@@ -1033,192 +1114,29 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
             attentions=all_self_attns,
         )
 
-    # Copied from transformers.models.phi3.modeling_phi3.Phi3Model._update_causal_mask
-    def _update_causal_mask(
-        self,
-        attention_mask: ms.Tensor,
-        input_tensor: ms.Tensor,
-        cache_position: ms.Tensor,
-        past_key_values: Optional[Cache],
-        output_attentions: bool = False,
-    ):
-        past_seen_tokens = 0
-        if past_key_values is not None:
-            past_seen_tokens = (
-                get_seq_length(past_key_values)
-                if isinstance(past_key_values, tuple)
-                else past_key_values.get_seq_length()
-            )
-        using_static_cache = isinstance(past_key_values, tuple)
 
-        dtype = input_tensor.dtype
-        sequence_length = input_tensor.shape[1]
-        if using_static_cache:
-            target_length = get_max_length(past_key_values)
-        else:
-            target_length = (
-                attention_mask.shape[-1]
-                if isinstance(attention_mask, ms.Tensor)
-                else past_seen_tokens + sequence_length + 1
-            )
+@add_start_docstrings(
+    "The bare Qwen2VL Model outputting raw hidden-states without any specific head on top.",
+    QWEN2VL_START_DOCSTRING,
+)
+class Qwen2VLModel(Qwen2VLPreTrainedModel):
+    base_model_prefix = ""
+    _checkpoint_conversion_mapping = {"^model": "language_model"}
 
-        # In case the provided `attention` mask is 2D, we generate a causal mask here (4D).
-        causal_mask = self._prepare_4d_causal_attention_mask_with_cache_position(
-            attention_mask,
-            sequence_length=sequence_length,
-            target_length=target_length,
-            dtype=dtype,
-            cache_position=cache_position,
-            batch_size=input_tensor.shape[0],
-        )
-
-        return causal_mask
-
-    @staticmethod
-    # Copied from transformers.models.mistral.modeling_mistral.MistralModel._prepare_4d_causal_attention_mask_with_cache_position with Mistral->Qwen2VL
-    def _prepare_4d_causal_attention_mask_with_cache_position(
-        attention_mask: ms.Tensor,
-        sequence_length: int,
-        dtype: ms.Type,
-        target_length: int,
-        cache_position: ms.Tensor,
-        batch_size: int,
-    ):
-        """
-        Creates a causal 4D mask of shape `(batch_size, 1, query_length, key_value_length)` from a 2D mask of shape
-        `(batch_size, key_value_length)`, or if the input `attention_mask` is already 4D, do nothing.
-
-        Args:
-            attention_mask (`ms.Tensor`):
-                A 2D attention mask of shape `(batch_size, key_value_length)` or a 4D attention mask of shape `(batch_size, 1, query_length, key_value_length)`.
-            sequence_length (`int`):
-                The sequence length being processed.
-            target_length (`int`):
-                The target length: when generating with static cache, the mask should be as long as the static cache, to account for the 0 padding,
-                the part of the cache that is not filled yet.                .
-            cache_position (`ms.Tensor`):
-                Indices depicting the position of the input sequence tokens in the sequence.
-            batch_size (`ms.Tensor`):
-                Batch size.
-        """
-        if attention_mask is not None and attention_mask.ndim == 4:
-            # In this case we assume that the mask comes already in inverted form and requires no inversion or slicing.
-            causal_mask = attention_mask
-        else:
-            # dtype to use for the 4D attention mask, note FlashAttention supports mask in uint8 or fp16.
-            min_dtype = dtype_to_min(dtype)
-            causal_mask = mint.full((sequence_length, target_length), fill_value=min_dtype.item(), dtype=dtype)
-            diagonal_attend_mask = mint.arange(target_length) > cache_position.reshape(-1, 1)
-            causal_mask *= diagonal_attend_mask
-            causal_mask = causal_mask[None, None, :, :].broadcast_to((batch_size, 1, -1, -1))
-            if attention_mask is not None:
-                causal_mask = causal_mask.clone()
-                if attention_mask.shape[-1] > target_length:
-                    attention_mask = attention_mask[:, :target_length]
-                mask_length = attention_mask.shape[-1]
-                padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :]
-                padding_mask = padding_mask == 0
-                causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(
-                    padding_mask, min_dtype
-                )
-        return causal_mask
-
-
-QWEN2_VL_INPUTS_DOCSTRING = r"""
-    Args:
-        input_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`):
-            Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide
-            it.
-
-            Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
-            [`PreTrainedTokenizer.__call__`] for details.
-
-            [What are input IDs?](../glossary#input-ids)
-        attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
-            Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
-
-            - 1 for tokens that are **not masked**,
-            - 0 for tokens that are **masked**.
-
-            [What are attention masks?](../glossary#attention-mask)
-
-            Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
-            [`PreTrainedTokenizer.__call__`] for details.
-
-            If `past_key_values` is used, optionally only the last `decoder_input_ids` have to be input (see
-            `past_key_values`).
-
-            If you want to change padding behavior, you should read [`modeling_opt._prepare_decoder_attention_mask`]
-            and modify to your needs. See diagram 1 in [the paper](https://arxiv.org/abs/1910.13461) for more
-            information on the default strategy.
-
-            - 1 indicates the head is **not masked**,
-            - 0 indicates the head is **masked**.
-        position_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
-            Indices of positions of each input sequence tokens in the position embeddings. Selected in the range `[0,
-            config.n_positions - 1]`. [What are position IDs?](../glossary#position-ids)
-        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
-            `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and 2 additional tensors of shape
-            `(batch_size, num_heads, encoder_sequence_length, embed_size_per_head)`.
-
-            Contains pre-computed hidden-states (key and values in the self-attention blocks and in the cross-attention
-            blocks) that can be used (see `past_key_values` input) to speed up sequential decoding.
-
-            If `past_key_values` are used, the user can optionally input only the last `decoder_input_ids` (those that
-            don't have their past key value states given to this model) of shape `(batch_size, 1)` instead of all
-            `decoder_input_ids` of shape `(batch_size, sequence_length)`.
-        inputs_embeds (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
-            Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation. This
-            is useful if you want more control over how to convert `input_ids` indices into associated vectors than the
-            model's internal embedding lookup matrix.
-        use_cache (`bool`, *optional*):
-            If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding (see
-            `past_key_values`).
-        output_attentions (`bool`, *optional*):
-            Whether or not to return the attentions tensors of all attention layers. See `attentions` under returned
-            tensors for more detail.
-        output_hidden_states (`bool`, *optional*):
-            Whether or not to return the hidden states of all layers. See `hidden_states` under returned tensors for
-            more detail.
-        return_dict (`bool`, *optional*):
-            Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
-        pixel_values (`ms.Tensor` of shape `(seq_length, num_channels * image_size * image_size)):
-            The tensors corresponding to the input images. Pixel values can be obtained using
-            [`AutoImageProcessor`]. See [`Qwen2VLImageProcessor.__call__`] for details. [`Qwen2VLProcessor`] uses
-            [`Qwen2VLImageProcessor`] for processing images.
-        pixel_values_videos (`ms.Tensor` of shape `(seq_length, num_channels * temporal_size * image_size * image_size)):
-            The tensors corresponding to the input videos. Pixel values can be obtained using
-            [`AutoImageProcessor`]. See [`Qwen2VLImageProcessor.__call__`] for details. [`Qwen2VLProcessor`] uses
-            [`Qwen2VLImageProcessor`] for processing videos.
-        image_grid_thw (`ms.Tensor` of shape `(num_images, 3)`, *optional*):
-            The temporal, height and width of feature shape of each image in LLM.
-        video_grid_thw (`ms.Tensor` of shape `(num_videos, 3)`, *optional*):
-            The temporal, height and width of feature shape of each video in LLM.
-        rope_deltas (`ms.Tensor` of shape `(batch_size, )`, *optional*):
-            The rope index difference between sequence length and multimodal rope.
-"""
-
-
-class Qwen2VLForConditionalGeneration(Qwen2VLPreTrainedModel):
-    _tied_weights_keys = ["lm_head.weight"]
-
-    def __init__(self, config):
+    def __init__(self, config: Qwen2VLConfig):
         super().__init__(config)
-        self.visual = Qwen2VisionTransformerPretrainedModel(config.vision_config)
-        self.model = Qwen2VLModel(config)
-        self.vocab_size = config.vocab_size
-        self.lm_head = mint.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        self.visual = Qwen2VisionTransformerPretrainedModel._from_config(config.vision_config)
+        self.language_model = Qwen2VLTextModel._from_config(config.text_config)
         self.rope_deltas = None  # cache rope_deltas here
 
         # Initialize weights and apply final processing
         self.post_init()
 
     def get_input_embeddings(self):
-        return self.model.embed_tokens
+        return self.language_model.embed_tokens
 
     def set_input_embeddings(self, value):
-        self.model.embed_tokens = value
+        self.language_model.embed_tokens = value
 
     def get_output_embeddings(self):
         return self.lm_head
@@ -1227,10 +1145,10 @@ class Qwen2VLForConditionalGeneration(Qwen2VLPreTrainedModel):
         self.lm_head = new_embeddings
 
     def set_decoder(self, decoder):
-        self.model = decoder
+        self.language_model = decoder
 
     def get_decoder(self):
-        return self.model
+        return self.language_model
 
     def get_rope_index(
         self,
@@ -1391,6 +1309,228 @@ class Qwen2VLForConditionalGeneration(Qwen2VLPreTrainedModel):
 
             return position_ids, mrope_position_deltas
 
+    def construct(
+        self,
+        input_ids: ms.Tensor = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_values: Optional[Cache] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
+        pixel_values: Optional[ms.Tensor] = None,
+        pixel_values_videos: Optional[ms.Tensor] = None,
+        image_grid_thw: Optional[ms.Tensor] = None,
+        video_grid_thw: Optional[ms.Tensor] = None,
+        rope_deltas: Optional[ms.Tensor] = None,
+        cache_position: Optional[ms.Tensor] = None,
+        **kwargs: Unpack[TransformersKwargs],
+    ) -> Union[Tuple, Qwen2VLModelOutputWithPast]:
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
+        output_hidden_states = (
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+
+        if inputs_embeds is None:
+            inputs_embeds = self.language_model.embed_tokens(input_ids)
+            if pixel_values is not None:
+                pixel_values = pixel_values.to(self.visual.get_dtype())
+                image_embeds = self.visual(pixel_values, grid_thw=image_grid_thw)
+                n_image_tokens = (input_ids == self.config.image_token_id).sum().item()
+                n_image_features = image_embeds.shape[0]
+                if n_image_tokens != n_image_features:
+                    raise ValueError(
+                        f"Image features and image tokens do not match: tokens: {n_image_tokens}, features {n_image_features}"
+                    )
+                image_mask = (input_ids == self.config.image_token_id).unsqueeze(-1).expand_as(inputs_embeds)
+                inputs_embeds = (
+                    inputs_embeds.float().masked_scatter(image_mask, image_embeds.float()).to(inputs_embeds.dtype)
+                )
+                # masked_scatter does not support bf16
+
+            if pixel_values_videos is not None:
+                pixel_values_videos = pixel_values_videos.to(self.visual.get_dtype())
+                video_embeds = self.visual(pixel_values_videos, grid_thw=video_grid_thw)
+                n_video_tokens = (input_ids == self.config.video_token_id).sum().item()
+                n_video_features = video_embeds.shape[0]
+                if n_video_tokens != n_video_features:
+                    raise ValueError(
+                        f"Video features and video tokens do not match: tokens: {n_video_tokens}, features {n_video_features}"
+                    )
+                video_mask = (input_ids == self.config.video_token_id).unsqueeze(-1).expand_as(inputs_embeds)
+                inputs_embeds = (
+                    inputs_embeds.float().masked_scatter(video_mask, video_embeds.float()).to(inputs_embeds.dtype)
+                )
+                # masked_scatter does not support bf16
+
+        # if we get 4D attention mask we cannot calculate rope deltas anymore. TODO fixme
+        if position_ids is None and (attention_mask is None or attention_mask.ndim == 2):
+            # calculate RoPE index once per generation in the pre-fill stage only
+            past_seen_tokens = 0
+            if past_key_values is not None:
+                past_seen_tokens = past_key_values.get_seq_length()
+            if (
+                (cache_position is not None and cache_position[0] == 0)
+                or self.rope_deltas is None
+                or (past_seen_tokens == 0)
+            ):
+                position_ids, rope_deltas = self.get_rope_index(
+                    input_ids, image_grid_thw, video_grid_thw, attention_mask
+                )
+                self.rope_deltas = rope_deltas
+            # then use the prev pre-calculated rope-deltas to get the correct position ids
+            else:
+                batch_size, seq_length, _ = inputs_embeds.shape
+                delta = cache_position[0] + self.rope_deltas if cache_position is not None else 0
+                position_ids = mint.arange(seq_length)
+                position_ids = position_ids.view(1, -1).broadcast_to((batch_size, -1))
+                if cache_position is not None:  # otherwise `deltas` is an int `0`
+                    delta = delta.repeat_interleave(batch_size // delta.shape[0], dim=0)
+                position_ids = position_ids.add(delta)
+                position_ids = position_ids.unsqueeze(0).broadcast_to((3, -1, -1))
+
+        outputs = self.language_model(
+            input_ids=None,
+            position_ids=position_ids,
+            attention_mask=attention_mask,
+            past_key_values=past_key_values,
+            inputs_embeds=inputs_embeds,
+            use_cache=use_cache,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+
+        output = Qwen2VLModelOutputWithPast(
+            last_hidden_state=outputs.last_hidden_state,
+            past_key_values=outputs.past_key_values,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
+            rope_deltas=self.rope_deltas,
+        )
+        return output if return_dict else output.to_tuple()
+
+
+QWEN2_VL_INPUTS_DOCSTRING = r"""
+    Args:
+        input_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`):
+            Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide
+            it.
+
+            Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
+            [`PreTrainedTokenizer.__call__`] for details.
+
+            [What are input IDs?](../glossary#input-ids)
+        attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+            Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
+
+            - 1 for tokens that are **not masked**,
+            - 0 for tokens that are **masked**.
+
+            [What are attention masks?](../glossary#attention-mask)
+
+            Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
+            [`PreTrainedTokenizer.__call__`] for details.
+
+            If `past_key_values` is used, optionally only the last `decoder_input_ids` have to be input (see
+            `past_key_values`).
+
+            If you want to change padding behavior, you should read [`modeling_opt._prepare_decoder_attention_mask`]
+            and modify to your needs. See diagram 1 in [the paper](https://arxiv.org/abs/1910.13461) for more
+            information on the default strategy.
+
+            - 1 indicates the head is **not masked**,
+            - 0 indicates the head is **masked**.
+        position_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+            Indices of positions of each input sequence tokens in the position embeddings. Selected in the range `[0,
+            config.n_positions - 1]`. [What are position IDs?](../glossary#position-ids)
+        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
+            `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and 2 additional tensors of shape
+            `(batch_size, num_heads, encoder_sequence_length, embed_size_per_head)`.
+
+            Contains pre-computed hidden-states (key and values in the self-attention blocks and in the cross-attention
+            blocks) that can be used (see `past_key_values` input) to speed up sequential decoding.
+
+            If `past_key_values` are used, the user can optionally input only the last `decoder_input_ids` (those that
+            don't have their past key value states given to this model) of shape `(batch_size, 1)` instead of all
+            `decoder_input_ids` of shape `(batch_size, sequence_length)`.
+        inputs_embeds (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
+            Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation. This
+            is useful if you want more control over how to convert `input_ids` indices into associated vectors than the
+            model's internal embedding lookup matrix.
+        use_cache (`bool`, *optional*):
+            If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding (see
+            `past_key_values`).
+        output_attentions (`bool`, *optional*):
+            Whether or not to return the attentions tensors of all attention layers. See `attentions` under returned
+            tensors for more detail.
+        output_hidden_states (`bool`, *optional*):
+            Whether or not to return the hidden states of all layers. See `hidden_states` under returned tensors for
+            more detail.
+        return_dict (`bool`, *optional*):
+            Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
+        pixel_values (`ms.Tensor` of shape `(seq_length, num_channels * image_size * image_size)):
+            The tensors corresponding to the input images. Pixel values can be obtained using
+            [`AutoImageProcessor`]. See [`Qwen2VLImageProcessor.__call__`] for details. [`Qwen2VLProcessor`] uses
+            [`Qwen2VLImageProcessor`] for processing images.
+        pixel_values_videos (`ms.Tensor` of shape `(seq_length, num_channels * temporal_size * image_size * image_size)):
+            The tensors corresponding to the input videos. Pixel values can be obtained using
+            [`AutoImageProcessor`]. See [`Qwen2VLImageProcessor.__call__`] for details. [`Qwen2VLProcessor`] uses
+            [`Qwen2VLImageProcessor`] for processing videos.
+        image_grid_thw (`ms.Tensor` of shape `(num_images, 3)`, *optional*):
+            The temporal, height and width of feature shape of each image in LLM.
+        video_grid_thw (`ms.Tensor` of shape `(num_videos, 3)`, *optional*):
+            The temporal, height and width of feature shape of each video in LLM.
+        rope_deltas (`ms.Tensor` of shape `(batch_size, )`, *optional*):
+            The rope index difference between sequence length and multimodal rope.
+"""
+
+
+class Qwen2VLForConditionalGeneration(Qwen2VLPreTrainedModel):
+    _checkpoint_conversion_mapping = {
+        "^visual": "model.visual",
+        r"^model(?!\.(language_model|visual))": "model.language_model",
+    }
+    _tied_weights_keys = ["lm_head.weight"]
+
+    def __init__(self, config):
+        super().__init__(config)
+        self.model = Qwen2VLModel(config)
+        self.lm_head = mint.nn.Linear(config.text_config.hidden_size, config.text_config.vocab_size, bias=False)
+
+        self.post_init()
+
+    def get_input_embeddings(self):
+        return self.model.get_input_embeddings()
+
+    def set_input_embeddings(self, value):
+        self.model.set_input_embeddings(value)
+
+    def set_decoder(self, decoder):
+        self.model.set_decoder(decoder)
+
+    def get_decoder(self):
+        return self.model.get_decoder()
+
+    def get_video_features(self, pixel_values_videos: ms.Tensor, video_grid_thw: Optional[ms.Tensor] = None):
+        return self.model.get_video_features(pixel_values_videos, video_grid_thw)
+
+    def get_image_features(self, pixel_values: ms.Tensor, image_grid_thw: Optional[ms.Tensor] = None):
+        return self.model.get_image_features(pixel_values, image_grid_thw)
+
+    # Make modules available throught conditional class for BC
+    @property
+    def language_model(self):
+        return self.model.language_model
+
+    @property
+    def visual(self):
+        return self.model.visual
+
     @add_start_docstrings_to_model_forward(QWEN2_VL_INPUTS_DOCSTRING)
     @replace_return_docstrings(output_type=Qwen2VLCausalLMOutputWithPast, config_class=_CONFIG_FOR_DOC)
     def construct(
@@ -1411,6 +1551,7 @@ class Qwen2VLForConditionalGeneration(Qwen2VLPreTrainedModel):
         video_grid_thw: Optional[ms.Tensor] = None,
         rope_deltas: Optional[ms.Tensor] = None,
         cache_position: Optional[ms.Tensor] = None,
+        **kwargs: Unpack[TransformersKwargs],
     ) -> Union[Tuple, Qwen2VLCausalLMOutputWithPast]:
         r"""
         Args:
@@ -1457,77 +1598,17 @@ class Qwen2VLForConditionalGeneration(Qwen2VLPreTrainedModel):
         >>> tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
         "The image shows a street scene with a red stop sign in the foreground. In the background, there is a large red gate with Chinese characters ..."
         ```"""
-
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
-        if inputs_embeds is None:
-            inputs_embeds = self.model.embed_tokens(input_ids)
-            if pixel_values is not None:
-                pixel_values = pixel_values.to(self.visual.get_dtype())
-                image_embeds = self.visual(pixel_values, grid_thw=image_grid_thw)
-                n_image_tokens = (input_ids == self.config.image_token_id).sum().item()
-                n_image_features = image_embeds.shape[0]
-                if n_image_tokens != n_image_features:
-                    raise ValueError(
-                        f"Image features and image tokens do not match: tokens: {n_image_tokens}, features {n_image_features}"
-                    )
-                image_mask = (input_ids == self.config.image_token_id).unsqueeze(-1).expand_as(inputs_embeds)
-                inputs_embeds = (
-                    inputs_embeds.float().masked_scatter(image_mask, image_embeds.float()).to(inputs_embeds.dtype)
-                )
-                # masked_scatter does not support bf16
-
-            if pixel_values_videos is not None:
-                pixel_values_videos = pixel_values_videos.to(self.visual.get_dtype())
-                video_embeds = self.visual(pixel_values_videos, grid_thw=video_grid_thw)
-                n_video_tokens = (input_ids == self.config.video_token_id).sum().item()
-                n_video_features = video_embeds.shape[0]
-                if n_video_tokens != n_video_features:
-                    raise ValueError(
-                        f"Video features and video tokens do not match: tokens: {n_video_tokens}, features {n_video_features}"
-                    )
-                video_mask = (input_ids == self.config.video_token_id).unsqueeze(-1).expand_as(inputs_embeds)
-                inputs_embeds = (
-                    inputs_embeds.float().masked_scatter(video_mask, video_embeds.float()).to(inputs_embeds.dtype)
-                )
-                # masked_scatter does not support bf16
-
-        # if we get 4D attention mask we cannot calculate rope deltas anymore. TODO fixme
-        if position_ids is None and (attention_mask is None or attention_mask.ndim == 2):
-            # calculate RoPE index once per generation in the pre-fill stage only
-            past_seen_tokens = 0
-            if past_key_values is not None:
-                past_seen_tokens = (
-                    get_seq_length(past_key_values)
-                    if isinstance(past_key_values, tuple)
-                    else past_key_values.get_seq_length()
-                )
-            if (
-                (cache_position is not None and cache_position[0] == 0)
-                or self.rope_deltas is None
-                or (past_seen_tokens == 0)
-            ):
-                position_ids, rope_deltas = self.get_rope_index(
-                    input_ids, image_grid_thw, video_grid_thw, attention_mask
-                )
-                self.rope_deltas = rope_deltas
-            # then use the prev pre-calculated rope-deltas to get the correct position ids
-            else:
-                batch_size, seq_length, _ = inputs_embeds.shape
-                delta = cache_position[0] + self.rope_deltas if cache_position is not None else 0
-                position_ids = mint.arange(seq_length)
-                position_ids = position_ids.view(1, -1).broadcast_to((batch_size, -1))
-                if cache_position is not None:  # otherwise `deltas` is an int `0`
-                    delta = delta.repeat_interleave(batch_size // delta.shape[0], dim=0)
-                position_ids = position_ids.add(delta)
-                position_ids = position_ids.unsqueeze(0).broadcast_to((3, -1, -1))
 
         outputs = self.model(
-            input_ids=None,
+            input_ids=input_ids,
+            pixel_values=pixel_values,
+            pixel_values_videos=pixel_values_videos,
+            image_grid_thw=image_grid_thw,
+            video_grid_thw=video_grid_thw,
             position_ids=position_ids,
             attention_mask=attention_mask,
             past_key_values=past_key_values,
@@ -1535,29 +1616,17 @@ class Qwen2VLForConditionalGeneration(Qwen2VLPreTrainedModel):
             use_cache=use_cache,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
+            return_dict=True,
+            cache_position=cache_position,
+            **kwargs,
         )
 
         hidden_states = outputs[0]
-        logits = self.lm_head(hidden_states).float()  # some logit warper operations need fp32
+        logits = self.lm_head(hidden_states)
 
         loss = None
         if labels is not None:
-            # Upcast to float if we need to compute the loss to avoid potential precision issues
-            logits = logits.float()
-            # Shift so that tokens < n predict n
-            shift_logits = logits[..., :-1, :].contiguous()
-            shift_labels = labels[..., 1:].contiguous()
-            # Flatten the tokens
-            loss_fct = CrossEntropyLoss()
-            shift_logits = shift_logits.view((-1, self.config.vocab_size))
-            shift_labels = shift_labels.view((-1))
-            # Enable model parallelism
-            loss = loss_fct(shift_logits, shift_labels)
-
-        if not return_dict:
-            output = (logits,) + outputs[1:]
-            return (loss,) + output if loss is not None else output
+            loss = self.loss_function(logits=logits, labels=labels, vocab_size=self.config.vocab_size)
 
         return Qwen2VLCausalLMOutputWithPast(
             loss=loss,
@@ -1565,7 +1634,7 @@ class Qwen2VLForConditionalGeneration(Qwen2VLPreTrainedModel):
             past_key_values=outputs.past_key_values,
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
-            rope_deltas=self.rope_deltas,
+            rope_deltas=outputs.rope_deltas,
         )
 
     def prepare_inputs_for_generation(

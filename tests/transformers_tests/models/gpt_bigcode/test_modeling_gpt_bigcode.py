@@ -168,7 +168,6 @@ GPTBIGCODE_CASES = [
         },
         {
             "last_hidden_state": 0,
-            "past_key_values": 1,
         },
     ],
 ]

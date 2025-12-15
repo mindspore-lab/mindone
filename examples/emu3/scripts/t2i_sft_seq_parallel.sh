@@ -27,7 +27,7 @@ python emu3/train/train_seq_parallel.py \
     --max_position_embeddings 4200 \
     --trainable_hidden_layers 32 \
     --output_dir ${LOG_DIR} \
-    --num_train_epochs 5 \
+    --num_train_epochs 4 \
     --per_device_train_batch_size 1 \
     --gradient_accumulation_steps 1 \
     --save_steps 1 \

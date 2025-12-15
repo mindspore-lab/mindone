@@ -18,7 +18,6 @@
 
 from typing import Callable, Optional, Union
 
-from transformers.integrations import use_kernel_forward_from_hub
 from transformers.models.minimax import MiniMaxConfig
 from transformers.utils import auto_docstring, can_return_tuple, logging
 
@@ -42,12 +41,11 @@ from ...modeling_outputs import (
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
-from ...utils import LossKwargs
+from ...utils import TransformersKwargs
 
 logger = logging.get_logger(__name__)
 
 
-@use_kernel_forward_from_hub("RMSNorm")
 class MiniMaxRMSNorm(nn.Cell):
     def __init__(self, hidden_size, eps=1e-6):
         """
@@ -781,10 +779,6 @@ class MiniMaxModel(MiniMaxPreTrainedModel):
         )
 
 
-class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
-    ...
-
-
 def load_balancing_loss_func(
     gate_logits: Union[ms.Tensor, tuple[ms.Tensor], None],
     num_experts: Optional[int] = None,
@@ -916,7 +910,7 @@ class MiniMaxForCausalLM(MiniMaxPreTrainedModel, GenerationMixin):
         output_router_logits: Optional[bool] = None,
         cache_position: Optional[ms.Tensor] = None,
         logits_to_keep: Union[int, ms.Tensor] = 0,
-        **kwargs: Unpack[KwargsForCausalLM],
+        **kwargs: Unpack[TransformersKwargs],
     ) -> MoeCausalLMOutputWithPast:
         r"""
         labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):

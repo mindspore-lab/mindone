@@ -21,15 +21,30 @@
 # to defer the actual importing for when the objects are requested. This way `import transformers` provides the names
 # in the namespace without actually importing anything (and especially none of the backends).
 
-__version__ = "4.50.0"
+__version__ = "4.57.1"
 import transformers
 from packaging import version
 
+from .cache_utils import (
+    Cache,
+    DynamicCache,
+    EncoderDecoderCache,
+    HybridCache,
+    MambaCache,
+    OffloadedStaticCache,
+    SlidingWindowCache,
+    StaticCache,
+)
+from .feature_extraction_sequence_utils import SequenceFeatureExtractor
+
 # Feature Extractor
 from .feature_extraction_utils import BatchFeature, FeatureExtractionMixin
+from .generation import CompileConfig
 from .image_processing_base import ImageProcessingMixin
 from .image_processing_utils import BaseImageProcessor
+from .image_processing_utils_fast import BaseImageProcessorFast
 from .image_utils import ImageFeatureExtractionMixin
+from .masking_utils import AttentionMaskInterface
 from .modeling_utils import MSPreTrainedModel, PreTrainedModel
 from .models.albert import (
     AlbertForMaskedLM,
@@ -144,6 +159,7 @@ from .models.auto import (
     AutoModelForZeroShotObjectDetection,
     AutoModelWithLMHead,
     AutoProcessor,
+    AutoVideoProcessor,
 )
 from .models.aya_vision import AyaVisionForConditionalGeneration, AyaVisionPreTrainedModel
 from .models.bamba import BambaForCausalLM, BambaModel, BambaPreTrainedModel
@@ -587,7 +603,12 @@ from .models.glpn import (
     GLPNModel,
     GLPNPreTrainedModel,
 )
-from .models.got_ocr2 import GotOcr2ForConditionalGeneration, GotOcr2PreTrainedModel
+from .models.got_ocr2 import (
+    GotOcr2ForConditionalGeneration,
+    GotOcr2ImageProcessor,
+    GotOcr2ImageProcessorFast,
+    GotOcr2PreTrainedModel,
+)
 from .models.gpt2 import (
     GPT2DoubleHeadsModel,
     GPT2ForQuestionAnswering,
@@ -705,6 +726,7 @@ from .models.instructblipvideo import (
     InstructBlipVideoQFormerModel,
     InstructBlipVideoVisionModel,
 )
+from .models.internvl import InternVLProcessor, InternVLVideoProcessor
 from .models.jamba import JambaForCausalLM, JambaForSequenceClassification, JambaModel, JambaPreTrainedModel
 from .models.jetmoe import (
     JetMoeConfig,
@@ -757,6 +779,7 @@ from .models.llava import LlavaConfig, LlavaForConditionalGeneration
 from .models.llava_next import (
     LlavaNextForConditionalGeneration,
     LlavaNextImageProcessor,
+    LlavaNextImageProcessorFast,
     LlavaNextPreTrainedModel,
     LlavaNextProcessor,
 )
@@ -765,6 +788,7 @@ from .models.llava_next_video import (
     LlavaNextVideoImageProcessor,
     LlavaNextVideoPreTrainedModel,
     LlavaNextVideoProcessor,
+    LlavaNextVideoVideoProcessor,
 )
 from .models.llava_onevision import (
     LlavaOnevisionForConditionalGeneration,
@@ -837,6 +861,7 @@ from .models.megatron_bert import (
 from .models.mgp_str import MgpstrForSceneTextRecognition, MgpstrModel, MgpstrPreTrainedModel, MgpstrProcessor
 from .models.mimi import MimiModel, MimiPreTrainedModel
 from .models.minicpm4 import MiniCPMForCausalLM, MiniCPMForSequenceClassification, MiniCPMModel
+from .models.minicpmv_4_5 import MiniCPMVImageProcessor, MiniCPMVProcessor, MiniCPMVTokenizerFast
 from .models.mistral import (
     MistralForCausalLM,
     MistralForQuestionAnswering,
@@ -1059,6 +1084,11 @@ from .models.phi3 import (
     Phi3Model,
     Phi3PreTrainedModel,
 )
+from .models.phi4_multimodal import (
+    Phi4MultimodalFeatureExtractor,
+    Phi4MultimodalImageProcessorFast,
+    Phi4MultimodalProcessor,
+)
 from .models.phimoe import PhimoeForCausalLM, PhimoeForSequenceClassification, PhimoeModel, PhimoePreTrainedModel
 from .models.pix2struct import (
     Pix2StructForConditionalGeneration,
@@ -1094,7 +1124,12 @@ from .models.qwen2_5_vl import (
     Qwen2_5_VLPreTrainedModel,
     Qwen2_5_VLProcessor,
 )
-from .models.qwen2_audio import Qwen2AudioEncoder, Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel
+from .models.qwen2_audio import (
+    Qwen2AudioEncoder,
+    Qwen2AudioForConditionalGeneration,
+    Qwen2AudioPreTrainedModel,
+    Qwen2AudioProcessor,
+)
 from .models.qwen2_moe import (
     Qwen2MoeForCausalLM,
     Qwen2MoeForQuestionAnswering,
@@ -1106,8 +1141,10 @@ from .models.qwen2_moe import (
 from .models.qwen2_vl import (
     Qwen2VLForConditionalGeneration,
     Qwen2VLImageProcessor,
+    Qwen2VLImageProcessorFast,
     Qwen2VLModel,
     Qwen2VLPreTrainedModel,
+    Qwen2VLVideoProcessor,
 )
 from .models.rag import RagModel, RagPreTrainedModel, RagSequenceForGeneration, RagTokenForGeneration
 from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
@@ -1321,6 +1358,7 @@ from .models.timesformer import TimesformerForVideoClassification, TimesformerMo
 from .models.trocr import TrOCRForCausalLM, TrOCRPreTrainedModel
 from .models.tvp import TvpForVideoGrounding, TvpModel, TvpPreTrainedModel
 from .models.udop import UdopEncoderModel, UdopForConditionalGeneration, UdopModel, UdopPreTrainedModel
+from .models.ultravox import UltravoxProcessor
 from .models.umt5 import (
     UMT5EncoderModel,
     UMT5ForQuestionAnswering,
@@ -1423,6 +1461,7 @@ from .models.wavlm import (
     WavLMPreTrainedModel,
 )
 from .models.whisper import (
+    WhisperFeatureExtractor,
     WhisperForAudioClassification,
     WhisperForCausalLM,
     WhisperForConditionalGeneration,
@@ -1506,7 +1545,8 @@ from .pipelines import (
 from .processing_utils import ProcessorMixin
 from .trainer import Trainer
 from .training_args import TrainingArguments
-from .utils import logging
+from .utils import TensorType, logging
+from .video_processing_utils import BaseVideoProcessor
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
     from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
@@ -1532,10 +1572,12 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     from .models.glm4v import (
         Glm4vForConditionalGeneration,
         Glm4vImageProcessor,
+        Glm4vImageProcessorFast,
         Glm4vModel,
         Glm4vPreTrainedModel,
         Glm4vProcessor,
         Glm4vTextModel,
+        Glm4vVideoProcessor,
         Glm4vVisionModel,
     )
     from .models.minimax import (
@@ -1559,3 +1601,21 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
         Qwen2_5OmniToken2WavModel,
     )
     from .models.vjepa2 import VJEPA2ForVideoClassification, VJEPA2Model, VJEPA2PreTrainedModel
+
+if version.parse(transformers.__version__) >= version.parse("4.57.0"):
+    from .models.qwen3_vl import (
+        Qwen3VLForConditionalGeneration,
+        Qwen3VLModel,
+        Qwen3VLPreTrainedModel,
+        Qwen3VLProcessor,
+        Qwen3VLTextModel,
+        Qwen3VLVideoProcessor,
+        Qwen3VLVisionModel,
+    )
+    from .models.qwen3_vl_moe import (
+        Qwen3VLMoeForConditionalGeneration,
+        Qwen3VLMoeModel,
+        Qwen3VLMoePreTrainedModel,
+        Qwen3VLMoeTextModel,
+        Qwen3VLMoeVisionModel,
+    )

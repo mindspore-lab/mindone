@@ -110,6 +110,7 @@ from . import (
     imagegpt,
     instructblip,
     instructblipvideo,
+    internvl,
     jamba,
     jetmoe,
     kosmos2,
@@ -137,6 +138,7 @@ from . import (
     mgp_str,
     mimi,
     minicpm4,
+    minicpmv_4_5,
     mistral,
     mistral3,
     mixtral,
@@ -228,6 +230,7 @@ from . import (
     trocr,
     tvp,
     udop,
+    ultravox,
     umt5,
     unispeech,
     unispeech_sat,
@@ -273,3 +276,6 @@ if version.parse(transformers.__version__) >= version.parse("4.51.3"):
 
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     from . import glm4v, minimax, qwen2_5_omni, vjepa2
+
+if version.parse(transformers.__version__) >= version.parse("4.57.0"):
+    from . import qwen3_vl, qwen3_vl_moe

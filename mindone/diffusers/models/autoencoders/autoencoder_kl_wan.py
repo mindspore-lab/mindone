@@ -29,7 +29,7 @@ from ...utils import logging
 from ..activations import get_activation
 from ..modeling_outputs import AutoencoderKLOutput
 from ..modeling_utils import ModelMixin
-from .vae import DecoderOutput, DiagonalGaussianDistribution
+from .vae import AutoencoderMixin, DecoderOutput, DiagonalGaussianDistribution
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -474,14 +474,14 @@ class WanMidBlock(nn.Cell):
 
     def construct(self, x, feat_cache=None, feat_idx=[0]):
         # First residual block
-        x = self.resnets[0](x, feat_cache, feat_idx)
+        x = self.resnets[0](x, feat_cache=feat_cache, feat_idx=feat_idx)
 
         # Process through attention and residual blocks
         for attn, resnet in zip(self.attentions, self.resnets[1:]):
             if attn is not None:
                 x = attn(x)
 
-            x = resnet(x, feat_cache, feat_idx)
+            x = resnet(x, feat_cache=feat_cache, feat_idx=feat_idx)
 
         return x
 
@@ -515,9 +515,9 @@ class WanResidualDownBlock(nn.Cell):
     def construct(self, x, feat_cache=None, feat_idx=[0]):
         x_copy = x.clone()
         for resnet in self.resnets:
-            x = resnet(x, feat_cache, feat_idx)
+            x = resnet(x, feat_cache=feat_cache, feat_idx=feat_idx)
         if self.downsampler is not None:
-            x = self.downsampler(x, feat_cache, feat_idx)
+            x = self.downsampler(x, feat_cache=feat_cache, feat_idx=feat_idx)
 
         return x + self.avg_shortcut(x_copy)
 
@@ -619,12 +619,12 @@ class WanEncoder3d(nn.Cell):
         # downsamples
         for layer in self.down_blocks:
             if feat_cache is not None:
-                x = layer(x, feat_cache, feat_idx)
+                x = layer(x, feat_cache=feat_cache, feat_idx=feat_idx)
             else:
                 x = layer(x)
 
         # middle
-        x = self.mid_block(x, feat_cache, feat_idx)
+        x = self.mid_block(x, feat_cache=feat_cache, feat_idx=feat_idx)
 
         # head
         x = self.norm_out(x)
@@ -715,13 +715,13 @@ class WanResidualUpBlock(nn.Cell):
 
         for resnet in self.resnets:
             if feat_cache is not None:
-                x = resnet(x, feat_cache, feat_idx)
+                x = resnet(x, feat_cache=feat_cache, feat_idx=feat_idx)
             else:
                 x = resnet(x)
 
         if self.upsampler is not None:
             if feat_cache is not None:
-                x = self.upsampler(x, feat_cache, feat_idx)
+                x = self.upsampler(x, feat_cache=feat_cache, feat_idx=feat_idx)
             else:
                 x = self.upsampler(x)
 
@@ -788,13 +788,13 @@ class WanUpBlock(nn.Cell):
         """
         for resnet in self.resnets:
             if feat_cache is not None:
-                x = resnet(x, feat_cache, feat_idx)
+                x = resnet(x, feat_cache=feat_cache, feat_idx=feat_idx)
             else:
                 x = resnet(x)
 
         if self.upsamplers is not None:
             if feat_cache is not None:
-                x = self.upsamplers[0](x, feat_cache, feat_idx)
+                x = self.upsamplers[0](x, feat_cache=feat_cache, feat_idx=feat_idx)
             else:
                 x = self.upsamplers[0](x)
         return x
@@ -906,11 +906,11 @@ class WanDecoder3d(nn.Cell):
             x = self.conv_in(x)
 
         # middle
-        x = self.mid_block(x, feat_cache, feat_idx)
+        x = self.mid_block(x, feat_cache=feat_cache, feat_idx=feat_idx)
 
         # upsamples
         for up_block in self.up_blocks:
-            x = up_block(x, feat_cache, feat_idx, first_chunk=first_chunk)
+            x = up_block(x, feat_cache=feat_cache, feat_idx=feat_idx, first_chunk=first_chunk)
 
         # head
         x = self.norm_out(x)
@@ -972,7 +972,7 @@ def unpatchify(x, patch_size):
     return x
 
 
-class AutoencoderKLWan(ModelMixin, ConfigMixin, FromOriginalModelMixin):
+class AutoencoderKLWan(ModelMixin, AutoencoderMixin, ConfigMixin, FromOriginalModelMixin):
     r"""
     A VAE model with KL loss for encoding videos into latents and decoding latent representations into videos.
     Introduced in [Wan 2.1].
@@ -982,6 +982,9 @@ class AutoencoderKLWan(ModelMixin, ConfigMixin, FromOriginalModelMixin):
     """
 
     _supports_gradient_checkpointing = False
+    # keys toignore when AlignDeviceHook moves inputs/outputs between devices
+    # these are shared mutable state modified in-place
+    _skip_keys = ["feat_cache", "feat_idx"]
 
     @register_to_config
     def __init__(
@@ -989,7 +992,7 @@ class AutoencoderKLWan(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         base_dim: int = 96,
         decoder_base_dim: Optional[int] = None,
         z_dim: int = 16,
-        dim_mult: Tuple[int] = [1, 2, 4, 4],
+        dim_mult: List[int] = [1, 2, 4, 4],
         num_res_blocks: int = 2,
         attn_scales: List[float] = [],
         temperal_downsample: List[bool] = [False, True, True],
@@ -1074,7 +1077,7 @@ class AutoencoderKLWan(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         self.diag_gauss_dist = DiagonalGaussianDistribution()
 
-        self.spatial_compression_ratio = 2 ** len(self.temperal_downsample)
+        self.spatial_compression_ratio = scale_factor_spatial
 
         # When decoding a batch of video latents at a time, one can save memory by slicing across the batch dimension
         # to perform decoding of a single video latent at a time.
@@ -1133,27 +1136,6 @@ class AutoencoderKLWan(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         self.tile_sample_stride_height = tile_sample_stride_height or self.tile_sample_stride_height
         self.tile_sample_stride_width = tile_sample_stride_width or self.tile_sample_stride_width
 
-    def disable_tiling(self) -> None:
-        r"""
-        Disable tiled VAE decoding. If `enable_tiling` was previously enabled, this method will go back to computing
-        decoding in one step.
-        """
-        self.use_tiling = False
-
-    def enable_slicing(self) -> None:
-        r"""
-        Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
-        compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.
-        """
-        self.use_slicing = True
-
-    def disable_slicing(self) -> None:
-        r"""
-        Disable sliced VAE decoding. If `enable_slicing` was previously enabled, this method will go back to computing
-        decoding in one step.
-        """
-        self.use_slicing = False
-
     def clear_cache(self):
         # Use cached conv counts for decoder and encoder to avoid re-iterating modules each call
         self._conv_num = self._cached_conv_counts["decoder"]
@@ -1167,12 +1149,13 @@ class AutoencoderKLWan(ModelMixin, ConfigMixin, FromOriginalModelMixin):
     def _encode(self, x: ms.Tensor):
         _, _, num_frame, height, width = x.shape
 
-        if self.use_tiling and (width > self.tile_sample_min_width or height > self.tile_sample_min_height):
-            return self.tiled_encode(x)
-
         self.clear_cache()
         if self.config.patch_size is not None:
             x = patchify(x, patch_size=self.config.patch_size)
+
+        if self.use_tiling and (width > self.tile_sample_min_width or height > self.tile_sample_min_height):
+            return self.tiled_encode(x)
+
         iter_ = 1 + (num_frame - 1) // 4
         for i in range(iter_):
             self._enc_conv_idx = [0]
@@ -1377,9 +1360,18 @@ class AutoencoderKLWan(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         tile_latent_min_width = self.tile_sample_min_width // self.spatial_compression_ratio
         tile_latent_stride_height = self.tile_sample_stride_height // self.spatial_compression_ratio
         tile_latent_stride_width = self.tile_sample_stride_width // self.spatial_compression_ratio
-
-        blend_height = self.tile_sample_min_height - self.tile_sample_stride_height
-        blend_width = self.tile_sample_min_width - self.tile_sample_stride_width
+        tile_sample_stride_height = self.tile_sample_stride_height
+        tile_sample_stride_width = self.tile_sample_stride_width
+        if self.config.patch_size is not None:
+            sample_height = sample_height // self.config.patch_size
+            sample_width = sample_width // self.config.patch_size
+            tile_sample_stride_height = tile_sample_stride_height // self.config.patch_size
+            tile_sample_stride_width = tile_sample_stride_width // self.config.patch_size
+            blend_height = self.tile_sample_min_height // self.config.patch_size - tile_sample_stride_height
+            blend_width = self.tile_sample_min_width // self.config.patch_size - tile_sample_stride_width
+        else:
+            blend_height = self.tile_sample_min_height - tile_sample_stride_height
+            blend_width = self.tile_sample_min_width - tile_sample_stride_width
 
         # Split z into overlapping tiles and decode them separately.
         # The tiles have an overlap to avoid seams between tiles.
@@ -1393,7 +1385,9 @@ class AutoencoderKLWan(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                     self._conv_idx = [0]
                     tile = z[:, :, k : k + 1, i : i + tile_latent_min_height, j : j + tile_latent_min_width]
                     tile = self.post_quant_conv(tile)
-                    decoded = self.decoder(tile, feat_cache=self._feat_map, feat_idx=self._conv_idx)
+                    decoded = self.decoder(
+                        tile, feat_cache=self._feat_map, feat_idx=self._conv_idx, first_chunk=(k == 0)
+                    )
                     time.append(decoded)
                 row.append(mint.cat(time, dim=2))
             rows.append(row)
@@ -1409,10 +1403,14 @@ class AutoencoderKLWan(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                     tile = self.blend_v(rows[i - 1][j], tile, blend_height)
                 if j > 0:
                     tile = self.blend_h(row[j - 1], tile, blend_width)
-                result_row.append(tile[:, :, :, : self.tile_sample_stride_height, : self.tile_sample_stride_width])
+                result_row.append(tile[:, :, :, :tile_sample_stride_height, :tile_sample_stride_width])
             result_rows.append(mint.cat(result_row, dim=-1))
-
         dec = mint.cat(result_rows, dim=3)[:, :, :, :sample_height, :sample_width]
+
+        if self.config.patch_size is not None:
+            dec = unpatchify(dec, patch_size=self.config.patch_size)
+
+        dec = mint.clamp(dec, min=-1.0, max=1.0)
 
         if not return_dict:
             return (dec,)

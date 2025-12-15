@@ -17,18 +17,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import copy
+import functools
 import gc
 import json
 import os
 import re
+import sys
 import warnings
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, MutableMapping, Optional, Tuple, Union
+from enum import Enum
+from typing import Any, Callable, MutableMapping, Optional, Union
 
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import custom_object_save
-from transformers.generation.configuration_utils import GenerationConfig
 from transformers.safetensors_conversion import auto_conversion
 from transformers.utils import (
     ADAPTER_SAFE_WEIGHTS_NAME,
@@ -64,13 +66,16 @@ from mindspore.nn.utils import no_init_parameters
 
 from mindone.utils.modeling_patch import patch_nn_default_dtype, unpatch_nn_default_dtype
 
+from mindone.transformers.generation.configuration_utils import CompileConfig, GenerationConfig
+
 from .activations import get_activation
-from .generation.utils import GenerationMixin
 from .integrations import PeftAdapterMixin
+from .integrations.accelerate import find_tied_parameters
 from .integrations.flash_attention import flash_attention_forward
+from .integrations.flash_paged import paged_attention_forward
 from .integrations.sdpa_attention import sdpa_attention_forward
 from .loss.loss_utils import LOSS_MAPPING
-from .mindspore_adapter import TORCH_TO_MINDSPORE_DTYPE_MAP, dtype_to_str
+from .mindspore_adapter import dtype_to_str
 from .mindspore_utils import (  # noqa: F401
     Conv1D,
     apply_chunking_to_forward,
@@ -80,13 +85,35 @@ from .mindspore_utils import (  # noqa: F401
     prune_linear_layer,
 )
 from .modeling_attn_mask_utils import dtype_to_min
-from .utils.import_utils import is_flash_attn_2_available, is_sdpa_available
+from .utils.generic import _CAN_RECORD_REGISTRY, OutputRecorder
+from .utils.import_utils import is_sdpa_available
 
 if is_safetensors_available():
     from safetensors import safe_open
 
-    # from mindone.safetensors.mindspore import load_file as safe_load_file
+    from mindone.safetensors.mindspore import load_file as safe_load_file
     from mindone.safetensors.mindspore import save_file as safe_save_file
+
+# DO NOT MODIFY, KEPT FOR BC ONLY
+VLMS = [
+    "aria",
+    "ayavision",
+    "colpali",
+    "emu3",
+    "fuyu",
+    "gotocr2",
+    "gemma3",
+    "internvl",
+    "llava",  # all llava prefixed models fall under this check
+    "mistral3",
+    "mllama",
+    "paligemma",
+    "shieldgemma2",
+    "qwen2vl",
+    "qwen2_5_vl",
+    "videollava",
+    "vipllava",
+]
 
 logger = logging.get_logger(__name__)
 ms.Parameter._data = ms.Tensor.data
@@ -131,12 +158,10 @@ def _get_pt2ms_mapped_k(mappings, has_prefix_module, expects_prefix_module, load
             else mappings.get(s, (s, lambda x: x))[0]
             for s in loaded_keys
         ]
-        loaded_keys = [".".join([prefix, s]) for s in loaded_keys]
     elif not has_prefix_module and expects_prefix_module:
         loaded_keys = [
             mappings.get(".".join([prefix, s]), (".".join([prefix, s]), lambda x: x))[0] for s in loaded_keys
         ]
-        loaded_keys = [s[len(prefix) + 1 :] if s.startswith(prefix) else s for s in loaded_keys]
     else:
         loaded_keys = [mappings.get(s, (s, lambda x: x))[0] for s in loaded_keys]
     return loaded_keys
@@ -147,28 +172,28 @@ def _convert_state_dict(m, state_dict_pt, prefix=""):
         return state_dict_pt
     pt2ms_mappings = _get_pt2ms_mappings(m)
     state_dict_ms = {}
+    length = len(prefix) + 1
+    model_ckpt_key = m.state_dict().keys()
+    mapping_key = pt2ms_mappings.keys()
     while state_dict_pt:
         name_pt, data_pt = state_dict_pt.popitem()
-        for name, param in m.parameters_and_names():
-            name_ms = param.name
-            length = len(prefix) + 1
-            # State dict name conversion is added for dealing with the condition that model key and state_dict key mismatch
-            if name_pt.startswith(prefix):
-                # if state_dict has prefix, check if model has prefix
-                # When the prefix and the end of the name (such as embedding_table and weight) are removed, the consistency is judged
-                # if yes, slice prefix from state_dict key
-                if name_ms.rsplit(".", 1)[0] == name_pt.rsplit(".", 1)[0][length:] or name_ms == name_pt[length:]:
-                    name_pt = name_pt[length:]
-            elif not name_pt.startswith(prefix):
-                # if state_dict does not have prefix, check if model has prefix
-                # When the prefix and the end of the name (such as embedding_table and weight) are removed, the consistency is judged
-                # if no, add prefix to state_dict key
-                if name_pt.rsplit(".", 1)[0] == name_ms.rsplit(".", 1)[0][length:] or name_pt == name_ms[length:]:
-                    name_pt = ".".join([prefix, name_pt])
-        name_ms, data_mapping = pt2ms_mappings.get(name_pt, (name_pt, lambda x: x))
+        if name_pt in mapping_key or name_pt in model_ckpt_key:
+            name_ms, data_mapping = pt2ms_mappings.get(name_pt, (name_pt, lambda x: x))
+        # When model name and state dict name match and state dict name has prefix, state dict name would be sliced
+        elif name_pt[length:] in mapping_key or name_pt[length:] in model_ckpt_key:
+            name_ms, data_mapping = pt2ms_mappings.get(name_pt[length:], (name_pt[length:], lambda x: x))
+        # When model name and state dict name match and model name has prefix, prefix would be added to state dict name
+        elif ".".join([prefix, name_pt]) in mapping_key or ".".join([prefix, name_pt]) in model_ckpt_key:
+            name_ms, data_mapping = pt2ms_mappings.get(
+                ".".join([prefix, name_pt]), (".".join([prefix, name_pt]), lambda x: x)
+            )
+        else:
+            name_ms, data_mapping = pt2ms_mappings.get(name_pt, (name_pt, lambda x: x))
+
         data_ms = data_mapping(data_pt)
         if name_ms is not None:
             state_dict_ms[name_ms] = data_ms
+
     return state_dict_ms
 
 
@@ -235,7 +260,7 @@ def dtype_byte_size(dtype):
 
 
 def shard_checkpoint(
-    state_dict: Dict[str, Tensor], max_shard_size: Union[int, str] = "10GB", weights_name: str = WEIGHTS_NAME
+    state_dict: dict[str, Tensor], max_shard_size: Union[int, str] = "10GB", weights_name: str = WEIGHTS_NAME
 ):
     """
     Splits a model state dictionary in sub-checkpoints so that the final size of each sub-checkpoint does not exceed a
@@ -254,7 +279,7 @@ def shard_checkpoint(
     </Tip>
 
     Args:
-        state_dict (`Dict[str, Tensor]`): The state dictionary of a model to save.
+        state_dict (`dict[str, Tensor]`): The state dictionary of a model to save.
         max_shard_size (`int` or `str`, *optional*, defaults to `"10GB"`):
             The maximum size of each sub-checkpoint. If expressed as a string, needs to be digits followed by a unit
             (like `"5MB"`).
@@ -314,7 +339,12 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike]):
                     f"The safetensors archive passed at {checkpoint_file} does not contain the valid metadata. Make sure "
                     "you save your model with the `save_pretrained` method."
                 )
-            return ms.load_checkpoint(checkpoint_file, format="safetensors")
+            try:
+                return ms.load_checkpoint(checkpoint_file, format="safetensors")
+            # somtimes model weight with metadata can not pass the verification for "mindspore.load_checkpoint",
+            # therefore we use "safe_load_file" to load weights
+            except ValueError:
+                return safe_load_file(checkpoint_file)
         else:
             raise NotImplementedError(
                 f"Only supports deserialization of weights file in safetensors format, but got {checkpoint_file}"
@@ -366,7 +396,7 @@ def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_shar
             pass  # unexpect key keeps origin dtype
     cm = silence_mindspore_logger() if is_sharded else nullcontext()
     with cm:
-        ms.load_param_into_net(model_to_load, state_dict, strict_load=True)
+        model_to_load.load_state_dict(state_dict, strict=False)
 
     # remove prefix from the name of parameters
     if len(start_prefix) > 0:
@@ -385,19 +415,333 @@ def _add_variant(weights_name: str, variant: Optional[str] = None) -> str:
     return weights_name
 
 
-def _find_missing_and_unexpected_keys(
+def _get_resolved_checkpoint_files(
+    pretrained_model_name_or_path: Optional[Union[str, os.PathLike]],
+    subfolder: str,
+    variant: Optional[str],
+    from_tf: bool,
+    from_flax: bool,
+    use_safetensors: bool,
+    cache_dir: str,
+    force_download: bool,
+    proxies: Optional[dict[str, str]],
+    local_files_only: bool,
+    token: Optional[Union[str, bool]],
+    user_agent: dict,
+    revision: str,
+    commit_hash: Optional[str],
+    is_remote_code: bool,  # Because we can't determine this inside this function, we need it to be passed in
+    transformers_explicit_filename: Optional[str] = None,
+) -> tuple[Optional[list[str]], Optional[dict]]:
+    """Get all the checkpoint filenames based on `pretrained_model_name_or_path`, and optional metadata if the
+    checkpoints are sharded.
+    This function will download the data if necessary.
+    """
+    # This variable will flag if we're loading a sharded checkpoint. In this case the archive file is just the
+    # index of the files.
+    is_sharded = False
+    sharded_metadata = None
+
+    if pretrained_model_name_or_path is not None:
+        pretrained_model_name_or_path = str(pretrained_model_name_or_path)
+        is_local = os.path.isdir(pretrained_model_name_or_path)
+        if is_local:
+            if transformers_explicit_filename is not None:
+                # If the filename is explicitly defined, load this by default.
+                archive_file = os.path.join(pretrained_model_name_or_path, subfolder, transformers_explicit_filename)
+                is_sharded = transformers_explicit_filename.endswith(".safetensors.index.json")
+            elif from_tf and os.path.isfile(
+                os.path.join(pretrained_model_name_or_path, subfolder, TF_WEIGHTS_NAME + ".index")
+            ):
+                # Load from a TF 1.0 checkpoint in priority if from_tf
+                archive_file = os.path.join(pretrained_model_name_or_path, subfolder, TF_WEIGHTS_NAME + ".index")
+            elif from_tf and os.path.isfile(os.path.join(pretrained_model_name_or_path, subfolder, TF2_WEIGHTS_NAME)):
+                # Load from a TF 2.0 checkpoint in priority if from_tf
+                archive_file = os.path.join(pretrained_model_name_or_path, subfolder, TF2_WEIGHTS_NAME)
+            elif from_flax and os.path.isfile(
+                os.path.join(pretrained_model_name_or_path, subfolder, FLAX_WEIGHTS_NAME)
+            ):
+                # Load from a Flax checkpoint in priority if from_flax
+                archive_file = os.path.join(pretrained_model_name_or_path, subfolder, FLAX_WEIGHTS_NAME)
+            elif use_safetensors is not False and os.path.isfile(
+                os.path.join(pretrained_model_name_or_path, subfolder, _add_variant(SAFE_WEIGHTS_NAME, variant))
+            ):
+                # Load from a safetensors checkpoint
+                archive_file = os.path.join(
+                    pretrained_model_name_or_path, subfolder, _add_variant(SAFE_WEIGHTS_NAME, variant)
+                )
+            elif use_safetensors is not False and os.path.isfile(
+                os.path.join(pretrained_model_name_or_path, subfolder, _add_variant(SAFE_WEIGHTS_INDEX_NAME, variant))
+            ):
+                # Load from a sharded safetensors checkpoint
+                archive_file = os.path.join(
+                    pretrained_model_name_or_path, subfolder, _add_variant(SAFE_WEIGHTS_INDEX_NAME, variant)
+                )
+                is_sharded = True
+            elif os.path.isfile(
+                os.path.join(pretrained_model_name_or_path, subfolder, _add_variant(WEIGHTS_NAME, variant))
+            ):
+                # Load from a PyTorch checkpoint
+                archive_file = os.path.join(
+                    pretrained_model_name_or_path, subfolder, _add_variant(WEIGHTS_NAME, variant)
+                )
+            elif os.path.isfile(
+                os.path.join(pretrained_model_name_or_path, subfolder, _add_variant(WEIGHTS_INDEX_NAME, variant))
+            ):
+                # Load from a sharded PyTorch checkpoint
+                archive_file = os.path.join(
+                    pretrained_model_name_or_path, subfolder, _add_variant(WEIGHTS_INDEX_NAME, variant)
+                )
+                is_sharded = True
+            # At this stage we don't have a weight file so we will raise an error.
+            elif os.path.isfile(
+                os.path.join(pretrained_model_name_or_path, subfolder, TF_WEIGHTS_NAME + ".index")
+            ) or os.path.isfile(os.path.join(pretrained_model_name_or_path, subfolder, TF2_WEIGHTS_NAME)):
+                raise EnvironmentError(
+                    f"Error no file named {_add_variant(WEIGHTS_NAME, variant)} found in directory"
+                    f" {pretrained_model_name_or_path} but there is a file for TensorFlow weights. Use"
+                    " `from_tf=True` to load this model from those weights."
+                )
+            elif os.path.isfile(os.path.join(pretrained_model_name_or_path, subfolder, FLAX_WEIGHTS_NAME)):
+                raise EnvironmentError(
+                    f"Error no file named {_add_variant(WEIGHTS_NAME, variant)} found in directory"
+                    f" {pretrained_model_name_or_path} but there is a file for Flax weights. Use `from_flax=True`"
+                    " to load this model from those weights."
+                )
+            elif use_safetensors:
+                raise EnvironmentError(
+                    f"Error no file named {_add_variant(SAFE_WEIGHTS_NAME, variant)} found in directory"
+                    f" {pretrained_model_name_or_path}."
+                )
+            else:
+                raise EnvironmentError(
+                    f"Error no file named {_add_variant(WEIGHTS_NAME, variant)}, {TF2_WEIGHTS_NAME},"
+                    f" {TF_WEIGHTS_NAME + '.index'} or {FLAX_WEIGHTS_NAME} found in directory"
+                    f" {pretrained_model_name_or_path}."
+                )
+        elif os.path.isfile(os.path.join(subfolder, pretrained_model_name_or_path)):
+            archive_file = pretrained_model_name_or_path
+            is_local = True
+        elif os.path.isfile(os.path.join(subfolder, pretrained_model_name_or_path + ".index")):
+            if not from_tf:
+                raise ValueError(
+                    f"We found a TensorFlow checkpoint at {pretrained_model_name_or_path + '.index'}, please set "
+                    "from_tf to True to load from this checkpoint."
+                )
+            archive_file = os.path.join(subfolder, pretrained_model_name_or_path + ".index")
+            is_local = True
+        elif is_remote_url(pretrained_model_name_or_path):
+            filename = pretrained_model_name_or_path
+            resolved_archive_file = download_url(pretrained_model_name_or_path)
+        else:
+            # set correct filename
+            if from_tf:
+                filename = TF2_WEIGHTS_NAME
+            elif from_flax:
+                filename = FLAX_WEIGHTS_NAME
+            elif use_safetensors is not False:
+                filename = _add_variant(SAFE_WEIGHTS_NAME, variant)
+            else:
+                filename = _add_variant(WEIGHTS_NAME, variant)
+
+            try:
+                # Load from URL or cache if already cached
+                cached_file_kwargs = {
+                    "cache_dir": cache_dir,
+                    "force_download": force_download,
+                    "proxies": proxies,
+                    "local_files_only": local_files_only,
+                    "token": token,
+                    "user_agent": user_agent,
+                    "revision": revision,
+                    "subfolder": subfolder,
+                    "_raise_exceptions_for_gated_repo": False,
+                    "_raise_exceptions_for_missing_entries": False,
+                    "_commit_hash": commit_hash,
+                }
+                resolved_archive_file = cached_file(pretrained_model_name_or_path, filename, **cached_file_kwargs)
+
+                # Since we set _raise_exceptions_for_missing_entries=False, we don't get an exception but a None
+                # result when internet is up, the repo and revision exist, but the file does not.
+                if resolved_archive_file is None and filename == _add_variant(SAFE_WEIGHTS_NAME, variant):
+                    # Maybe the checkpoint is sharded, we try to grab the index name in this case.
+                    resolved_archive_file = cached_file(
+                        pretrained_model_name_or_path,
+                        _add_variant(SAFE_WEIGHTS_INDEX_NAME, variant),
+                        **cached_file_kwargs,
+                    )
+                    if resolved_archive_file is not None:
+                        is_sharded = True
+                    elif use_safetensors:
+                        if revision == "main":
+                            resolved_archive_file, revision, is_sharded = auto_conversion(
+                                pretrained_model_name_or_path, **cached_file_kwargs
+                            )
+                        cached_file_kwargs["revision"] = revision
+                        if resolved_archive_file is None:
+                            raise EnvironmentError(
+                                f"{pretrained_model_name_or_path} does not appear to have a file named"
+                                f" {_add_variant(SAFE_WEIGHTS_NAME, variant)} or {_add_variant(SAFE_WEIGHTS_INDEX_NAME, variant)} "
+                                "and thus cannot be loaded with `safetensors`. Please make sure that the model has "
+                                "been saved with `safe_serialization=True` or do not set `use_safetensors=True`."
+                            )
+                    else:
+                        # This repo has no safetensors file of any kind, we switch to PyTorch.
+                        filename = _add_variant(WEIGHTS_NAME, variant)
+                        resolved_archive_file = cached_file(
+                            pretrained_model_name_or_path, filename, **cached_file_kwargs
+                        )
+                if resolved_archive_file is None and filename == _add_variant(WEIGHTS_NAME, variant):
+                    # Maybe the checkpoint is sharded, we try to grab the index name in this case.
+                    resolved_archive_file = cached_file(
+                        pretrained_model_name_or_path,
+                        _add_variant(WEIGHTS_INDEX_NAME, variant),
+                        **cached_file_kwargs,
+                    )
+                    if resolved_archive_file is not None:
+                        is_sharded = True
+                if resolved_archive_file is None:
+                    # Otherwise, maybe there is a TF or Flax model file.  We try those to give a helpful error
+                    # message.
+                    has_file_kwargs = {
+                        "revision": revision,
+                        "proxies": proxies,
+                        "token": token,
+                    }
+                    if has_file(pretrained_model_name_or_path, TF2_WEIGHTS_NAME, **has_file_kwargs):
+                        raise EnvironmentError(
+                            f"{pretrained_model_name_or_path} does not appear to have a file named"
+                            f" {_add_variant(WEIGHTS_NAME, variant)} but there is a file for TensorFlow weights."
+                            " Use `from_tf=True` to load this model from those weights."
+                        )
+                    elif has_file(pretrained_model_name_or_path, FLAX_WEIGHTS_NAME, **has_file_kwargs):
+                        raise EnvironmentError(
+                            f"{pretrained_model_name_or_path} does not appear to have a file named"
+                            f" {_add_variant(WEIGHTS_NAME, variant)} but there is a file for Flax weights. Use"
+                            " `from_flax=True` to load this model from those weights."
+                        )
+                    elif variant is not None and has_file(
+                        pretrained_model_name_or_path, WEIGHTS_NAME, **has_file_kwargs
+                    ):
+                        raise EnvironmentError(
+                            f"{pretrained_model_name_or_path} does not appear to have a file named"
+                            f" {_add_variant(WEIGHTS_NAME, variant)} but there is a file without the variant"
+                            f" {variant}. Use `variant=None` to load this model from those weights."
+                        )
+                    else:
+                        raise EnvironmentError(
+                            f"{pretrained_model_name_or_path} does not appear to have a file named"
+                            f" {_add_variant(WEIGHTS_NAME, variant)}, {TF2_WEIGHTS_NAME}, {TF_WEIGHTS_NAME} or"
+                            f" {FLAX_WEIGHTS_NAME}."
+                        )
+            except EnvironmentError:
+                # Raise any environment error raise by `cached_file`. It will have a helpful error message adapted
+                # to the original exception.
+                raise
+            except Exception as e:
+                # For any other exception, we throw a generic error.
+                raise EnvironmentError(
+                    f"Can't load the model for '{pretrained_model_name_or_path}'. If you were trying to load it"
+                    " from 'https://huggingface.co/models', make sure you don't have a local directory with the"
+                    f" same name. Otherwise, make sure '{pretrained_model_name_or_path}' is the correct path to a"
+                    f" directory containing a file named {_add_variant(WEIGHTS_NAME, variant)},"
+                    f" {TF2_WEIGHTS_NAME}, {TF_WEIGHTS_NAME} or {FLAX_WEIGHTS_NAME}."
+                ) from e
+
+        if is_local:
+            logger.info(f"loading weights file {archive_file}")
+            resolved_archive_file = archive_file
+        else:
+            logger.info(f"loading weights file {filename} from cache at {resolved_archive_file}")
+    else:
+        resolved_archive_file = None
+
+    # We'll need to download and cache each checkpoint shard if the checkpoint is sharded.
+    if is_sharded:
+        # resolved_archive_file becomes a list of files that point to the different checkpoint shards in this case.
+        resolved_archive_file, sharded_metadata = get_checkpoint_shard_files(
+            pretrained_model_name_or_path,
+            resolved_archive_file,
+            cache_dir=cache_dir,
+            force_download=force_download,
+            proxies=proxies,
+            local_files_only=local_files_only,
+            token=token,
+            user_agent=user_agent,
+            revision=revision,
+            subfolder=subfolder,
+            _commit_hash=commit_hash,
+        )
+
+    return resolved_archive_file, sharded_metadata, is_sharded
+
+
+def _get_dtype(
     cls,
+    dtype: Optional[Union[str, ms.Type, dict]],
+    checkpoint_files: Optional[list[str]],
+    config: PretrainedConfig,
+    sharded_metadata: Optional[dict],
+    state_dict: Optional[dict],
+    weights_only: bool,
+    is_sharded: bool,
+):
+    # set dtype to instantiate the model under:
+    # 1. If dtype is not None, we use that dtype
+    # 2. If dtype is "auto", we auto-detect dtype from the loaded state_dict, by checking its first
+    #    weights entry that is of a floating type - we assume all floating dtype weights are of the same dtype
+    # we also may have config.dtype available, but we won't rely on it till v5
+
+    if dtype is not None:
+        config.dtype = dtype_to_str(dtype)
+        for sub_config_key in config.sub_configs.keys():
+            sub_config = getattr(config, sub_config_key)
+            sub_config.dtype = dtype_to_str(dtype)
+        if isinstance(dtype, str):
+            if dtype == "auto":
+                if hasattr(config, "dtype") and config.dtype is not None:
+                    dtype = config.dtype
+                    logger.info(f"Will use dtype={dtype} as defined in model's config object")
+                else:
+                    if is_sharded and "dtype" in sharded_metadata:
+                        dtype = sharded_metadata["dtype"]
+                    elif not is_sharded:
+                        dtype = get_state_dict_dtype(state_dict)
+                    else:
+                        one_state_dict = load_state_dict(checkpoint_files[0])
+                        dtype = get_state_dict_dtype(one_state_dict)
+                        del one_state_dict  # free CPU memory
+                    logger.info(
+                        f"Since the `dtype` attribute can't be found in model's config object, "
+                        f"will use dtype={dtype} as derived from model's weights"
+                    )
+            else:
+                raise ValueError(f'`mindspore_dtype` can be either `ms.Type` or `"auto"`, but received {dtype}')
+        # TODO: We cannot set default mindspore dtype!
+    else:
+        # set fp32 as the default dtype for BC
+        # TODO: We cannot get default mindspore dtype! Therefore, we set default dtype to ms.float32
+        default_dtype = dtype_to_str(ms.float32)
+        config.dtype = default_dtype
+        for key in config.sub_configs.keys():
+            value = getattr(config, key)
+            value.dtype = default_dtype
+
+    return config, dtype
+
+
+def _find_missing_and_unexpected_keys(
     model: "PreTrainedModel",
-    original_checkpoint_keys: List[str],
-    checkpoint_keys: List[str],
+    original_checkpoint_keys: list[str],
+    checkpoint_keys: list[str],
     loading_base_model_from_task_state_dict: bool,
-) -> Tuple[List[str], List[str]]:
+) -> tuple[list[str], list[str]]:
     """Find missing keys (keys that are part of the model parameters but were NOT found in the loaded state dict keys) and unexpected keys
     (keys found in the loaded state dict keys, but that are NOT part of the model parameters)
     """
     prefix = model.base_model_prefix
 
-    # Compute expected keys, i.e. keys that the FULL model (not model_to_load) expects
+    # Compute expected keys, i.e. keys that the full model expects
     expected_keys = list(model.state_dict().keys())
 
     # Adjust prefix of the keys to make them match loaded keys before removing them
@@ -413,22 +757,57 @@ def _find_missing_and_unexpected_keys(
     model_buffers = {n for n, _ in model.named_buffers()}
     unexpected_keys = sorted(unexpected_keys - model_buffers)
 
-    # Old checkpoints may have keys for rotary_emb.inv_freq for each layer, however we moved this buffer to the main model
-    # (so the buffer name has changed). Remove them in such a case
-    has_inv_freq_buffers = any(buffer.endswith("rotary_emb.inv_freq") for buffer in model_buffers)
-    if has_inv_freq_buffers:
-        unexpected_keys = [k for k in unexpected_keys if "rotary_emb.inv_freq" not in k]
-
-    # Model-specific exceptions for missing and unexpected keys (e.g. if the modeling change over time, or any other reason...)
-    if cls._keys_to_ignore_on_load_missing is not None:
-        for pattern in cls._keys_to_ignore_on_load_missing:
-            missing_keys = [k for k in missing_keys if re.search(pattern, k) is None]
-
-    if cls._keys_to_ignore_on_load_unexpected is not None:
-        for pattern in cls._keys_to_ignore_on_load_unexpected:
-            unexpected_keys = [k for k in unexpected_keys if re.search(pattern, k) is None]
+    tied_params = find_tied_parameters(model)
+    for group in tied_params:
+        missing_in_group = [k for k in missing_keys if k in group]
+        if len(missing_in_group) > 0 and len(missing_in_group) < len(group):
+            missing_keys = [k for k in missing_keys if k not in missing_in_group]
 
     return missing_keys, unexpected_keys
+
+
+def _find_mismatched_keys(
+    state_dict,
+    model_state_dict,
+    loaded_keys,
+    add_prefix_to_model,
+    remove_prefix_from_model,
+    ignore_mismatched_sizes,
+    prefix,
+):
+    mismatched_keys = []
+    if ignore_mismatched_sizes:
+        for checkpoint_key in loaded_keys:
+            # If the checkpoint is sharded, we may not have the key here.
+            if checkpoint_key not in state_dict:
+                continue
+            model_key = checkpoint_key
+            if remove_prefix_from_model:
+                # The model key starts with `prefix` but `checkpoint_key` doesn't so we add it.
+                model_key = f"{prefix}.{checkpoint_key}"
+            elif add_prefix_to_model:
+                # The model key doesn't start with `prefix` but `checkpoint_key` does so we remove it.
+                model_key = ".".join(checkpoint_key.split(".")[1:])
+
+            if model_key in model_state_dict and state_dict[checkpoint_key].shape != model_state_dict[model_key].shape:
+                if (
+                    state_dict[checkpoint_key].shape[-1] == 1
+                    and state_dict[checkpoint_key].numel() * 2 == model_state_dict[model_key].numel()
+                ):
+                    # This skips size mismatches for 4-bit weights. Two 4-bit values share an 8-bit container, causing size differences.
+                    # Without matching with module type or paramter type it seems like a practical way to detect valid 4bit weights.
+                    pass
+                else:
+                    mismatched_keys.append(
+                        (checkpoint_key, state_dict[checkpoint_key].shape, model_state_dict[model_key].shape)
+                    )
+                    del state_dict[checkpoint_key]
+    return mismatched_keys
+
+
+class PipelineParallel(Enum):
+    inputs = 0
+    outputs = 1
 
 
 class ModuleUtilsMixin:
@@ -440,10 +819,6 @@ class ModuleUtilsMixin:
         return self.__class__.__name__
 
     def to(self, dtype: Optional[ms.Type] = None):
-        # FIXME: In ms 2.6.0 `tensor.set_dtype()` encountered a bug that it occurs wrong values.
-        # Resume to use self.register_buffer() in network and set dtype for buffer tensors after ms2.7.0 launched.
-        # Now we use `Parameter` and `Parameter.set_dtype()` instead.
-
         for p in self.get_parameters():
             if p.dtype != dtype:
                 try:
@@ -523,7 +898,7 @@ class ModuleUtilsMixin:
         return extended_attention_mask
 
     def get_extended_attention_mask(
-        self, attention_mask: Tensor, input_shape: Tuple[int], dtype: ms.float32 = None
+        self, attention_mask: Tensor, input_shape: tuple[int, ...], dtype: Optional[ms.Type] = None
     ) -> Tensor:
         """
         Makes broadcastable attention and causal masks so that future and masked tokens are ignored.
@@ -531,7 +906,7 @@ class ModuleUtilsMixin:
         Arguments:
             attention_mask (`Tensor`):
                 Mask with ones indicating tokens to attend to, zeros for tokens to ignore.
-            input_shape (`Tuple[int]`):
+            input_shape (`tuple[int]`):
                 The shape of the input to the model.
 
         Returns:
@@ -640,7 +1015,7 @@ class ModuleUtilsMixin:
 
         return sum(total_numel)
 
-    def estimate_tokens(self, input_dict: Dict[str, Union[ms.Tensor, Any]]) -> int:
+    def estimate_tokens(self, input_dict: dict[str, Union[ms.Tensor, Any]]) -> int:
         """
         Helper function to estimate the total number of tokens from the model inputs.
 
@@ -661,7 +1036,7 @@ class ModuleUtilsMixin:
             self.warnings_issued["estimate_tokens"] = True
         return 0
 
-    def floating_point_ops(self, input_dict: Dict[str, Union[ms.Tensor, Any]], exclude_embeddings: bool = True) -> int:
+    def floating_point_ops(self, input_dict: dict[str, Union[ms.Tensor, Any]], exclude_embeddings: bool = True) -> int:
         """
         Get number of (optionally, non-embeddings) floating-point operations for the forward and backward passes of a
         batch with this transformer model. Default approximation neglects the quadratic dependency on the number of
@@ -686,7 +1061,97 @@ class ModuleUtilsMixin:
         return 6 * self.estimate_tokens(input_dict) * self.num_parameters(exclude_embeddings=exclude_embeddings)
 
 
-class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin, PeftAdapterMixin):
+class EmbeddingAccessMixin:
+    """
+    Base utilities to regroup getters and setters for embeddings.
+    Introduces the `input_layer_embed` attribute, which indicates
+    where the input embeddings come from and where they
+    should be set.
+    """
+
+    _input_embed_layer = "embed_tokens"  # default layer that holds input embeddings.
+
+    def get_input_embeddings(self) -> nn.Cell:
+        """
+        Returns the model's input embeddings.
+
+        Returns:
+            `nn.Cell`: A mindspore module mapping vocabulary to hidden states.
+        """
+
+        # 1) Check if the model has an attribute named 'embed_tokens' (the standard input embedding layer
+        #  for most NLP models), and if so, return it.
+
+        name = getattr(self, "_input_embed_layer", "embed_tokens")
+
+        if (default_embedding := getattr(self, name, None)) is not None:
+            return default_embedding
+        # 2) encoder/decoder and VLMs like `Gemma3nForConditionalGeneration`
+
+        if hasattr(self, "model") and hasattr(self.model, "embed_tokens"):
+            return self.model.embed_tokens
+
+        # 3) vanilla decoder‑only architectures
+        elif hasattr(self, "embed_tokens"):
+            return self.embed_tokens
+        else:
+            base_model = getattr(self, "base_model_prefix", None)
+            if base_model is not None:
+                base_model = getattr(self, base_model, None)
+                if base_model is not None and base_model is not self:
+                    return base_model.get_input_embeddings()
+            raise NotImplementedError(
+                f"`get_input_embeddings` not auto‑handled for {self.__class__.__name__}; "
+                "please override in the subclass."
+            )
+
+    def set_input_embeddings(self, value: nn.Cell):
+        """Fallback setter that handles **~70%** of models in the code-base.
+
+        Order of attempts:
+        1. `self.model.embed_tokens`
+        2. `self.embed_tokens`
+        3. delegate to the *base model* if one exists
+        4. otherwise raise `NotImplementedError` so subclasses still can (and
+            should) override for exotic layouts.
+        """
+
+        # 1) encoder/decoder and VLMs like `Gemma3nForConditionalGeneration`
+        name = getattr(self, "_input_embed_layer", "embed_tokens")
+        if hasattr(self, "model") and hasattr(self.model, name):
+            setattr(self.model, name, value)
+        # 2) as well as vanilla decoder‑only architectures
+        elif hasattr(self, name):
+            setattr(self, name, value)
+        # 3) recurse once into the registered *base* model (e.g. for encoder/decoder)
+        elif getattr(self, self.base_model_prefix, self) is not self:
+            base_model = getattr(self, self.base_model_prefix, self)
+            base_model.set_input_embeddings(value)
+        else:
+            raise NotImplementedError(
+                f"`set_input_embeddings` not auto‑handled for {self.__class__.__name__}; please override in the subclass."
+            )
+
+    def get_output_embeddings(self):
+        if not hasattr(self, "lm_head"):
+            return None
+        try:
+            # Speech / vision backbones raise here, so we return None.
+            # Legit use of get_input_embs?
+            self.get_input_embeddings()
+        except NotImplementedError:
+            return None
+        return self.lm_head
+
+    def set_output_embeddings(self, new_embeddings):
+        """
+        Sets the model's output embedding, defaulting to setting new_embeddings to lm_head.
+        """
+        if getattr(self, "lm_head"):
+            self.lm_head = new_embeddings
+
+
+class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMixin):
     r"""
     Base class for all models.
 
@@ -719,10 +1184,16 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
     main_input_name = "input_ids"
     model_tags = None
 
+    _checkpoint_conversion_mapping = {}  # used for BC support in VLMs, not meant to be used by new models
+
     _auto_class = None
     _no_split_modules = None
     _skip_keys_device_placement = None
+
     _keep_in_fp32_modules = None
+    # the _keep_in_fp32_modules will avoid casting to anything other than float32, except bfloat16
+    # to also prevent bfloat16 casting, use the _keep_in_fp32_modules_strict flag
+    _keep_in_fp32_modules_strict = None
 
     # a list of `re` patterns of `state_dict` keys that should be removed from the list of missing
     # keys we find (keys inside the model but not in the checkpoint) and avoid unnecessary warnings.
@@ -739,32 +1210,79 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
     is_parallelizable = False
     supports_gradient_checkpointing = False
+    _is_stateful = False
 
-    # Flash Attention 2 support
-    _supports_flash_attn_2 = False
+    # Flash Attention support
+    _supports_flash_attn = False
 
     # SDPA support
     _supports_sdpa = False
+
+    _can_compile_fullgraph = False
 
     # Has support for a `Cache` instance as `past_key_values`? Does it support a `StaticCache`?
     _supports_cache_class = False
     _supports_static_cache = False
 
-    # Has support for dynamic model input?
+    # control for padding and static cache
     _supports_dynamic_input = False
+    _supports_jit = False
 
     # Has support for a `QuantoQuantizedCache` instance as `past_key_values`
     _supports_quantized_cache = False
 
     # This flag signal that the model can be used as an efficient backend in TGI and vLLM
-    # In practice, it means that they support attention interface functions, fully pass the kwargs
+    # In practice, it means that they support attention interface (mask) functions, fully pass the kwargs
     # through all modules up to the Attention layer, can slice logits with Tensor, and have a default TP plan
     _supports_attention_backend = False
+    _can_record_outputs = None
 
     @property
-    def dummy_inputs(self) -> Dict[str, Tensor]:
+    def can_record_outputs(self) -> dict[str, OutputRecorder]:
         """
-        `Dict[str, Tensor]`: Dummy inputs to do a forward pass in the network.
+         Maps output names (e.g., "attentions", "hidden_states")
+         to either:
+             - A module class (e.g., `LlamaDecoderLayer`), using default index conventions:
+                 * index=0 for "hidden_states"
+                 * index=1 for "attentions"
+             - Or an `OutputRecorder(...)` with `target_class`, optional `index`, and `layer_name`.
+
+         Examples:
+             These two are equivalent:
+
+         ```python
+             _can_record_outputs = {
+                 "attentions": LlamaAttention,
+                 "hidden_states": LlamaDecoderLayer
+             }
+
+             _can_record_outputs = {
+                 "attentions": OutputRecorder(LlamaAttention, index=1),
+                 "hidden_states": OutputRecorder(LlamaDecoderLayer, index=0)
+             }
+        ```
+
+         This means you can record outputs from the same class, by specifying a layer name. Before
+         collecting outputs, we check that they come from this layer.
+
+         If you have cross attention that come from `LlamaAttention` and self attention that also
+         come from `LlamaAttention` but from `self_attn` you can do this:
+
+         ```python
+         class LlamaModel(PreTrainedModel):
+             _can_record_outputs = {
+                 "attentions": OutputRecorder(LlamaAttention, index=1, layer-name="self_attn"),
+                 "cross_attentions": OutputRecorder(LlamaAttention, index=1, layer_name="cross_attn")
+             }
+
+        ```
+        """
+        return self._can_record_outputs or {}
+
+    @property
+    def dummy_inputs(self) -> dict[str, Tensor]:
+        """
+        `dict[str, Tensor]`: Dummy inputs to do a forward pass in the network.
         """
         return {"input_ids": Tensor(DUMMY_INPUTS)}
 
@@ -775,6 +1293,30 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         """
         return "ms"
 
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # For BC we keep the original `config_class` definition in case
+        # there is a `config_class` attribute (e.g. remote code models),
+        # otherwise we derive it from the annotated `config` attribute.
+
+        # defined in this particular subclass
+        child_annotation = cls.__dict__.get("__annotations__", {}).get("config", None)
+        child_attribute = cls.__dict__.get("config_class", None)
+
+        # defined in the class (this subclass or any parent class)
+        full_annotation = cls.__dict__.get("config", None)
+        full_attribute = cls.config_class
+
+        # priority (child class_config -> child annotation -> global class_config -> global annotation)
+        if child_attribute is not None:
+            cls.config_class = child_attribute
+        elif child_annotation is not None:
+            cls.config_class = child_annotation
+        elif full_attribute is not None:
+            cls.config_class = full_attribute
+        elif full_annotation is not None:
+            cls.config_class = full_annotation
+
     def __init__(self, config: PretrainedConfig, *inputs, **kwargs):
         super().__init__()
         if not isinstance(config, PretrainedConfig):
@@ -783,18 +1325,23 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 "`PretrainedConfig`. To create a model from a pretrained model use "
                 f"`model = {self.__class__.__name__}.from_pretrained(PRETRAINED_MODEL_NAME)`"
             )
-        if not getattr(config, "_attn_implementation_autoset", False):
-            # config usually has a `mindspore_dtype` but we need the next line for the `no_super_init` tests
-            # TODO mindspore does not have get_default_dtype api
-            dtype = ms.float32
-            if hasattr(config, "torch_dtype") and config.torch_dtype is not None:
-                if isinstance(config.torch_dtype, str):
-                    dtype = getattr(ms, config.torch_dtype)
-                else:
-                    dtype = TORCH_TO_MINDSPORE_DTYPE_MAP[str(config.torch_dtype)]
-            config = self._autoset_attn_implementation(config, mindspore_dtype=dtype)
         # Save config and origin of the pretrained weights if given in model
         self.config = config
+
+        # Check the attention implementation is supported, or set it if not yet set (on the internal attr, to avoid
+        # setting it recursively)
+        # TODO set default implementation to "eager" because of immature sdpa attention
+        if self.config._attn_implementation == "sdpa":
+            self.config._attn_implementation = "eager"
+            # warn user that sdpa is not supported
+            logger.warning(
+                "SDPA is not supported yet. Falling back to eager attention implementation. This warning can be removed using the argument "
+                '`attn_implementation="eager"` when loading the model. '
+                "Example: `model = AutoModel.from_pretrained('openai/whisper-tiny', attn_implementation='eager')`"
+            )
+        self.config._attn_implementation_internal = self._check_and_adjust_attn_implementation(
+            self.config._attn_implementation, is_init_check=True
+        )
 
         # for initialization of the loss
         loss_type = self.__class__.__name__
@@ -814,6 +1361,10 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         # `InstructBlipForConditionalGeneration` can dynamically update it without modifying the class attribute
         # when a different component (e.g. language_model) is used.
         self._keep_in_fp32_modules = copy.copy(self.__class__._keep_in_fp32_modules)
+        self._keep_in_fp32_modules_strict = copy.copy(self.__class__._keep_in_fp32_modules_strict)
+
+        self._no_split_modules = self._no_split_modules or []
+        _CAN_RECORD_REGISTRY[str(self.__class__)] = self._can_record_outputs  # added for executorch support only
 
     def post_init(self):
         """
@@ -821,86 +1372,6 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         modules properly initialized (such as weight initialization).
         """
         self.init_weights()
-
-    @classmethod
-    def _autoset_attn_implementation(
-        cls,
-        config,
-        use_flash_attention_2: bool = False,
-        mindspore_dtype=None,
-    ):
-        """
-        Automatically checks and dispatches to a default attention implementation. In order of priority:
-            1. An implementation specified in `config._attn_implementation` (due for example to the argument attn_implementation="sdpa" in from_pretrained).
-            2. DEPRECATED: if use_flash_attention_2 is set to `True` and `flash_attn` is available, flash attention. (`LlamaFlashAttention` for example)
-            3. SDPA implementation, if available and supported by the model type. (`LlamaSdpaAttention` for example)
-            4. The default model's implementation otherwise (`LlamaAttention` for example) .
-        """
-        # Here we use config._attn_implementation_internal to check whether the attention implementation was explicitely set by the user.
-        # The property `PretrainedConfig._attn_implementation` is never `None`, for backward compatibility (always fall back on "eager").
-        # The `hasattr` here is used as some Transformers tests for some reason do not call PretrainedConfig __init__ (e.g. test_no_super_init_config_and_model)
-        requested_attn_implementation = None
-        if hasattr(config, "_attn_implementation_internal") and config._attn_implementation_internal is not None:
-            if config._attn_implementation != "flash_attention_2" and use_flash_attention_2:
-                raise ValueError(
-                    f'Both attn_implementation="{config._attn_implementation}" and `use_flash_attention_2=True` were '
-                    f"used when loading the model, which are not compatible."
-                    ' We recommend to just use `attn_implementation="flash_attention_2"` when loading the model.'
-                )
-
-            if config._attn_implementation not in ["eager", "paged_attention"] + ALL_ATTENTION_FUNCTIONS.valid_keys():
-                message = (
-                    f'Specified `attn_implementation="{config._attn_implementation}"` is not supported. '
-                    f'The only possible arguments are `attn_implementation="eager"`'
-                    f" (manual attention implementation)"
-                )
-                if cls._supports_flash_attn_2:
-                    message += ', `"attn_implementation=flash_attention_2"` (implementation using flash attention 2)'
-                if cls._supports_sdpa:
-                    message += ', `"attn_implementation=sdpa"` (implementation using scaled_dot_product_attention)'
-                raise ValueError(message + ".")
-
-            # If a config is passed with a preset attn_implementation, we skip the automatic dispatch and use the
-            # user-provided config, with hard checks that the requested attention implementation is available.
-            requested_attn_implementation = config._attn_implementation_internal
-
-        # Composite models consisting of several PretrainedModels have to specify attention impl as a dict
-        # where keys are sub-config names. But most people will specify one `str` which means that should dispatch it
-        # for all sub-models.
-        # Below we check if a config is composite and manually prepare a dict of attn impl if not already passed as a dict.
-        # Later each sub-module will dispatch with its own attn impl, by calling `XXXModel._from_config(config.text_config)`
-        # If any of sub-modules doesn't support requested attn, an error will be raised. See https://github.com/huggingface/transformers/pull/32238
-        for key in config.sub_configs.keys():
-            sub_config = getattr(config, key)
-            curr_attn_implementation = (
-                requested_attn_implementation
-                if not isinstance(requested_attn_implementation, dict)
-                else requested_attn_implementation.get(key, None)
-            )
-            # For models with backbone sub-config might be not initialized
-            if sub_config is not None:
-                sub_config._attn_implementation_internal = curr_attn_implementation
-
-        if use_flash_attention_2:
-            logger.warning_once(
-                "The model was loaded with use_flash_attention_2=True, which is deprecated and may be removed in a "
-                'future release. Please use `attn_implementation="flash_attention_2"` instead.'
-            )
-            config._attn_implementation = "flash_attention_2"
-        if config._attn_implementation == "flash_attention_2":
-            cls._check_and_enable_flash_attn_2(
-                config,
-                mindspore_dtype=mindspore_dtype,
-                hard_check_only=False,
-            )
-        elif requested_attn_implementation in [None, "sdpa"]:
-            # use_flash_attention_2 takes priority over SDPA, hence SDPA treated in this elif.
-            config = cls._check_and_enable_sdpa(
-                config,
-                hard_check_only=False if requested_attn_implementation is None else True,
-            )
-
-        return config
 
     @property
     def base_model(self) -> nn.Cell:
@@ -929,12 +1400,13 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 continue
             if "PreTrainedModel" not in str(base) and base.can_generate():
                 return True
-        # BC: Detects whether `prepare_inputs_for_generation` has been overwritten in the model. Prior to v4.45, this
+
+        # Detects whether `prepare_inputs_for_generation` has been overwritten in the model. Prior to v4.45, this
         # was how we detected whether a model could generate.
-        if "GenerationMixin" not in str(cls.prepare_inputs_for_generation):
-            logger.warning_once(
+        if hasattr(cls, "prepare_inputs_for_generation"):  # implicit: doesn't inherit `GenerationMixin`
+            logger.warning(
                 f"{cls.__name__} has generative capabilities, as `prepare_inputs_for_generation` is explicitly "
-                "overwritten. However, it doesn't directly inherit from `GenerationMixin`. From 👉v4.50👈 onwards, "
+                "defined. However, it doesn't directly inherit from `GenerationMixin`. From 👉v4.50👈 onwards, "
                 "`PreTrainedModel` will NOT inherit from `GenerationMixin`, and this model will lose the ability "
                 "to call `generate` and other related functions."
                 "\n  - If you're using `trust_remote_code=True`, you can get rid of this warning by loading the "
@@ -944,49 +1416,8 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 "\n  - If you are not the owner of the model architecture class, please contact the model code owner "
                 "to update it."
             )
-            return True
         # Otherwise, can't generate
         return False
-
-    @classmethod
-    def _check_and_enable_flash_attn_2(
-        cls,
-        config,
-        mindspore_dtype=None,
-        hard_check_only: bool = False,
-    ) -> PretrainedConfig:
-        """
-        Checks the availability of Flash Attention 2 and compatibility with the current model.
-
-        If all checks pass and `hard_check_only` is False, the method will set the config attribute
-        `attn_implementation` to "flash_attention_2" so that the model can initialize the correct attention module.
-        """
-        if not cls._supports_flash_attn_2:
-            raise ValueError(
-                f"{cls.__name__} does not support Flash Attention 2.0 yet. Please request to add support where"
-                f" the model is hosted, on its model hub page: https://huggingface.co/{config._name_or_path}/discussions/new"
-                " or in the Transformers GitHub repo: https://github.com/huggingface/transformers/issues/new"
-            )
-
-        if not is_flash_attn_2_available():
-            raise ImportError("FlashAttention2 has been toggled on, but it cannot be used due to some error")
-
-        if mindspore_dtype is None:
-            logger.warning_once(
-                "You are attempting to use Flash Attention 2.0 without specifying a MindSpore dtype. This might lead to unexpected behaviour"
-            )
-        elif mindspore_dtype is not None and mindspore_dtype not in [ms.float16, ms.bfloat16]:
-            logger.warning_once(
-                "Flash Attention 2.0 only supports ms.float16 and ms.bfloat16 dtypes, but"
-                f" the current dype in {cls.__name__} is {mindspore_dtype}. You should run training or inference using "
-                f"Automatic Mixed-Precision via the `network=auto_mix_precision(network, ...)` decorator,"
-                " or load the model with the `mindspore_dtype` argument. Example: `model = "
-                'AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", mindspore_dtype=ms.float16)`'
-            )
-
-        if not hard_check_only:
-            config._attn_implementation = "flash_attention_2"
-        return config
 
     @property
     def loss_function(self):
@@ -1012,40 +1443,13 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         return cls._supports_attention_backend
 
     @classmethod
-    def _check_and_enable_sdpa(cls, config, hard_check_only: bool = False) -> PretrainedConfig:
-        """
-        Checks the availability of SDPA for a given model.
-
-        If all checks pass and `hard_check_only` is False, the method will set the config attribute `_attn_implementation`
-        to "flash_attention_2" so that the model can initialize the correct attention module.
-        """
-        if hard_check_only:
-            if not cls._supports_sdpa:
-                raise ValueError(
-                    f"{cls.__name__} does not support an attention implementation through `scaled_dot_product_attention` yet."
-                    " Please request the support for this architecture: https://github.com/huggingface/transformers/issues/28005. "
-                    "If you believe this error is a bug, please open an issue in Transformers GitHub repository and "
-                    'load your model with the argument `attn_implementation="eager"` meanwhile. Example: '
-                    '`model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="eager")`'
-                )
-            if not is_sdpa_available():
-                raise ImportError("SDPA requirements in Transformers are not met.")
-
-        if not is_sdpa_available() or not cls._supports_sdpa:
-            return config
-
-        if not hard_check_only:
-            config._attn_implementation = "sdpa"
-        return config
-
-    @classmethod
     def _from_config(cls, config, **kwargs):
         """
         All context managers that the model should be initialized under go here.
 
         Args:
-            torch_dtype (str, *optional*):
-                Override the default torch_dtype and load the model under this dtype.
+            dtype (str, *optional*):
+                Override the default dtype and load the model under this dtype.
         """
         # when we init a model from within another model (e.g. VLMs) and dispatch on FA2
         # a warning is raised that dtype should be fp16. Since we never pass dtype from within
@@ -1053,32 +1457,24 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         if hasattr(config, "mindspore_dtype"):
             mindspore_dtype = kwargs.pop("mindspore_dtype", config.mindspore_dtype)
         else:
-            mindspore_dtype = kwargs.pop("torch_dtype", config.torch_dtype)
+            mindspore_dtype = kwargs.pop("dtype", config.dtype)
 
         if isinstance(mindspore_dtype, str):
             mindspore_dtype = getattr(ms, mindspore_dtype)
         elif mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
+            TORCH_TO_MINDSPORE_DTYPE_MAP = {
+                "torch.float32": ms.float32,
+                "torch.bfloat16": ms.bfloat16,
+                "torch.float16": ms.float16,
+            }
             mindspore_dtype = str(mindspore_dtype)
             mindspore_dtype = TORCH_TO_MINDSPORE_DTYPE_MAP[mindspore_dtype]
 
-        use_flash_attention_2 = kwargs.pop("use_flash_attention_2", False)
-
         config = copy.deepcopy(config)  # We do not want to modify the config inplace in _from_config.
 
-        if config._attn_implementation_internal is not None:
-            # In this case, the config has been created with the attn_implementation set by the user, which we
-            # should respect.
-            attn_implementation = config._attn_implementation_internal
-        else:
-            attn_implementation = None
-
-        config._attn_implementation = kwargs.pop("attn_implementation", attn_implementation)
-        if not getattr(config, "_attn_implementation_autoset", False):
-            config = cls._autoset_attn_implementation(
-                config,
-                use_flash_attention_2=use_flash_attention_2,
-                mindspore_dtype=mindspore_dtype,
-            )
+        # If passing `attn_implementation` as kwargs, respect it (it will be applied recursively on subconfigs)
+        if "attn_implementation" in kwargs:
+            config._attn_implementation = kwargs.pop("attn_implementation")
 
         if mindspore_dtype is not None:
             patch_nn_default_dtype(dtype=mindspore_dtype, force=True)
@@ -1097,40 +1493,347 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
         return model
 
-    def get_input_embeddings(self) -> nn.Cell:
+    def _flash_attn_2_can_dispatch(self, is_init_check: bool = False) -> bool:
         """
-        Returns the model's input embeddings.
-
-        Returns:
-            `nn.Cell`: A mindspore cell mapping vocabulary to hidden states.
-        """
-        base_model = getattr(self, self.base_model_prefix, self)
-        if base_model is not self:
-            return base_model.get_input_embeddings()
-        else:
-            raise NotImplementedError
-
-    def set_input_embeddings(self, value: nn.Cell):
-        """
-        Set model's input embeddings.
+        Check the availability of Flash Attention 2 for a given model.
 
         Args:
-            value (`nn.Cell`): A cell mapping vocabulary to hidden states.
+            is_init_check (`bool`, *optional*):
+                Whether this check is performed early, i.e. at __init__ time, or later when the model and its weights are
+                fully instantiated. This is needed as we also check the devices of the weights, and/or if the model uses
+                BetterTransformer, which are only available later after __init__. This allows to raise proper exceptions early
+                before instantiating the full models if we know that the model does not support the requested attention.
         """
-        base_model = getattr(self, self.base_model_prefix, self)
-        if base_model is not self:
-            base_model.set_input_embeddings(value)
-        else:
-            raise NotImplementedError
+        mindspore_dtype = self.config.dtype
+        if isinstance(mindspore_dtype, str):
+            mindspore_dtype = getattr(ms, mindspore_dtype)
+        elif mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
+            TORCH_TO_MINDSPORE_DTYPE_MAP = {
+                "torch.float32": ms.float32,
+                "torch.bfloat16": ms.bfloat16,
+                "torch.float16": ms.float16,
+            }
+            mindspore_dtype = str(mindspore_dtype)
+            mindspore_dtype = TORCH_TO_MINDSPORE_DTYPE_MAP[mindspore_dtype]
 
-    def get_output_embeddings(self) -> nn.Cell:
+        # check `supports_flash_attn_2` for BC with custom code. TODO: remove after a few releases
+        if not (self._supports_flash_attn or getattr(self, "_supports_flash_attn_2", False)):
+            raise ValueError(
+                f"{self.__class__.__name__} does not support Flash Attention 2.0 yet. Please request to add support where"
+                f" the model is hosted, on its model hub page: https://huggingface.co/{self.config._name_or_path}/discussions/new"
+                " or in the Transformers GitHub repo: https://github.com/huggingface/transformers/issues/new"
+            )
+
+        # fixme variable is assigned but never used
+        # if not is_flash_attn_2_available():
+        #     preface = "FlashAttention2 has been toggled on, but it cannot be used due to the following error:"
+        #     install_message = "Please refer to the documentation of
+        #           https://huggingface.co/docs/transformers/perf_infer_gpu_one#flashattention-2 to install Flash Attention 2."
+
+        if mindspore_dtype is None:
+            logger.warning_once(
+                "You are attempting to use Flash Attention 2 without specifying a torch dtype. This might lead to unexpected behaviour"
+            )
+        elif mindspore_dtype is not None and mindspore_dtype not in [ms.float16, ms.bfloat16]:
+            logger.warning_once(
+                "Flash Attention 2 only supports ms.float16 and ms.bfloat16 dtypes, but"
+                f" the current dype in {self.__class__.__name__} is {mindspore_dtype}. You should run training or inference using Automatic Mixed-Precision,"
+                " or load the model with the `dtype` argument. "
+                'Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", mindspore_dtype=ms.float16)`'
+            )
+
+        # With the early check, the parameters are not yet initalized correctly
+        if not is_init_check:
+            if getattr(self, "use_bettertransformer", False):
+                raise ValueError(
+                    "Flash Attention 2 and BetterTransformer API are not compatible. Please make sure to disable BetterTransformers "
+                    "by doing model.reverse_bettertransformer()"
+                )
+
+        # If no error raise by this point, we can return `True`
+        return True
+
+    def _flash_attn_3_can_dispatch(self, is_init_check: bool = False) -> bool:
         """
-        Returns the model's output embeddings.
+        Check the availability of Flash Attention 3 for a given model.
+
+        Args:
+            is_init_check (`bool`, *optional*):
+                Whether this check is performed early, i.e. at __init__ time, or later when the model and its weights are
+                fully instantiated. This is needed as we also check the devices of the weights, and/or if the model uses
+                BetterTransformer, which are only available later after __init__. This allows to raise proper exceptions early
+                before instantiating the full models if we know that the model does not support the requested attention.
+        """
+        return NotImplementedError("MindOne does not support fa3 yet. Please use eager or fa instead!")
+
+    def _sdpa_can_dispatch(self, is_init_check: bool = False) -> bool:
+        """
+        Check the availability of SDPA for a given model.
+
+        Args:
+            is_init_check (`bool`, *optional*):
+                Whether this check is performed early, i.e. at __init__ time, or later when the model and its weights are
+                fully instantiated. This is needed as we also check the devices of the weights, and/or if the model uses
+                BetterTransformer, which are only available later after __init__. This allows to raise proper exceptions early
+                before instantiating the full models if we know that the model does not support the requested attention.
+        """
+        if not self._supports_sdpa:
+            raise ValueError(
+                f"{self.__class__.__name__} does not support an attention implementation through torch.nn.functional.scaled_dot_product_attention yet."
+                " Please request the support for this architecture: https://github.com/huggingface/transformers/issues/28005. If you believe"
+                " this error is a bug, please open an issue in Transformers GitHub repository and "
+                'load your model with the argument `attn_implementation="eager"` meanwhile. '
+                'Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="eager")`'
+            )
+        if not is_sdpa_available():
+            raise ImportError(
+                "MindSpore SDPA requirements in Transformers are not met. Use `attn_implementation='eager'` instead."
+            )
+
+        return True
+
+    def _flex_attn_can_dispatch(self, is_init_check: bool = False) -> bool:
+        """
+        Check the availability of Flex Attention for a given model.
+
+        Args:
+            is_init_check (`bool`, *optional*):
+                Whether this check is performed early, i.e. at __init__ time, or later when the model and its weights are
+                fully instantiated. This is needed as we also check the devices of the weights, and/or if the model uses
+                BetterTransformer, which are only available later after __init__. This allows to raise proper exceptions early
+                before instantiating the full models if we know that the model does not support the requested attention.
+        """
+        return NotImplementedError("MindOne does not support flex attn yet. Please use eager or fa instead!")
+
+    def _check_and_adjust_attn_implementation(
+        self, attn_implementation: Optional[str], is_init_check: bool = False
+    ) -> str:
+        """
+        Check that the `attn_implementation` exists and is supported by the models, and try to get the kernel from hub if
+        it matches hf kernels pattern.
+
+        Args:
+            attn_implementation (`str` or `None`):
+                The attention implementation to check for existence/validity.
+            is_init_check (`bool`, *optional*):
+                Whether this check is performed early, i.e. at __init__ time, or later when the model and its weights are
+                fully instantiated. This is needed as we also check the devices of the weights, and/or if the model uses
+                BetterTransformer, which are only available later after __init__. This allows to raise proper exceptions early
+                before instantiating the full models if we know that the model does not support the requested attention.
 
         Returns:
-            `nn.Cell`: A mindspore cell mapping hidden states to vocabulary.
+            `str`: The final attention implementation to use, including potential fallbacks from sdpa to eager, or from
+            None to sdpa (to potentially eager).
         """
-        return None  # Overwrite for models with output embeddings
+        applicable_attn_implementation = attn_implementation
+
+        # TODO there is no substitution for huggingface kernels
+        # If FA not installed, do not fail but use kernels instead
+
+        applicable_attn_implementation = self.get_correct_attn_implementation(
+            applicable_attn_implementation, is_init_check
+        )
+
+        return applicable_attn_implementation
+
+    def get_correct_attn_implementation(self, requested_attention: Optional[str], is_init_check: bool = False) -> str:
+        # we set default attn implementation to "eager" because immature mindspore sdpa interface
+        applicable_attention = "eager" if requested_attention is None else requested_attention
+
+        if applicable_attention not in ["eager"] + ALL_ATTENTION_FUNCTIONS.valid_keys():
+            message = (
+                f'Specified `attn_implementation="{applicable_attention}"` is not supported. The only possible arguments are '
+                '`attn_implementation="eager"`'
+            )
+            # check `supports_flash_attn_2` for BC with custom code. TODO: remove after a few releases
+            if self._supports_flash_attn or getattr(self, "_supports_flash_attn_2", False):
+                message += ', `"attn_implementation=flash_attention_3"`, `"attn_implementation=flash_attention_2"`'
+            if self._supports_sdpa:
+                message += ', `"attn_implementation=sdpa"'
+            if self._supports_flex_attn:
+                message += ', `"attn_implementation=flex_attention"`'
+            raise ValueError(message + ".")
+
+        # Perform relevant checks
+        if applicable_attention == "flash_attention_2":
+            self._flash_attn_2_can_dispatch(is_init_check)
+        elif applicable_attention == "flash_attention_3":
+            self._flash_attn_3_can_dispatch(is_init_check)
+        elif applicable_attention == "flex_attention":
+            self._flex_attn_can_dispatch(is_init_check)
+        elif applicable_attention == "sdpa":
+            # Sdpa is the default, so we try it and fallback to eager otherwise when not possible
+            try:
+                self._sdpa_can_dispatch(is_init_check)
+            except (ValueError, ImportError) as e:
+                if requested_attention == "sdpa":
+                    raise e
+                applicable_attention = "eager"
+
+        return applicable_attention
+
+    @classmethod
+    def _can_set_attn_implementation(cls) -> bool:
+        """Detect whether the class supports setting its attention implementation dynamically. It is an ugly check based on
+        opening the file, but avoids maintaining yet another property flag.
+        """
+        class_file = sys.modules[cls.__module__].__file__
+        with open(class_file, "r") as f:
+            code = f.read()
+        # heuristic -> if we find those patterns, the model uses the correct interface
+        if re.search(r"class \w+Attention\(nn.Cell\)", code):
+            return (
+                "eager_attention_forward" in code
+                and "ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]" in code
+            )
+        else:
+            # If no attention layer, assume `True`. Most probably a multimodal model or inherits from existing models
+            return True
+
+    def set_attn_implementation(self, attn_implementation: Union[str, dict]):
+        """
+        Set the requested `attn_implementation` for this model.
+
+        Args:
+            attn_implementation (`str` or `dict`):
+                The attention implementation to set for this model. It can be either a `str`, in which case it will be
+                dispatched to all submodels if relevant, or a `dict` where keys are the sub_configs name, in which case each
+                submodel will dispatch the corresponding value.
+        """
+        requested_implementation = (
+            attn_implementation
+            if not isinstance(attn_implementation, dict)
+            else attn_implementation.get("", self.config._attn_implementation)
+        )
+
+        # At this point, the model was already instantiated, so instead of crashing on bad value, let's simply
+        # warn the user that the requested value is not working
+        if requested_implementation != self.config._attn_implementation:
+            # In this case, raise
+            if not self._can_set_attn_implementation():
+                logger.warning(
+                    f"{self.__class__.__name__} does not support setting its attention implementation dynamically, because it "
+                    "does not follow the functional approach based on AttentionInterface "
+                    "(see https://huggingface.co/docs/transformers/en/attention_interface)"
+                )
+            else:
+                requested_implementation = self._check_and_adjust_attn_implementation(
+                    requested_implementation, is_init_check=False
+                )
+                # Apply the change (on the internal attr, to avoid setting it recursively)
+                self.config._attn_implementation_internal = requested_implementation
+
+        # Apply it to all submodels as well
+        for submodule in self.modules():
+            # We found a submodel (which is not self) with a different config (otherwise, it may be the same "actual model",
+            # e.g. ForCausalLM has a Model inside, but no need to check it again)
+            if (
+                submodule is not self
+                and isinstance(submodule, PreTrainedModel)
+                and submodule.config.__class__ != self.config.__class__
+                # If it was already changed, no need to do it again
+                and not hasattr(submodule.config, "_attn_was_changed")
+            ):
+                # In this case, warn and skip
+                if not submodule._can_set_attn_implementation():
+                    logger.warning(
+                        f"{submodule.__class__.__name__} does not support setting its attention implementation dynamically, because it "
+                        "does not follow the functional approach based on AttentionInterface "
+                        "(see https://huggingface.co/docs/transformers/en/attention_interface)"
+                    )
+                # Set the attn on the submodule
+                else:
+                    sub_implementation = requested_implementation
+                    if isinstance(attn_implementation, dict):
+                        for subconfig_key in self.config.sub_configs:
+                            # We need to check for exact object match here, with `is`
+                            if getattr(self.config, subconfig_key) is submodule.config:
+                                sub_implementation = attn_implementation.get(
+                                    subconfig_key, submodule.config._attn_implementation
+                                )
+                                break
+                    # Check the module can use correctly, otherwise we raise an error if requested attention can't be set for submodule
+                    sub_implementation = submodule.get_correct_attn_implementation(sub_implementation)
+                    submodule.config._attn_implementation_internal = sub_implementation
+
+                # Still add it as "changed" even if it was skipped, as we would otherwise try to set it in the dark afterwards
+                # We need to set it on the config itself, to differentiate 2 subconfigs of the same __class__ potentially
+                submodule.config._attn_was_changed = True
+
+        # We need this as some old and badly designed models use subconfigs without declaring the corresponding modules as PreTrainedModel
+        for subconfig_key in self.config.sub_configs:
+            subconfig = getattr(self.config, subconfig_key)
+            sub_implementation = (
+                requested_implementation
+                if not isinstance(attn_implementation, dict)
+                else attn_implementation.get(subconfig_key, subconfig._attn_implementation)
+            )
+            # This means we did not perform any check above for this particular subconfig -> set it in the dark if it is registered
+            if (
+                not hasattr(subconfig, "_attn_was_changed")
+                # If it's already the same, then no need to enter here and raise warnings
+                and sub_implementation != subconfig._attn_implementation
+            ):
+                if sub_implementation not in ["eager"] + ALL_ATTENTION_FUNCTIONS.valid_keys():
+                    raise ValueError(
+                        f'Specified `attn_implementation="{sub_implementation}"` is not supported for {subconfig_key}. '
+                        'The only possible arguments are "eager" (manual attention implementation)'
+                        f"or one of the following: {list(ALL_ATTENTION_FUNCTIONS.valid_keys())}"
+                    )
+                subconfig._attn_implementation_internal = sub_implementation
+                logger.warning(
+                    f"We set the attention implementation for the sub-config `{subconfig_key}` to `{sub_implementation}` "
+                    "without finding the associated sub-model. For this reason we could not check if the model supports it. "
+                    "You may encounter undefined behavior."
+                )
+            # Unset the attribute in this case, to avoid issues in the future
+            else:
+                if hasattr(subconfig, "_attn_was_changed"):
+                    del subconfig._attn_was_changed
+
+    def get_decoder(self):
+        """
+        Best-effort lookup of the *decoder* module.
+
+        Order of attempts (covers ~85 % of current usages):
+
+        1. `self.decoder`
+        2. `self.model`                       (many wrappers store the decoder here)
+        3. `self.model.get_decoder()`         (nested wrappers)
+        4. fallback: raise for the few exotic models that need a bespoke rule
+        """
+        if hasattr(self, "decoder"):
+            return self.decoder
+
+        if hasattr(self, "model"):
+            inner = self.model
+            # See: https://github.com/huggingface/transformers/issues/40815
+            if hasattr(inner, "get_decoder") and type(inner) is not type(self):
+                return inner.get_decoder()
+            return inner
+
+        # If this is a base transformer model (no decoder/model attributes), return self
+        # This handles cases like MistralModel which is itself the decoder
+        return self
+
+    def set_decoder(self, decoder):
+        """
+        Symmetric setter. Mirrors the lookup logic used in `get_decoder`.
+        """
+
+        if hasattr(self, "decoder"):
+            self.decoder = decoder
+            return
+
+        if hasattr(self, "model"):
+            inner = self.model
+            if hasattr(inner, "set_decoder"):
+                inner.set_decoder(decoder)
+            else:
+                self.model = decoder
+            return
+
+        return
 
     def _init_weights(self, module):
         """
@@ -1150,9 +1853,10 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         self._init_weights(module)
         module._is_hf_initialized = True
 
-    def tie_weights(self):
+    def tie_embeddings_and_encoder_decoder(self):
         """
-        Tie the weights between the input embeddings and the output embeddings.
+        If set in the config, tie the weights between the input embeddings and the output embeddings,
+        and the encoder and decoder.
 
         If the `torchscript` flag is set in the configuration, can't handle parameter sharing so we are cloning the
         weights instead.
@@ -1173,7 +1877,16 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             # Leading to issues on subsequent calls by different tests or subsequent calls.
             self._dynamic_tied_weights_keys = tied_weights
 
+    def tie_weights(self):
+        """
+        Recursively (for all submodels) tie all the weights of the model.
+        """
+        # Note that `self` is included in `self.modules` so we also apply to current PreTrainedModel with this call
         for name, module in self.cells_and_names():
+            # If it's a PreTrainedModel, may need to tie the embeddings and/or encoder/decoder weights
+            if isinstance(module, PreTrainedModel):
+                module.tie_embeddings_and_encoder_decoder()
+            # Additionally, if it has a custom `_tie_weights`, honor it
             if hasattr(module, "_tie_weights"):
                 module._tie_weights()
 
@@ -1181,8 +1894,8 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
     def _tie_encoder_decoder_weights(
         encoder: nn.Cell, decoder: nn.Cell, base_model_prefix: str, base_encoder_name: str
     ):
-        uninitialized_encoder_weights: List[str] = []
-        tied_weights: List[str] = []
+        uninitialized_encoder_weights: list[str] = []
+        tied_weights: list[str] = []
         if decoder.__class__ != encoder.__class__:
             logger.info(
                 f"{decoder.__class__} and {encoder.__class__} are not equal. In this case make sure that all encoder"
@@ -1194,7 +1907,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             encoder_pointer: nn.Cell,
             module_name: str,
             base_encoder_name: str,
-            uninitialized_encoder_weights: List[str],
+            uninitialized_encoder_weights: list[str],
             depth=0,
             total_decoder_name="",
             total_encoder_name="",
@@ -1219,9 +1932,9 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                     len(encoder_modules) > 0
                 ), f"Encoder module {encoder_pointer} does not match decoder module {decoder_pointer}"
 
-                all_encoder_weights = {module_name + "/" + sub_name for sub_name in encoder_modules.keys()}
+                all_encoder_weights = {module_name + "/" + sub_name for sub_name in encoder_modules}
                 encoder_layer_pos = 0
-                for name, module in decoder_modules.items():
+                for name in decoder_modules:
                     if name.isdigit():
                         encoder_name = str(int(name) + encoder_layer_pos)
                         decoder_name = name
@@ -1436,7 +2149,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         return new_embeddings
 
     def _get_resized_lm_head(
-        self, old_lm_head: nn.Dense, new_num_tokens: Optional[int] = None, transposed: Optional[bool] = False
+        self, old_lm_head: nn.Dense, new_num_tokens: Optional[int] = None, transposed: bool = False
     ) -> nn.Dense:
         """
         Build a resized Linear Module from a provided old Linear Module. Increasing the size will add newly initialized
@@ -1518,7 +2231,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         old_lm_head_dim,
         old_num_tokens,
         added_num_tokens,
-        transposed=False,
+        transposed: bool = False,
     ):
         if transposed:
             # Transpose to the desired shape for the function.
@@ -1559,7 +2272,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             f"overwrite this method in the class {self.__class__} in `modeling_{self.__class__.__module__}.py`"
         )
 
-    def get_position_embeddings(self) -> Union[nn.Embedding, Tuple[nn.Embedding]]:
+    def get_position_embeddings(self) -> Union[nn.Embedding, tuple[nn.Embedding]]:
         raise NotImplementedError(
             f"`get_position_embeddings` is not implemented for {self.__class__}`. To implement it, you should "
             f"overwrite this method in the class {self.__class__} in `modeling_{self.__class__.__module__}.py`"
@@ -1637,12 +2350,12 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 If specified, weights are saved in the format pytorch_model.<variant>.bin.
             token (`str` or `bool`, *optional*):
                 The token to use as HTTP bearer authorization for remote files. If `True`, or not specified, will use
-                the token generated when running `huggingface-cli login` (stored in `~/.huggingface`).
+                the token generated when running `hf auth login` (stored in `~/.huggingface`).
             save_peft_format (`bool`, *optional*, defaults to `True`):
                 For backward compatibility with PEFT library, in case adapter weights are attached to the model, all
-                keys of the state dict of adapters needs to be pre-pended with `base_model.model`. Advanced users can
+                keys of the state dict of adapters needs to be prepended with `base_model.model`. Advanced users can
                 disable this behaviours by setting `save_peft_format` to `False`.
-            kwargs (`Dict[str, Any]`, *optional*):
+            kwargs (`dict[str, Any]`, *optional*):
                 Additional key word arguments passed along to the [`~utils.PushToHubMixin.push_to_hub`] method.
         """
         use_auth_token = kwargs.pop("use_auth_token", None)
@@ -1668,8 +2381,6 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 "`save_config` is deprecated and will be removed in v5 of Transformers. Use `is_main_process` instead."
             )
             is_main_process = kwargs.pop("save_config")
-        if safe_serialization and not is_safetensors_available():
-            raise ImportError("`safe_serialization` requires the `safetensors library: `pip install safetensors`.")
 
         if os.path.isfile(save_directory):
             logger.error(f"Provided path ({save_directory}) should be a directory, not a file")
@@ -1683,14 +2394,11 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         # save the string version of dtype to the config, e.g. convert ms.float32 => "float32"
         # we currently don't use this setting automatically, but may start to use with v5
         dtype = get_parameter_dtype(model_to_save)
-        model_to_save.config.torch_dtype = repr(dtype).split(".")[1]
-        model_to_save.config.mindspore_dtype = repr(dtype).split(".")[1]
-        for sub in ("text_config", "vision_config"):
-            if hasattr(model_to_save.config, sub):
-                getattr(model_to_save.config, sub).mindspore_dtype = repr(dtype).split(".")[1]
+        model_to_save.config.dtype = repr(dtype).split(".")[1]
 
         # Attach architecture to the config
-        model_to_save.config.architectures = [model_to_save.__class__.__name__]
+        # When using FSDP2, unwrapping is a noop, so the model name doesn't change back to the original model name
+        model_to_save.config.architectures = [model_to_save.__class__.__name__.removeprefix("FSDP")]
 
         # If we have a custom model, we copy the file defining it in the folder and set the attributes so it can be
         # loaded from the Hub.
@@ -1731,7 +2439,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 if save_peft_format:
                     logger.info(
                         "To match the expected format of the PEFT library, all keys of the state dict of adapters will "
-                        "be pre-pended with `base_model.model`."
+                        "be prepended with `base_model.model`."
                     )
                     peft_state_dict = {}
                     for key, value in state_dict.items():
@@ -1755,10 +2463,29 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         if state_dict is None:
             state_dict = {k: v for k, v in model_to_save.parameters_and_names()}
 
+        if any(
+            allowed_name in class_name.__name__.lower()
+            for class_name in self.__class__.__mro__[:-1]
+            for allowed_name in VLMS
+        ):
+            reverse_key_mapping = {v: k for k, v in self._checkpoint_conversion_mapping.items()}
+
+            original_state_dict = {}
+            for key, value in state_dict.items():
+                for pattern, replacement in reverse_key_mapping.items():
+                    replacement = replacement.lstrip("^")  # strip off un-needed chars and patterns
+                    replacement = re.sub(r"\(.*\)", "", replacement)
+                    key, n_replace = re.subn(pattern, replacement, key)
+                    # Early exit of the loop
+                    if n_replace > 0:
+                        break
+                original_state_dict[key] = value
+            state_dict = original_state_dict
+
         # Handle the case where some state_dict keys shouldn't be saved
         if self._keys_to_ignore_on_save is not None:
             for ignore_key in self._keys_to_ignore_on_save:
-                if ignore_key in state_dict.keys():
+                if ignore_key in state_dict:
                     del state_dict[ignore_key]
 
         # Shard the model if it is too big.
@@ -1784,7 +2511,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             if (
                 filename.startswith(weights_no_suffix)
                 and os.path.isfile(full_filename)
-                and filename not in shards.keys()
+                and filename not in shards
                 and is_main_process
                 and reg.fullmatch(filename_no_suffix) is not None
             ):
@@ -1828,6 +2555,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         token: Optional[Union[str, bool]] = None,
         revision: str = "main",
         use_safetensors: bool = None,
+        weights_only: bool = True,
         **kwargs,
     ):
         r"""
@@ -1876,7 +2604,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                       save directory.
                     - The model is loaded by supplying a local directory as `pretrained_model_name_or_path` and a
                       configuration JSON file named *config.json* is found in the directory.
-            state_dict (`Dict[str, Tensor]`, *optional*):
+            state_dict (`dict[str, Tensor]`, *optional*):
                 A state dictionary to use instead of a state dictionary loaded from saved weights file.
 
                 This option can be used if you want to create a model from a pretrained configuration but load your own
@@ -1898,10 +2626,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
                 cached versions if they exist.
-            resume_download (`bool`, *optional*, defaults to `False`):
-                Whether or not to delete incompletely received files. Will attempt to resume the download if such a
-                file exists.
-            proxies (`Dict[str, str]`, *optional*):
+            proxies (`dict[str, str]`, *optional*):
                 A dictionary of proxy servers to use by protocol or endpoint, e.g., `{'http': 'foo.bar:3128',
                 'http://hostname': 'foo.bar:4012'}`. The proxies are used on each request.
             output_loading_info(`bool`, *optional*, defaults to `False`):
@@ -2024,13 +2749,28 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         _ = kwargs.pop("mirror", None)
         from_pipeline = kwargs.pop("_from_pipeline", None)
         from_auto_class = kwargs.pop("_from_auto", False)
+        dtype = kwargs.pop("dtype", None)
         mindspore_dtype = kwargs.pop("mindspore_dtype", None)
         subfolder = kwargs.pop("subfolder", "")
         commit_hash = kwargs.pop("_commit_hash", None)
         variant = kwargs.pop("variant", None)
-        use_flash_attention_2 = kwargs.pop("use_flash_attention_2", False)
         adapter_kwargs = kwargs.pop("adapter_kwargs", {})
         adapter_name = kwargs.pop("adapter_name", "default")
+        generation_config = kwargs.pop("generation_config", None)
+        trust_remote_code = kwargs.pop("trust_remote_code", None)
+
+        key_mapping = kwargs.pop("key_mapping", None)
+        # Load models with hardcoded key mapping on class for VLMs only, to keep BC and standardize model
+        if key_mapping is None and any(
+            allowed_name in class_name.__name__.lower() for class_name in cls.__mro__[:-1] for allowed_name in VLMS
+        ):
+            key_mapping = cls._checkpoint_conversion_mapping
+
+        # For BC on mindspore_dtype argument
+        if mindspore_dtype is not None:
+            logger.warning_once("`mindspore_dtype` is deprecated! Use `dtype` instead!")
+            # If both kwargs are provided, use `dtype`
+            dtype = dtype if dtype is not None else mindspore_dtype
 
         if use_auth_token is not None:
             warnings.warn(
@@ -2045,9 +2785,6 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
         if token is not None and adapter_kwargs is not None and "token" not in adapter_kwargs:
             adapter_kwargs["token"] = token
-
-        if use_safetensors is None and not is_safetensors_available():
-            use_safetensors = False
 
         if commit_hash is None:
             if not isinstance(config, PretrainedConfig):
@@ -2130,255 +2867,43 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             # we pop attn_implementation from the kwargs but this handles the case where users
             # passes manually the config to `from_pretrained`.
             config = copy.deepcopy(config)
-
-            kwarg_attn_imp = kwargs.pop("attn_implementation", None)
-            if kwarg_attn_imp is not None and config._attn_implementation != kwarg_attn_imp:
-                config._attn_implementation = kwarg_attn_imp
             model_kwargs = kwargs
 
-        # This variable will flag if we're loading a sharded checkpoint. In this case the archive file is just the
-        # index of the files.
-        is_sharded = False
-        sharded_metadata = None
-        # Load model
-        loading_info = None
+        # Because some composite configs call super().__init__ before instantiating the sub-configs, we need this call
+        # to correctly redispatch recursively if the kwarg is provided
+        if "attn_implementation" in kwargs:
+            config._attn_implementation = kwargs.pop("attn_implementation")
 
-        # Keep in fp32 modules
-        keep_in_fp32_modules = None
-        use_keep_in_fp32_modules = False
+        transformers_explicit_filename = getattr(config, "transformers_weights", None)
 
-        if pretrained_model_name_or_path is not None:
-            pretrained_model_name_or_path = str(pretrained_model_name_or_path)
-            is_local = os.path.isdir(pretrained_model_name_or_path)
-            if is_local:
-                if from_tf and os.path.isfile(
-                    os.path.join(pretrained_model_name_or_path, subfolder, TF_WEIGHTS_NAME + ".index")
-                ):
-                    # Load from a TF 1.0 checkpoint in priority if from_tf
-                    archive_file = os.path.join(pretrained_model_name_or_path, subfolder, TF_WEIGHTS_NAME + ".index")
-                elif from_tf and os.path.isfile(
-                    os.path.join(pretrained_model_name_or_path, subfolder, TF2_WEIGHTS_NAME)
-                ):
-                    # Load from a TF 2.0 checkpoint in priority if from_tf
-                    archive_file = os.path.join(pretrained_model_name_or_path, subfolder, TF2_WEIGHTS_NAME)
-                elif from_flax and os.path.isfile(
-                    os.path.join(pretrained_model_name_or_path, subfolder, FLAX_WEIGHTS_NAME)
-                ):
-                    # Load from a Flax checkpoint in priority if from_flax
-                    archive_file = os.path.join(pretrained_model_name_or_path, subfolder, FLAX_WEIGHTS_NAME)
-                elif use_safetensors is not False and os.path.isfile(
-                    os.path.join(pretrained_model_name_or_path, subfolder, _add_variant(SAFE_WEIGHTS_NAME, variant))
-                ):
-                    # Load from a safetensors checkpoint
-                    archive_file = os.path.join(
-                        pretrained_model_name_or_path, subfolder, _add_variant(SAFE_WEIGHTS_NAME, variant)
-                    )
-                elif use_safetensors is not False and os.path.isfile(
-                    os.path.join(
-                        pretrained_model_name_or_path, subfolder, _add_variant(SAFE_WEIGHTS_INDEX_NAME, variant)
-                    )
-                ):
-                    # Load from a sharded safetensors checkpoint
-                    archive_file = os.path.join(
-                        pretrained_model_name_or_path, subfolder, _add_variant(SAFE_WEIGHTS_INDEX_NAME, variant)
-                    )
-                    is_sharded = True
-                elif os.path.isfile(
-                    os.path.join(pretrained_model_name_or_path, subfolder, _add_variant(WEIGHTS_NAME, variant))
-                ):
-                    # Load from a PyTorch checkpoint
-                    archive_file = os.path.join(
-                        pretrained_model_name_or_path, subfolder, _add_variant(WEIGHTS_NAME, variant)
-                    )
-                elif os.path.isfile(
-                    os.path.join(pretrained_model_name_or_path, subfolder, _add_variant(WEIGHTS_INDEX_NAME, variant))
-                ):
-                    # Load from a sharded PyTorch checkpoint
-                    archive_file = os.path.join(
-                        pretrained_model_name_or_path, subfolder, _add_variant(WEIGHTS_INDEX_NAME, variant)
-                    )
-                    is_sharded = True
-                # At this stage we don't have a weight file so we will raise an error.
-                elif os.path.isfile(
-                    os.path.join(pretrained_model_name_or_path, subfolder, TF_WEIGHTS_NAME + ".index")
-                ) or os.path.isfile(os.path.join(pretrained_model_name_or_path, subfolder, TF2_WEIGHTS_NAME)):
-                    raise EnvironmentError(
-                        f"Error no file named {_add_variant(WEIGHTS_NAME, variant)} found in directory"
-                        f" {pretrained_model_name_or_path} but there is a file for TensorFlow weights. Use"
-                        " `from_tf=True` to load this model from those weights."
-                    )
-                elif os.path.isfile(os.path.join(pretrained_model_name_or_path, subfolder, FLAX_WEIGHTS_NAME)):
-                    raise EnvironmentError(
-                        f"Error no file named {_add_variant(WEIGHTS_NAME, variant)} found in directory"
-                        f" {pretrained_model_name_or_path} but there is a file for Flax weights. Use `from_flax=True`"
-                        " to load this model from those weights."
-                    )
-                elif use_safetensors:
-                    raise EnvironmentError(
-                        f"Error no file named {_add_variant(SAFE_WEIGHTS_NAME, variant)} found in directory"
-                        f" {pretrained_model_name_or_path}."
-                    )
-                else:
-                    raise EnvironmentError(
-                        f"Error no file named {_add_variant(WEIGHTS_NAME, variant)}, {TF2_WEIGHTS_NAME},"
-                        f" {TF_WEIGHTS_NAME + '.index'} or {FLAX_WEIGHTS_NAME} found in directory"
-                        f" {pretrained_model_name_or_path}."
-                    )
-            elif os.path.isfile(os.path.join(subfolder, pretrained_model_name_or_path)):
-                archive_file = pretrained_model_name_or_path
-                is_local = True
-            elif os.path.isfile(os.path.join(subfolder, pretrained_model_name_or_path + ".index")):
-                if not from_tf:
-                    raise ValueError(
-                        f"We found a TensorFlow checkpoint at {pretrained_model_name_or_path + '.index'}, please set "
-                        "from_tf to True to load from this checkpoint."
-                    )
-                archive_file = os.path.join(subfolder, pretrained_model_name_or_path + ".index")
-                is_local = True
-            elif is_remote_url(pretrained_model_name_or_path):
-                filename = pretrained_model_name_or_path
-                resolved_archive_file = download_url(pretrained_model_name_or_path)
-            else:
-                # set correct filename
-                if from_tf:
-                    filename = TF2_WEIGHTS_NAME
-                elif from_flax:
-                    filename = FLAX_WEIGHTS_NAME
-                elif use_safetensors is not False:
-                    filename = _add_variant(SAFE_WEIGHTS_NAME, variant)
-                else:
-                    filename = _add_variant(WEIGHTS_NAME, variant)
+        if transformers_explicit_filename is not None:
+            if not transformers_explicit_filename.endswith(
+                ".safetensors"
+            ) and not transformers_explicit_filename.endswith(".safetensors.index.json"):
+                raise ValueError(
+                    "The transformers file in the config seems to be incorrect: it is neither a safetensors file "
+                    "(*.safetensors) nor a safetensors index file (*.safetensors.index.json): "
+                    f"{transformers_explicit_filename}"
+                )
 
-                try:
-                    # Load from URL or cache if already cached
-                    cached_file_kwargs = {
-                        "cache_dir": cache_dir,
-                        "force_download": force_download,
-                        "proxies": proxies,
-                        "resume_download": resume_download,
-                        "local_files_only": local_files_only,
-                        "token": token,
-                        "user_agent": user_agent,
-                        "revision": revision,
-                        "subfolder": subfolder,
-                        "_raise_exceptions_for_gated_repo": False,
-                        "_raise_exceptions_for_missing_entries": False,
-                        "_commit_hash": commit_hash,
-                    }
-                    resolved_archive_file = cached_file(pretrained_model_name_or_path, filename, **cached_file_kwargs)
-
-                    # Since we set _raise_exceptions_for_missing_entries=False, we don't get an exception but a None
-                    # result when internet is up, the repo and revision exist, but the file does not.
-                    if resolved_archive_file is None and filename == _add_variant(SAFE_WEIGHTS_NAME, variant):
-                        # Maybe the checkpoint is sharded, we try to grab the index name in this case.
-                        resolved_archive_file = cached_file(
-                            pretrained_model_name_or_path,
-                            _add_variant(SAFE_WEIGHTS_INDEX_NAME, variant),
-                            **cached_file_kwargs,
-                        )
-                        if resolved_archive_file is not None:
-                            is_sharded = True
-                        elif use_safetensors:
-                            if revision == "main":
-                                resolved_archive_file, revision, is_sharded = auto_conversion(
-                                    pretrained_model_name_or_path, **cached_file_kwargs
-                                )
-                            cached_file_kwargs["revision"] = revision
-                            if resolved_archive_file is None:
-                                raise EnvironmentError(
-                                    f"{pretrained_model_name_or_path} does not appear to have a file named"
-                                    f" {_add_variant(SAFE_WEIGHTS_NAME, variant)} or {_add_variant(SAFE_WEIGHTS_INDEX_NAME, variant)} "
-                                    "and thus cannot be loaded with `safetensors`. Please make sure that the model has "
-                                    "been saved with `safe_serialization=True` or do not set `use_safetensors=True`."
-                                )
-                        else:
-                            # This repo has no safetensors file of any kind, we switch to PyTorch.
-                            filename = _add_variant(WEIGHTS_NAME, variant)
-                            resolved_archive_file = cached_file(
-                                pretrained_model_name_or_path, filename, **cached_file_kwargs
-                            )
-                    if resolved_archive_file is None and filename == _add_variant(WEIGHTS_NAME, variant):
-                        # Maybe the checkpoint is sharded, we try to grab the index name in this case.
-                        resolved_archive_file = cached_file(
-                            pretrained_model_name_or_path,
-                            _add_variant(WEIGHTS_INDEX_NAME, variant),
-                            **cached_file_kwargs,
-                        )
-                        if resolved_archive_file is not None:
-                            is_sharded = True
-                    if resolved_archive_file is None:
-                        # Otherwise, maybe there is a TF or Flax model file.  We try those to give a helpful error
-                        # message.
-                        has_file_kwargs = {
-                            "revision": revision,
-                            "proxies": proxies,
-                            "token": token,
-                        }
-                        if has_file(pretrained_model_name_or_path, TF2_WEIGHTS_NAME, **has_file_kwargs):
-                            raise EnvironmentError(
-                                f"{pretrained_model_name_or_path} does not appear to have a file named"
-                                f" {_add_variant(WEIGHTS_NAME, variant)} but there is a file for TensorFlow weights."
-                                " Use `from_tf=True` to load this model from those weights."
-                            )
-                        elif has_file(pretrained_model_name_or_path, FLAX_WEIGHTS_NAME, **has_file_kwargs):
-                            raise EnvironmentError(
-                                f"{pretrained_model_name_or_path} does not appear to have a file named"
-                                f" {_add_variant(WEIGHTS_NAME, variant)} but there is a file for Flax weights. Use"
-                                " `from_flax=True` to load this model from those weights."
-                            )
-                        elif variant is not None and has_file(
-                            pretrained_model_name_or_path, WEIGHTS_NAME, **has_file_kwargs
-                        ):
-                            raise EnvironmentError(
-                                f"{pretrained_model_name_or_path} does not appear to have a file named"
-                                f" {_add_variant(WEIGHTS_NAME, variant)} but there is a file without the variant"
-                                f" {variant}. Use `variant=None` to load this model from those weights."
-                            )
-                        else:
-                            raise EnvironmentError(
-                                f"{pretrained_model_name_or_path} does not appear to have a file named"
-                                f" {_add_variant(WEIGHTS_NAME, variant)}, {TF2_WEIGHTS_NAME}, {TF_WEIGHTS_NAME} or"
-                                f" {FLAX_WEIGHTS_NAME}."
-                            )
-                except EnvironmentError:
-                    # Raise any environment error raise by `cached_file`. It will have a helpful error message adapted
-                    # to the original exception.
-                    raise
-                except Exception as e:
-                    # For any other exception, we throw a generic error.
-                    raise EnvironmentError(
-                        f"Can't load the model for '{pretrained_model_name_or_path}'. If you were trying to load it"
-                        " from 'https://huggingface.co/models', make sure you don't have a local directory with the"
-                        f" same name. Otherwise, make sure '{pretrained_model_name_or_path}' is the correct path to a"
-                        f" directory containing a file named {_add_variant(WEIGHTS_NAME, variant)},"
-                        f" {TF2_WEIGHTS_NAME}, {TF_WEIGHTS_NAME} or {FLAX_WEIGHTS_NAME}."
-                    ) from e
-
-            if is_local:
-                logger.info(f"loading weights file {archive_file}")
-                resolved_archive_file = archive_file
-            else:
-                logger.info(f"loading weights file {filename} from cache at {resolved_archive_file}")
-        else:
-            resolved_archive_file = None
-
-        # We'll need to download and cache each checkpoint shard if the checkpoint is sharded.
-        if is_sharded:
-            # resolved_archive_file becomes a list of files that point to the different checkpoint shards in this case.
-            resolved_archive_file, sharded_metadata = get_checkpoint_shard_files(
-                pretrained_model_name_or_path,
-                resolved_archive_file,
-                cache_dir=cache_dir,
-                force_download=force_download,
-                proxies=proxies,
-                resume_download=resume_download,
-                local_files_only=local_files_only,
-                token=token,
-                user_agent=user_agent,
-                revision=revision,
-                subfolder=subfolder,
-                _commit_hash=commit_hash,
-            )
+        resolved_archive_file, sharded_metadata, is_sharded = _get_resolved_checkpoint_files(
+            pretrained_model_name_or_path=pretrained_model_name_or_path,
+            subfolder=subfolder,
+            variant=variant,
+            from_tf=from_tf,
+            from_flax=from_flax,
+            use_safetensors=use_safetensors,
+            cache_dir=cache_dir,
+            force_download=force_download,
+            proxies=proxies,
+            local_files_only=local_files_only,
+            token=token,
+            user_agent=user_agent,
+            revision=revision,
+            commit_hash=commit_hash,
+            is_remote_code=cls._auto_class is not None,
+            transformers_explicit_filename=transformers_explicit_filename,
+        )
 
         if (
             is_safetensors_available()
@@ -2388,7 +2913,9 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             with safe_open(resolved_archive_file, framework="np") as f:
                 metadata = f.metadata()
 
-            if metadata.get("format") in ("np", "pt"):
+            if metadata is None:
+                pass
+            elif metadata.get("format") in ("np", "pt"):
                 pass
             elif metadata.get("format") == "tf":
                 from_tf = True
@@ -2409,50 +2936,17 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 # Time to load the checkpoint
                 state_dict = load_state_dict(resolved_archive_file)
 
-            # set dtype to instantiate the model under:
-            # 1. If mindspore_dtype is not None, we use that dtype
-            # 2. If mindspore_dtype is "auto", we auto-detect dtype from the loaded state_dict, by checking its first
-            #    weights entry that is of a floating type - we assume all floating dtype weights are of the same dtype
-            # we also may have config.torch_dtype available, but we won't rely on it till v5
-
-            if mindspore_dtype is not None:
-                config.mindspore_dtype = dtype_to_str(mindspore_dtype)
-                for sub_config_key in config.sub_configs.keys():
-                    sub_config = getattr(config, sub_config_key)
-                    sub_config.mindspore_dtype = mindspore_dtype
-                if isinstance(mindspore_dtype, str):
-                    if mindspore_dtype == "auto":
-                        if hasattr(config, "torch_dtype") and config.torch_dtype is not None:
-                            mindspore_dtype = config.torch_dtype
-                            logger.info(f"Will use dtype={mindspore_dtype} as defined in model's config object")
-                        else:
-                            if is_sharded and "dtype" in sharded_metadata:
-                                mindspore_dtype = sharded_metadata["dtype"]
-                            elif not is_sharded:
-                                mindspore_dtype = get_state_dict_dtype(state_dict)
-                            else:
-                                one_state_dict = load_state_dict(resolved_archive_file[0])
-                                mindspore_dtype = get_state_dict_dtype(one_state_dict)
-                                del one_state_dict  # free CPU memory
-                            logger.info(
-                                f"Since the `torch_dtype` attribute can't be found in model's config object, "
-                                f"will use dtype={mindspore_dtype} as derived from model's weights"
-                            )
-                    else:
-                        raise ValueError(
-                            f'`mindspore_dtype` can be either `ms.Type` or `"auto"`, but received {mindspore_dtype}'
-                        )
-                # TODO: We cannot set default mindspore dtype!
-            else:
-                # TODO: We cannot get default mindspore dtype!
-                default_dtype = dtype_to_str(ms.float32)
-                config.mindspore_dtype = default_dtype
-                for key in config.sub_configs.keys():
-                    value = getattr(config, key)
-                    value.mindspore_dtype = default_dtype
-
-            # Check if `_keep_in_fp32_modules` is not None
-            use_keep_in_fp32_modules = (cls._keep_in_fp32_modules is not None) and (mindspore_dtype == ms.float16)
+            # Find the correct dtype based on current state
+            config, dtype = _get_dtype(
+                cls,
+                dtype,
+                resolved_archive_file,
+                config,
+                sharded_metadata,
+                state_dict,
+                weights_only,
+                is_sharded,
+            )
 
             if is_sharded:
                 loaded_state_dict_keys = sharded_metadata["all_checkpoint_keys"]
@@ -2462,9 +2956,6 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         config.name_or_path = pretrained_model_name_or_path
 
         config = copy.deepcopy(config)  # We do not want to modify the config inplace in from_pretrained.
-        config = cls._autoset_attn_implementation(
-            config, use_flash_attention_2=use_flash_attention_2, mindspore_dtype=mindspore_dtype
-        )
 
         if mindspore_dtype is not None:
             patch_nn_default_dtype(dtype=mindspore_dtype, force=True)
@@ -2477,21 +2968,24 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         model.tie_weights()
 
         # We cannot set default mindspore dtype. So we need to cast model weights after creating.
-        if mindspore_dtype is not None:
-            model = model.to(mindspore_dtype)
+        if dtype is not None:
+            model = model.to(dtype)
 
-            logger.info(
-                f"convert model:{model.__class__.__name__} parameters to mindspore_dtype {dtype_to_str(mindspore_dtype)}"
-            )
+            logger.info(f"convert model:{model.__class__.__name__} parameters to mindspore_dtype {dtype_to_str(dtype)}")
 
         # make sure we use the model's config since the __init__ call might have copied it
         config = model.config
 
-        # Check first if we are `from_pt`
-        if use_keep_in_fp32_modules:
-            keep_in_fp32_modules = model._keep_in_fp32_modules
-        else:
-            keep_in_fp32_modules = []
+        # Find fp32 modules if needed
+        keep_in_fp32_modules = []
+        # The _keep_in_fp32_modules flag is only used to avoid bf16 -> fp16 casting precision issues. It was introduced
+        # in case of force loading a model that should stay bf16 in fp16 (which includes a few quantizers as this is a pre-processing
+        # step for e.g. bitsandbytes). See https://github.com/huggingface/transformers/issues/20287 for details.
+        if model._keep_in_fp32_modules is not None and dtype == ms.float16:
+            keep_in_fp32_modules.extend(model._keep_in_fp32_modules)
+
+        if model._keep_in_fp32_modules_strict is not None and (dtype == ms.float16 or dtype == ms.bfloat16):
+            keep_in_fp32_modules.extend(model._keep_in_fp32_modules_strict)
 
         if from_tf:
             raise NotImplementedError("loading tf checkpoint in mindspore model is not yet supported.")
@@ -2514,6 +3008,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 sharded_metadata=sharded_metadata,
                 dtype=mindspore_dtype,
                 keep_in_fp32_modules=keep_in_fp32_modules,
+                key_mapping=key_mapping,
             )
 
         if _adapter_model_path is not None:
@@ -2529,6 +3024,45 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
         # Set model in evaluation mode to deactivate DropOut modules by default
         model.set_train(False)
+
+        # If it is a model with generation capabilities, attempt to load generation files (generation config,
+        # custom generate function)
+        if model.can_generate() and generation_config is not None:
+            logger.info("The user-defined `generation_config` will be used to override the default generation config.")
+            model.generation_config = model.generation_config.from_dict(generation_config.to_dict())
+        elif model.can_generate() and pretrained_model_name_or_path is not None:
+            repo_loading_kwargs = {
+                "cache_dir": cache_dir,
+                "force_download": force_download,
+                "proxies": proxies,
+                "local_files_only": local_files_only,
+                "token": token,
+                "revision": revision,
+                "subfolder": subfolder,
+                **kwargs,
+            }
+            # Load generation config
+            try:
+                model.generation_config = GenerationConfig.from_pretrained(
+                    pretrained_model_name_or_path,
+                    _from_auto=from_auto_class,
+                    _from_pipeline=from_pipeline,
+                    **repo_loading_kwargs,
+                )
+            except OSError:
+                logger.info(
+                    "Generation config file not found, using a generation config created from the model config."
+                )
+                pass
+            # Load custom generate function if `pretrained_model_name_or_path` defines it (and override `generate`)
+            if hasattr(model, "load_custom_generate"):
+                try:
+                    custom_generate = model.load_custom_generate(
+                        pretrained_model_name_or_path, trust_remote_code=trust_remote_code, **repo_loading_kwargs
+                    )
+                    model.generate = functools.partial(custom_generate, model=model)
+                except OSError:  # there is no custom generate function
+                    pass
 
         # If it is a model with generation capabilities, attempt to load the generation config
         if model.can_generate() and pretrained_model_name_or_path is not None:
@@ -2554,7 +3088,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 pass
 
         if output_loading_info:
-            if loading_info is None:
+            if from_pt:
                 loading_info = {
                     "missing_keys": missing_keys,
                     "unexpected_keys": unexpected_keys,
@@ -2566,7 +3100,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         return model
 
     @staticmethod
-    def _fix_state_dict_key_on_load(key: str) -> Tuple[str, bool]:
+    def _fix_state_dict_key_on_load(key: str) -> tuple[str, bool]:
         """Replace legacy parameter names with their modern equivalents. E.g. beta -> bias, gamma -> weight."""
         # Rename LayerNorm beta & gamma params for some early models ported from Tensorflow (e.g. Bert)
         # This rename is logged.
@@ -2579,8 +3113,8 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
     def _get_key_renaming_mapping(
         self,
-        checkpoint_keys: List[str],
-        key_mapping: Optional[Dict[str, str]] = None,
+        checkpoint_keys: list[str],
+        key_mapping: Optional[dict[str, str]] = None,
         loading_base_model_from_task_state_dict: bool = False,
         loading_task_model_from_base_state_dict: bool = False,
     ):
@@ -2592,6 +3126,14 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         """
         prefix = self.base_model_prefix
         _prefix = f"{prefix}."
+
+        if loading_task_model_from_base_state_dict:
+            task_specific_expected_keys, base_model_keys = [], []
+            for key in self.state_dict():
+                if key.startswith(_prefix):
+                    base_model_keys.append(key[len(_prefix) :])
+                else:
+                    task_specific_expected_keys.append(key)
 
         renamed_keys = {}
         key_renaming_mapping = {}
@@ -2610,6 +3152,13 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
             # In this case, we need to add the prefix to the keys, to match them to the expected keys
             if loading_task_model_from_base_state_dict:
+                # small sanity check: if we find a key that is only part of the task-specific keys, we raise
+                # (if it's also part of the base model, we do not raise and assume it comes from there)
+                if new_key in task_specific_expected_keys and new_key not in base_model_keys:
+                    raise ValueError(
+                        "The state dictionary of the model you are trying to load is corrupted. Are you sure it was "
+                        "properly saved?"
+                    )
                 new_key = ".".join([prefix, new_key])
                 key = ".".join([prefix, key])
             # In this case we need to remove the prefix from the key to match them to the expected keys, and use
@@ -2654,7 +3203,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         sharded_metadata=None,
         dtype=None,
         keep_in_fp32_modules=None,
-        key_mapping: Optional[Dict[str, str]] = None,
+        key_mapping: Optional[dict[str, str]] = None,
         weights_only: bool = True,
     ):
         model_state_dict = {k: v for k, v in model.parameters_and_names()}
@@ -2671,7 +3220,6 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
         # Check if we are in a special state, i.e. loading from a state dict coming from a different architecture
         prefix = model.base_model_prefix
-        _prefix = f"{prefix}."
         has_prefix_module = any(s.startswith(prefix) for s in original_checkpoint_keys) if len(prefix) > 0 else False
         expects_prefix_module = hasattr(model, prefix) if len(prefix) > 0 else False
         loading_task_model_from_base_state_dict = not has_prefix_module and expects_prefix_module
@@ -2692,7 +3240,6 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
         # Find missing and unexpected keys from the state dict
         missing_keys, unexpected_keys = _find_missing_and_unexpected_keys(
-            cls,
             model,
             original_checkpoint_keys,
             checkpoint_keys,
@@ -2705,89 +3252,26 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 if any(module_to_keep_in_fp32 in name.split(".") for module_to_keep_in_fp32 in keep_in_fp32_modules):
                     param.set_dtype(ms.float32)
 
-        # Make sure we are able to load base models as well as derived models (specific task models, with heads)
-        model_to_load = model
-        # In this case, we load a ForTaskModel with keys from a BaseModel -> only load keys to the BaseModel
-        if loading_task_model_from_base_state_dict:
-            model_to_load = getattr(model, prefix)
-            # Here we need to remove the prefix we added to correctly find missing/unexpected keys, as we will load
-            # in the submodule
-            key_renaming_mapping = {k: v[len(_prefix) :] for k, v in key_renaming_mapping.items()}
-            checkpoint_keys = list(key_renaming_mapping.values())
-            # small sanity check: the base model should not contain task-specific head keys
-            task_specific_expected_keys = [s for s in model.state_dict().keys() if not s.startswith(_prefix)]
-            base_model_expected_keys = list(model_to_load.state_dict().keys())
-            if any(
-                key in task_specific_expected_keys and key not in base_model_expected_keys for key in checkpoint_keys
-            ):
-                raise ValueError(
-                    "The state dictionary of the model you are trying to load is corrupted. Are you sure it was "
-                    "properly saved?"
-                )
-
         # Make sure we are able to load base models as well as derived models (with heads)
         start_prefix = ""
         model_to_load = model
         if len(cls.base_model_prefix) > 0 and not hasattr(model, cls.base_model_prefix) and has_prefix_module:
             start_prefix = cls.base_model_prefix + "."
 
-        def _find_mismatched_keys(
-            state_dict,
-            model_state_dict,
-            loaded_keys,
-            add_prefix_to_model,
-            remove_prefix_from_model,
-            ignore_mismatched_sizes,
-        ):
-            mismatched_keys = []
-            if ignore_mismatched_sizes:
-                for checkpoint_key in loaded_keys:
-                    # If the checkpoint is sharded, we may not have the key here.
-                    if checkpoint_key not in state_dict:
-                        continue
-                    model_key = checkpoint_key
-                    if remove_prefix_from_model:
-                        # The model key starts with `prefix` but `checkpoint_key` doesn't so we add it.
-                        model_key = f"{prefix}.{checkpoint_key}"
-                    elif add_prefix_to_model:
-                        # The model key doesn't start with `prefix` but `checkpoint_key` does so we remove it.
-                        model_key = ".".join(checkpoint_key.split(".")[1:])
-
-                    if (
-                        model_key in model_state_dict
-                        and state_dict[checkpoint_key].shape != model_state_dict[model_key].shape
-                    ):
-                        if (
-                            state_dict[checkpoint_key].shape[-1] == 1
-                            and state_dict[checkpoint_key].numel() * 2 == model_state_dict[model_key].numel()
-                        ):
-                            # This skips size mismatches for 4-bit weights. Two 4-bit values share an 8-bit container, causing size differences.
-                            # Without matching with module type or paramter type it seems like a practical way to detect valid 4bit weights.
-                            pass
-                        else:
-                            mismatched_keys.append(
-                                (checkpoint_key, state_dict[checkpoint_key].shape, model_state_dict[model_key].shape)
-                            )
-                            del state_dict[checkpoint_key]
-            return mismatched_keys
-
         if state_dict is not None:
             # Whole checkpoint
-            state_dict = _convert_state_dict(model, state_dict, prefix)
-            # In the original PyTorch implementation, this transformation is done via `_register_load_state_dict_pre_hook(load_hook)`.
-            # Since MindSpore does not support such hooks, we manually apply the same renaming logic here.
-            # This ensures compatibility with checkpoints loaded using the original naming convention.
-            if "Mamba" in model.__class__.__name__:
-                state_dict_tmp = {}
-                for k, v in state_dict.items():
-                    new_k = k.replace("embedding.", "embeddings.") if "embedding." in k else k
-                    state_dict_tmp[new_k] = v
-                state_dict = state_dict_tmp
-
-            matching = [s for s in key_renaming_mapping.keys() if "LayerNorm.gamma" in s]
+            # checkpoint mapping from pt to hf
+            matching = [s for s in key_renaming_mapping.keys()]
             if matching:
                 # Fix the key names when model weight names contain LayerNorm.gamma/LayerNorm.beta
-                state_dict = {key_renaming_mapping[k]: v for k, v in state_dict.items() if k in key_renaming_mapping}
+                for k, v in list(state_dict.items()):
+                    if k in key_renaming_mapping:
+                        state_dict.pop(k)
+                        state_dict.update({key_renaming_mapping[k]: v})
+                    else:
+                        state_dict.update({k: v})
+            # checkpoint mapping from hf to ms
+            state_dict = _convert_state_dict(model, state_dict, prefix)
 
             mismatched_keys = _find_mismatched_keys(
                 state_dict,
@@ -2796,6 +3280,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 loading_task_model_from_base_state_dict,
                 loading_base_model_from_task_state_dict,
                 ignore_mismatched_sizes,
+                prefix,
             )
             error_msgs = _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_sharded=False)
         else:
@@ -2814,23 +3299,18 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             # loading checkpoint
             for shard_file in resolved_archive_file:
                 state_dict = load_state_dict(shard_file)
-                state_dict = _convert_state_dict(model, state_dict, prefix)
-                # In the original PyTorch implementation, this transformation is done via `_register_load_state_dict_pre_hook(load_hook)`.
-                # Since MindSpore does not support such hooks, we manually apply the same renaming logic here.
-                # This ensures compatibility with checkpoints loaded using the original naming convention.
-                if "Mamba" in model.__class__.__name__:
-                    state_dict_tmp = {}
-                    for k, v in state_dict.items():
-                        new_k = k.replace("embedding.", "embeddings.") if "embedding." in k else k
-                        state_dict_tmp[new_k] = v
-                    state_dict = state_dict_tmp
-
-                matching = [s for s in key_renaming_mapping.keys() if "LayerNorm.gamma" in s]
+                # checkpoint mapping from pt to hf
+                matching = [s for s in key_renaming_mapping.keys()]
                 if matching:
                     # Fix the key names when model weight names contain LayerNorm.gamma/LayerNorm.beta
-                    state_dict = {
-                        key_renaming_mapping[k]: v for k, v in state_dict.items() if k in key_renaming_mapping
-                    }
+                    for k, v in list(state_dict.items()):
+                        if k in key_renaming_mapping:
+                            state_dict.pop(k)
+                            state_dict.update({key_renaming_mapping[k]: v})
+                        else:
+                            state_dict.update({k: v})
+                # checkpoint mapping from hf to ms
+                state_dict = _convert_state_dict(model, state_dict, prefix)
 
                 # Mismatched keys contains tuples key/shape1/shape2 of weights in the checkpoint that have a shape not
                 # matching the weights in the model.
@@ -2841,6 +3321,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                     loading_task_model_from_base_state_dict,
                     loading_base_model_from_task_state_dict,
                     ignore_mismatched_sizes,
+                    prefix,
                 )
 
                 error_msgs += _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_sharded=True)
@@ -2848,6 +3329,11 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 # force memory release
                 del state_dict
                 gc.collect()
+
+        # Remove potential model-specific exceptions from the warnings
+        missing_keys, unexpected_keys = model._adjust_missing_and_unexpected_keys(
+            missing_keys, unexpected_keys, loading_task_model_from_base_state_dict
+        )
 
         if len(error_msgs) > 0:
             error_msg = "\n\t".join(error_msgs)
@@ -2869,20 +3355,11 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 f" {model.__class__.__name__} from the checkpoint of a model that you expect to be exactly identical"
                 " (initializing a BertForSequenceClassification model from a BertForSequenceClassification model)."
             )
-        else:
-            logger.info(f"All model checkpoint weights were used when initializing {model.__class__.__name__}.\n")
         if len(missing_keys) > 0:
             logger.warning(
                 f"Some weights of {model.__class__.__name__} were not initialized from the model checkpoint at"
                 f" {pretrained_model_name_or_path} and are newly initialized: {missing_keys}\nYou should probably"
                 " TRAIN this model on a down-stream task to be able to use it for predictions and inference."
-            )
-        elif len(mismatched_keys) == 0:
-            logger.info(
-                f"All the weights of {model.__class__.__name__} were initialized from the model checkpoint at"
-                f" {pretrained_model_name_or_path}.\nIf your task is similar to the task the model of the checkpoint"
-                f" was trained on, you can already use {model.__class__.__name__} for predictions without further"
-                " training."
             )
         if len(mismatched_keys) > 0:
             mismatched_warning = "\n".join(
@@ -2903,7 +3380,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
     def retrieve_modules_from_names(self, names, add_prefix=False, remove_prefix=False):
         module_keys = {".".join(key.split(".")[:-1]) for key in names}
 
-        # torch.nn.ParameterList is a special case where two parameter keywords
+        # torch.nn.Parameterlist is a special case where two parameter keywords
         # are appended to the module name, *e.g.* bert.special_embeddings.0
         module_keys = module_keys.union(
             {".".join(key.split(".")[:-2]) for key in names if len(key) > 0 and key[-1].isdigit()}
@@ -2914,7 +3391,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         for name, module in self.named_modules():
             if remove_prefix:
                 _prefix = f"{self.base_model_prefix}."
-                name = name[len(_prefix) :] if name.startswith(_prefix) else name
+                name = name.removeprefix(_prefix)
             elif add_prefix:
                 name = ".".join([self.base_model_prefix, name]) if len(name) > 0 else self.base_model_prefix
 
@@ -2922,6 +3399,60 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 retrieved_modules.append(module)
 
         return retrieved_modules
+
+    def get_compiled_call(self, compile_config: Optional[CompileConfig]) -> Callable:
+        """Return a `mindspore.jit`'d version of `self.__call__`. This is useful to dynamically choose between
+        non-compiled/compiled `forward` during inference, especially to switch between prefill (where we don't
+        want to use compiled version to avoid recomputing the graph with new shapes) and iterative decoding
+        (where we want the speed-ups of compiled version with static shapes)."""
+        # Only reset it if not present or different from previous config
+        if "llama4" in self.config.model_type:  # TODO try to enable for FULL COMPILE HYBRID CACHE SUPPORT
+            return self.__call__
+        compile_config = compile_config or CompileConfig()
+        default_config = getattr(self.generation_config, "compile_config", None) or CompileConfig()
+        if (
+            not hasattr(self, "_compiled_call")
+            or getattr(self, "_last_compile_config", default_config) != compile_config
+        ):
+            self._last_compile_config = compile_config
+            self._compiled_call = ms.jit(self, **compile_config.to_dict())
+        return self._compiled_call
+
+    def _adjust_missing_and_unexpected_keys(
+        self, missing_keys: list[str], unexpected_keys: list[str], loading_task_model_from_base_state_dict: bool
+    ) -> tuple[list[str], list[str]]:
+        """Adjust the `missing_keys` and `unexpected_keys` based on current model's exception rules, to avoid
+        raising unneeded warnings/errors.
+        """
+        # Old checkpoints may have keys for rotary_emb.inv_freq for each layer, however we moved this buffer to the main model
+        # (so the buffer name has changed). Remove them in such a case. This is another exception that was not added to
+        # `_keys_to_ignore_on_load_unexpected` as it touches many models -> we add it manually to the existing patterns
+        has_inv_freq_buffers = any(buffer.endswith("rotary_emb.inv_freq") for buffer, _ in self.named_buffers())
+        additional_unexpected_patterns = [r"rotary_emb\.inv_freq"] if has_inv_freq_buffers else []
+
+        missing_patterns = self._keys_to_ignore_on_load_missing or []
+        unexpected_patterns = (self._keys_to_ignore_on_load_unexpected or []) + additional_unexpected_patterns
+        ignore_missing_regex, ignore_unexpected_regex = None, None
+        if len(missing_patterns) > 0:
+            ignore_missing_regex = re.compile("|".join(rf"({pattern})" for pattern in missing_patterns))
+        if len(unexpected_patterns) > 0:
+            ignore_unexpected_regex = re.compile("|".join(rf"({pattern})" for pattern in unexpected_patterns))
+
+        # Clean-up missing keys
+        if ignore_missing_regex is not None:
+            missing_keys = [key for key in missing_keys if ignore_missing_regex.search(key) is None]
+
+        # Clean-up unexpected keys
+        if ignore_unexpected_regex is not None:
+            unexpected_keys = [key for key in unexpected_keys if ignore_unexpected_regex.search(key) is None]
+
+        # Note: only the unexpected keys should remove the added prefix here, to correctly display the original name
+        # in the warnings. For missing keys, we should show the prefix in the warning as it's part of the final model
+        if loading_task_model_from_base_state_dict:
+            _prefix = f"{self.base_model_prefix}."
+            unexpected_keys = [k.removeprefix(_prefix) for k in unexpected_keys]
+
+        return missing_keys, unexpected_keys
 
     @classmethod
     def register_for_auto_class(cls, auto_class="AutoModel"):
@@ -2979,6 +3510,13 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 )
 
             logger.warning_once(warn_string)
+
+        def train(self, mode: bool = True):
+            out = super().train(mode)
+            return out
+
+        def eval(self):
+            return self.train(False)
 
 
 class PoolerStartLogits(nn.Cell):
@@ -3068,9 +3606,9 @@ class PoolerEndLogits(nn.Cell):
         ), "One of start_states, start_positions should be not None"
         if start_positions is not None:
             slen, hsz = hidden_states.shape[-2:]
-            start_positions = start_positions[:, None, None].expand((-1, -1, hsz))  # shape (bsz, 1, hsz)
+            start_positions = start_positions[:, None, None].expand(-1, -1, hsz)  # shape (bsz, 1, hsz)
             start_states = hidden_states.gather(-2, start_positions)  # shape (bsz, 1, hsz)
-            start_states = start_states.expand((-1, slen, -1))  # shape (bsz, slen, hsz)
+            start_states = start_states.expand(-1, slen, -1)  # shape (bsz, slen, hsz)
 
         x = self.dense_0(mint.cat([hidden_states, start_states], dim=-1))
         x = self.activation(x)
@@ -3135,11 +3673,11 @@ class PoolerAnswerClass(nn.Cell):
             start_states is not None or start_positions is not None
         ), "One of start_states, start_positions should be not None"
         if start_positions is not None:
-            start_positions = start_positions[:, None, None].expand((-1, -1, hsz))  # shape (bsz, 1, hsz)
+            start_positions = start_positions[:, None, None].expand(-1, -1, hsz)  # shape (bsz, 1, hsz)
             start_states = hidden_states.gather(-2, start_positions).squeeze(-2)  # shape (bsz, hsz)
 
         if cls_index is not None:
-            cls_index = cls_index[:, None, None].expand((-1, -1, hsz))  # shape (bsz, 1, hsz)
+            cls_index = cls_index[:, None, None].expand(-1, -1, hsz)  # shape (bsz, 1, hsz)
             cls_token_state = hidden_states.gather(-2, cls_index).squeeze(-2)  # shape (bsz, hsz)
         else:
             cls_token_state = hidden_states[:, -1, :]  # shape (bsz, hsz)
@@ -3215,7 +3753,7 @@ class SQuADHead(nn.Cell):
         is_impossible: Optional[ms.Tensor] = None,
         p_mask: Optional[ms.Tensor] = None,
         return_dict: bool = False,
-    ) -> Union[SquadHeadOutput, Tuple[ms.Tensor]]:
+    ) -> Union[SquadHeadOutput, tuple[ms.Tensor]]:
         """
         Args:
             hidden_states (`mindspore.Tensor` of shape `(batch_size, seq_len, hidden_size)`):
@@ -3271,9 +3809,9 @@ class SQuADHead(nn.Cell):
             start_top_log_probs, start_top_index = mint.topk(
                 start_log_probs, self.start_n_top, dim=-1
             )  # shape (bsz, start_n_top)
-            start_top_index_exp = start_top_index.unsqueeze(-1).expand((-1, -1, hsz))  # shape (bsz, start_n_top, hsz)
+            start_top_index_exp = start_top_index.unsqueeze(-1).expand(-1, -1, hsz)  # shape (bsz, start_n_top, hsz)
             start_states = mint.gather(hidden_states, -2, start_top_index_exp)  # shape (bsz, start_n_top, hsz)
-            start_states = start_states.unsqueeze(1).expand((-1, slen, -1, -1))  # shape (bsz, slen, start_n_top, hsz)
+            start_states = start_states.unsqueeze(1).expand(-1, slen, -1, -1)  # shape (bsz, slen, start_n_top, hsz)
 
             hidden_states_expanded = hidden_states.unsqueeze(2).expand_as(
                 start_states
@@ -3412,6 +3950,9 @@ class AttentionInterface(MutableMapping):
         "flash_attention_2": flash_attention_forward,
         # "flex_attention": flex_attention_forward,  # Mindspore dose not support flex_attention yet
         "sdpa": sdpa_attention_forward,  # Mindspore dose not support sdpa yet. Use vanilla attention to work around
+        "sdpa_paged": paged_attention_forward,
+        "eager_paged": paged_attention_forward,
+        "flash_paged": paged_attention_forward,
     }
 
     def __init__(self):
@@ -3441,7 +3982,7 @@ class AttentionInterface(MutableMapping):
     def register(cls, key: str, value: Callable):
         cls._global_mapping.update({key: value})
 
-    def valid_keys(self) -> List[str]:
+    def valid_keys(self) -> list[str]:
         return list(self.keys())
 
 
