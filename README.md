@@ -1,6 +1,10 @@
 # World Modelings on MindSpore
 
-Let's explore the world modeling potentials on MindSpore ;)
+Let's explore the world modeling potentials on MindSpore ;) 
+
+> [!NOTE]
+> The interactive UI below is better rendered in `vscode`.
+
 
 ## News
 ### MVDream is supported!
