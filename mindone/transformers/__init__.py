@@ -729,8 +729,8 @@ from .models.instructblipvideo import (
 from .models.internvl import (
     InternVLForConditionalGeneration,
     InternVLModel,
-    InternVLProcessor,
     InternVLPreTrainedModel,
+    InternVLProcessor,
     InternVLVideoProcessor,
     InternVLVisionModel,
     InternVLVisionPreTrainedModel,
