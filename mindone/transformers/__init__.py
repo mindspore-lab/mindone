@@ -1124,7 +1124,12 @@ from .models.qwen2_5_vl import (
     Qwen2_5_VLPreTrainedModel,
     Qwen2_5_VLProcessor,
 )
-from .models.qwen2_audio import Qwen2AudioEncoder, Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel
+from .models.qwen2_audio import (
+    Qwen2AudioEncoder,
+    Qwen2AudioForConditionalGeneration,
+    Qwen2AudioPreTrainedModel,
+    Qwen2AudioProcessor,
+)
 from .models.qwen2_moe import (
     Qwen2MoeForCausalLM,
     Qwen2MoeForQuestionAnswering,
@@ -1540,7 +1545,7 @@ from .pipelines import (
 from .processing_utils import ProcessorMixin
 from .trainer import Trainer
 from .training_args import TrainingArguments
-from .utils import logging
+from .utils import TensorType, logging
 from .video_processing_utils import BaseVideoProcessor
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
