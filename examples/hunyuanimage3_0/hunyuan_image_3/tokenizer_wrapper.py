@@ -1246,6 +1246,7 @@ class TokenizerWrapper(object):
         batchify=False,
         image_base_size=1024,
         drop_think=False,
+        add_pad=False,
     ):
         # If cfg_factor > 1, we need to repeat the unconditioned part
         if batchify:
@@ -1265,6 +1266,7 @@ class TokenizerWrapper(object):
                         sequence_template=sequence_template,
                         image_base_size=image_base_size,
                         drop_think=drop_think,
+                        add_pad=add_pad,
                     )
                     for message_list_i in message_list
                 ],
@@ -1397,7 +1399,8 @@ class TokenizerWrapper(object):
             sections=sections,
             use_text_mask=False,
             add_eos=False,
-            add_pad=False,
+            add_pad=add_pad,
+            max_token_length=max_length,
         )
 
         if max_length is not None:
@@ -1425,6 +1428,7 @@ class TokenizerWrapper(object):
         cfg_factor: int = 1,
         add_assistant_prefix: Optional[bool] = None,
         drop_think: bool = False,
+        add_pad: Optional[bool] = False,
     ) -> Dict[str, Any]:
         assert bot_task in [
             "image",
@@ -1506,5 +1510,6 @@ class TokenizerWrapper(object):
             batchify=True,
             image_base_size=image_base_size,
             drop_think=drop_think,
+            add_pad=add_pad,
         )
         return dict(output=output, sections=sections)

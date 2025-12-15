@@ -186,7 +186,7 @@ class HunyuanImage3Config(PretrainedConfig):
         img_proj_type="unet",
         patch_size=1,
         patch_embed_hidden_dim=1024,
-        image_base_size=1024,
+        image_base_size=512,
         vae=None,
         vit=None,
         vit_processor=None,

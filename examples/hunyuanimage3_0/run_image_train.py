@@ -33,14 +33,17 @@ import evaluate
 import numpy as np
 from datasets import load_dataset
 from hunyuan_image_3.hunyuan import HunyuanImage3ForCausalMM, HunyuanStaticCache
+from hunyuan_image_3.configuration_hunyuan import HunyuanImage3Config
+# from utils.safetensors import load_sharded_safetensors_for_rankid
 from PIL import Image
 from transformers import HfArgumentParser
 
 import mindspore as ms
 import mindspore.mint.distributed as dist
 from mindspore import mint, nn, ops
+from mindspore.dataset import transforms, vision
 
-from mindone.diffusers.training_utils import cast_training_params
+from mindone.diffusers.training_utils import cast_training_params, pynative_no_grad
 from mindone.peft import LoraConfig, get_peft_model, get_peft_model_state_dict, set_peft_model_state_dict
 from mindone.safetensors.mindspore import load_file, save_file
 from mindone.trainers import create_optimizer
@@ -49,6 +52,7 @@ from mindone.transformers.modeling_outputs import CausalLMOutputWithPast
 from mindone.transformers.optimization import get_scheduler
 from mindone.transformers.trainer import Trainer
 from mindone.transformers.training_args import TrainingArguments
+# from mindone.utils.amp import auto_mixed_precision
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +61,7 @@ IGNORE_INDEX = -100
 
 @dataclass
 class MyArguments(MindSporeArguments, TrainingArguments):
-    amp_opt_level: str = field(default="O0")
+    amp_opt_level: str = field(default="O3")
     attn_impl: str = field(
         default="flash_attention_2", metadata={"help": "Attention implementation. sdpa is not supported yet"}
     )
@@ -67,7 +71,7 @@ class MyArguments(MindSporeArguments, TrainingArguments):
     do_eval: bool = field(default=False)
     enable_flash_attention: bool = field(default=True)
     is_distribute: bool = field(default=False)
-    lora_rank: int = field(default=8, metadata={"help": "The dimension of the LoRA update matrices."})
+    lora_rank: int = field(default=4, metadata={"help": "The dimension of the LoRA update matrices."})
     lora_alpha: int = field(default=16, metadata={"help": "The scaling factor alpha of the LoRA."})
     mode: int = field(default=ms.PYNATIVE_MODE, metadata={"help": "Graph(not supported)/Pynative"})
     model_path: str = field(default="HunyuanImage-3")
@@ -75,6 +79,9 @@ class MyArguments(MindSporeArguments, TrainingArguments):
     output_dir: str = field(default="./outputs")
     save_strategy: str = field(default="no", metadata={"help": "Save strategy, no, steps or epoch."})
     seed: int = field(default=42)
+    max_device_memory: str = field(default="59GB", metadata={"help": "30GB for 910, 59GB for Ascend Atlas 800T A2 machines"})
+    per_device_train_batch_size: int = field(default=1, metadata={"help": "batch size per device for training"})
+    num_train_epochs: int = field(default=1, metadata={"help": "number of training epochs"})
 
 
 @dataclass
@@ -82,8 +89,8 @@ class DataArguments:
     dataset_use: str = field(default="")
     height: int = field(default=512)
     width: int = field(default=512)
-    max_length: int = field(default=4096, metadata={"help": "Fixed token length for training."})
-    num_inference_steps: int = field(default=8, metadata={"help": "Inference steps when denoising in training."})
+    max_length: int = field(default=2048, metadata={"help": "Fixed token length for training."})
+    num_inference_steps: int = field(default=2, metadata={"help": "Inference steps when denoising in training."})
     guidance_scale: float = field(default=5.0)
     guidance_rescale: float = field(default=0.0)
 
@@ -107,7 +114,6 @@ def freeze_params(m: nn.Cell):
     for p in m.get_parameters():
         p.requires_grad = False
 
-
 def main():
     parser = HfArgumentParser((MyArguments, DataArguments))
     args, data_args = parser.parse_args_into_dataclasses()
@@ -115,9 +121,11 @@ def main():
     init_environment(args)
 
     dist.init_process_group()
-    ms.set_auto_parallel_context(parallel_mode=ms.ParallelMode.DATA_PARALLEL)
     local_rank = dist.get_rank()
     world_size = dist.get_world_size()
+    ms.set_auto_parallel_context(parallel_mode=ms.ParallelMode.DATA_PARALLEL)
+    ms.launch_blocking()
+
     args.rank_size = world_size
     args.rank = local_rank
     args.zero_stage = 3
@@ -133,6 +141,10 @@ def main():
     with nn.no_init_parameters():
         parent_model = HunyuanImage3ForCausalMM.from_pretrained(args.model_path, **kwargs)
     parent_model.load_tokenizer(args.model_path)
+    # manually set amp
+    # parent_model.vae = auto_mixed_precision(parent_model.vae, amp_level="O2", dtype=dtype, custom_fp32_cells=[ms.nn.GroupNorm])
+    # ms.amp.auto_mixed_precision(parent_model, amp_level="auto", dtype=dtype)
+
 
     # 1.2 Update data_args from model.config
     data_args.config = parent_model.config
@@ -145,7 +157,7 @@ def main():
     # 1.3 the dataset
     dataset = load_dataset("parquet", data_dir=args.dataset_path, split="train")
     dataset = dataset.shuffle(seed=args.seed)
-    dataset = dataset.select(list(range(2)))
+    dataset = dataset.select(list(range(20)))
 
     total_size = len(dataset)
     train_size = int(total_size * 0.8)
@@ -154,21 +166,16 @@ def main():
     eval_indices = list(range(train_size, total_size))
 
     def process_function(examples):
-        image = (
-            Image.open(io.BytesIO(examples["image"]["bytes"]))
-            .convert("RGB")
-            .resize((data_args.width, data_args.height))
-        )
-
-        prompt = examples["text"]
-        print(f"prompt={prompt}")
         # prepare the inputs
+        prompt = examples["text"]
         image_size = f"{data_args.width}x{data_args.height}"
         model_inputs = parent_model.prepare_model_inputs(
             prompt=prompt,
             mode="gen_image",
             seed=args.seed,
             image_size=image_size,
+            max_length=data_args.max_length,
+            add_pad=True,
         )
         # input_ids, position_ids, past_key_values, custom_pos_emb, tokenizer_output, batch_gen_image_info
 
@@ -186,21 +193,39 @@ def main():
         gen_image_slices = replace_slices(model_inputs["tokenizer_output"].gen_image_slices)
 
         # prepare the labels: convert the image to latent space
+        # resolution = [data_args.width, data_args.height]
+        # image_transforms = transforms.Compose(
+        #     [
+        #         vision.Resize(resolution, interpolation=vision.Inter.BILINEAR),
+        #         vision.CenterCrop(resolution),
+        #         vision.ToTensor(),
+        #         vision.Normalize([0.5], [0.5], is_hwc=False),
+        #     ]
+        # )
+        image = (
+            Image.open(io.BytesIO(examples["image"]["bytes"]))
+            .convert("RGB")
+            .resize((data_args.width, data_args.height), Image.Resampling.BILINEAR)  # original (1280, 1280)
+        )
+
         pixel_values = ms.Tensor(np.array(image, dtype=np.float32)) / 255.0  # (H, W, C) = (512, 512, 3)
         pixel_values = pixel_values.transpose(2, 0, 1)  # (H, W, C) -> (C, H, W)
 
+        # pixel_values = ms.Tensor(image_transforms(image)[0], dtype=ms.bfloat16)  # (C, H, W) and normalized [0.5] -> [-1, 1]
+        # pixel_values = pixel_values.unsqueeze(0).unsqueeze(2)  # (1, C, 1, H, W) -> (B, C, T, H, W)
+        # label = parent_model.vae.encode(pixel_values).latent_dist.mean
+
         # write to dataset
         examples["input_ids"] = model_inputs["input_ids"]
-        examples["position_ids"] = model_inputs["position_ids"]
         examples["custom_pos_emb"] = model_inputs["custom_pos_emb"]
-        # examples["tokenizer_output"] = processed_output
         examples["joint_image_slices"] = joint_image_slices
         examples["gen_image_slices"] = gen_image_slices
-        examples["eos_token_id"] = model_inputs["eos_token_id"]
         examples["image_mask"] = model_inputs["image_mask"]
         examples["gen_timestep_scatter_index"] = model_inputs["gen_timestep_scatter_index"]
 
         examples["labels"] = pixel_values
+        # print("label shape:", label.shape, type(label), label.dtype)
+        # examples["labels"] = label[0, :, 0, :, :]  # (32, 32, 32)
 
         if not args.do_eval:
             examples.pop("text")  # remove text from examples
@@ -211,7 +236,7 @@ def main():
     tokenized_datasets = dataset.map(process_function, batched=False)
     train_dataset = tokenized_datasets.select(train_indices)
     eval_dataset = tokenized_datasets.select(eval_indices)
-    print(f"train_dataset={train_dataset}")
+    # print(f"train_dataset={train_dataset}")
 
     dataset_len = len(train_dataset)
     num_update_steps_per_epoch = max(1, dataset_len // args.gradient_accumulation_steps)
@@ -224,6 +249,7 @@ def main():
     model.gradient_checkpointing = True
     model.training = True
     freeze_params(model)
+    freeze_params(parent_model)
     freeze_params(parent_model.vae)
     freeze_params(parent_model.vision_model)
 
@@ -252,10 +278,10 @@ def main():
     vae_modules = []
     transformer_attn_modules = []
     for i in range(data_args.config.num_hidden_layers):
-        transformer_attn_modules.append(f"layers.{i}.self_attn.qkv_proj")
-        transformer_attn_modules.append(f"layers.{i}.self_attn.o_proj")
+        # transformer_attn_modules.append(f"layers.{i}.self_attn.qkv_proj")
+        # transformer_attn_modules.append(f"layers.{i}.self_attn.o_proj")
         for j in range(data_args.config.num_experts):
-            transformer_attn_modules.append(f"layers.{i}.mlp.experts.{j}.gate_and_up_proj")
+            # transformer_attn_modules.append(f"layers.{i}.mlp.experts.{j}.gate_and_up_proj")
             transformer_attn_modules.append(f"layers.{i}.mlp.experts.{j}.down_proj")
 
     target_modules = vision_modules + vae_modules + transformer_attn_modules
@@ -267,8 +293,8 @@ def main():
     )
 
     model = get_peft_model(model, lora_config)
-    if args.fp16 or args.bf16:
-        cast_training_params(model, dtype=ms.float32)
+    # if args.fp16 or args.bf16:
+    #     cast_training_params(model, dtype=ms.float32)
     model.print_trainable_parameters()
 
     # 3. [optional] Prepare the evalutaion metric
@@ -303,10 +329,14 @@ def main():
     optimizer = create_optimizer(model.get_base_model().trainable_params(), **optimizer_kwargs)
 
     # trainer
+    import gc
+    del parent_model
+    gc.collect()
+    ms.hal.empty_cache()
+
     trainer = Trainer(
-        # model=model.get_base_model(),  # use base model for parsing construct() arguments
         model=TrainStepForHunyuanImage(
-            model.get_base_model(),
+            model.get_base_model(),  # use base model for parsing construct() arguments
             parent_components,
             data_args,
         ),
@@ -315,7 +345,7 @@ def main():
         eval_dataset=eval_dataset,
         compute_metrics=compute_metrics,
         optimizers=(optimizer, lr_scheduler),  # for LoRA
-    )  # do not support compute_loss yet
+    )  # do not support passing compute_loss yet
 
     # train the model and save the LoRA weights
     def save_lora_model(model, output_dir):
@@ -410,6 +440,30 @@ def main():
                 print(log_entry.strip(), file=f)
 
 
+class ClassifierFreeGuidance:
+    def __init__(
+        self,
+        use_original_formulation: bool = False,
+        start: float = 0.0,
+        stop: float = 1.0,
+    ):
+        super().__init__()
+        self.use_original_formulation = use_original_formulation
+
+    def __call__(
+        self,
+        pred_cond: ms.Tensor,
+        pred_uncond: Optional[ms.Tensor],
+        guidance_scale: float,
+        step: int,
+    ) -> ms.Tensor:
+        shift = pred_cond - pred_uncond
+        pred = pred_cond if self.use_original_formulation else pred_uncond
+        pred = pred + guidance_scale * shift
+
+        return pred
+
+
 class TrainStepForHunyuanImage(nn.Cell):
     BatchRaggedImages = Union[ms.Tensor, List[Union[ms.Tensor, List[ms.Tensor]]]]
     BatchRaggedTensor = Union[ms.Tensor, List[ms.Tensor]]
@@ -434,15 +488,15 @@ class TrainStepForHunyuanImage(nn.Cell):
         self.scheduler = parent_components.scheduler
         self.postprocess = parent_components.postprocess
         self.progress_bar = parent_components.progress_bar
+
+        self.cfg_operator = ClassifierFreeGuidance()
+
         self.args = data_args
 
     @staticmethod
     def retrieve_timesteps(
         scheduler,
         num_inference_steps: Optional[int] = None,
-        timesteps: Optional[List[int]] = None,
-        sigmas: Optional[List[float]] = None,
-        **kwargs,
     ):
         """
         Calls the scheduler's `set_timesteps` method and retrieves timesteps from the scheduler after the call. Handles
@@ -454,59 +508,29 @@ class TrainStepForHunyuanImage(nn.Cell):
             num_inference_steps (`int`):
                 The number of diffusion steps used when generating samples with a pre-trained model. If used, `timesteps`
                 must be `None`.
-            timesteps (`List[int]`, *optional*):
-                Custom timesteps used to override the timestep spacing strategy of the scheduler. If `timesteps` is passed,
-                `num_inference_steps` and `sigmas` must be `None`.
-            sigmas (`List[float]`, *optional*):
-                Custom sigmas used to override the timestep spacing strategy of the scheduler. If `sigmas` is passed,
-                `num_inference_steps` and `timesteps` must be `None`.
 
         Returns:
             `Tuple[ms.Tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and the
             second element is the number of inference steps.
         """
-        if timesteps is not None and sigmas is not None:
-            raise ValueError(
-                "Only one of `timesteps` or `sigmas` can be passed. Please choose one to set custom values"
-            )
-        if timesteps is not None:
-            accepts_timesteps = "timesteps" in set(inspect.signature(scheduler.set_timesteps).parameters.keys())
-            if not accepts_timesteps:
-                raise ValueError(
-                    f"The current scheduler class {scheduler.__class__}'s `set_timesteps` does not support custom"
-                    f" timestep schedules. Please check whether you are using the correct scheduler."
-                )
-            scheduler.set_timesteps(timesteps=timesteps, **kwargs)
-            timesteps = scheduler.timesteps
-            num_inference_steps = len(timesteps)
-        elif sigmas is not None:
-            accept_sigmas = "sigmas" in set(inspect.signature(scheduler.set_timesteps).parameters.keys())
-            if not accept_sigmas:
-                raise ValueError(
-                    f"The current scheduler class {scheduler.__class__}'s `set_timesteps` does not support custom"
-                    f" sigmas schedules. Please check whether you are using the correct scheduler."
-                )
-            scheduler.set_timesteps(sigmas=sigmas, **kwargs)
-            timesteps = scheduler.timesteps
-            num_inference_steps = len(timesteps)
-        else:
-            scheduler.set_timesteps(num_inference_steps, **kwargs)
-            timesteps = scheduler.timesteps
-        return timesteps, num_inference_steps
 
-    @staticmethod
-    def prepare_extra_func_kwargs(func, kwargs):
-        # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
-        # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
-        # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
-        # and should be between [0, 1]
-        extra_kwargs = {}
+        scheduler.set_timesteps(num_inference_steps)
+        timesteps = scheduler.timesteps
+        return timesteps
 
-        for k, v in kwargs.items():
-            accepts = k in set(inspect.signature(func).parameters.keys())
-            if accepts:
-                extra_kwargs[k] = v
-        return extra_kwargs
+    # @staticmethod
+    # def prepare_extra_func_kwargs(func, kwargs):
+    #     # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
+    #     # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
+    #     # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
+    #     # and should be between [0, 1]
+    #     extra_kwargs = {}
+
+    #     for k, v in kwargs.items():
+    #         accepts = k in set(inspect.signature(func).parameters.keys())
+    #         if accepts:
+    #             extra_kwargs[k] = v
+    #     return extra_kwargs
 
     @staticmethod
     def _prepare_attention_mask_for_generation(
@@ -517,7 +541,7 @@ class TrainStepForHunyuanImage(nn.Cell):
         # in the `transformers.generation_utils.GenerationMixin.generate`.
         # This implementation can handle sequences with text and image modalities, where text tokens use causal
         # attention and image tokens use full attention.
-        bsz, seq_len = inputs_tensor.shape
+        bsz, seq_len = inputs_tensor.shape  # 2, 2048
         batch_image_slices = [
             tokenizer_output.joint_image_slices[i] + tokenizer_output.gen_image_slices[i] for i in range(bsz)
         ]
@@ -613,22 +637,23 @@ class TrainStepForHunyuanImage(nn.Cell):
         custom_pos_emb = self.get_pos_emb(custom_pos_emb, position_ids)
 
         inputs_embeds = self.base_model.wte(input_ids)
-        bsz, seq_len, n_embd = inputs_embeds.shape
+        bsz, seq_len, n_embd = inputs_embeds.shape  # 2, 2048, 8196 
 
         # Instantiate placeholder tokens: <timestep>, <img> for the gen image
-        if mode == "gen_text":
-            raise NotImplementedError("Not supported yet")
-        else:
-            if first_step:
-                inputs_embeds, token_h, token_w = self.instantiate_vae_image_tokens(
-                    inputs_embeds, images, timestep, image_mask
-                )
-                inputs_embeds = self.instantiate_timestep_tokens(inputs_embeds, timestep, gen_timestep_scatter_index)
+        with pynative_no_grad():
+            if mode == "gen_text":
+                raise NotImplementedError("Not supported yet")
             else:
-                t_emb = self.time_embed(timestep)
-                image_emb, token_h, token_w = self.patch_embed(images, t_emb)
-                timestep_emb = self.timestep_emb(timestep).reshape(bsz, -1, n_embd)
-                inputs_embeds = mint.cat([timestep_emb, image_emb], dim=1)
+                if first_step:
+                    inputs_embeds, token_h, token_w = self.instantiate_vae_image_tokens(
+                        inputs_embeds, images, timestep, image_mask
+                    )
+                    inputs_embeds = self.instantiate_timestep_tokens(inputs_embeds, timestep, gen_timestep_scatter_index)
+                else:
+                    t_emb = self.time_embed(timestep)
+                    image_emb, token_h, token_w = self.patch_embed(images, t_emb)
+                    timestep_emb = self.timestep_emb(timestep).reshape(bsz, -1, n_embd)
+                    inputs_embeds = mint.cat([timestep_emb, image_emb], dim=1)
 
         # Should only run once with kv-cache enabled.
         if cond_vae_images is not None or cond_vit_images is not None:
@@ -652,7 +677,6 @@ class TrainStepForHunyuanImage(nn.Cell):
         )
         hidden_states = outputs[0]
         logits = None
-        hidden_states = hidden_states
         diffusion_prediction = self.ragged_final_layer(
             hidden_states, image_mask, timestep, token_h, token_w, first_step
         )
@@ -675,42 +699,39 @@ class TrainStepForHunyuanImage(nn.Cell):
     def construct(
         self,
         input_ids,
-        position_ids,
         custom_pos_emb,
         joint_image_slices,
         gen_image_slices,
-        eos_token_id,
         image_mask,
         gen_timestep_scatter_index,
         labels,
         *args,
     ):
-        # print(f"input_ids[0]={input_ids[0]}")
-        # print(f"position_ids[0]={position_ids[0]}")
-        # print(f"custom_pos_emb={custom_pos_emb}")
-        # print(f"custom_pos_emb[0]={custom_pos_emb[0]}")
-        # print(f"joint_image_slices[0]={joint_image_slices[0]}")
-        # print(f"gen_image_slices[0]={gen_image_slices[0]}")
-        # print(f"eos_token_id[0]={eos_token_id[0]}")
-        # print(f"image_mask[0]={image_mask[0]}")
-        # print(f"gen_timestep_scatter_index[0]={gen_timestep_scatter_index[0]}")
-        # print(f"self.base_model={self.base_model}")
 
         # prepare inputs
         mode = "gen_image"
+
         input_ids = input_ids[0]
+        # print(f"input_ids={input_ids.shape}")
         image_size = f"{self.args.width}x{self.args.height}"
         batch_size = len([input_ids])
-        print(f"batch_size={batch_size}")
-        batch_gen_image_info = [self.build_image_info(image_size) for _ in range(batch_size)]
 
-        cache = HunyuanStaticCache(
-            config=self.args.config,
-            max_batch_size=batch_size * 2,
-            max_cache_len=input_ids.shape[1],
-            dtype=ms.bfloat16,
-            dynamic=mode == "gen_text",
+        batch_gen_image_info = [self.build_image_info(image_size) for _ in range(batch_size)]
+        batch_input_pos = mint.arange(0, input_ids.shape[1], dtype=ms.int64)[None].expand(
+            (batch_size * 2, -1)  # (batch_size * cfg_factor[mode], -1)
         )
+
+        # batch_input_pos = ms.tensor(np.arange(0, 2048, dtype=np.int64).reshape(1, -1), dtype=ms.int64)
+        # batch_input_pos = batch_input_pos.tile((batch_size * 2, 1))
+        # batch_input_pos = mint.ones((2, 2048), dtype=ms.int64)
+
+        # cache = HunyuanStaticCache(
+        #     config=self.args.config,
+        #     max_batch_size=batch_size * 2,
+        #     max_cache_len=input_ids.shape[1],  # 2048
+        #     dtype=ms.bfloat16,
+        #     dynamic=mode == "gen_text",
+        # )
 
         tokenizer_output = {}
         tokenizer_output["joint_image_slices"] = self.load_slices(joint_image_slices[0])
@@ -718,18 +739,19 @@ class TrainStepForHunyuanImage(nn.Cell):
         wrapped_tokenizer_output = SimpleNamespace(**tokenizer_output)
 
         model_inputs = dict(
-            position_ids=position_ids[0],
-            past_key_values=cache,
-            custom_pos_emb=custom_pos_emb[0],
+            position_ids=batch_input_pos,
+            # past_key_values=cache,
+            past_key_values=None,
+            custom_pos_emb=custom_pos_emb[0], # custom_pos_emb, # custom_pos_emb[0],
             mode=mode,
-            image_mask=image_mask[0],
-            gen_timestep_scatter_index=gen_timestep_scatter_index[0],
+            image_mask=image_mask[0], # image_mask, # image_mask[0],
+            gen_timestep_scatter_index=gen_timestep_scatter_index[0], #gen_timestep_scatter_index, # gen_timestep_scatter_index[0],
             # for inner usage
             tokenizer_output=wrapped_tokenizer_output,
             batch_gen_image_info=batch_gen_image_info,
             generator=np.random.Generator(np.random.PCG64(self.args.seed)),
             # generation config
-            eos_token_id=eos_token_id[0],
+            eos_token_id=[127957, 128000],  # stop_token_id[bot_task]
         )
 
         # Prepare parameters
@@ -742,7 +764,7 @@ class TrainStepForHunyuanImage(nn.Cell):
         num_inference_steps = self.args.num_inference_steps
 
         # Prapre timesteps
-        timesteps, _ = self.retrieve_timesteps(self.scheduler, num_inference_steps)
+        timesteps = self.retrieve_timesteps(self.scheduler, num_inference_steps=num_inference_steps)
 
         # Prepare latent variables
         batch_gen_image_info = model_inputs["batch_gen_image_info"]
@@ -753,11 +775,12 @@ class TrainStepForHunyuanImage(nn.Cell):
             dtype=self.args.ms_dtype,
             generator=model_inputs["generator"],
         )
-
+        # print(f"latents={latents.shape}")
         # Prepare extra step kwargs.
-        _scheduler_step_extra_kwargs = self.prepare_extra_func_kwargs(
-            self.scheduler.step, {"generator": model_inputs["generator"]}
-        )
+        _scheduler_step_extra_kwargs = {"generator": model_inputs["generator"]}
+        # _scheduler_step_extra_kwargs = self.prepare_extra_func_kwargs(
+        #     self.scheduler.step, {"generator": model_inputs["generator"]}
+        # )
 
         # Prepare model kwargs
         model_kwargs = model_inputs
@@ -766,6 +789,7 @@ class TrainStepForHunyuanImage(nn.Cell):
             self.args.generation_config,
             model_kwargs=model_kwargs,
         )
+        # attention_mask = mint.ones((2, 1, 2048, 2048), dtype=ms.bool_)
         model_kwargs["attention_mask"] = attention_mask
 
         # Sampling loop
@@ -773,75 +797,70 @@ class TrainStepForHunyuanImage(nn.Cell):
         self._num_timesteps = len(timesteps)
 
         # Denoising loop
-        with self.progress_bar(total=num_inference_steps) as progress_bar:
-            for i, t in enumerate(timesteps):
-                # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * cfg_factor)
-                latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
+        # with self.progress_bar(total=num_inference_steps) as progress_bar:
+        for i, t in enumerate(timesteps):
+            # expand the latents if we are doing classifier free guidance
+            latent_model_input = ops.cat([latents] * cfg_factor)
+            latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
-                t_expand = t.repeat(latent_model_input.shape[0])
-                t_expand = t.repeat(latent_model_input.shape[0])
+            t_expand = t.repeat(latent_model_input.shape[0])
 
-                model_inputs = self.prepare_inputs_for_gen(
-                    input_ids,
-                    images=latent_model_input,
-                    timestep=t_expand,
-                    **model_kwargs,
-                )
+            model_inputs = self.prepare_inputs_for_gen(
+                input_ids,
+                images=latent_model_input,
+                timestep=t_expand,
+                **model_kwargs,
+            )
 
-                model_output = self.generation(**model_inputs, first_step=(i == 0))
-                pred = model_output["diffusion_prediction"]
-                pred = pred.to(dtype=ms.float32)
+            model_output = self.generation(**model_inputs, first_step=(i == 0))
+            pred = model_output["diffusion_prediction"]
+            pred = pred.to(dtype=ms.float32)  # (2, 3, 512, 512)
 
-                # perform guidance
-                if do_classifier_free_guidance:
-                    pred_cond, pred_uncond = pred.chunk(2)
-                    pred = self.cfg_operator(pred_cond, pred_uncond, self.guidance_scale, step=i)
 
-                if do_classifier_free_guidance and guidance_rescale > 0.0:
+            # perform guidance
+            if do_classifier_free_guidance:
+                pred_cond, pred_uncond = pred.chunk(2)
+                pred = self.cfg_operator(pred_cond, pred_uncond, guidance_scale, step=i)
+
+                if guidance_rescale > 0.0:
                     # Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf
-                    pred = self.rescale_noise_cfg(pred, pred_cond, guidance_rescale=self.guidance_rescale)
+                    pred = self.rescale_noise_cfg(pred, pred_cond, guidance_rescale=guidance_scale)   # (1, 3, 512, 512)
 
-                # compute the previous noisy sample x_t -> x_t-1
-                latents = self.scheduler.step(pred, t, latents, **_scheduler_step_extra_kwargs, return_dict=False)[0]
+            # compute the previous noisy sample x_t -> x_t-1
+            latents = self.scheduler.step(pred, t, latents, **_scheduler_step_extra_kwargs, return_dict=False)[0]
 
-                if i != len(timesteps) - 1:
-                    model_kwargs = self.update_kwargs_for_gen(  # noqa
-                        model_output,
-                        model_kwargs,
-                    )
-                    if input_ids.shape[1] != model_kwargs["position_ids"].shape[1]:
-                        input_ids = mint.gather(input_ids, 1, index=model_kwargs["position_ids"])
+            if i != len(timesteps) - 1:
+                model_kwargs = self.update_kwargs_for_gen(  # noqa
+                    model_output,
+                    model_kwargs,
+                )
+                if input_ids.shape[1] != model_kwargs["position_ids"].shape[1]:
+                    input_ids = mint.gather(input_ids, 1, index=model_kwargs["position_ids"])
 
-                # call the callback, if provided
-                if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
-                    progress_bar.update()
+            # call the callback, if provided
+            # if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
+            #     progress_bar.update()
 
         if hasattr(self.args.vae_config, "scaling_factor") and self.args.vae_config.scaling_factor:
             latents = latents / self.args.vae_config.scaling_factor
         if hasattr(self.args.vae_config, "shift_factor") and self.args.vae_config.shift_factor:
-            latents = latents + self.args.vae_config.shift_factor
+            latents = latents + self.args.vae_config.shift_factor  # (1, 3, 512, 512)
 
-        if self.args.vae_config.has_ffactor_temporal:
-            latents = latents.unsqueeze(2)
+        with pynative_no_grad():
+            image = self.vae_decode(latents, return_dict=False)[0][:, :, 0]  # [B, C, H, W]
+            do_denormalize = [True] * batch_size
+            image = self.postprocess(image, output_type="ms", do_denormalize=do_denormalize)  # (1, 3, 512, 512)
 
-        image = self.vae_decode(latents, return_dict=False)[0]
-
-        # b c t h w
-        if self.args.vae_config.has_ffactor_temporal:
-            assert image.shape[2] == 1, "image should have shape [B, C, T, H, W] and T should be 1"
-            image = image.squeeze(2)
-
-        do_denormalize = [True] * image.shape[0]
-        image = self.postprocess(image, output_type=ms, do_denormalize=do_denormalize)
-
-        preds = image[0]
+        preds = image[0]  # [C, H, W] = (3, 512, 512)
         loss = ms.mint.mean(
-            ((preds - labels) ** 2).reshape(preds.shape[0], -1),
+            ((preds - labels[0]) ** 2).reshape(3, -1),
             dim=1,
-        )
-
-        return loss
+        ).mean()
+        # print(f"loss={loss}")
+        # print("latents", latents.shape)
+        # loss = latents[0][0][0].mean() - labels[0][0][0].mean()
+        print(loss)
+        return (loss,)
 
 
 if __name__ == "__main__":

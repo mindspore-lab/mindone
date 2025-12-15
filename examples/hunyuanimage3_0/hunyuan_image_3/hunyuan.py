@@ -300,7 +300,8 @@ def topkgating(
     token_priority = ops.masked_fill(token_priority, ~valid_mask, 0)
     dispatch_mask = F.one_hot(token_priority, expert_capacity).to(ms.bool_)
     valid_mask = valid_mask.unsqueeze(-1).expand((-1, -1, expert_capacity))
-    dispatch_mask = ops.masked_fill(dispatch_mask, ~valid_mask, 0)
+    # valid_mask = valid_mask.unsqueeze(-1).tile((1, 1, expert_capacity))
+    dispatch_mask = ops.masked_fill(dispatch_mask.float(), ~valid_mask, 0)
 
     # The combine array will be used for combining expert outputs, scaled by the
     # router probabilities. Shape: [num_groups, tokens_per_group, num_experts,
@@ -982,7 +983,7 @@ class HunyuanStaticCache(StaticCache):
 
         return k_out, v_out
 
-
+@ms._no_grad()
 class HunyuanRMSNorm(nn.Cell):
     def __init__(self, hidden_size, eps=1e-6):
         """
@@ -994,7 +995,7 @@ class HunyuanRMSNorm(nn.Cell):
 
     def construct(self, hidden_states):
         input_dtype = hidden_states.dtype
-        hidden_states = hidden_states.to(ms.float32)
+        # hidden_states = hidden_states.to(ms.float32)
         variance = hidden_states.pow(2).mean(-1, keepdim=True)
         hidden_states = hidden_states * mint.rsqrt(variance + self.variance_epsilon)
         return self.weight * hidden_states.to(input_dtype)
@@ -1366,11 +1367,9 @@ class HunyuanImage3FlashAttention2(HunyuanImage3SDPAAttention):
         query_states = query_states.to(value_states.dtype)
         key_states = key_states.to(value_states.dtype)
 
-        # past_key_values_length = 0
         if past_key_value is not None:
             cache_kwargs = {"cache_position": position_ids}
             key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
-            # past_key_values_length = past_key_value.get_usable_length(q_len)
 
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
@@ -1385,12 +1384,9 @@ class HunyuanImage3FlashAttention2(HunyuanImage3SDPAAttention):
 
         target_dtype = key_states.dtype if key_states.dtype in [ms.bfloat16, ms.float16] else ms.bfloat16
 
-        # q_fa = query_states.to(target_dtype).transpose(1, 2).contiguous()
-        # k_fa = key_states.to(target_dtype).transpose(1, 2).contiguous()
-        # v_fa = value_states.to(target_dtype).transpose(1, 2).contiguous()
-        q_fa = query_states.to(target_dtype).contiguous()
-        k_fa = key_states.to(target_dtype).contiguous()
-        v_fa = value_states.to(target_dtype).contiguous()
+        q_fa = query_states.to(target_dtype)
+        k_fa = key_states.to(target_dtype)
+        v_fa = value_states.to(target_dtype)
 
         mode = kwargs.get("mode", "gen_text")
 
@@ -1407,10 +1403,8 @@ class HunyuanImage3FlashAttention2(HunyuanImage3SDPAAttention):
         # with nvtx.range("attention"):
         if mode == "gen_text":
             if attention_mask is None:
-                # attn_output = flash_attn_func(q_fa, k_fa, v_fa, mask=False)  # decode attention
                 attn_output = flash_attn_func(q_fa, k_fa, v_fa)  # decode attention
             else:
-                # attn_output = flash_attn_func(q_fa, k_fa, v_fa, mask=True)  # prefill attention
                 attn_output = flash_attn_func(q_fa, k_fa, v_fa, mask=attention_mask)  # prefill attention
         else:  # image attention
             gen_timestep_scatter_index: Optional[ms.Tensor] = kwargs.get("gen_timestep_scatter_index", None)
@@ -1426,10 +1420,6 @@ class HunyuanImage3FlashAttention2(HunyuanImage3SDPAAttention):
                 raise ValueError("When gen_image, `first_step` must be provided.")
             if first_step:
                 casual_len = timestep_index + 1
-                # text_query_states = q_fa[:, :casual_len, :, :]
-                # text_key_states = k_fa[:, :casual_len, :, :]
-                # text_value_states = v_fa[:, :casual_len, :, :]
-                # text_attn_output = flash_attn_func(text_query_states, text_key_states, text_value_states, causal=True)
                 text_query_states = q_fa[:, :, :casual_len, :]
                 text_key_states = k_fa[:, :, :casual_len, :]
                 text_value_states = v_fa[:, :, :casual_len, :]
@@ -1445,23 +1435,14 @@ class HunyuanImage3FlashAttention2(HunyuanImage3SDPAAttention):
                 text_attn_output = flash_attn_func(
                     text_query_states, text_key_states, text_value_states, mask=attention_mask
                 )
-                # image_query_states = q_fa[:, casual_len:, :, :]
-                # image_attn_output = flash_attn_func(image_query_states, k_fa, v_fa, causal=False)
                 image_query_states = q_fa[:, :, casual_len:, :]
                 image_attn_output = flash_attn_func(image_query_states, k_fa, v_fa)
 
-                # attn_output = mint.cat((text_attn_output, image_attn_output), dim=1)
                 attn_output = mint.cat(
                     (text_attn_output, image_attn_output), dim=2
                 )  # the shape is changed from BSND -> BNSD
             else:
                 casual_len = timestep_index + 1
-                # timestep_query_states = q_fa[:, 0:1, :, :]
-                # timestep_key_states = k_fa[:, :casual_len, :, :]
-                # timestep_value_states = v_fa[:, :casual_len, :, :]
-                # timestep_attn_output = flash_attn_func(
-                #     timestep_query_states, timestep_key_states, timestep_value_states, causal=True
-                # )
                 timestep_query_states = q_fa[:, :, 0:1, :]
                 timestep_key_states = k_fa[:, :, :casual_len, :]
                 timestep_value_states = v_fa[:, :, :casual_len, :]
@@ -1477,11 +1458,9 @@ class HunyuanImage3FlashAttention2(HunyuanImage3SDPAAttention):
                 timestep_attn_output = flash_attn_func(
                     timestep_query_states, timestep_key_states, timestep_value_states, mask=attention_mask
                 )
-                # image_query_states = q_fa[:, 1:, :, :]
-                # image_attn_output = flash_attn_func(image_query_states, k_fa, v_fa, causal=False)
                 image_query_states = q_fa[:, :, 1:, :]
                 image_attn_output = flash_attn_func(image_query_states, k_fa, v_fa)
-                # attn_output = mint.cat((timestep_attn_output, image_attn_output), dim=1)
+
                 attn_output = mint.cat(
                     (timestep_attn_output, image_attn_output), dim=2
                 )  # the shape is changed from BSND -> BNSD
@@ -1502,6 +1481,7 @@ Hunyuan_ATTENTION_CLASSES = {
 
 
 class HunyuanImage3DecoderLayer(nn.Cell):
+    # @lazy_inline
     def __init__(self, config: HunyuanImage3Config, layer_idx: int):
         super().__init__()
         self.hidden_size = config.hidden_size
@@ -1524,8 +1504,8 @@ class HunyuanImage3DecoderLayer(nn.Cell):
             self.input_layernorm = HunyuanRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
             self.post_attention_layernorm = HunyuanRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         elif config.norm_type == "fused" or config.norm_type == "mindspore_nn":
-            self.input_layernorm = nn.LayerNorm(config.hidden_size, eps=config.rms_norm_eps)
-            self.post_attention_layernorm = nn.LayerNorm(config.hidden_size, eps=config.rms_norm_eps)
+            self.input_layernorm = mint.nn.LayerNorm(config.hidden_size, eps=config.rms_norm_eps)
+            self.post_attention_layernorm = mint.nn.LayerNorm(config.hidden_size, eps=config.rms_norm_eps)
         else:
             assert False, "other norm_type are not supported"
 
@@ -1567,6 +1547,10 @@ class HunyuanImage3DecoderLayer(nn.Cell):
         residual = hidden_states
 
         hidden_states = self.input_layernorm(hidden_states)
+
+        # Self Attention
+        if self.training:
+            custom_pos_emb = (kwargs["cos"], kwargs["sin"])
 
         # Self Attention
         hidden_states, self_attn_weights, present_key_value = self.self_attn(
@@ -1708,6 +1692,8 @@ class HunyuanImage3Model(HunyuanImage3PreTrainedModel):
         self.layers = nn.CellList(
             [HunyuanImage3DecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]
         )
+        # for layer in self.layers:
+        #     layer.offload(backward_prefetch='Auto')
         if not config.add_classification_head:
             self.ln_f = HunyuanRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
@@ -1756,18 +1742,36 @@ class HunyuanImage3Model(HunyuanImage3PreTrainedModel):
             if output_hidden_states:
                 all_hidden_states += (hidden_states,)
 
-            layer_outputs = decoder_layer(
-                hidden_states,
-                attention_mask=attention_mask,
-                position_ids=position_ids,
-                past_key_value=past_key_values,
-                output_attentions=output_attentions,
-                use_cache=use_cache,
-                custom_pos_emb=custom_pos_emb,
-                mode=mode,
-                first_step=first_step,
-                gen_timestep_scatter_index=gen_timestep_scatter_index,
-            )
+            if self.training:
+                layer_outputs = ms.recompute(
+                    decoder_layer,
+                    hidden_states,
+                    attention_mask=attention_mask,
+                    position_ids=position_ids,
+                    past_key_value=past_key_values,
+                    output_attentions=output_attentions,
+                    use_cache=use_cache,
+                    custom_pos_emb=None,
+                    mode=mode,
+                    first_step=first_step,
+                    gen_timestep_scatter_index=gen_timestep_scatter_index,
+                    cos=custom_pos_emb[0],
+                    sin=custom_pos_emb[1],
+                )
+
+            else:
+                layer_outputs = decoder_layer(
+                    hidden_states,
+                    attention_mask=attention_mask,
+                    position_ids=position_ids,
+                    past_key_value=past_key_values,
+                    output_attentions=output_attentions,
+                    use_cache=use_cache,
+                    custom_pos_emb=custom_pos_emb,
+                    mode=mode,
+                    first_step=first_step,
+                    gen_timestep_scatter_index=gen_timestep_scatter_index,
+                )
 
             hidden_states = layer_outputs[0]
 
@@ -2127,7 +2131,7 @@ class HunyuanImage3ForCausalMM(HunyuanImage3PreTrainedModel, GenerationMixin):
             inputs_embeds = self.instantiate_vit_image_tokens(
                 inputs_embeds, cond_vit_images, cond_vit_image_mask, vit_kwargs
             )
-        # print(f"in_parent_model_cls={self.model}")
+
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
         outputs = self.model(
             input_ids=input_ids,
@@ -2399,6 +2403,7 @@ class HunyuanImage3ForCausalMM(HunyuanImage3PreTrainedModel, GenerationMixin):
             sequence_template=self.generation_config.sequence_template,
             cfg_factor=cfg_factor[mode],
             drop_think=drop_think,
+            add_pad=kwargs.get("add_pad", "False"),
         )
         output, sections = out["output"], out["sections"]
 

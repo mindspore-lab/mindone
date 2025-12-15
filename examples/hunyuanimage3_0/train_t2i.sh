@@ -1,14 +1,15 @@
 #!/bin/bash
 export TOKENIZERS_PARALLELISM=False
-export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3
 
 # Distributed training configuration
 MASTER_ADDR=${MASTER_ADDR:-"127.0.0.1"}
 MASTER_PORT=${MASTER_PORT:-$(shuf -i 20001-29999 -n 1)}
-NPROC_PER_NODE=${WORLD_SIZE:-8}
+NPROC_PER_NODE=${WORLD_SIZE:-4}
 
 # Model configuration
-MODEL_ID=${MODEL_ID:-"HunyuanImage-3/"}  # Using HuggingFace model ID
+# MODEL_ID=${MODEL_ID:-"HunyuanImage-3/"}  # Using HuggingFace model ID
+MODEL_ID=${MODEL_ID:-"/data4/dxw/hunyuanimage3/"}  # Using HuggingFace model ID
 
 # Training entry point
 entry_file="run_image_train.py"

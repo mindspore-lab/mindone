@@ -28,7 +28,7 @@ from mindspore import mint, nn
 
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
 from mindone.diffusers.models.activations import get_activation
-from mindone.diffusers.models.modeling_outputs import AutoencoderKLOutput
+# from mindone.diffusers.models.modeling_outputs import AutoencoderKLOutput
 from mindone.diffusers.models.modeling_utils import ModelMixin
 from mindone.diffusers.utils import BaseOutput
 from mindone.diffusers.utils.mindspore_utils import randn_tensor
@@ -52,6 +52,20 @@ def forward_with_checkpointing(module, *inputs, use_checkpointing=False):
         raise NotImplementedError
     else:
         return module(*inputs)
+
+
+@dataclass
+class AutoencoderKLOutput(BaseOutput):
+    """
+    Output of AutoencoderKL encoding method.
+
+    Args:
+        latent_dist (`DiagonalGaussianDistribution`):
+            Encoded outputs of `Encoder` represented as the mean and logvar of `DiagonalGaussianDistribution`.
+            `DiagonalGaussianDistribution` allows for sampling latents from the distribution.
+    """
+
+    latent_dist: "DiagonalGaussianDistribution"  # noqa: F821
 
 
 class DiagonalGaussianDistribution(object):
@@ -471,13 +485,13 @@ class Encoder(nn.Cell):
         h = forward_with_checkpointing(self.mid.block_2, h, use_checkpointing=use_checkpointing)
 
         # output
-        B, C, H, W = h.shape
-        residual = h.view(B, C // self.group_size, self.group_size, H, W).mean(dim=2)
+        B, C, F, H, W = h.shape
+        residual = h.view(B, C // self.group_size, self.group_size, F, H, W).mean(dim=2)
 
         h = self.norm_out(h)
         h = self.nonlinearity(h)
         h = self.conv_out(h)
-        return x + residual
+        return h + residual
 
 
 class Decoder(nn.Cell):
@@ -946,6 +960,9 @@ class AutoencoderKLConv3D(ModelMixin, ConfigMixin):
         Decodes the input by passing through the decoder network.
         Support slicing and tiling for memory efficiency.
         """
+        # [B, C, H, W] -> [B, C, T, H, W]
+        if len(z.shape) == 4 and hasattr(self, "ffactor_temporal"): 
+            z = z.unsqueeze(2)
 
         if self.use_slicing and z.shape[0] > 1:
             decoded_slices = [self._decode(z_slice).sample for z_slice in z.split(1)]

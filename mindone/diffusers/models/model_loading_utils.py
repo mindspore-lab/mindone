@@ -37,7 +37,6 @@ import mindspore as ms
 from mindspore import nn, ops
 
 from ...safetensors.mindspore import load as safe_load
-from ...safetensors.mindspore import load_file as safe_load_file
 from ..utils import (
     CKPT_FILE_EXTENSION,
     DEFAULT_HF_PARALLEL_LOADING_WORKERS,
@@ -51,6 +50,8 @@ from ..utils import (
 )
 
 logger = logging.get_logger(__name__)
+ms.Parameter._data = ms.Tensor.data
+ms.Parameter.data_ptr = ms.Tensor.data_ptr
 
 _CLASS_REMAPPING_DICT = {
     "Transformer2DModel": {
@@ -101,7 +102,7 @@ def load_state_dict(
             if disable_mmap:
                 return safe_load(open(checkpoint_file, "rb").read())
             else:
-                return safe_load_file(checkpoint_file)
+                return ms.load_checkpoint(checkpoint_file, format="safetensors")
         # support loading checkpoint file in mindspore format
         elif file_extension == CKPT_FILE_EXTENSION:
             return ms.load_checkpoint(checkpoint_file)
@@ -145,11 +146,11 @@ def _load_state_dict_into_model(
                 if keep_in_fp32_modules is not None and any(
                     module_to_keep_in_fp32 in k.split(".") for module_to_keep_in_fp32 in keep_in_fp32_modules
                 ):
-                    v.set_dtype(ms.float32)
+                    v._data = v.to(device="CPU", dtype=ms.float32)
                 else:
-                    v.set_dtype(local_state[k].dtype)
+                    v._data = v.to(device="CPU", dtype=local_state[k].dtype)
             else:
-                v.set_dtype(local_state[k].dtype)
+                v._data = v.to(device="CPU", dtype=local_state[k].dtype)
         else:
             pass  # unexpect key keeps origin dtype
     cm = silence_mindspore_logger() if is_sharded else nullcontext()

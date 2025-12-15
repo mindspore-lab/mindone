@@ -190,7 +190,7 @@ def set_reproducibility(enable, global_seed=None):
 def main(args):
     dist.init_process_group()
     ms.set_auto_parallel_context(parallel_mode=ms.ParallelMode.DATA_PARALLEL)
-    ms.launch_blocking()
+    # ms.launch_blocking()
 
     local_rank = dist.get_rank()
 
@@ -228,7 +228,7 @@ def main(args):
             ms.amp.auto_mixed_precision(model, amp_level=args.amp_level, dtype=dtype)
         else:
             # OOM risk
-            whitelist_ops = [ms.nn.GroupNorm]
+            whitelist_ops = [nn.GroupNorm]
             print("custom fp32 cell for vae: ", whitelist_ops)
             model = auto_mixed_precision(model, amp_level=args.amp_level, dtype=dtype, custom_fp32_cells=whitelist_ops)
 

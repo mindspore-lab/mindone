@@ -677,7 +677,7 @@ class HunyuanImage3Text2ImagePipeline(DiffusionPipeline):
     def set_scheduler(self, new_scheduler):
         self.register_modules(scheduler=new_scheduler)
 
-    # @torch.no_grad()
+    @ms._no_grad()
     def __call__(
         self,
         batch_size: int,
