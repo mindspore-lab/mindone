@@ -67,6 +67,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("codegen", "CodeGenModel"),
         ("cohere", "CohereModel"),
         ("cohere2", "Cohere2Model"),
+        ("cohere2_vision", "Cohere2VisionModel"),
         ("convbert", "ConvBertModel"),
         ("convnext", "ConvNextModel"),
         ("convnextv2", "ConvNextV2Model"),
@@ -506,6 +507,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         # Model for Image mapping
         ("beit", "BeitModel"),
         ("bit", "BitModel"),
+        ("cohere2_vision", "Cohere2VisionModel"),
         ("convnext", "ConvNextModel"),
         ("convnextv2", "ConvNextV2Model"),
         ("data2vec-vision", "Data2VecVisionModel"),
@@ -672,6 +674,7 @@ MODEL_FOR_VISION_2_SEQ_MAPPING_NAMES = OrderedDict(
         ("blip", "BlipForConditionalGeneration"),
         ("blip-2", "Blip2ForConditionalGeneration"),
         ("chameleon", "ChameleonForConditionalGeneration"),
+        ("cohere2_vision", "Cohere2VisionForConditionalGeneration"),
         ("git", "GitForCausalLM"),
         ("idefics2", "Idefics2ForConditionalGeneration"),
         ("idefics3", "Idefics3ForConditionalGeneration"),

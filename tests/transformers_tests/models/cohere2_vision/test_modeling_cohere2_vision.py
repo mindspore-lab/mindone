@@ -31,7 +31,7 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy, random_attention_mask
+from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 1e-3, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
