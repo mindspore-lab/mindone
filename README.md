@@ -7,6 +7,13 @@ Let's explore the world modeling potentials on MindSpore ;)
 
 
 ## News
+### Janus-Pro is supported!
+<p align="center" width="100%">
+  <img width="746" alt="Capture" src="examples/janus/images/doge.png">
+</p>
+
+MindSpore implementation for Janus-Pro training/inference is now released! Supporting both multimodal understanding and visual generation on Ascend NPU. Decoupling visual encoding generation/understanding-specific tasks surely bring Omni-capability. Details can be found [here](examples/janus/README.md).
+
 ### MVDream is supported!
 MVDream is a diffusion model that is able to generate consistent multiview images from a given text prompt. It shows that learning from both 2D and 3D data, a multiview diffusion model can achieve the generalizability of 2D diffusion models and the consistency of 3D renderings. Details can be found [here](examples/mvdream/README.md)
 <table class="center" border="0" style="width: 100%; text-align: left;">
