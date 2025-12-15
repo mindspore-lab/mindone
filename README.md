@@ -5,9 +5,67 @@ This repository contains SoTA algorithms, models, and interesting projects in th
 ONE is short for "ONE for all"
 
 ## News
-- [2025.04.10] We release MindONE [v0.3.0](https://github.com/mindspore-lab/mindone/releases/tag/v0.3.0). More than 15 SoTA generative models are added, including Flux, CogView4, OpenSora2.0, Movie Gen 30B , CogVideoX 5B~30B. Have fun!
-- [2025.02.21] We support DeepSeek [Janus-Pro](https://huggingface.co/deepseek-ai/Janus-Pro-7B), a SoTA multimodal understanding and generation model. See [here](examples/janus)
-- [2024.11.06] MindONE [v0.2.0](https://github.com/mindspore-lab/mindone/releases/tag/v0.2.0) is released
+### MVDream is supported!
+MVDream is a diffusion model that is able to generate consistent multiview images from a given text prompt. It shows that learning from both 2D and 3D data, a multiview diffusion model can achieve the generalizability of 2D diffusion models and the consistency of 3D renderings. Details can be found [here](examples/mvdream/README.md)
+<table class="center" border="0" style="width: 100%; text-align: left;">
+<tr>
+  <th>Input Prompt</th>
+  <th style="text-align: center;">Rendererd MView Video</th>
+  <th style="text-align: center;">3D Mesh Generation in Color</th>
+</tr>
+<tr>
+        <td> <code>an astronaut riding a horse</code> </td>
+        <td><video src="https://github.com/user-attachments/assets/fb424c82-7262-4591-b182-8e9f4789f6f8" autoplay muted loop playsinline></video></td>
+        <td><div class="sketchfab-embed-wrapper"> <iframe title="an astronaut riding a horse_ms" frameborder="0" allowfullscreen mozallowfullscreen="true" webkitallowfullscreen="true" allow="autoplay; fullscreen; xr-spatial-tracking" xr-spatial-tracking execution-while-out-of-viewport execution-while-not-rendered web-share src="https://sketchfab.com/models/2191db5b61834839aac5238f60d70e59/embed"> </iframe> </div></td>
+</tr>
+        <td> <code>Michelangelo style statue of dog reading news on a cellphone </code> </td>
+        <td><video src="https://github.com/user-attachments/assets/80d11282-4a5d-4b5a-9c68-3dc5dd16fb00" autoplay muted loop playsinline></video></td>
+        <td><div class="sketchfab-embed-wrapper"> <iframe title="Michelangelo style statue of dog reading news_ms" frameborder="0" allowfullscreen mozallowfullscreen="true" webkitallowfullscreen="true" allow="autoplay; fullscreen; xr-spatial-tracking" xr-spatial-tracking execution-while-out-of-viewport execution-while-not-rendered web-share src="https://sketchfab.com/models/c21773f276884a5db7d47e41926645e4/embed"> </iframe> </div></td>
+</table>
+
+
+
+These videos are rendered from the trained 3D implicit field in our MVDream model. Color meshes are extracted with the script [`MVDream-threestudio/extract_color_mesh.py`](MVDream-threestudio/extract_color_mesh.py).
+
+
+### InstantMesh is supported!
+We support [instantmesh](https://github.com/TencentARC/InstantMesh) for the 3D mesh generation using the multiview images extracted from [the sv3d pipeline](https://github.com/mindspore-lab/mindone/pull/574).
+<p align="center" width="100%">
+  <img width="746" alt="Capture" src="https://github.com/user-attachments/assets/be5cf033-8f89-4cad-97dc-2bf76c1b7a4d">
+</p>
+
+
+Using the multiview images input from 3D mesh extracted from [the sv3d pipeline](examples/sv3d/simple_video_sample.py), we extracted 3D meshes as below. Please kindly find the input illustrated by following the link to the sv3d pipeline below.
+
+| <p align="center"> akun </p>                                                                                                                                                                                                                                                                                                                                                                          | <p align="center"> anya </p>                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <div class="sketchfab-embed-wrapper"><iframe title="akun_ms" frameborder="0" allowfullscreen mozallowfullscreen="true" webkitallowfullscreen="true" allow="autoplay; fullscreen; xr-spatial-tracking" xr-spatial-tracking execution-while-out-of-viewport execution-while-not-rendered web-share src="https://sketchfab.com/models/c8b5b475529d48589b85746aab638d2b/embed"></iframe></div> | <div class="sketchfab-embed-wrapper"><iframe title="anya_ms" frameborder="0" allowfullscreen mozallowfullscreen="true" webkitallowfullscreen="true" allow="autoplay; fullscreen; xr-spatial-tracking" xr-spatial-tracking execution-while-out-of-viewport execution-while-not-rendered web-share src="https://sketchfab.com/models/180fd247ba2f4437ac665114a4cd4dca/embed"></iframe></div> |
+
+The illustrations here are better viewed in viewers than with HTML support (e.g., the vscode built-in viewer).
+
+
+### Stable Video 3D is supported!
+<p align="center"><img width="600" alt="Output Vis"
+src="https://github.com/mindspore-lab/mindone/assets/13991298/0da9cff8-f90a-4fd2-b042-8f92b387a46b"/>
+<br><em>Output Multiview Images (21x576x576)</em></br>
+</p>
+
+A camera-guided diffusion model that can generate the multiview snippet of a given image! Details can be found [here](examples/sv3d/README.md).
+<details>
+<summary>More Inference Demos
+</summary>
+
+| Input                                                                                                                | Output                     |
+|----------------------------------------------------------------------------------------------------------------------|----------------------------|
+| <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/4f7a0c2f-65c1-4d0a-9861-068b811e0701"/><br/>aaa</p>            | <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/ad492ad6-0a7a-4227-8809-b3c8ecf4db65"/><br/>aaa multiview</p> |
+| <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/64c269c4-dfee-4495-bede-c7841b137895"/><br/>akun</p>           | <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/0588fb26-aa1c-44e0-9b85-e001c6b2e67e"/><br/>akun multiview</p> |
+| <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/9655bf80-559c-40bb-8953-c8bdea2d11a3"/><br/>anya</p>           | <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/95a15c51-6fa7-4587-8e94-4f979270923f"/><br/>anya multiview</p> |
+| <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/8bae9feb-17a1-4cbe-ae56-1f719416e3e8"/><br/>bag</p>            | <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/5abff1b5-494f-4321-ae27-6125409515b8"/><br/>bag multiview</p> |
+| <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/1b6a650a-d203-461c-a60e-fd03e9434ea8"/><br/>groot</p>          | <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/413421b0-79d4-48b3-89a8-13958ff2125d"/><br/>groot multiview</p> |
+| <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/5458d1db-807b-4b2e-9f0a-22415f2a0f5e"/><br/>princess-large</p> | <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/6bf201a8-da31-4424-8304-42eaf6748501"/><br/>princess-large multiview</p> |
+
+</details>
+
 
 ## Quick tour
 
