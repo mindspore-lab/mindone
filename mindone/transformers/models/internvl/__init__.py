@@ -1,4 +1,4 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/transformers
 # with modifications to run transformers on mindspore.
@@ -16,3 +16,5 @@
 # limitations under the License.
 
 from .modeling_internvl import *
+from .processing_internvl import InternVLProcessor
+from .video_processing_internvl import InternVLVideoProcessor
