@@ -5909,39 +5909,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#mindone.diffusers.AutoencoderKLWan.disable_slicing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        disable_slicing
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mindone.diffusers.AutoencoderKLWan.disable_tiling" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        disable_tiling
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mindone.diffusers.AutoencoderKLWan.enable_slicing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        enable_slicing
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#mindone.diffusers.AutoencoderKLWan.enable_tiling" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10812,39 +10779,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#mindone.diffusers.AutoencoderKLWan.disable_slicing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        disable_slicing
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mindone.diffusers.AutoencoderKLWan.disable_tiling" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        disable_tiling
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mindone.diffusers.AutoencoderKLWan.enable_slicing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        enable_slicing
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#mindone.diffusers.AutoencoderKLWan.enable_tiling" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10970,7 +10904,7 @@ specific language governing permissions and limitations under the License. -->
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code>, <code><span title="mindone.diffusers.loaders.FromOriginalModelMixin">FromOriginalModelMixin</span></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><span title="mindone.diffusers.models.autoencoders.vae.AutoencoderMixin">AutoencoderMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code>, <code><span title="mindone.diffusers.loaders.FromOriginalModelMixin">FromOriginalModelMixin</span></code></p>
 
 
         <p>A VAE model with KL loss for encoding videos into latents and decoding latent representations into videos.
@@ -11451,9 +11385,7 @@ for all models (such as downloading or saving).</p>
 <span class="normal">1436</span>
 <span class="normal">1437</span>
 <span class="normal">1438</span>
-<span class="normal">1439</span>
-<span class="normal">1440</span>
-<span class="normal">1441</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AutoencoderKLWan</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">):</span>
+<span class="normal">1439</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AutoencoderKLWan</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">AutoencoderMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A VAE model with KL loss for encoding videos into latents and decoding latent representations into videos.</span>
 <span class="sd">    Introduced in [Wan 2.1].</span>
@@ -11463,6 +11395,9 @@ for all models (such as downloading or saving).</p>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">_supports_gradient_checkpointing</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="c1"># keys toignore when AlignDeviceHook moves inputs/outputs between devices</span>
+    <span class="c1"># these are shared mutable state modified in-place</span>
+    <span class="n">_skip_keys</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;feat_cache&quot;</span><span class="p">,</span> <span class="s2">&quot;feat_idx&quot;</span><span class="p">]</span>
 
     <span class="nd">@register_to_config</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -11470,7 +11405,7 @@ for all models (such as downloading or saving).</p>
         <span class="n">base_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">96</span><span class="p">,</span>
         <span class="n">decoder_base_dim</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">z_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
-        <span class="n">dim_mult</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">],</span>
+        <span class="n">dim_mult</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">],</span>
         <span class="n">num_res_blocks</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
         <span class="n">attn_scales</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">[],</span>
         <span class="n">temperal_downsample</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="kc">False</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">True</span><span class="p">],</span>
@@ -11555,7 +11490,7 @@ for all models (such as downloading or saving).</p>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">diag_gauss_dist</span> <span class="o">=</span> <span class="n">DiagonalGaussianDistribution</span><span class="p">()</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">spatial_compression_ratio</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">**</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">temperal_downsample</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">spatial_compression_ratio</span> <span class="o">=</span> <span class="n">scale_factor_spatial</span>
 
         <span class="c1"># When decoding a batch of video latents at a time, one can save memory by slicing across the batch dimension</span>
         <span class="c1"># to perform decoding of a single video latent at a time.</span>
@@ -11614,27 +11549,6 @@ for all models (such as downloading or saving).</p>
         <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_height</span> <span class="o">=</span> <span class="n">tile_sample_stride_height</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_height</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_width</span> <span class="o">=</span> <span class="n">tile_sample_stride_width</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_width</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">disable_tiling</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Disable tiled VAE decoding. If `enable_tiling` was previously enabled, this method will go back to computing</span>
-<span class="sd">        decoding in one step.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">use_tiling</span> <span class="o">=</span> <span class="kc">False</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">enable_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to</span>
-<span class="sd">        compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">use_slicing</span> <span class="o">=</span> <span class="kc">True</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">disable_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Disable sliced VAE decoding. If `enable_slicing` was previously enabled, this method will go back to computing</span>
-<span class="sd">        decoding in one step.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">use_slicing</span> <span class="o">=</span> <span class="kc">False</span>
-
     <span class="k">def</span><span class="w"> </span><span class="nf">clear_cache</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c1"># Use cached conv counts for decoder and encoder to avoid re-iterating modules each call</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_conv_num</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_conv_counts</span><span class="p">[</span><span class="s2">&quot;decoder&quot;</span><span class="p">]</span>
@@ -11648,12 +11562,13 @@ for all models (such as downloading or saving).</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">_encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
         <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">num_frame</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_tiling</span> <span class="ow">and</span> <span class="p">(</span><span class="n">width</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_width</span> <span class="ow">or</span> <span class="n">height</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_height</span><span class="p">):</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tiled_encode</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-
         <span class="bp">self</span><span class="o">.</span><span class="n">clear_cache</span><span class="p">()</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">x</span> <span class="o">=</span> <span class="n">patchify</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">patch_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_tiling</span> <span class="ow">and</span> <span class="p">(</span><span class="n">width</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_width</span> <span class="ow">or</span> <span class="n">height</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_height</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tiled_encode</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
         <span class="n">iter_</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">+</span> <span class="p">(</span><span class="n">num_frame</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">4</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">iter_</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_enc_conv_idx</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
@@ -11858,9 +11773,18 @@ for all models (such as downloading or saving).</p>
         <span class="n">tile_latent_min_width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_width</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_compression_ratio</span>
         <span class="n">tile_latent_stride_height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_height</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_compression_ratio</span>
         <span class="n">tile_latent_stride_width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_width</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_compression_ratio</span>
-
-        <span class="n">blend_height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_height</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_height</span>
-        <span class="n">blend_width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_width</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_width</span>
+        <span class="n">tile_sample_stride_height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_height</span>
+        <span class="n">tile_sample_stride_width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_width</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sample_height</span> <span class="o">=</span> <span class="n">sample_height</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span>
+            <span class="n">sample_width</span> <span class="o">=</span> <span class="n">sample_width</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span>
+            <span class="n">tile_sample_stride_height</span> <span class="o">=</span> <span class="n">tile_sample_stride_height</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span>
+            <span class="n">tile_sample_stride_width</span> <span class="o">=</span> <span class="n">tile_sample_stride_width</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span>
+            <span class="n">blend_height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_height</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span> <span class="o">-</span> <span class="n">tile_sample_stride_height</span>
+            <span class="n">blend_width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_width</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span> <span class="o">-</span> <span class="n">tile_sample_stride_width</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">blend_height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_height</span> <span class="o">-</span> <span class="n">tile_sample_stride_height</span>
+            <span class="n">blend_width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_width</span> <span class="o">-</span> <span class="n">tile_sample_stride_width</span>
 
         <span class="c1"># Split z into overlapping tiles and decode them separately.</span>
         <span class="c1"># The tiles have an overlap to avoid seams between tiles.</span>
@@ -11874,7 +11798,9 @@ for all models (such as downloading or saving).</p>
                     <span class="bp">self</span><span class="o">.</span><span class="n">_conv_idx</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
                     <span class="n">tile</span> <span class="o">=</span> <span class="n">z</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">k</span> <span class="p">:</span> <span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">i</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="n">tile_latent_min_height</span><span class="p">,</span> <span class="n">j</span> <span class="p">:</span> <span class="n">j</span> <span class="o">+</span> <span class="n">tile_latent_min_width</span><span class="p">]</span>
                     <span class="n">tile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">post_quant_conv</span><span class="p">(</span><span class="n">tile</span><span class="p">)</span>
-                    <span class="n">decoded</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decoder</span><span class="p">(</span><span class="n">tile</span><span class="p">,</span> <span class="n">feat_cache</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_feat_map</span><span class="p">,</span> <span class="n">feat_idx</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_conv_idx</span><span class="p">)</span>
+                    <span class="n">decoded</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decoder</span><span class="p">(</span>
+                        <span class="n">tile</span><span class="p">,</span> <span class="n">feat_cache</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_feat_map</span><span class="p">,</span> <span class="n">feat_idx</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_conv_idx</span><span class="p">,</span> <span class="n">first_chunk</span><span class="o">=</span><span class="p">(</span><span class="n">k</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+                    <span class="p">)</span>
                     <span class="n">time</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">decoded</span><span class="p">)</span>
                 <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
             <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
@@ -11890,10 +11816,14 @@ for all models (such as downloading or saving).</p>
                     <span class="n">tile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">blend_v</span><span class="p">(</span><span class="n">rows</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">][</span><span class="n">j</span><span class="p">],</span> <span class="n">tile</span><span class="p">,</span> <span class="n">blend_height</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">j</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                     <span class="n">tile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">blend_h</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="n">tile</span><span class="p">,</span> <span class="n">blend_width</span><span class="p">)</span>
-                <span class="n">result_row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tile</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_height</span><span class="p">,</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_width</span><span class="p">])</span>
+                <span class="n">result_row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tile</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:</span><span class="n">tile_sample_stride_height</span><span class="p">,</span> <span class="p">:</span><span class="n">tile_sample_stride_width</span><span class="p">])</span>
             <span class="n">result_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_row</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">))</span>
-
         <span class="n">dec</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_rows</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">3</span><span class="p">)[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:</span><span class="n">sample_height</span><span class="p">,</span> <span class="p">:</span><span class="n">sample_width</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">dec</span> <span class="o">=</span> <span class="n">unpatchify</span><span class="p">(</span><span class="n">dec</span><span class="p">,</span> <span class="n">patch_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span><span class="p">)</span>
+
+        <span class="n">dec</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="n">dec</span><span class="p">,</span> <span class="nb">min</span><span class="o">=-</span><span class="mf">1.0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">dec</span><span class="p">,)</span>
@@ -11999,7 +11929,9 @@ for all models (such as downloading or saving).</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_wan.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1421</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1419</span>
+<span class="normal">1420</span>
+<span class="normal">1421</span>
 <span class="normal">1422</span>
 <span class="normal">1423</span>
 <span class="normal">1424</span>
@@ -12017,9 +11949,7 @@ for all models (such as downloading or saving).</p>
 <span class="normal">1436</span>
 <span class="normal">1437</span>
 <span class="normal">1438</span>
-<span class="normal">1439</span>
-<span class="normal">1440</span>
-<span class="normal">1441</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
+<span class="normal">1439</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">sample</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">sample_posterior</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -12141,29 +12071,29 @@ returned.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_wan.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1252</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1235</span>
+<span class="normal">1236</span>
+<span class="normal">1237</span>
+<span class="normal">1238</span>
+<span class="normal">1239</span>
+<span class="normal">1240</span>
+<span class="normal">1241</span>
+<span class="normal">1242</span>
+<span class="normal">1243</span>
+<span class="normal">1244</span>
+<span class="normal">1245</span>
+<span class="normal">1246</span>
+<span class="normal">1247</span>
+<span class="normal">1248</span>
+<span class="normal">1249</span>
+<span class="normal">1250</span>
+<span class="normal">1251</span>
+<span class="normal">1252</span>
 <span class="normal">1253</span>
 <span class="normal">1254</span>
 <span class="normal">1255</span>
 <span class="normal">1256</span>
-<span class="normal">1257</span>
-<span class="normal">1258</span>
-<span class="normal">1259</span>
-<span class="normal">1260</span>
-<span class="normal">1261</span>
-<span class="normal">1262</span>
-<span class="normal">1263</span>
-<span class="normal">1264</span>
-<span class="normal">1265</span>
-<span class="normal">1266</span>
-<span class="normal">1267</span>
-<span class="normal">1268</span>
-<span class="normal">1269</span>
-<span class="normal">1270</span>
-<span class="normal">1271</span>
-<span class="normal">1272</span>
-<span class="normal">1273</span>
-<span class="normal">1274</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">DecoderOutput</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="normal">1257</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">DecoderOutput</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Decode a batch of images.</span>
 
@@ -12186,108 +12116,6 @@ returned.</p>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">decoded</span><span class="p">,)</span>
     <span class="k">return</span> <span class="n">DecoderOutput</span><span class="p">(</span><span class="n">sample</span><span class="o">=</span><span class="n">decoded</span><span class="p">)</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="mindone.diffusers.AutoencoderKLWan.disable_slicing" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">AutoencoderKLWan</span><span class="o">.</span><span class="n">disable_slicing</span><span class="p">()</span></code>
-
-<a href="#mindone.diffusers.AutoencoderKLWan.disable_slicing" class="headerlink" title="Permanent link">&para;</a></h3>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Disable sliced VAE decoding. If <code>enable_slicing</code> was previously enabled, this method will go back to computing
-decoding in one step.</p>
-
-
-            <details class="quote">
-              <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_wan.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1150</span>
-<span class="normal">1151</span>
-<span class="normal">1152</span>
-<span class="normal">1153</span>
-<span class="normal">1154</span>
-<span class="normal">1155</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Disable sliced VAE decoding. If `enable_slicing` was previously enabled, this method will go back to computing</span>
-<span class="sd">    decoding in one step.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">use_slicing</span> <span class="o">=</span> <span class="kc">False</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="mindone.diffusers.AutoencoderKLWan.disable_tiling" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">AutoencoderKLWan</span><span class="o">.</span><span class="n">disable_tiling</span><span class="p">()</span></code>
-
-<a href="#mindone.diffusers.AutoencoderKLWan.disable_tiling" class="headerlink" title="Permanent link">&para;</a></h3>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Disable tiled VAE decoding. If <code>enable_tiling</code> was previously enabled, this method will go back to computing
-decoding in one step.</p>
-
-
-            <details class="quote">
-              <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_wan.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1136</span>
-<span class="normal">1137</span>
-<span class="normal">1138</span>
-<span class="normal">1139</span>
-<span class="normal">1140</span>
-<span class="normal">1141</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_tiling</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Disable tiled VAE decoding. If `enable_tiling` was previously enabled, this method will go back to computing</span>
-<span class="sd">    decoding in one step.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">use_tiling</span> <span class="o">=</span> <span class="kc">False</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="mindone.diffusers.AutoencoderKLWan.enable_slicing" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">AutoencoderKLWan</span><span class="o">.</span><span class="n">enable_slicing</span><span class="p">()</span></code>
-
-<a href="#mindone.diffusers.AutoencoderKLWan.enable_slicing" class="headerlink" title="Permanent link">&para;</a></h3>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
-compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.</p>
-
-
-            <details class="quote">
-              <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_wan.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1143</span>
-<span class="normal">1144</span>
-<span class="normal">1145</span>
-<span class="normal">1146</span>
-<span class="normal">1147</span>
-<span class="normal">1148</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to</span>
-<span class="sd">    compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">use_slicing</span> <span class="o">=</span> <span class="kc">True</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -12406,10 +12234,7 @@ artifacts produced across the width dimension.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_wan.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1106</span>
-<span class="normal">1107</span>
-<span class="normal">1108</span>
-<span class="normal">1109</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1109</span>
 <span class="normal">1110</span>
 <span class="normal">1111</span>
 <span class="normal">1112</span>
@@ -12434,7 +12259,10 @@ artifacts produced across the width dimension.</p>
 <span class="normal">1131</span>
 <span class="normal">1132</span>
 <span class="normal">1133</span>
-<span class="normal">1134</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_tiling</span><span class="p">(</span>
+<span class="normal">1134</span>
+<span class="normal">1135</span>
+<span class="normal">1136</span>
+<span class="normal">1137</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_tiling</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">tile_sample_min_height</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">tile_sample_min_width</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -12579,7 +12407,24 @@ artifacts produced across the width dimension.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_wan.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1193</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1176</span>
+<span class="normal">1177</span>
+<span class="normal">1178</span>
+<span class="normal">1179</span>
+<span class="normal">1180</span>
+<span class="normal">1181</span>
+<span class="normal">1182</span>
+<span class="normal">1183</span>
+<span class="normal">1184</span>
+<span class="normal">1185</span>
+<span class="normal">1186</span>
+<span class="normal">1187</span>
+<span class="normal">1188</span>
+<span class="normal">1189</span>
+<span class="normal">1190</span>
+<span class="normal">1191</span>
+<span class="normal">1192</span>
+<span class="normal">1193</span>
 <span class="normal">1194</span>
 <span class="normal">1195</span>
 <span class="normal">1196</span>
@@ -12588,24 +12433,7 @@ artifacts produced across the width dimension.</p>
 <span class="normal">1199</span>
 <span class="normal">1200</span>
 <span class="normal">1201</span>
-<span class="normal">1202</span>
-<span class="normal">1203</span>
-<span class="normal">1204</span>
-<span class="normal">1205</span>
-<span class="normal">1206</span>
-<span class="normal">1207</span>
-<span class="normal">1208</span>
-<span class="normal">1209</span>
-<span class="normal">1210</span>
-<span class="normal">1211</span>
-<span class="normal">1212</span>
-<span class="normal">1213</span>
-<span class="normal">1214</span>
-<span class="normal">1215</span>
-<span class="normal">1216</span>
-<span class="normal">1217</span>
-<span class="normal">1218</span>
-<span class="normal">1219</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode</span><span class="p">(</span>
+<span class="normal">1202</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">AutoencoderKLOutput</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">DiagonalGaussianDistribution</span><span class="p">]]:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
@@ -12733,7 +12561,24 @@ returned.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_wan.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1358</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1341</span>
+<span class="normal">1342</span>
+<span class="normal">1343</span>
+<span class="normal">1344</span>
+<span class="normal">1345</span>
+<span class="normal">1346</span>
+<span class="normal">1347</span>
+<span class="normal">1348</span>
+<span class="normal">1349</span>
+<span class="normal">1350</span>
+<span class="normal">1351</span>
+<span class="normal">1352</span>
+<span class="normal">1353</span>
+<span class="normal">1354</span>
+<span class="normal">1355</span>
+<span class="normal">1356</span>
+<span class="normal">1357</span>
+<span class="normal">1358</span>
 <span class="normal">1359</span>
 <span class="normal">1360</span>
 <span class="normal">1361</span>
@@ -12792,9 +12637,7 @@ returned.</p>
 <span class="normal">1414</span>
 <span class="normal">1415</span>
 <span class="normal">1416</span>
-<span class="normal">1417</span>
-<span class="normal">1418</span>
-<span class="normal">1419</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">tiled_decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">DecoderOutput</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="normal">1417</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">tiled_decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">DecoderOutput</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Decode a batch of images using a tiled decoder.</span>
 
@@ -12816,9 +12659,18 @@ returned.</p>
     <span class="n">tile_latent_min_width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_width</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_compression_ratio</span>
     <span class="n">tile_latent_stride_height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_height</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_compression_ratio</span>
     <span class="n">tile_latent_stride_width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_width</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_compression_ratio</span>
-
-    <span class="n">blend_height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_height</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_height</span>
-    <span class="n">blend_width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_width</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_width</span>
+    <span class="n">tile_sample_stride_height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_height</span>
+    <span class="n">tile_sample_stride_width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_width</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">sample_height</span> <span class="o">=</span> <span class="n">sample_height</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span>
+        <span class="n">sample_width</span> <span class="o">=</span> <span class="n">sample_width</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span>
+        <span class="n">tile_sample_stride_height</span> <span class="o">=</span> <span class="n">tile_sample_stride_height</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span>
+        <span class="n">tile_sample_stride_width</span> <span class="o">=</span> <span class="n">tile_sample_stride_width</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span>
+        <span class="n">blend_height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_height</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span> <span class="o">-</span> <span class="n">tile_sample_stride_height</span>
+        <span class="n">blend_width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_width</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span> <span class="o">-</span> <span class="n">tile_sample_stride_width</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">blend_height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_height</span> <span class="o">-</span> <span class="n">tile_sample_stride_height</span>
+        <span class="n">blend_width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_width</span> <span class="o">-</span> <span class="n">tile_sample_stride_width</span>
 
     <span class="c1"># Split z into overlapping tiles and decode them separately.</span>
     <span class="c1"># The tiles have an overlap to avoid seams between tiles.</span>
@@ -12832,7 +12684,9 @@ returned.</p>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_conv_idx</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
                 <span class="n">tile</span> <span class="o">=</span> <span class="n">z</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">k</span> <span class="p">:</span> <span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">i</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="n">tile_latent_min_height</span><span class="p">,</span> <span class="n">j</span> <span class="p">:</span> <span class="n">j</span> <span class="o">+</span> <span class="n">tile_latent_min_width</span><span class="p">]</span>
                 <span class="n">tile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">post_quant_conv</span><span class="p">(</span><span class="n">tile</span><span class="p">)</span>
-                <span class="n">decoded</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decoder</span><span class="p">(</span><span class="n">tile</span><span class="p">,</span> <span class="n">feat_cache</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_feat_map</span><span class="p">,</span> <span class="n">feat_idx</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_conv_idx</span><span class="p">)</span>
+                <span class="n">decoded</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decoder</span><span class="p">(</span>
+                    <span class="n">tile</span><span class="p">,</span> <span class="n">feat_cache</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_feat_map</span><span class="p">,</span> <span class="n">feat_idx</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_conv_idx</span><span class="p">,</span> <span class="n">first_chunk</span><span class="o">=</span><span class="p">(</span><span class="n">k</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="p">)</span>
                 <span class="n">time</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">decoded</span><span class="p">)</span>
             <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
         <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
@@ -12848,10 +12702,14 @@ returned.</p>
                 <span class="n">tile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">blend_v</span><span class="p">(</span><span class="n">rows</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">][</span><span class="n">j</span><span class="p">],</span> <span class="n">tile</span><span class="p">,</span> <span class="n">blend_height</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">j</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="n">tile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">blend_h</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="n">tile</span><span class="p">,</span> <span class="n">blend_width</span><span class="p">)</span>
-            <span class="n">result_row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tile</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_height</span><span class="p">,</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_width</span><span class="p">])</span>
+            <span class="n">result_row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tile</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:</span><span class="n">tile_sample_stride_height</span><span class="p">,</span> <span class="p">:</span><span class="n">tile_sample_stride_width</span><span class="p">])</span>
         <span class="n">result_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_row</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">))</span>
-
     <span class="n">dec</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_rows</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">3</span><span class="p">)[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:</span><span class="n">sample_height</span><span class="p">,</span> <span class="p">:</span><span class="n">sample_width</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">dec</span> <span class="o">=</span> <span class="n">unpatchify</span><span class="p">(</span><span class="n">dec</span><span class="p">,</span> <span class="n">patch_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span><span class="p">)</span>
+
+    <span class="n">dec</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="n">dec</span><span class="p">,</span> <span class="nb">min</span><span class="o">=-</span><span class="mf">1.0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">dec</span><span class="p">,)</span>
@@ -12936,7 +12794,24 @@ The latent representation of the encoded videos.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_wan.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1292</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1275</span>
+<span class="normal">1276</span>
+<span class="normal">1277</span>
+<span class="normal">1278</span>
+<span class="normal">1279</span>
+<span class="normal">1280</span>
+<span class="normal">1281</span>
+<span class="normal">1282</span>
+<span class="normal">1283</span>
+<span class="normal">1284</span>
+<span class="normal">1285</span>
+<span class="normal">1286</span>
+<span class="normal">1287</span>
+<span class="normal">1288</span>
+<span class="normal">1289</span>
+<span class="normal">1290</span>
+<span class="normal">1291</span>
+<span class="normal">1292</span>
 <span class="normal">1293</span>
 <span class="normal">1294</span>
 <span class="normal">1295</span>
@@ -12983,24 +12858,7 @@ The latent representation of the encoded videos.</p>
 <span class="normal">1336</span>
 <span class="normal">1337</span>
 <span class="normal">1338</span>
-<span class="normal">1339</span>
-<span class="normal">1340</span>
-<span class="normal">1341</span>
-<span class="normal">1342</span>
-<span class="normal">1343</span>
-<span class="normal">1344</span>
-<span class="normal">1345</span>
-<span class="normal">1346</span>
-<span class="normal">1347</span>
-<span class="normal">1348</span>
-<span class="normal">1349</span>
-<span class="normal">1350</span>
-<span class="normal">1351</span>
-<span class="normal">1352</span>
-<span class="normal">1353</span>
-<span class="normal">1354</span>
-<span class="normal">1355</span>
-<span class="normal">1356</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">tiled_encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AutoencoderKLOutput</span><span class="p">:</span>
+<span class="normal">1339</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">tiled_encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AutoencoderKLOutput</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Encode a batch of images using a tiled encoder.</span>
 
 <span class="sd">    Args:</span>

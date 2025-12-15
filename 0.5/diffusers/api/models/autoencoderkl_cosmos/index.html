@@ -5719,39 +5719,6 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#mindone.diffusers.models.autoencoders.autoencoder_kl_cosmos.AutoencoderKLCosmos.disable_slicing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        disable_slicing
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mindone.diffusers.models.autoencoders.autoencoder_kl_cosmos.AutoencoderKLCosmos.disable_tiling" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        disable_tiling
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mindone.diffusers.models.autoencoders.autoencoder_kl_cosmos.AutoencoderKLCosmos.enable_slicing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        enable_slicing
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#mindone.diffusers.models.autoencoders.autoencoder_kl_cosmos.AutoencoderKLCosmos.enable_tiling" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10746,39 +10713,6 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#mindone.diffusers.models.autoencoders.autoencoder_kl_cosmos.AutoencoderKLCosmos.disable_slicing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        disable_slicing
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mindone.diffusers.models.autoencoders.autoencoder_kl_cosmos.AutoencoderKLCosmos.disable_tiling" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        disable_tiling
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mindone.diffusers.models.autoencoders.autoencoder_kl_cosmos.AutoencoderKLCosmos.enable_slicing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        enable_slicing
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#mindone.diffusers.models.autoencoders.autoencoder_kl_cosmos.AutoencoderKLCosmos.enable_tiling" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10884,7 +10818,7 @@ specific language governing permissions and limitations under the License. -->
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><span title="mindone.diffusers.models.autoencoders.vae.AutoencoderMixin">AutoencoderMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
 
 
         <p>Autoencoder used in <a href="https://huggingface.co/papers/2501.03575">Cosmos</a>.</p>
@@ -11386,28 +11320,7 @@ this.</p>
 <span class="normal">1123</span>
 <span class="normal">1124</span>
 <span class="normal">1125</span>
-<span class="normal">1126</span>
-<span class="normal">1127</span>
-<span class="normal">1128</span>
-<span class="normal">1129</span>
-<span class="normal">1130</span>
-<span class="normal">1131</span>
-<span class="normal">1132</span>
-<span class="normal">1133</span>
-<span class="normal">1134</span>
-<span class="normal">1135</span>
-<span class="normal">1136</span>
-<span class="normal">1137</span>
-<span class="normal">1138</span>
-<span class="normal">1139</span>
-<span class="normal">1140</span>
-<span class="normal">1141</span>
-<span class="normal">1142</span>
-<span class="normal">1143</span>
-<span class="normal">1144</span>
-<span class="normal">1145</span>
-<span class="normal">1146</span>
-<span class="normal">1147</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AutoencoderKLCosmos</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
+<span class="normal">1126</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AutoencoderKLCosmos</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">AutoencoderMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Autoencoder used in [Cosmos](https://huggingface.co/papers/2501.03575).</span>
 
@@ -11564,28 +11477,7 @@ this.</p>
         <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_width</span> <span class="o">=</span> <span class="n">tile_sample_stride_width</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_width</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_num_frames</span> <span class="o">=</span> <span class="n">tile_sample_stride_num_frames</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_num_frames</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">disable_tiling</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Disable tiled VAE decoding. If `enable_tiling` was previously enabled, this method will go back to computing</span>
-<span class="sd">        decoding in one step.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">use_tiling</span> <span class="o">=</span> <span class="kc">False</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">enable_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to</span>
-<span class="sd">        compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">use_slicing</span> <span class="o">=</span> <span class="kc">True</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">disable_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Disable sliced VAE decoding. If `enable_slicing` was previously enabled, this method will go back to computing</span>
-<span class="sd">        decoding in one step.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">use_slicing</span> <span class="o">=</span> <span class="kc">False</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
         <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
         <span class="n">enc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">quant_conv</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">enc</span>
@@ -11652,108 +11544,6 @@ this.</p>
 
 
 
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="mindone.diffusers.models.autoencoders.autoencoder_kl_cosmos.AutoencoderKLCosmos.disable_slicing" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">autoencoders</span><span class="o">.</span><span class="n">autoencoder_kl_cosmos</span><span class="o">.</span><span class="n">AutoencoderKLCosmos</span><span class="o">.</span><span class="n">disable_slicing</span><span class="p">()</span></code>
-
-<a href="#mindone.diffusers.models.autoencoders.autoencoder_kl_cosmos.AutoencoderKLCosmos.disable_slicing" class="headerlink" title="Permanent link">&para;</a></h3>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Disable sliced VAE decoding. If <code>enable_slicing</code> was previously enabled, this method will go back to computing
-decoding in one step.</p>
-
-
-            <details class="quote">
-              <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_cosmos.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1089</span>
-<span class="normal">1090</span>
-<span class="normal">1091</span>
-<span class="normal">1092</span>
-<span class="normal">1093</span>
-<span class="normal">1094</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Disable sliced VAE decoding. If `enable_slicing` was previously enabled, this method will go back to computing</span>
-<span class="sd">    decoding in one step.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">use_slicing</span> <span class="o">=</span> <span class="kc">False</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="mindone.diffusers.models.autoencoders.autoencoder_kl_cosmos.AutoencoderKLCosmos.disable_tiling" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">autoencoders</span><span class="o">.</span><span class="n">autoencoder_kl_cosmos</span><span class="o">.</span><span class="n">AutoencoderKLCosmos</span><span class="o">.</span><span class="n">disable_tiling</span><span class="p">()</span></code>
-
-<a href="#mindone.diffusers.models.autoencoders.autoencoder_kl_cosmos.AutoencoderKLCosmos.disable_tiling" class="headerlink" title="Permanent link">&para;</a></h3>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Disable tiled VAE decoding. If <code>enable_tiling</code> was previously enabled, this method will go back to computing
-decoding in one step.</p>
-
-
-            <details class="quote">
-              <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_cosmos.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1075</span>
-<span class="normal">1076</span>
-<span class="normal">1077</span>
-<span class="normal">1078</span>
-<span class="normal">1079</span>
-<span class="normal">1080</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_tiling</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Disable tiled VAE decoding. If `enable_tiling` was previously enabled, this method will go back to computing</span>
-<span class="sd">    decoding in one step.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">use_tiling</span> <span class="o">=</span> <span class="kc">False</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="mindone.diffusers.models.autoencoders.autoencoder_kl_cosmos.AutoencoderKLCosmos.enable_slicing" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">autoencoders</span><span class="o">.</span><span class="n">autoencoder_kl_cosmos</span><span class="o">.</span><span class="n">AutoencoderKLCosmos</span><span class="o">.</span><span class="n">enable_slicing</span><span class="p">()</span></code>
-
-<a href="#mindone.diffusers.models.autoencoders.autoencoder_kl_cosmos.AutoencoderKLCosmos.enable_slicing" class="headerlink" title="Permanent link">&para;</a></h3>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
-compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.</p>
-
-
-            <details class="quote">
-              <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_cosmos.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1082</span>
-<span class="normal">1083</span>
-<span class="normal">1084</span>
-<span class="normal">1085</span>
-<span class="normal">1086</span>
-<span class="normal">1087</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to</span>
-<span class="sd">    compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">use_slicing</span> <span class="o">=</span> <span class="kc">True</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
-</div>
 
 <div class="doc doc-object doc-function">
 
