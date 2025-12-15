@@ -1,8 +1,6 @@
-# MindONE
+# World Modelings on MindSpore
 
-This repository contains SoTA algorithms, models, and interesting projects in the area of multimodal understanding and content generation.
-
-ONE is short for "ONE for all"
+Let's explore the world modeling potentials on MindSpore ;)
 
 ## News
 ### MVDream is supported!
