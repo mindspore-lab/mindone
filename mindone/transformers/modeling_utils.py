@@ -1833,9 +1833,10 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, PushToHub
         self._init_weights(module)
         module._is_hf_initialized = True
 
-    def tie_weights(self):
+    def tie_embeddings_and_encoder_decoder(self):
         """
-        Tie the weights between the input embeddings and the output embeddings.
+        If set in the config, tie the weights between the input embeddings and the output embeddings,
+        and the encoder and decoder.
 
         If the `torchscript` flag is set in the configuration, can't handle parameter sharing so we are cloning the
         weights instead.
@@ -1856,7 +1857,16 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, PushToHub
             # Leading to issues on subsequent calls by different tests or subsequent calls.
             self._dynamic_tied_weights_keys = tied_weights
 
+    def tie_weights(self):
+        """
+        Recursively (for all submodels) tie all the weights of the model.
+        """
+        # Note that `self` is included in `self.modules` so we also apply to current PreTrainedModel with this call
         for name, module in self.cells_and_names():
+            # If it's a PreTrainedModel, may need to tie the embeddings and/or encoder/decoder weights
+            if isinstance(module, PreTrainedModel):
+                module.tie_embeddings_and_encoder_decoder()
+            # Additionally, if it has a custom `_tie_weights`, honor it
             if hasattr(module, "_tie_weights"):
                 module._tie_weights()
 
