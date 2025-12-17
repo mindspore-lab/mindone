@@ -342,6 +342,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("cohere", "Cohere"),
         ("cohere2", "Cohere2"),
         ("colpali", "ColPali"),
+        ("colqwen2", "ColQwen2"),
         ("convbert", "ConvBERT"),
         ("convnext", "ConvNeXT"),
         ("convnextv2", "ConvNeXTV2"),
