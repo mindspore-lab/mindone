@@ -575,7 +575,7 @@ class Qwen3NextGatedDeltaNet(nn.Cell):
         # instantiate once and copy inv_dt in init_weights of PretrainedModel
         self.dt_bias = Parameter(mint.ones(self.num_v_heads))
 
-        A = mint.empty(self.num_v_heads).uniform_(0, 16)
+        A = mint.zeros(self.num_v_heads).uniform_(0, 16)
         self.A_log = Parameter(mint.log(A))
 
         self.norm = (
@@ -598,9 +598,7 @@ class Qwen3NextGatedDeltaNet(nn.Cell):
 
         if not is_fast_path_available:
             logger.warning_once(
-                "The fast path is not available because one of the required library is not installed. Falling back to "
-                "torch implementation. To install follow https://github.com/fla-org/flash-linear-attention#installation and"
-                " https://github.com/Dao-AILab/causal-conv1d"
+                "The fast path is not available because one of the required library is not installed and supported yet."
             )
 
     def fix_query_key_value_ordering(self, mixed_qkvz, mixed_ba):
@@ -802,6 +800,7 @@ class Qwen3NextSparseMoeBlock(nn.Cell):
         # Loop over all available experts in the model and perform the computation on each expert
         expert_hit = mint.greater(expert_mask.sum(dim=(-1, -2)), 0).nonzero()
         for expert_idx in expert_hit:
+            expert_idx = expert_idx.item()
             expert_layer = self.experts[expert_idx]
             idx, top_x = mint.where(expert_mask[expert_idx].squeeze(0))
 
@@ -936,13 +935,7 @@ class Qwen3NextPreTrainedModel(PreTrainedModel):
     _is_stateful = True
 
     def _init_weights(self, module):
-        super()._init_weights(module)
-        if isinstance(module, Qwen3NextGatedDeltaNet):
-            module.dt_bias.data.fill_(1.0)
-            module.A_log.data.uniform_(0, 16).log_()
-        # We initialize with 0s to be 1 centered as the RMSNorm here does (1 + weight)
-        elif isinstance(module, Qwen3NextRMSNorm):
-            module.weight.data.zero_()
+        pass
 
 
 class Qwen3NextModel(Qwen3NextPreTrainedModel):
@@ -1157,13 +1150,17 @@ class Qwen3NextForCausalLM(Qwen3NextPreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, Qwen3NextForCausalLM
+        >>> import mindspore as ms
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import Qwen3NextForCausalLM
 
         >>> model = Qwen3NextForCausalLM.from_pretrained("Qwen/Qwen3-Next-80B-A3B-Instruct")
         >>> tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen3-Next-80B-A3B-Instruct")
 
         >>> prompt = "Hey, are you conscious? Can you talk to me?"
-        >>> inputs = tokenizer(prompt, return_tensors="pt")
+        >>> inputs = tokenizer(prompt, return_tensors="np")
+        >>> for k, v in inputs.items():
+        >>>     inputs[k] = ms.tensor(v)
 
         >>> # Generate
         >>> generate_ids = model.generate(inputs.input_ids, max_length=30)
