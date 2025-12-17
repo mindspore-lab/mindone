@@ -179,8 +179,11 @@ class Idefics2VisionEmbeddings(nn.Cell):
             nb_patches_h = p_attn_mask[:, 0].sum()
             nb_patches_w = p_attn_mask[0].sum()
 
-            fractional_coords_h = mint.arange(0, 1 - 1e-6, 1 / nb_patches_h.item(), dtype=ms.float32)
-            fractional_coords_w = mint.arange(0, 1 - 1e-6, 1 / nb_patches_w.item(), dtype=ms.float32)
+            h_indices = mint.arange(nb_patches_h.item(), dtype=ms.float32)
+            w_indices = mint.arange(nb_patches_w.item(), dtype=ms.float32)
+
+            fractional_coords_h = h_indices / nb_patches_h * (1 - 1e-6)
+            fractional_coords_w = w_indices / nb_patches_w * (1 - 1e-6)
 
             bucket_coords_h = ops.bucketize(fractional_coords_h, boundaries, right=True)
             bucket_coords_w = ops.bucketize(fractional_coords_w, boundaries, right=True)

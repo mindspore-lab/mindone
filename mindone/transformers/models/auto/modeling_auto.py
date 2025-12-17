@@ -120,6 +120,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("helium", "HeliumModel"),
         ("hiera", "HieraModel"),
         ("hubert", "HubertModel"),
+        ("hunyuan_v1_dense", "HunYuanDenseV1Model"),
+        ("hunyuan_v1_moe", "HunYuanMoEV1Model"),
         ("ibert", "IBertModel"),
         ("idefics", "IdeficsModel"),
         ("idefics2", "Idefics2Model"),
@@ -216,6 +218,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("siglip", "SiglipModel"),
         ("siglip2", "Siglip2Model"),
         ("siglip_vision_model", "SiglipVisionModel"),
+        ("smollm3", "SmolLM3Model"),
         ("smolvlm", "SmolVLMModel"),
         ("smolvlm_vision", "SmolVLMVisionTransformer"),
         ("speech_to_text", "Speech2TextModel"),
@@ -318,6 +321,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("roc_bert", "RoCBertForPreTraining"),
         ("roberta-prelayernorm", "RobertaPreLayerNormForMaskedLM"),
         ("rwkv", "RwkvForCausalLM"),
+        ("smollm3", "SmolLM3ForCausalLM"),
         ("squeezebert", "SqueezeBertForMaskedLM"),
         ("t5", "T5ForConditionalGeneration"),
         ("tapas", "TapasForMaskedLM"),
@@ -449,6 +453,9 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("granite", "GraniteForCausalLM"),
         ("granitemoe", "GraniteMoeForCausalLM"),
         ("granitemoeshared", "GraniteMoeSharedForCausalLM"),
+        ("helium", "HeliumForCausalLM"),
+        ("hunyuan_v1_dense", "HunYuanDenseV1ForCausalLM"),
+        ("hunyuan_v1_moe", "HunYuanMoEV1ForCausalLM"),
         ("jetmoe", "JetMoeForCausalLM"),
         ("layoutlm", "LayoutLMForMaskedLM"),
         ("jamba", "JambaForCausalLM"),
@@ -879,6 +886,8 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("gpt_neox", "SequenceClassification"),
         ("helium", "HeliumForSequenceClassification"),
         ("hubert", "HubertForSequenceClassification"),
+        ("hunyuan_v1_dense", "HunYuanDenseV1ForSequenceClassification"),
+        ("hunyuan_v1_moe", "HunYuanMoEV1ForSequenceClassification"),
         ("ibert", "IBertForSequenceClassification"),
         ("jamba", "JambaForSequenceClassification"),
         ("jetmoe", "JetMoeForSequenceClassification"),
@@ -915,6 +924,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("roc_bert", "RoCBertForSequenceClassification"),
         ("roberta", "RobertaForSequenceClassification"),
         ("roberta-prelayernorm", "RobertaPreLayerNormForSequenceClassification"),
+        ("smollm3", "SmolLM3ForSequenceClassification"),
         ("stablelm", "StableLmForSequenceClassification"),
         ("starcoder2", "Starcoder2ForSequenceClassification"),
         ("t5", "T5ForSequenceClassification"),
@@ -1066,6 +1076,7 @@ MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("roberta", "RobertaForTokenClassification"),
         ("roberta-prelayernorm", "RobertaPreLayerNormForTokenClassification"),
         ("roformer", "RoFormerForTokenClassification"),
+        ("smollm3", "SmolLM3ForTokenClassification"),
         ("starcoder2", "Starcoder2ForTokenClassification"),
         ("squeezebert", "SqueezeBertForTokenClassification"),
         ("stablelm", "StableLmForTokenClassification"),
@@ -1233,6 +1244,8 @@ MODEL_FOR_MASK_GENERATION_MAPPING_NAMES = OrderedDict(
 
 
 MODEL_FOR_KEYPOINT_DETECTION_MAPPING_NAMES = OrderedDict()
+
+MODEL_FOR_KEYPOINT_MATCHING_MAPPING_NAMES = OrderedDict()
 
 
 MODEL_FOR_TEXT_ENCODING_MAPPING_NAMES = OrderedDict(
@@ -1414,6 +1427,8 @@ MODEL_FOR_KEYPOINT_DETECTION_MAPPING = _LazyAutoMapping(
     CONFIG_MAPPING_NAMES, MODEL_FOR_KEYPOINT_DETECTION_MAPPING_NAMES
 )
 
+MODEL_FOR_KEYPOINT_MATCHING_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, MODEL_FOR_KEYPOINT_MATCHING_MAPPING_NAMES)
+
 MODEL_FOR_TEXT_ENCODING_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, MODEL_FOR_TEXT_ENCODING_MAPPING_NAMES)
 
 MODEL_FOR_TIME_SERIES_CLASSIFICATION_MAPPING = _LazyAutoMapping(
@@ -1433,6 +1448,10 @@ class AutoModelForMaskGeneration(_BaseAutoModelClass):
 
 class AutoModelForKeypointDetection(_BaseAutoModelClass):
     _model_mapping = MODEL_FOR_KEYPOINT_DETECTION_MAPPING
+
+
+class AutoModelForKeypointMatching(_BaseAutoModelClass):
+    _model_mapping = MODEL_FOR_KEYPOINT_MATCHING_MAPPING
 
 
 class AutoModelForTextEncoding(_BaseAutoModelClass):

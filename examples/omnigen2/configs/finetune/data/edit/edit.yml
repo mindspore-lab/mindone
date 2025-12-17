@@ -1,0 +1,4 @@
+data:
+  - path: "configs/finetune/data/edit/jsonls/0.jsonl"
+    type: "edit"
+    ratio: 1.0

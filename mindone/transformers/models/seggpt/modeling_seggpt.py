@@ -24,7 +24,6 @@ from transformers.utils import ModelOutput
 
 import mindspore
 from mindspore import mint
-from mindspore.common.initializer import Normal, One, TruncatedNormal, Zero, initializer
 
 from ...activations import ACT2FN
 from ...modeling_utils import PreTrainedModel
@@ -619,45 +618,7 @@ class SegGptPreTrainedModel(PreTrainedModel):
 
     def _init_weights(self, module: Union[mint.nn.Linear, mint.nn.Conv2d, mint.nn.LayerNorm]) -> None:
         """Initialize the weights"""
-        std = self.config.initializer_range
-        if isinstance(module, (mint.nn.Linear, mint.nn.Conv2d)):
-            # Upcast the input in `fp32` and cast it back to desired `dtype` to avoid
-            # `trunc_normal_cpu` not implemented in `half` issues
-            init_data = initializer(TruncatedNormal(sigma=std), module.weight.shape, mindspore.float32)
-            module.weight.set_data(init_data.astype(module.weight.dtype))
-
-            if module.bias is not None:
-                module.bias.set_data(initializer(Zero(), module.bias.shape, module.bias.dtype))
-        elif isinstance(module, mint.nn.LayerNorm):
-            module.bias.set_data(initializer(Zero(), module.bias.shape, module.bias.dtype))
-            module.weight.set_data(initializer(One(), module.weight.shape, module.weight.dtype))
-        elif isinstance(module, SegGptAttention):
-            init_data_h = initializer(TruncatedNormal(sigma=std), module.rel_pos_h.shape, mindspore.float32)
-            module.rel_pos_h.set_data(init_data_h.astype(module.rel_pos_h.dtype))
-
-            # rel_pos_w initialization
-            init_data_w = initializer(TruncatedNormal(sigma=std), module.rel_pos_w.shape, mindspore.float32)
-            module.rel_pos_w.set_data(init_data_w.astype(module.rel_pos_w.dtype))
-
-        elif isinstance(module, SegGptEmbeddings):
-            # position_embeddings initialization
-            init_data_pe = initializer(TruncatedNormal(sigma=std), module.position_embeddings.shape, mindspore.float32)
-            module.position_embeddings.set_data(init_data_pe.astype(module.position_embeddings.dtype))
-
-            # Initialize other token parameters with a Normal distribution
-            module.mask_token.set_data(initializer(Normal(sigma=std), module.mask_token.shape, module.mask_token.dtype))
-            module.segment_token_input.set_data(
-                initializer(Normal(sigma=std), module.segment_token_input.shape, module.segment_token_input.dtype)
-            )
-            module.segment_token_prompt.set_data(
-                initializer(Normal(sigma=std), module.segment_token_prompt.shape, module.segment_token_prompt.dtype)
-            )
-            module.type_token_semantic.set_data(
-                initializer(Normal(sigma=std), module.type_token_semantic.shape, module.type_token_semantic.dtype)
-            )
-            module.type_token_instance.set_data(
-                initializer(Normal(sigma=std), module.type_token_instance.shape, module.type_token_instance.dtype)
-            )
+        pass
 
 
 class SegGptModel(SegGptPreTrainedModel):

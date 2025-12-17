@@ -25,6 +25,7 @@ from typing import Optional, Union
 from transformers import add_start_docstrings
 
 from ...image_processing_utils import BatchFeature
+from ...image_transforms import resize
 from ...image_utils import OPENAI_CLIP_MEAN, OPENAI_CLIP_STD, ChannelDimension, SizeDict, get_image_size
 from ...processing_utils import Unpack, VideosKwargs
 from ...utils import TensorType, is_mindspore_available, is_vision_available
@@ -110,13 +111,13 @@ class Qwen2VLVideoProcessor(BaseVideoProcessor):
 
     def sample_frames(
         self,
-        video: "ms.Tensor",
-        frame_factor: int,
-        min_frames: int,
-        max_frames: int,
-        metadata: Optional[Union[VideoMetadata, dict]] = None,
+        metadata: VideoMetadata,
+        temporal_patch_size: Optional[int] = None,
+        min_frames: Optional[int] = None,
+        max_frames: Optional[int] = None,
         num_frames: Optional[int] = None,
         fps: Optional[Union[int, float]] = None,
+        **kwargs,
     ):
         """
         Default sampling function which uniformly samples the desired number of frames between 0 and total number of frames.
@@ -124,45 +125,46 @@ class Qwen2VLVideoProcessor(BaseVideoProcessor):
         and `fps` are mutually exclusive.
 
         Args:
-            video (`ms.Tensor`):
-                Video that need to be sampled.
-            frame_factor (`int`):
-                The temporal patch size of the vision encoder. Number of sampled frames will be rounded to be divisible by frame factor.
-            min_frames (`int`):
-                The minimum number of frames that can be sampled.
-            max_frames (`int`):
-                The maximum number of frames that can be sampled.
-            metadata (`VideoMetadata`, *optional*):
+            metadata (`VideoMetadata`):
                 Metadata of the video containing information about total duration, fps and total number of frames.
+            temporal_patch_size (`int`, *optional*):
+                The temporal patch size of the vision encoder. Number of sampled frames will be rounded to be divisible by frame factor.
+            min_frames (`int`, *optional*):
+                The minimum number of frames that can be sampled.
+            max_frames (`int`, *optional*):
+                The maximum number of frames that can be sampled.
             num_frames (`int`, *optional*):
                 Maximum number of frames to sample. Defaults to `self.num_frames`.
             fps (`int` or `float`, *optional*):
                 Target frames to sample per second. Defaults to `self.fps`.
 
         Returns:
-            ms.Tensor:
-                Sampled video frames.
+            np.ndarray:
+                Indices to sample video frames.
         """
         if fps is not None and num_frames is not None:
             raise ValueError("`num_frames` and `fps` are mutually exclusive arguments, please use only one!")
 
         num_frames = num_frames if num_frames is not None else self.num_frames
         fps = fps if fps is not None else self.fps
-        total_num_frames = video.shape[0]
+        temporal_patch_size = temporal_patch_size if temporal_patch_size is not None else self.temporal_patch_size
+        min_frames = min_frames if min_frames is not None else self.min_frames
+        max_frames = max_frames if max_frames is not None else self.max_frames
+        total_num_frames = metadata.total_num_frames
 
         # If num_frames is not given but fps is, calculate num_frames from fps
         if num_frames is not None:
-            num_frames = round(num_frames / frame_factor) * frame_factor
+            num_frames = round(num_frames / temporal_patch_size) * temporal_patch_size
         elif fps is not None:
-            if metadata is None:
+            if metadata is None or metadata.fps is None:
                 raise ValueError(
                     "Asked to sample `fps` frames per second but no video metadata was provided which is required when sampling with `fps`. "
                     "Please pass in `VideoMetadata` object or use a fixed `num_frames` per input video"
                 )
-            max_frames = math.floor(min(max_frames, total_num_frames) / frame_factor) * frame_factor
-            num_frames = total_num_frames / metadata["fps"] * fps
+            max_frames = math.floor(min(max_frames, total_num_frames) / temporal_patch_size) * temporal_patch_size
+            num_frames = total_num_frames / metadata.fps * fps
             num_frames = min(min(max(num_frames, min_frames), max_frames), total_num_frames)
-            num_frames = math.floor(num_frames / frame_factor) * frame_factor
+            num_frames = math.floor(num_frames / temporal_patch_size) * temporal_patch_size
 
         if num_frames > total_num_frames:
             raise ValueError(
@@ -174,61 +176,31 @@ class Qwen2VLVideoProcessor(BaseVideoProcessor):
             indices = mint.arange(0, total_num_frames, total_num_frames / num_frames).int()
         else:
             indices = mint.arange(0, total_num_frames).int()
-        video = video[indices].contiguous()
 
-        return video
+        return indices
 
     def _preprocess(
         self,
         videos: list["ms.Tensor"],
-        video_metadata: Union[list[VideoMetadata], list[dict]],
-        do_convert_rgb: bool,
         do_resize: bool,
         size: SizeDict,
-        interpolation: Optional,
+        interpolation: Optional["ms.dataset.vision.Inter.InterpolationMode"],
         do_rescale: bool,
         rescale_factor: float,
         do_normalize: bool,
-        do_sample_frames: bool,
         image_mean: Optional[Union[float, list[float]]],
         image_std: Optional[Union[float, list[float]]],
-        min_pixels: Optional[int] = None,
-        max_pixels: Optional[int] = None,
         patch_size: Optional[int] = None,
         temporal_patch_size: Optional[int] = None,
         merge_size: Optional[int] = None,
-        fps: Optional[Union[int, float]] = None,
-        num_frames: Optional[int] = None,
-        min_frames: Optional[int] = None,
-        max_frames: Optional[int] = None,
         return_tensors: Optional[Union[str, TensorType]] = None,
-        device: Optional["ms.Tensor"] = None,
         **kwargs,
     ):
-        if do_sample_frames:
-            # Sample video frames
-            videos = [
-                self.sample_frames(
-                    video,
-                    frame_factor=temporal_patch_size,
-                    min_frames=min_frames,
-                    max_frames=max_frames,
-                    metadata=metadata,
-                    num_frames=num_frames,
-                    fps=fps,
-                )
-                for video, metadata in zip(videos, video_metadata)
-            ]
-
-        # We need to sample frames first before moving to device, if `do_sample_frames=True`. Otherwise
-        # moving the whole video incurs high GPU mem usage for long videos
-        if device is not None:
-            videos = [video.to(device) for video in videos]
-
         # Group videos by size for batched resizing
         grouped_videos, grouped_videos_index = group_videos_by_shape(videos)
         resized_videos_grouped = {}
         for shape, stacked_videos in grouped_videos.items():
+            B, T, C, H, W = stacked_videos.shape
             height, width = get_image_size(stacked_videos[0], channel_dim=ChannelDimension.FIRST)
             resized_height, resized_width = height, width
             if do_resize:
@@ -236,19 +208,24 @@ class Qwen2VLVideoProcessor(BaseVideoProcessor):
                     height,
                     width,
                     factor=patch_size * merge_size,
-                    min_pixels=min_pixels,
-                    max_pixels=max_pixels,
+                    min_pixels=size["shortest_edge"],
+                    max_pixels=size["longest_edge"],
                 )
+                stacked_videos = stacked_videos.view(B * T, C, H, W)
                 stacked_videos_updated = []
                 for i in range(len(stacked_videos)):
                     stacked_videos_updated.append(
-                        self.resize(
-                            image=stacked_videos[i],
-                            size=SizeDict(height=resized_height, width=resized_width),
-                            interpolation=interpolation,
+                        ms.tensor(
+                            resize(
+                                image=stacked_videos[i].asnumpy(),
+                                size=(resized_height, resized_width),
+                                resample=interpolation,
+                            )
                         )
                     )
-            resized_videos_grouped[shape] = stacked_videos_updated
+                stacked_videos_updated = mint.stack(stacked_videos_updated)
+                stacked_videos = stacked_videos_updated.view(B, T, C, resized_height, resized_width)
+            resized_videos_grouped[shape] = stacked_videos
         resized_videos = reorder_videos(resized_videos_grouped, grouped_videos_index)
 
         # Group videos by size for further processing
@@ -259,10 +236,13 @@ class Qwen2VLVideoProcessor(BaseVideoProcessor):
         for shape, stacked_videos in grouped_videos.items():
             resized_height, resized_width = get_image_size(stacked_videos[0], channel_dim=ChannelDimension.FIRST)
 
+            # 'mindspore.dataset.vision.resize' only support 4 dim data
+            stacked_videos = stacked_videos.view(B * T, C, resized_height, resized_width)
             # Fused rescale and normalize
             stacked_videos = self.rescale_and_normalize(
                 stacked_videos, do_rescale, rescale_factor, do_normalize, image_mean, image_std
             )
+            stacked_videos = stacked_videos.view(B, T, C, resized_height, resized_width)
             patches = stacked_videos
 
             # Check that videos have `num_frames` divisible by `temporal_patch_size`
@@ -277,7 +257,7 @@ class Qwen2VLVideoProcessor(BaseVideoProcessor):
             # TODO mindspore tensor shape do not support >8 dimensions operation
             patches = patches.asnumpy()
 
-            patches = patches.view(
+            patches = patches.reshape(
                 batch_size,
                 grid_t,
                 temporal_patch_size,
@@ -289,7 +269,7 @@ class Qwen2VLVideoProcessor(BaseVideoProcessor):
                 merge_size,
                 patch_size,
             )
-            patches = patches.permute(0, 1, 4, 7, 5, 8, 3, 2, 6, 9)
+            patches = patches.transpose(0, 1, 4, 7, 5, 8, 3, 2, 6, 9)
             flatten_patches = patches.reshape(
                 batch_size,
                 grid_t * grid_h * grid_w,

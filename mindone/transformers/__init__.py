@@ -21,7 +21,7 @@
 # to defer the actual importing for when the objects are requested. This way `import transformers` provides the names
 # in the namespace without actually importing anything (and especially none of the backends).
 
-__version__ = "4.54.1"
+__version__ = "4.57.1"
 import transformers
 from packaging import version
 
@@ -39,6 +39,7 @@ from .feature_extraction_sequence_utils import SequenceFeatureExtractor
 
 # Feature Extractor
 from .feature_extraction_utils import BatchFeature, FeatureExtractionMixin
+from .generation import CompileConfig
 from .image_processing_base import ImageProcessingMixin
 from .image_processing_utils import BaseImageProcessor
 from .image_processing_utils_fast import BaseImageProcessorFast
@@ -503,6 +504,7 @@ from .models.esm import (
     EsmModel,
     EsmPreTrainedModel,
 )
+from .models.evolla import EvollaForProteinText2Text, EvollaModel, EvollaPreTrainedModel, EvollaProcessor
 from .models.falcon import (
     FalconForCausalLM,
     FalconForQuestionAnswering,
@@ -602,7 +604,12 @@ from .models.glpn import (
     GLPNModel,
     GLPNPreTrainedModel,
 )
-from .models.got_ocr2 import GotOcr2ForConditionalGeneration, GotOcr2PreTrainedModel
+from .models.got_ocr2 import (
+    GotOcr2ForConditionalGeneration,
+    GotOcr2ImageProcessor,
+    GotOcr2ImageProcessorFast,
+    GotOcr2PreTrainedModel,
+)
 from .models.gpt2 import (
     GPT2DoubleHeadsModel,
     GPT2ForQuestionAnswering,
@@ -720,6 +727,7 @@ from .models.instructblipvideo import (
     InstructBlipVideoQFormerModel,
     InstructBlipVideoVisionModel,
 )
+from .models.internvl import InternVLProcessor, InternVLVideoProcessor
 from .models.jamba import JambaForCausalLM, JambaForSequenceClassification, JambaModel, JambaPreTrainedModel
 from .models.jetmoe import (
     JetMoeConfig,
@@ -772,6 +780,7 @@ from .models.llava import LlavaConfig, LlavaForConditionalGeneration
 from .models.llava_next import (
     LlavaNextForConditionalGeneration,
     LlavaNextImageProcessor,
+    LlavaNextImageProcessorFast,
     LlavaNextPreTrainedModel,
     LlavaNextProcessor,
 )
@@ -780,6 +789,7 @@ from .models.llava_next_video import (
     LlavaNextVideoImageProcessor,
     LlavaNextVideoPreTrainedModel,
     LlavaNextVideoProcessor,
+    LlavaNextVideoVideoProcessor,
 )
 from .models.llava_onevision import (
     LlavaOnevisionForConditionalGeneration,
@@ -852,6 +862,7 @@ from .models.megatron_bert import (
 from .models.mgp_str import MgpstrForSceneTextRecognition, MgpstrModel, MgpstrPreTrainedModel, MgpstrProcessor
 from .models.mimi import MimiModel, MimiPreTrainedModel
 from .models.minicpm4 import MiniCPMForCausalLM, MiniCPMForSequenceClassification, MiniCPMModel
+from .models.minicpmv_4_5 import MiniCPMVImageProcessor, MiniCPMVProcessor, MiniCPMVTokenizerFast
 from .models.mistral import (
     MistralForCausalLM,
     MistralForQuestionAnswering,
@@ -1074,6 +1085,11 @@ from .models.phi3 import (
     Phi3Model,
     Phi3PreTrainedModel,
 )
+from .models.phi4_multimodal import (
+    Phi4MultimodalFeatureExtractor,
+    Phi4MultimodalImageProcessorFast,
+    Phi4MultimodalProcessor,
+)
 from .models.phimoe import PhimoeForCausalLM, PhimoeForSequenceClassification, PhimoeModel, PhimoePreTrainedModel
 from .models.pix2struct import (
     Pix2StructForConditionalGeneration,
@@ -1249,6 +1265,12 @@ from .models.siglip2 import (
     Siglip2TextModel,
     Siglip2VisionModel,
 )
+from .models.smollm3 import (
+    SmolLM3ForCausalLM,
+    SmolLM3ForQuestionAnswering,
+    SmolLM3ForSequenceClassification,
+    SmolLM3ForTokenClassification,
+)
 from .models.smolvlm import (
     SmolVLMForConditionalGeneration,
     SmolVLMModel,
@@ -1343,6 +1365,7 @@ from .models.timesformer import TimesformerForVideoClassification, TimesformerMo
 from .models.trocr import TrOCRForCausalLM, TrOCRPreTrainedModel
 from .models.tvp import TvpForVideoGrounding, TvpModel, TvpPreTrainedModel
 from .models.udop import UdopEncoderModel, UdopForConditionalGeneration, UdopModel, UdopPreTrainedModel
+from .models.ultravox import UltravoxProcessor
 from .models.umt5 import (
     UMT5EncoderModel,
     UMT5ForQuestionAnswering,
@@ -1529,7 +1552,7 @@ from .pipelines import (
 from .processing_utils import ProcessorMixin
 from .trainer import Trainer
 from .training_args import TrainingArguments
-from .utils import logging
+from .utils import TensorType, logging
 from .video_processing_utils import BaseVideoProcessor
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
@@ -1556,10 +1579,12 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     from .models.glm4v import (
         Glm4vForConditionalGeneration,
         Glm4vImageProcessor,
+        Glm4vImageProcessorFast,
         Glm4vModel,
         Glm4vPreTrainedModel,
         Glm4vProcessor,
         Glm4vTextModel,
+        Glm4vVideoProcessor,
         Glm4vVisionModel,
     )
     from .models.minimax import (
@@ -1585,6 +1610,8 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     from .models.vjepa2 import VJEPA2ForVideoClassification, VJEPA2Model, VJEPA2PreTrainedModel
 
 if version.parse(transformers.__version__) >= version.parse("4.57.0"):
+    from .models.hunyuan_v1_dense import HunYuanDenseV1ForCausalLM, HunYuanDenseV1ForSequenceClassification
+    from .models.hunyuan_v1_moe import HunYuanMoEV1ForCausalLM, HunYuanMoEV1ForSequenceClassification
     from .models.qwen3_omni_moe import *
     from .models.qwen3_vl import (
         Qwen3VLForConditionalGeneration,
