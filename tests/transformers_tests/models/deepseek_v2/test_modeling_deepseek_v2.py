@@ -15,7 +15,7 @@ import inspect
 import numpy as np
 import pytest
 import torch
-from transformers import DeepseekV2Model
+from transformers import DeepseekV2Config, DeepseekV2Model
 
 import mindspore as ms
 
@@ -36,6 +36,7 @@ MODES = [1]
 
 class DeepseekV2ModelTester(CausalLMModelTester):
     base_model_class = DeepseekV2Model
+    config_class = DeepseekV2Config
 
     def __init__(
         self,
@@ -55,7 +56,7 @@ class DeepseekV2ModelTester(CausalLMModelTester):
 
 
 model_tester = DeepseekV2ModelTester()
-config, inputs_dict = model_tester.prepare_config_and_inputs()
+config, inputs_dict = model_tester.prepare_config_and_inputs_for_common()
 
 DeepseekV2_CASES = [
     [
@@ -69,9 +70,9 @@ DeepseekV2_CASES = [
         {"last_hidden_state": 0},
     ],
     [
-        "DeepseekV2ForConditionalGeneration",
-        "transformers.DeepseekV2ForConditionalGeneration",
-        "mindone.transformers.DeepseekV2ForConditionalGeneration",
+        "DeepseekV2ForCausalLM",
+        "transformers.DeepseekV2ForCausalLM",
+        "mindone.transformers.DeepseekV2ForCausalLM",
         (config,),
         {},
         (),
