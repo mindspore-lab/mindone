@@ -219,8 +219,10 @@ class DeepseekV2RotaryEmbedding(mindspore.nn.Cell):
 
     @dynamic_rope_update  # power user: used with advanced RoPE types (e.g. dynamic rope)
     def construct(self, x, position_ids):
-        inv_freq_expanded = self.inv_freq[None, :, None].float().expand(position_ids.shape[0], -1, 1)
-        position_ids_expanded = position_ids[:, None, :].float()
+        inv_freq_expanded = (
+            self.inv_freq[None, :, None].astype(mindspore.float32).broadcast_to((position_ids.shape[0], -1, 1))
+        )
+        position_ids_expanded = position_ids[:, None, :].astype(mindspore.float32)
 
         freqs = (inv_freq_expanded @ position_ids_expanded).transpose(1, 2)
         freqs_cis = mint.polar(mint.ones_like(freqs), freqs)  # Convert to complex representation
@@ -237,7 +239,7 @@ def repeat_kv(hidden_states: mindspore.Tensor, n_rep: int) -> mindspore.Tensor:
     batch, num_key_value_heads, slen, head_dim = hidden_states.shape
     if n_rep == 1:
         return hidden_states
-    hidden_states = hidden_states[:, :, None, :, :].expand(batch, num_key_value_heads, n_rep, slen, head_dim)
+    hidden_states = hidden_states[:, :, None, :, :].broadcast_to((batch, num_key_value_heads, n_rep, slen, head_dim))
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 

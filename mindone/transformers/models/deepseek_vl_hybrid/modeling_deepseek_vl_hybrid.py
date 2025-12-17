@@ -292,6 +292,7 @@ class DeepseekVLHybridModel(DeepseekVLHybridPreTrainedModel):
         logits_to_keep: Union[int, mindspore.Tensor] = 0,
         **kwargs,
     ):
+        kwargs["return_dict"] = True
         if (input_ids is None) ^ (inputs_embeds is not None):
             raise ValueError(
                 "You cannot specify both input_ids and inputs_embeds at the same time, and must specify either one"
@@ -347,7 +348,7 @@ class DeepseekVLHybridModel(DeepseekVLHybridPreTrainedModel):
 
     def get_high_res_image_features(self, pixel_values):
         output = self.high_res_vision_model(
-            pixel_values=pixel_values,
+            pixel_values=pixel_values.to(self.high_res_vision_model.dtype),
             output_hidden_states=True,
             return_dict=True,
         )

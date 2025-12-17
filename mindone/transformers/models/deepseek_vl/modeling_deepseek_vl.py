@@ -184,6 +184,7 @@ class DeepseekVLModel(DeepseekVLPreTrainedModel):
         logits_to_keep: Union[int, mindspore.Tensor] = 0,
         **kwargs,
     ):
+        kwargs["return_dict"] = True
         if (input_ids is None) ^ (inputs_embeds is not None):
             raise ValueError(
                 "You cannot specify both input_ids and inputs_embeds at the same time, and must specify either one"
@@ -217,7 +218,6 @@ class DeepseekVLModel(DeepseekVLPreTrainedModel):
             use_cache=use_cache,
             cache_position=cache_position,
             logits_to_keep=logits_to_keep,
-            return_dict=True,
             **kwargs,
         )
 

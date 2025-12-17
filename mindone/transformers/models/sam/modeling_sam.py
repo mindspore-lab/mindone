@@ -1499,4 +1499,24 @@ class SamModel(SamPreTrainedModel):
         )
 
 
-__all__ = ["SamModel", "SamPreTrainedModel"]
+class SamVisionModel(SamPreTrainedModel):
+    config: SamVisionConfig
+    main_input_name = "pixel_values"
+
+    def __init__(self, config: SamVisionConfig):
+        super().__init__(config)
+        self.vision_encoder = SamVisionEncoder(config)
+        self.post_init()
+
+    def get_input_embeddings(self):
+        return self.vision_encoder.patch_embed
+
+    def construct(
+        self,
+        pixel_values: Optional[ms.Tensor] = None,
+        **kwargs,
+    ) -> Union[tuple, SamVisionEncoderOutput]:
+        return self.vision_encoder(pixel_values, **kwargs)
+
+
+__all__ = ["SamModel", "SamPreTrainedModel", "SamVisionModel"]
