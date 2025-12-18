@@ -74,6 +74,7 @@ from . import (
     encoder_decoder,
     ernie,
     esm,
+    evolla,
     falcon,
     falcon_mamba,
     fastspeech2_conformer,
@@ -110,6 +111,7 @@ from . import (
     imagegpt,
     instructblip,
     instructblipvideo,
+    internvl,
     jamba,
     jetmoe,
     kosmos2,
@@ -137,6 +139,7 @@ from . import (
     mgp_str,
     mimi,
     minicpm4,
+    minicpmv_4_5,
     mistral,
     mistral3,
     mixtral,
@@ -228,6 +231,7 @@ from . import (
     trocr,
     tvp,
     udop,
+    ultravox,
     umt5,
     unispeech,
     unispeech_sat,
@@ -275,4 +279,4 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     from . import glm4v, minimax, qwen2_5_omni, vjepa2
 
 if version.parse(transformers.__version__) >= version.parse("4.57.0"):
-    from . import cohere2_vision, qwen3_vl, qwen3_vl_moe
+    from . import hunyuan_v1_dense, hunyuan_v1_moe, cohere2_vision, qwen3_vl, qwen3_vl_moe

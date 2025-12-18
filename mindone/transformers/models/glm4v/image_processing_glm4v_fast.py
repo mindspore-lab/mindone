@@ -125,18 +125,12 @@ class Glm4vImageProcessorFast(BaseImageProcessorFast):
                     min_pixels=size.shortest_edge,
                     max_pixels=size.longest_edge,
                 )
-                # TODO mindspore.dataset.vision.Resize could only support (H, W, 3) format,
-                #  batch_size stacked image should be computed in one iteration
-                stacked_images_updated = []
-                for i in range(len(stacked_images)):
-                    stacked_images_updated.append(
-                        self.resize(
-                            image=stacked_images[i],
-                            size=SizeDict(height=resized_height, width=resized_width),
-                            interpolation=interpolation,
-                        )
-                    )
-            resized_images_grouped[shape] = stacked_images_updated
+                stacked_images = self.resize(
+                    stacked_images,
+                    size=SizeDict(height=resized_height, width=resized_width),
+                    interpolation=interpolation,
+                )
+            resized_images_grouped[shape] = stacked_images
 
         resized_images = reorder_images(resized_images_grouped, grouped_images_index)
 
