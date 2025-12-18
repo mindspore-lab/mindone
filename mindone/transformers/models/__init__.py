@@ -279,4 +279,4 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     from . import glm4v, minimax, qwen2_5_omni, vjepa2
 
 if version.parse(transformers.__version__) >= version.parse("4.57.0"):
-    from . import hunyuan_v1_dense, hunyuan_v1_moe, cohere2_vision, qwen3_vl, qwen3_vl_moe
+    from . import cohere2_vision, hunyuan_v1_dense, hunyuan_v1_moe, qwen3_vl, qwen3_vl_moe

@@ -12,5 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .image_processing_cohere2_vision_fast import *
 from .modeling_cohere2_vision import *
 from .processing_cohere2_vision import *
