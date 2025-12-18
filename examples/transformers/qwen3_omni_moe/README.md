@@ -12,7 +12,7 @@ The abstract from the technical report is the following:
 ## Requirements:
 | mindspore | 	ascend driver | firmware       | cann tookit/kernel |
 |-----------|----------------|----------------|--------------------|
-| 2.7.0     | 24.1.RC3.b080  | 7.5.T11.0.B088 | 8.1.RC1            |
+| 2.7.1     | 24.1.RC3.b080  | 7.5.T11.0.B088 | 8.3.RC1            |
 
 ### Installation:
 ```
@@ -147,5 +147,5 @@ If `return_audio=True` is set, besides that above text generation results, a pie
 ## Inference Speed
 |          model name	           | mindspore version | precision* | cards | Model part | attention type | 	tokens/s	 |
 |:------------------------------:|:-----------------:|:----------:|:-----:|:----------:|:--------------:|:----------:|
-|   Qwen3-Omni-30B-A3B-Instruct   |       2.7.0       |    bf16     |   2   |  Thinker   |   flash_attn   |    0.73     |
-|   Qwen3-Omni-30B-A3B-Instruct   |       2.7.0       |    bf16     |   2   |   Talker   |   flash_attn   |    0.88    |
+|   Qwen3-Omni-30B-A3B-Instruct   |       2.7.1       |    bf16     |   2   |  Thinker   |   flash_attn   |    0.73     |
+|   Qwen3-Omni-30B-A3B-Instruct   |       2.7.1       |    bf16     |   2   |   Talker   |   flash_attn   |    0.88    |
