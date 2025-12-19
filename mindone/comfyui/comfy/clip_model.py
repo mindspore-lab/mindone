@@ -1,5 +1,5 @@
-from comfy.ldm.modules.attention import optimized_attention_for_device
 import comfy.ops
+from comfy.ldm.modules.attention import optimized_attention_for_device
 
 import mindspore
 from mindspore import mint
@@ -28,10 +28,12 @@ class CLIPAttention(mindspore.nn.Cell):
         return self.out_proj(out)
 
 
-ACTIVATIONS = {"quick_gelu": lambda a: a * mint.sigmoid(1.702 * a),
-               "gelu": F.gelu,
-               "gelu_pytorch_tanh": lambda a: F.gelu(a, approximate="tanh"),
+ACTIVATIONS = {
+    "quick_gelu": lambda a: a * mint.sigmoid(1.702 * a),
+    "gelu": F.gelu,
+    "gelu_pytorch_tanh": lambda a: F.gelu(a, approximate="tanh"),
 }
+
 
 class CLIPMLP(mindspore.nn.Cell):
     def __init__(self, embed_dim, intermediate_size, activation, dtype, operations):
@@ -45,6 +47,7 @@ class CLIPMLP(mindspore.nn.Cell):
         x = self.activation(x)
         x = self.fc2(x)
         return x
+
 
 class CLIPLayer(mindspore.nn.Cell):
     def __init__(self, embed_dim, heads, intermediate_size, intermediate_activation, dtype, operations):
@@ -63,7 +66,12 @@ class CLIPLayer(mindspore.nn.Cell):
 class CLIPEncoder(mindspore.nn.Cell):
     def __init__(self, num_layers, embed_dim, heads, intermediate_size, intermediate_activation, dtype, operations):
         super().__init__()
-        self.layers = mindspore.nn.CellList([CLIPLayer(embed_dim, heads, intermediate_size, intermediate_activation, dtype, operations) for i in range(num_layers)])
+        self.layers = mindspore.nn.CellList(
+            [
+                CLIPLayer(embed_dim, heads, intermediate_size, intermediate_activation, dtype, operations)
+                for i in range(num_layers)
+            ]
+        )
 
     def construct(self, x, mask=None, intermediate_output=None):
         optimized_attention = optimized_attention_for_device(None, mask=mask is not None, small_input=True)
@@ -89,6 +97,7 @@ class CLIPEncoder(mindspore.nn.Cell):
 
         return x, intermediate
 
+
 class CLIPEmbeddings(mindspore.nn.Cell):
     def __init__(self, embed_dim, vocab_size=49408, num_positions=77, dtype=None, operations=None):
         super().__init__()
@@ -96,7 +105,9 @@ class CLIPEmbeddings(mindspore.nn.Cell):
         self.position_embedding = operations.Embedding(num_positions, embed_dim, dtype=dtype)
 
     def construct(self, input_tokens, dtype=mindspore.float32):
-        return self.token_embedding(input_tokens, out_dtype=dtype) + comfy.ops.cast_to(self.position_embedding.weight, dtype=dtype)
+        return self.token_embedding(input_tokens, out_dtype=dtype) + comfy.ops.cast_to(
+            self.position_embedding.weight, dtype=dtype
+        )
 
 
 class CLIPTextModel_(mindspore.nn.Cell):
@@ -111,10 +122,22 @@ class CLIPTextModel_(mindspore.nn.Cell):
 
         super().__init__()
         self.embeddings = CLIPEmbeddings(embed_dim, num_positions=num_positions, dtype=dtype, operations=operations)
-        self.encoder = CLIPEncoder(num_layers, embed_dim, heads, intermediate_size, intermediate_activation, dtype, operations)
+        self.encoder = CLIPEncoder(
+            num_layers, embed_dim, heads, intermediate_size, intermediate_activation, dtype, operations
+        )
         self.final_layer_norm = operations.LayerNorm(embed_dim, dtype=dtype)
 
-    def construct(self, input_tokens=None, attention_mask=None, embeds=None, num_tokens=None, intermediate_output=None, final_layer_norm_intermediate=True, dtype=mindspore.float32, embeds_info=[]):
+    def construct(
+        self,
+        input_tokens=None,
+        attention_mask=None,
+        embeds=None,
+        num_tokens=None,
+        intermediate_output=None,
+        final_layer_norm_intermediate=True,
+        dtype=mindspore.float32,
+        embeds_info=[],
+    ):
         if embeds is not None:
             x = embeds + comfy.ops.cast_to(self.embeddings.position_embedding.weight, dtype=dtype)
         else:
@@ -122,7 +145,9 @@ class CLIPTextModel_(mindspore.nn.Cell):
 
         mask = None
         if attention_mask is not None:
-            mask = 1.0 - attention_mask.to(x.dtype).reshape((attention_mask.shape[0], 1, -1, attention_mask.shape[-1])).expand((attention_mask.shape[0], 1, attention_mask.shape[-1], attention_mask.shape[-1]))
+            mask = 1.0 - attention_mask.to(x.dtype).reshape(
+                (attention_mask.shape[0], 1, -1, attention_mask.shape[-1])
+            ).expand((attention_mask.shape[0], 1, attention_mask.shape[-1], attention_mask.shape[-1]))
             mask = mask.masked_fill(mask.to(mindspore.bool), -dtype_to_max(x.type))
 
         causal_mask = mint.full((x.shape[1], x.shape[1]), -dtype_to_max(x.dtype), dtype=x.dtype).triu(1)
@@ -140,8 +165,12 @@ class CLIPTextModel_(mindspore.nn.Cell):
         if num_tokens is not None:
             pooled_output = x[list(range(x.shape[0])), list(map(lambda a: a - 1, num_tokens))]
         else:
-            pooled_output = x[mint.arange(x.shape[0]), (mint.round(input_tokens).to(dtype=mindspore.int) == self.eos_token_id).int().argmax(dim=-1),]
+            pooled_output = x[
+                mint.arange(x.shape[0]),
+                (mint.round(input_tokens).to(dtype=mindspore.int) == self.eos_token_id).int().argmax(dim=-1),
+            ]
         return x, i, pooled_output
+
 
 class CLIPTextModel(mindspore.nn.Cell):
     def __init__(self, config_dict, dtype, device, operations):
@@ -165,7 +194,9 @@ class CLIPTextModel(mindspore.nn.Cell):
 
 
 class CLIPVisionEmbeddings(mindspore.nn.Cell):
-    def __init__(self, embed_dim, num_channels=3, patch_size=14, image_size=224, model_type="", dtype=None, operations=None):
+    def __init__(
+        self, embed_dim, num_channels=3, patch_size=14, image_size=224, model_type="", dtype=None, operations=None
+    ):
         super().__init__()
 
         num_patches = (image_size // patch_size) ** 2
@@ -191,7 +222,10 @@ class CLIPVisionEmbeddings(mindspore.nn.Cell):
     def construct(self, pixel_values):
         embeds = self.patch_embedding(pixel_values).flatten(2).transpose(1, 2)
         if self.class_embedding is not None:
-            embeds = mint.cat([comfy.ops.cast_to_input(self.class_embedding, embeds).expand((pixel_values.shape[0], 1, -1)), embeds], dim=1)
+            embeds = mint.cat(
+                [comfy.ops.cast_to_input(self.class_embedding, embeds).expand((pixel_values.shape[0], 1, -1)), embeds],
+                dim=1,
+            )
         return embeds + comfy.ops.cast_to_input(self.position_embedding.weight, embeds)
 
 
@@ -205,20 +239,30 @@ class CLIPVision(mindspore.nn.Cell):
         intermediate_activation = config_dict["hidden_act"]
         model_type = config_dict["model_type"]
 
-        self.embeddings = CLIPVisionEmbeddings(embed_dim, config_dict["num_channels"], config_dict["patch_size"], config_dict["image_size"], model_type=model_type, dtype=dtype, operations=operations)
+        self.embeddings = CLIPVisionEmbeddings(
+            embed_dim,
+            config_dict["num_channels"],
+            config_dict["patch_size"],
+            config_dict["image_size"],
+            model_type=model_type,
+            dtype=dtype,
+            operations=operations,
+        )
         if model_type == "siglip_vision_model":
             self.pre_layrnorm = lambda a: a
             self.output_layernorm = True
         else:
             self.pre_layrnorm = operations.LayerNorm(embed_dim)
             self.output_layernorm = False
-        self.encoder = CLIPEncoder(num_layers, embed_dim, heads, intermediate_size, intermediate_activation, dtype, operations)
+        self.encoder = CLIPEncoder(
+            num_layers, embed_dim, heads, intermediate_size, intermediate_activation, dtype, operations
+        )
         self.post_layernorm = operations.LayerNorm(embed_dim)
 
     def construct(self, pixel_values, attention_mask=None, intermediate_output=None):
         x = self.embeddings(pixel_values)
         x = self.pre_layrnorm(x)
-        #TODO: attention_mask?
+        # TODO: attention_mask?
         x, i = self.encoder(x, mask=None, intermediate_output=intermediate_output)
         if self.output_layernorm:
             x = self.post_layernorm(x)
@@ -226,6 +270,7 @@ class CLIPVision(mindspore.nn.Cell):
         else:
             pooled_output = self.post_layernorm(x[:, 0, :])
         return x, i, pooled_output
+
 
 class LlavaProjector(mindspore.nn.Cell):
     def __init__(self, in_dim, out_dim, dtype, operations):
@@ -236,12 +281,15 @@ class LlavaProjector(mindspore.nn.Cell):
     def construct(self, x):
         return self.linear_2(F.gelu(self.linear_1(x[:, 1:])))
 
+
 class CLIPVisionModelProjection(mindspore.nn.Cell):
     def __init__(self, config_dict, dtype, operations):
         super().__init__()
         self.vision_model = CLIPVision(config_dict, dtype, operations)
         if "projection_dim" in config_dict:
-            self.visual_projection = operations.Linear(config_dict["hidden_size"], config_dict["projection_dim"], bias=False)
+            self.visual_projection = operations.Linear(
+                config_dict["hidden_size"], config_dict["projection_dim"], bias=False
+            )
         else:
             self.visual_projection = lambda a: a
 
