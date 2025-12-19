@@ -1296,6 +1296,14 @@ from .models.seamless_m4t_v2 import (
     SeamlessM4Tv2Model,
     SeamlessM4Tv2PreTrainedModel,
 )
+from .models.seed_oss import (
+    SeedOssForCausalLM,
+    SeedOssForQuestionAnswering,
+    SeedOssForSequenceClassification,
+    SeedOssForTokenClassification,
+    SeedOssModel,
+    SeedOssPreTrainedModel,
+)
 from .models.segformer import (
     SegformerDecodeHead,
     SegformerForImageClassification,

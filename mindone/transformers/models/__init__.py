@@ -222,6 +222,7 @@ from . import (
     sam_hq,
     seamless_m4t,
     seamless_m4t_v2,
+    seed_oss,
     segformer,
     seggpt,
     sew,
