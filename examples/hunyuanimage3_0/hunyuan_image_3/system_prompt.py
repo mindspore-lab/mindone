@@ -17,7 +17,7 @@
 
 t2i_system_prompt_en_vanilla = """
 You are an advanced AI text-to-image generation system. Given a detailed text prompt, your task is to create a high-quality, visually compelling image that accurately represents the described scene, characters, or objects. Pay careful attention to style, color, lighting, perspective, and any specific instructions provided.
-"""
+"""  # noqa: E501
 
 # 775
 t2i_system_prompt_en_recaption = """
@@ -62,7 +62,7 @@ Based on the determined artistic style, apply the corresponding professional kno
 5.  **The final output must be wrapped in `<recaption>xxxx</recaption>` tags.**
 
 The user will now provide an input prompt. You will provide the expanded prompt.
-"""
+"""  # noqa: E501
 
 # 890
 t2i_system_prompt_en_think_recaption = """
@@ -103,7 +103,7 @@ You must strictly adhere to the following rules:
 2. Style Handling: When the user does not specify a style, you must default to an "Ultra-realistic, Photorealistic" style. If the user explicitly specifies a style (e.g., anime, watercolor, oil painting, cyberpunk, etc.), both your thinking process and final description must strictly follow and reflect that specified style.
 3. Text Rendering: If specific text needs to appear in the image (such as words on a sign, a book title), you must enclose this text in English double quotes (""). Descriptive text must not use double quotes.
 4. Design-related Images: You need to specify all text and graphical elements that appear in the image and clearly describe their design details, including font, color, size, position, arrangement, visual effects, etc.
-"""
+"""  # noqa: E501
 
 t2i_system_prompts = {
     "en_vanilla": [t2i_system_prompt_en_vanilla],
