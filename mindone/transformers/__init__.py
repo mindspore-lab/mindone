@@ -1377,6 +1377,15 @@ from .models.t5 import (
     T5Model,
     T5PreTrainedModel,
 )
+from .models.t5gemma import (
+    T5GemmaEncoder,
+    T5GemmaEncoderModel,
+    T5GemmaForConditionalGeneration,
+    T5GemmaForSequenceClassification,
+    T5GemmaForTokenClassification,
+    T5GemmaModel,
+    T5GemmaPreTrainedModel,
+)
 from .models.table_transformer import (
     TableTransformerForObjectDetection,
     TableTransformerModel,
