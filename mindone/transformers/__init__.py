@@ -375,6 +375,13 @@ from .models.convnextv2 import (
     ConvNextV2Model,
     ConvNextV2PreTrainedModel,
 )
+from .models.csm import (
+    CsmBackboneModel,
+    CsmDepthDecoderForCausalLM,
+    CsmDepthDecoderModel,
+    CsmForConditionalGeneration,
+    CsmPreTrainedModel,
+)
 from .models.ctrl import CTRLForSequenceClassification, CTRLLMHeadModel, CTRLModel, CTRLPreTrainedModel
 from .models.cvt import CvtForImageClassification, CvtModel, CvtPreTrainedModel
 from .models.dac import DacModel, DacPreTrainedModel
