@@ -68,12 +68,15 @@ class Qwen3VLProcessor(ProcessorMixin):
             The image processor is a required input.
         tokenizer ([`Qwen2TokenizerFast`], *optional*):
             The tokenizer is a required input.
+        video_processor ([`Qwen3VLVideoProcessor`], *optional*):
+            The video processor is a required input.
         chat_template (`str`, *optional*): A Jinja template which will be used to convert lists of messages
             in a chat into a tokenizable string.
     """
-    # TODO add VideoProcessor For Qwen3-VL
-    attributes = ["image_processor", "tokenizer"]
+
+    attributes = ["image_processor", "tokenizer", "video_processor"]
     image_processor_class = "AutoImageProcessor"
+    video_processor_class = "AutoVideoProcessor"
     tokenizer_class = ("Qwen2Tokenizer", "Qwen2TokenizerFast")
 
     def __init__(self, image_processor=None, tokenizer=None, video_processor=None, chat_template=None, **kwargs):
@@ -121,22 +124,20 @@ class Qwen3VLProcessor(ProcessorMixin):
         Qwen2VLImageProcessor's [`~Qwen2VLImageProcessor.__call__`] if `vision_infos` is not `None`.
 
         Args:
-            images (`PIL.Image.Image`, `np.ndarray`, `torch.Tensor`, `list[PIL.Image.Image]`, `list[np.ndarray]`, `list[torch.Tensor]`):
+            images (`PIL.Image.Image`, `np.ndarray`, `ms.Tensor`, `list[PIL.Image.Image]`, `list[np.ndarray]`, `list[ms.Tensor]`):
                 The image or batch of images to be prepared. Each image can be a PIL image, NumPy array or PyTorch
                 tensor. Both channels-first and channels-last formats are supported.
             text (`str`, `list[str]`, `list[list[str]]`):
                 The sequence or batch of sequences to be encoded. Each sequence can be a string or a list of strings
                 (pretokenized string). If the sequences are provided as list of strings (pretokenized), you must set
                 `is_split_into_words=True` (to lift the ambiguity with a batch of sequences).
-            videos (`np.ndarray`, `torch.Tensor`, `list[np.ndarray]`, `list[torch.Tensor]`):
+            videos (`np.ndarray`, `ms.Tensor`, `list[np.ndarray]`, `list[ms.Tensor]`):
                 The image or batch of videos to be prepared. Each video can be a 4D NumPy array or PyTorch
                 tensor, or a nested list of 3D frames. Both channels-first and channels-last formats are supported.
             return_tensors (`str` or [`~utils.TensorType`], *optional*):
                 If set, will return tensors of a particular framework. Acceptable values are:
-                - `'tf'`: Return TensorFlow `tf.constant` objects.
-                - `'pt'`: Return PyTorch `torch.Tensor` objects.
+                - `'ms'`: Return MindSpore `ms.Tensor` objects.
                 - `'np'`: Return NumPy `np.ndarray` objects.
-                - `'jax'`: Return JAX `jnp.ndarray` objects.
 
         Returns:
             [`BatchFeature`]: A [`BatchFeature`] with the following fields:
@@ -170,7 +171,6 @@ class Qwen3VLProcessor(ProcessorMixin):
                 video_metadata = videos_inputs.pop("video_metadata")
             else:
                 video_metadata = videos_inputs["video_metadata"]
-            video_grid_thw = videos_inputs["video_grid_thw"]
         else:
             videos_inputs = {}
             video_grid_thw = None
@@ -194,7 +194,7 @@ class Qwen3VLProcessor(ProcessorMixin):
             index = 0
             for i in range(len(text)):
                 while self.video_token in text[i]:
-                    metadata = video_metadata[i]
+                    metadata = video_metadata[index]
                     if metadata.fps is None:
                         logger.warning_once(
                             "Qwen3VL requires frame timestamps to construct prompts, but the `fps` of the input video could not be inferred. "
@@ -287,7 +287,7 @@ class Qwen3VLProcessor(ProcessorMixin):
         Post-process the output of the model to decode the text.
 
         Args:
-            generated_outputs (`torch.Tensor` or `np.ndarray`):
+            generated_outputs (`ms.Tensor` or `np.ndarray`):
                 The output of the model `generate` function. The output is expected to be a tensor of shape `(batch_size, sequence_length)`
                 or `(sequence_length,)`.
             skip_special_tokens (`bool`, *optional*, defaults to `True`):

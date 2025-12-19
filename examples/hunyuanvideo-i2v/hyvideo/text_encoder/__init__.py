@@ -319,7 +319,7 @@ class TextEncoder(nn.Cell):
                 if model_return_dict:
                     last_hidden_state = outputs.hidden_states[-(hidden_state_skip_layer + 1)]
                 else:
-                    last_hidden_state = outputs[2][-(hidden_state_skip_layer + 1)]
+                    last_hidden_state = outputs[1][-(hidden_state_skip_layer + 1)]
                 # last_hidden_state = outputs[0][-(hidden_state_skip_layer + 1)]
                 # Real last hidden state already has layer norm applied. So here we only apply it
                 # for intermediate layers.
@@ -331,7 +331,7 @@ class TextEncoder(nn.Cell):
                     outputs_hidden_states = outputs.hidden_states
                 else:
                     last_hidden_state = outputs[self.key_idx]
-                    outputs_hidden_states = outputs[2] if len(outputs) >= 3 else None  # TODO: double-check if use t5
+                    outputs_hidden_states = outputs[1] if len(outputs) >= 2 else None  # TODO: double-check if use t5
 
             # Remove hidden states of instruction tokens, only keep prompt tokens.
             if self.use_template:

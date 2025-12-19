@@ -148,7 +148,76 @@ case.
 
 ## Training
 
-Coming soon
+### 1. Preparation
+
+Before launching the training, you need to prepare the following configuration files.
+
+#### Step 1: Set Up the Training Configuration
+
+This is a YAML file that specifies crucial parameters for your training job, including the model architecture,
+optimizer, dataset paths, and validation settings.
+
+We provide two templates to get you started:
+
+* **Full-Parameter Fine-Tuning:** `configs/finetune/ft.yml`
+* **LoRA Fine-Tuning:** `configs/finetune/ft_lora.yml`
+
+Copy one of these templates and modify it according to your needs. Below are some of the most important parameters you
+may want to adjust:
+
+- `name`: The experiment name. This is used to create a directory for logs and saved model weights (e.g.,
+  `experiments/your_exp_name`).
+- `data.config_path`: Path to the data configuration file that defines your training data sources and mixing ratios.
+- `data.max_output_pixels`: The maximum number of pixels for an output image. Larger images will be downsampled while
+  maintaining their aspect ratio.
+- `data.max_input_pixels`: A list specifying the maximum pixel count for input images, corresponding to one, two, three,
+  or more inputs.
+- `data.max_side_length`: The maximum side length for any image (input or output). Images exceeding this will be
+  downsampled while maintaining their aspect ratio.
+- `dataloader.batch_size`: The batch size per NPU.
+- `train.steps`: The total number of training steps to run.
+- `train.lr_scheduler.lr`: The learning rate for the optimizer. **Note:** This often requires tuning based on your
+  dataset size and whether you are using LoRA. We recommend using lower learning rate for full-parameter fine-tuning.
+
+#### Step 2: Configure Your Dataset
+
+The data configuration consists of a set of `yaml` and `jsonl` files.
+
+* The `.yml` file defines the mixing ratios for different data sources.
+* The `.jsonl` files contain the actual data entries, with each line representing a single data sample.
+
+For a practical example, please refer to `configs/finetune/data/mix.yml`.
+Each line in a `.jsonl` file describes a sample, generally following this format:
+
+```json
+{
+  "task_type": "edit",
+  "instruction": "add a hat to the person",
+  "input_images": [
+    "/path/to/your/data/edit/input1.png",
+    "/path/to/your/data/edit/input2.png"
+  ],
+  "output_image": "/path/to/your/data/edit/output.png"
+}
+```
+
+*Note: The `input_images` field can be omitted for text-to-image (T2I) tasks.*
+
+### 2. 🚀 Launching the Training
+
+Once your configuration is ready, you can launch the training script. All experiment artifacts, including logs and
+checkpoints, will be saved in `experiments/${experiment_name}`.
+
+We provide convenient shell scripts to handle the complexities of launching distributed training jobs. You can use them
+directly or adapt them for your environment.
+
+* **For Full-Parameter Fine-Tuning:** `scripts/run/ft.sh`
+* **For LoRA Fine-Tuning:** `scripts/run/ft_lora.sh`
+
+> **⚠️ Note on LoRA Checkpoints:**
+> Currently, when training with LoRA, the script saves the entire model's parameters (including the frozen base model
+> weights) in the checkpoint. This is due to a limitation in easily extracting only the LoRA-related parameters when
+> using FSDP.
 
 ## Performance
 
@@ -160,6 +229,13 @@ Coming soon
 | OmniGen2 |     Image Editing     |   1   |   BF16    |             1              |  832x1248  |   Euler   |  50   |  282  |
 | OmniGen2 | In-context Generation |   1   |   BF16    |             1              |  768x1152  |   Euler   |  50   |  248  |
 | OmniGen2 | In-context Generation |   1   |   BF16    |             2              | 1024x1024  |   Euler   |  50   |  870  |
+
+### Training
+
+|  Model   | Fine-tuning | Cards | Batch size | Resolution | Precision | s/step |                   Recipe                    |
+|:--------:|:-----------:|:-----:|:----------:|:----------:|:---------:|:------:|:-------------------------------------------:|
+| OmniGen2 |    Full     |   8   |     1      |  720x720   |   BF16    |  5.03  |      [ft.yml](configs/finetune/ft.yml)      |
+| OmniGen2 |    LoRA     |   8   |     1      |  720x720   |   BF16    |  3.78  | [ft_lora.yml](configs/finetune/ft_lora.yml) |
 
 ## Acknowledgement
 

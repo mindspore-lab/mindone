@@ -1,0 +1,4 @@
+data:
+  - path: "configs/finetune/data/ic/jsonls/0.jsonl"
+    type: "ic"
+    ratio: 1.0
