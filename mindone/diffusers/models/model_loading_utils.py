@@ -32,6 +32,7 @@ from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 
 from huggingface_hub import DDUFEntry
 from huggingface_hub.utils import EntryNotFoundError
+from packaging.version import parse
 
 import mindspore as ms
 from mindspore import nn, ops
@@ -50,8 +51,17 @@ from ..utils import (
 )
 
 logger = logging.get_logger(__name__)
-ms.Parameter._data = ms.Tensor.data
-ms.Parameter.data_ptr = ms.Tensor.data_ptr
+
+if parse(ms.__version__) >= parse("2.7.1"):
+    ms.Parameter._data = ms.Tensor.data
+    ms.Parameter.data_ptr = ms.Tensor.data_ptr
+    version_mode = "new_data_assignment"
+elif parse(ms.__version__) == parse("2.7.0"):
+    cpu_cast = ops.Cast().set_device("CPU")
+    version_mode = "param_replacement"
+else:
+    version_mode = "set_dtype"
+
 
 _CLASS_REMAPPING_DICT = {
     "Transformer2DModel": {
@@ -146,11 +156,26 @@ def _load_state_dict_into_model(
                 if keep_in_fp32_modules is not None and any(
                     module_to_keep_in_fp32 in k.split(".") for module_to_keep_in_fp32 in keep_in_fp32_modules
                 ):
-                    v._data = v.to(device="CPU", dtype=ms.float32)
+                    if version_mode == "new_data_assignment":
+                        v._data = v.to(device="CPU", dtype=ms.float32)
+                    elif version_mode == "param_replacement":
+                        state_dict[k] = ms.Parameter(cpu_cast(v.data, ms.float32), name=k)
+                    else:
+                        v.set_dtype(ms.float32)
                 else:
-                    v._data = v.to(device="CPU", dtype=local_state[k].dtype)
+                    if version_mode == "new_data_assignment":
+                        v._data = v.to(device="CPU", dtype=local_state[k].dtype)
+                    elif version_mode == "param_replacement":
+                        state_dict[k] = ms.Parameter(cpu_cast(v.data, local_state[k].dtype), name=k)
+                    else:
+                        v.set_dtype(local_state[k].dtype)
             else:
-                v._data = v.to(device="CPU", dtype=local_state[k].dtype)
+                if version_mode == "new_data_assignment":
+                    v._data = v.to(device="CPU", dtype=local_state[k].dtype)
+                elif version_mode == "param_replacement":
+                    state_dict[k] = ms.Parameter(cpu_cast(v.data, local_state[k].dtype), name=k)
+                else:
+                    v.set_dtype(local_state[k].dtype)
         else:
             pass  # unexpect key keeps origin dtype
     cm = silence_mindspore_logger() if is_sharded else nullcontext()
