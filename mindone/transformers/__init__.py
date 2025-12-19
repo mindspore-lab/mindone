@@ -687,6 +687,7 @@ from .models.helium import (
     HeliumModel,
     HeliumPreTrainedModel,
 )
+from .models.hgnet_v2 import HGNetV2Backbone, HGNetV2ForImageClassification, HGNetV2PreTrainedModel
 from .models.hiera import (
     HieraBackbone,
     HieraForImageClassification,

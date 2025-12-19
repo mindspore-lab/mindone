@@ -109,6 +109,7 @@ from . import (
     granitemoe,
     granitemoeshared,
     groupvit,
+    hgnet_v2,
     hiera,
     hubert,
     idefics,
