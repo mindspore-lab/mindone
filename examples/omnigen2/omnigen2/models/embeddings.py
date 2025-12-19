@@ -12,22 +12,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
-from mindspore import Tensor, mint, nn, ops
+from mindspore import jit, mint, nn
 
 from mindone.diffusers.models.activations import get_activation
 from mindone.models.utils import normal_, zeros_
 
-
-def view_as_complex(x: Tensor) -> Tensor:
-    real_part, imag_part = mint.chunk(x, 2, dim=-1)
-    return ops.Complex()(real_part, imag_part).squeeze(axis=-1)
+if TYPE_CHECKING:
+    from mindspore import Tensor
 
 
-def view_as_real(x: Tensor) -> Tensor:
-    # Stack real and imaginary parts along a new last dimension
-    return mint.stack((ops.Real()(x), ops.Imag()(x)), dim=-1)
+@jit(jit_level="O1")
+def complex_mult(a: "Tensor", b: "Tensor") -> "Tensor":
+    a_real, a_complex = mint.unbind(a, dim=-1)
+    b_real, b_complex = mint.unbind(b, dim=-1)
+    out_real = a_real * b_real - a_complex * b_complex
+    out_complex = a_real * b_complex + b_real * a_complex
+    return mint.stack([out_real, out_complex], dim=-1)
 
 
 class TimestepEmbedding(nn.Cell):
@@ -87,8 +89,8 @@ class TimestepEmbedding(nn.Cell):
 
 
 def apply_rotary_emb(
-    x: Tensor, freqs_cis: Union[Tensor, tuple[Tensor]], use_real: bool = True, use_real_unbind_dim: int = -1
-) -> tuple[Tensor, Tensor]:
+    x: "Tensor", freqs_cis: Union["Tensor", tuple["Tensor"]], use_real: bool = True, use_real_unbind_dim: int = -1
+) -> tuple["Tensor", "Tensor"]:
     """
     Apply rotary embeddings to input tensors using the given frequency tensor. This function applies rotary embeddings
     to the given query or key 'x' tensors using the provided frequency tensor 'freqs_cis'. The input tensors are
@@ -123,10 +125,9 @@ def apply_rotary_emb(
 
         return out
     else:
-        # used for lumina
-        # x_rotated = torch.view_as_complex(x.float().reshape(*x.shape[:-1], -1, 2))
-        x_rotated = view_as_complex(x.float().reshape(*x.shape[:-1], x.shape[-1] // 2, 2))
-        freqs_cis = freqs_cis.unsqueeze(2)
-        x_out = view_as_real(x_rotated * freqs_cis).flatten(3)
+        # MS doesn't support complex numbers
+        x_rotated = x.float().reshape(*x.shape[:-1], x.shape[-1] // 2, 2)
+        freqs_cis = freqs_cis.reshape(*freqs_cis.shape[:-1], freqs_cis.shape[-1] // 2, 2).unsqueeze(2)
+        x_out = complex_mult(x_rotated, freqs_cis).flatten(3, 4)
 
         return x_out.type_as(x)

@@ -17,3 +17,4 @@
 from .image_processing_qwen2_vl import *
 from .image_processing_qwen2_vl_fast import *
 from .modeling_qwen2_vl import Qwen2VLForConditionalGeneration, Qwen2VLModel, Qwen2VLPreTrainedModel
+from .video_processing_qwen2_vl import *

@@ -18,6 +18,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import copy
 import math
 from dataclasses import dataclass
 from typing import Any, Callable, Optional, Union
@@ -97,10 +98,16 @@ class Qwen3VLMoeTextExperts(nn.Cell):
         self.hidden_size = config.hidden_size
         self.expert_dim = self.intermediate_size
         self.gate_up_proj = Parameter(
-            ms.tensor(np.ones((self.num_experts, self.hidden_size, 2 * self.expert_dim)), dtype=config.mindspore_dtype)
+            ms.tensor(
+                np.ones((self.num_experts, self.hidden_size, 2 * self.expert_dim)),
+                dtype=config.dtype if config.dtype else ms.float32,
+            )
         )
         self.down_proj = Parameter(
-            ms.tensor(np.ones((self.num_experts, self.expert_dim, self.hidden_size)), dtype=config.mindspore_dtype)
+            ms.tensor(
+                np.ones((self.num_experts, self.expert_dim, self.hidden_size)),
+                dtype=config.dtype if config.dtype else ms.float32,
+            )
         )
         self.act_fn = ACT2FN[config.hidden_act]
 
@@ -564,22 +571,27 @@ class Qwen3VLMoeVisionAttention(nn.Cell):
             key_states = key_states.swapaxes(0, 1).unsqueeze(0)
             value_states = value_states.swapaxes(0, 1).unsqueeze(0)
 
-            attention_mask = mint.zeros([1, seq_length, seq_length], dtype=ms.bool_)
-            for i in range(1, len(cu_seqlens)):
-                attention_mask[..., cu_seqlens[i - 1] : cu_seqlens[i], cu_seqlens[i - 1] : cu_seqlens[i]] = True
-            attention_mask = attention_mask.unsqueeze(1)
+            # Other implementations: Process each chunk separately
+            lengths = cu_seqlens[1:] - cu_seqlens[:-1]
+            splits = [
+                mint.split(tensor, lengths.tolist(), dim=2) for tensor in (query_states, key_states, value_states)
+            ]
 
-            attn_output = attention_interface(
-                self,
-                query_states,
-                key_states,
-                value_states,
-                attention_mask=attention_mask,
-                scaling=self.scaling,
-                dropout=0.0 if not self.training else self.attention_dropout,
-                is_causal=False,
-                **kwargs,
-            )[0]
+            attn_outputs = [
+                attention_interface(
+                    self,
+                    q,
+                    k,
+                    v,
+                    attention_mask=None,
+                    scaling=self.scaling,
+                    dropout=0.0 if not self.training else self.attention_dropout,
+                    is_causal=False,
+                    **kwargs,
+                )[0]
+                for q, k, v in zip(*splits)
+            ]
+            attn_output = mint.cat(attn_outputs, dim=1)
 
         attn_output = attn_output.reshape(seq_length, -1).contiguous()
         attn_output = self.proj(attn_output)
@@ -943,9 +955,12 @@ class Qwen3VLMoeTextModel(Qwen3VLMoePreTrainedModel):
         else:
             text_position_ids = position_ids[0]
 
-        config = self.config
-        if self.config._attn_implementation == "flash_attention_2":
+        # TODO using attention mask for eager attention during fa usage,
+        # because there is mismatch for dealing with attention mask between mindspore and pytorch
+        config = copy.copy(self.config)
+        if config._attn_implementation == "flash_attention_2":
             config._attn_implementation = "eager"
+
         attention_mask = create_causal_mask(
             config=config,
             input_embeds=inputs_embeds,

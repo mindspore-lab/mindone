@@ -30,7 +30,7 @@ def generate(args):
     print("Successfully loaded Qwen3ForCausalLM")
 
     # prepare inputs
-    input_ids = ms.Tensor(tokenizer([args.prompt], return_tensors="np").input_ids, ms.int32)
+    input_ids = ms.Tensor(tokenizer([args.prompt], return_tensors="np").input_ids)
     model_inputs = {}
     model_inputs["input_ids"] = input_ids
 
@@ -55,8 +55,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--attn_implementation",
         type=str,
-        default="paged_attention",
-        choices=["paged_attention", "flash_attention_2", "eager"],
+        default="flash_paged",
+        choices=["flash_paged", "flash_attention_2", "eager"],
     )
 
     # Parse the arguments
