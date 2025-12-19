@@ -487,6 +487,7 @@ from .models.electra import (
 from .models.emu3 import Emu3ForCausalLM, Emu3ForConditionalGeneration, Emu3PreTrainedModel, Emu3TextModel, Emu3VQVAE
 from .models.encodec import EncodecModel, EncodecPreTrainedModel
 from .models.encoder_decoder import EncoderDecoderModel
+from .models.eomt import EomtForUniversalSegmentation, EomtImageProcessor, EomtImageProcessorFast, EomtPreTrainedModel
 from .models.ernie import (
     ErnieForCausalLM,
     ErnieForMaskedLM,
@@ -1388,6 +1389,7 @@ from .models.tapas import (
     TapasPreTrainedModel,
 )
 from .models.textnet import TextNetBackbone, TextNetForImageClassification, TextNetModel, TextNetPreTrainedModel
+from .models.timesfm import TimesFmModel, TimesFmModelForPrediction, TimesFmPreTrainedModel
 from .models.timesformer import TimesformerForVideoClassification, TimesformerModel, TimesformerPreTrainedModel
 from .models.trocr import TrOCRForCausalLM, TrOCRPreTrainedModel
 from .models.tvp import TvpForVideoGrounding, TvpModel, TvpPreTrainedModel
