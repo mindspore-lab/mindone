@@ -645,6 +645,7 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
 if version.parse(transformers.__version__) >= version.parse("4.57.0"):
     CONFIG_MAPPING_NAMES.update(
         {
+            ("qwen3_omni_moe", "Qwen3OmniMoeConfig"),
             ("qwen3_vl", "Qwen3VLConfig"),
             ("qwen3_vl_moe", "Qwen3VLMoeConfig"),
             ("qwen3_vl_moe_text", "Qwen3VLMoeTextConfig"),
@@ -653,6 +654,7 @@ if version.parse(transformers.__version__) >= version.parse("4.57.0"):
     )
     MODEL_NAMES_MAPPING.update(
         {
+            ("qwen3_omni_moe", "Qwen3OmniMoE"),
             ("qwen3_vl", "Qwen3VL"),
             ("qwen3_vl_moe", "Qwen3VLMoe"),
             ("qwen3_vl_moe_text", "Qwen3VLMoe"),

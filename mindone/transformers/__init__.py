@@ -1619,6 +1619,7 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
 if version.parse(transformers.__version__) >= version.parse("4.57.0"):
     from .models.hunyuan_v1_dense import HunYuanDenseV1ForCausalLM, HunYuanDenseV1ForSequenceClassification
     from .models.hunyuan_v1_moe import HunYuanMoEV1ForCausalLM, HunYuanMoEV1ForSequenceClassification
+    from .models.qwen3_omni_moe import *
     from .models.qwen3_vl import (
         Qwen3VLForConditionalGeneration,
         Qwen3VLModel,
