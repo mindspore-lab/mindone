@@ -416,6 +416,7 @@ from .models.deberta_v2 import (
     DebertaV2Model,
     DebertaV2PreTrainedModel,
 )
+from .models.deepseek_v3 import DeepseekV3ForCausalLM, DeepseekV3Model, DeepseekV3PreTrainedModel
 from .models.deit import (
     DeiTForImageClassification,
     DeiTForImageClassificationWithTeacher,
