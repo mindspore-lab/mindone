@@ -19,6 +19,7 @@ from packaging import version
 
 from . import (
     albert,
+    apertus,
     aria,
     audio_spectrogram_transformer,
     auto,
@@ -36,6 +37,7 @@ from . import (
     blip,
     blip_2,
     bloom,
+    blt,
     bridgetower,
     camembert,
     canine,
@@ -141,6 +143,7 @@ from . import (
     mimi,
     minicpm4,
     minicpmv_4_5,
+    ministral,
     mistral,
     mistral3,
     mixtral,
