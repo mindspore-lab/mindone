@@ -162,6 +162,7 @@ from . import (
     mobilevit,
     mobilevitv2,
     modernbert,
+    modernbert_decoder,
     moonshine,
     moshi,
     mpnet,

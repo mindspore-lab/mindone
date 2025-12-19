@@ -970,6 +970,12 @@ from .models.modernbert import (
     ModernBertModel,
     ModernBertPreTrainedModel,
 )
+from .models.modernbert_decoder import (
+    ModernBertDecoderForCausalLM,
+    ModernBertDecoderForSequenceClassification,
+    ModernBertDecoderModel,
+    ModernBertDecoderPreTrainedModel,
+)
 from .models.moonshine import MoonshineForConditionalGeneration, MoonshineModel, MoonshinePreTrainedModel
 from .models.moshi import MoshiForCausalLM, MoshiForConditionalGeneration, MoshiModel, MoshiPreTrainedModel
 from .models.mpnet import (
