@@ -607,6 +607,12 @@ from .models.glm import (
     GlmModel,
     GlmPreTrainedModel,
 )
+from .models.glm4v_moe import (
+    Glm4vMoeForConditionalGeneration,
+    Glm4vMoeModel,
+    Glm4vMoePreTrainedModel,
+    Glm4vMoeTextModel,
+)
 from .models.glpn import (
     GLPNFeatureExtractor,
     GLPNForDepthEstimation,
