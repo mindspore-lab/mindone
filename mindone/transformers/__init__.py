@@ -1147,6 +1147,13 @@ from .models.qwen2_vl import (
     Qwen2VLPreTrainedModel,
     Qwen2VLVideoProcessor,
 )
+from .models.qwen3_next import (
+    Qwen3NextForCausalLM,
+    Qwen3NextForQuestionAnswering,
+    Qwen3NextForSequenceClassification,
+    Qwen3NextForTokenClassification,
+    Qwen3NextPreTrainedModel,
+)
 from .models.rag import RagModel, RagPreTrainedModel, RagSequenceForGeneration, RagTokenForGeneration
 from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
 from .models.reformer import (

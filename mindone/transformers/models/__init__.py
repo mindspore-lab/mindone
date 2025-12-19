@@ -190,6 +190,7 @@ from . import (
     qwen2_audio,
     qwen2_moe,
     qwen2_vl,
+    qwen3_next,
     rag,
     reformer,
     regnet,
