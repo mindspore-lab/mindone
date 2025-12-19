@@ -119,6 +119,7 @@ from . import (
     jamba,
     jetmoe,
     kosmos2,
+    kyutai_speech_to_text,
     layoutlm,
     layoutlmv3,
     levit,

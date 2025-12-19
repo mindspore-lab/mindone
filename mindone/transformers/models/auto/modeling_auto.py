@@ -135,6 +135,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("jamba", "JambaModel"),
         ("jetmoe", "JetMoeModel"),
         ("kosmos-2", "Kosmos2Model"),
+        ("kyutai_speech_to_text", "KyutaiSpeechToTextModel"),
         ("layoutlm", "LayoutLMModel"),
         ("layoutlmv3", "LayoutLMv3Model"),
         ("led", "LEDModel"),
@@ -874,6 +875,7 @@ MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
 
 MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING_NAMES = OrderedDict(
     [
+        ("kyutai_speech_to_text", "KyutaiSpeechToTextForConditionalGeneration"),
         ("moonshine", "MoonshineForConditionalGeneration"),
         ("pop2piano", "Pop2PianoForConditionalGeneration"),
         ("seamless_m4t", "SeamlessM4TForSpeechToText"),

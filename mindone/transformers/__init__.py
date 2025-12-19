@@ -747,6 +747,11 @@ from .models.jetmoe import (
     JetMoePreTrainedModel,
 )
 from .models.kosmos2 import Kosmos2ForConditionalGeneration, Kosmos2Model, Kosmos2PreTrainedModel
+from .models.kyutai_speech_to_text import (
+    KyutaiSpeechToTextForConditionalGeneration,
+    KyutaiSpeechToTextModel,
+    KyutaiSpeechToTextPreTrainedModel,
+)
 from .models.layoutlm import (
     LayoutLMForMaskedLM,
     LayoutLMForQuestionAnswering,
