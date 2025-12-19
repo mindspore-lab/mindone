@@ -77,6 +77,8 @@ from . import (
     encoder_decoder,
     eomt,
     ernie,
+    ernie4_5,
+    ernie4_5_moe,
     esm,
     evolla,
     falcon,
