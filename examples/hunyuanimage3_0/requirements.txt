@@ -6,9 +6,5 @@ tokenizers
 transformers==4.56.0
 tiktoken
 
-# Performance optimizations (recommended for up to 3x faster inference)
-# flash-attn==2.8.3 --no-build-isolation
-# flashinfer-python
-
 # Interactive demo
 gradio
