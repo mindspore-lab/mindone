@@ -28,12 +28,9 @@ from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, OrderedDict, Tuple, Union
 
-import evaluate
 import numpy as np
 from datasets import load_dataset
-from hunyuan_image_3.hunyuan import HunyuanImage3ForCausalMM, HunyuanStaticCache
-from hunyuan_image_3.configuration_hunyuan import HunyuanImage3Config
-# from utils.safetensors import load_sharded_safetensors_for_rankid
+from hunyuan_image_3.hunyuan import HunyuanImage3ForCausalMM
 from PIL import Image
 from transformers import HfArgumentParser
 
@@ -41,7 +38,7 @@ import mindspore as ms
 import mindspore.mint.distributed as dist
 from mindspore import mint, nn, ops
 
-from mindone.diffusers.training_utils import cast_training_params, pynative_no_grad
+from mindone.diffusers.training_utils import pynative_no_grad
 from mindone.peft import LoraConfig, get_peft_model, get_peft_model_state_dict, set_peft_model_state_dict
 from mindone.safetensors.mindspore import load_file, save_file
 from mindone.trainers import create_optimizer
@@ -77,7 +74,9 @@ class MyArguments(MindSporeArguments, TrainingArguments):
     output_dir: str = field(default="./outputs/")
     save_strategy: str = field(default="no", metadata={"help": "Save strategy, no, steps or epoch."})
     seed: int = field(default=42)
-    max_device_memory: str = field(default="59GB", metadata={"help": "30GB for 910, 59GB for Ascend Atlas 800T A2 machines"})
+    max_device_memory: str = field(
+        default="59GB", metadata={"help": "30GB for 910, 59GB for Ascend Atlas 800T A2 machines"}
+    )
     per_device_train_batch_size: int = field(default=1, metadata={"help": "batch size per device for training"})
     num_train_epochs: int = field(default=1, metadata={"help": "number of training epochs"})
 
@@ -112,6 +111,7 @@ def freeze_params(m: nn.Cell):
     for p in m.get_parameters():
         p.requires_grad = False
 
+
 def main():
     parser = HfArgumentParser((MyArguments, DataArguments))
     args, data_args = parser.parse_args_into_dataclasses()
@@ -138,7 +138,9 @@ def main():
     with nn.no_init_parameters():
         parent_model = HunyuanImage3ForCausalMM.from_pretrained(args.model_path, **kwargs)
     parent_model.load_tokenizer(args.model_path)
-    parent_model.vae = auto_mixed_precision(parent_model.vae, amp_level="O2", dtype=ms.bfloat16, custom_fp32_cells=[nn.GroupNorm])
+    parent_model.vae = auto_mixed_precision(
+        parent_model.vae, amp_level="O2", dtype=ms.bfloat16, custom_fp32_cells=[nn.GroupNorm]
+    )
     ms.amp.auto_mixed_precision(parent_model, amp_level="auto", dtype=ms.bfloat16)
 
     # 1.2 Update data_args from model.config
@@ -344,6 +346,7 @@ def main():
         # delete the trained model
         def clear_workspace(model):
             import gc
+
             del model
             gc.collect()
             ms.hal.empty_cache()
@@ -518,6 +521,7 @@ class TrainStepForHunyuanImage(nn.Cell):
         """
         Convert dict-type data into the expected slice-type one
         """
+
         def restore_slices(obj):
             if len(obj) == 3:
                 return list_to_slice(obj)
@@ -572,7 +576,7 @@ class TrainStepForHunyuanImage(nn.Cell):
         custom_pos_emb = self.get_pos_emb(custom_pos_emb, position_ids)
 
         inputs_embeds = self.base_model.wte(input_ids)
-        bsz, seq_len, n_embd = inputs_embeds.shape  # 2, 2048, 8196 
+        bsz, seq_len, n_embd = inputs_embeds.shape  # 2, 2048, 8196
 
         # Instantiate placeholder tokens: <timestep>, <img> for the gen image
         with pynative_no_grad():
@@ -583,7 +587,9 @@ class TrainStepForHunyuanImage(nn.Cell):
                     inputs_embeds, token_h, token_w = self.instantiate_vae_image_tokens(
                         inputs_embeds, images, timestep, image_mask
                     )
-                    inputs_embeds = self.instantiate_timestep_tokens(inputs_embeds, timestep, gen_timestep_scatter_index)
+                    inputs_embeds = self.instantiate_timestep_tokens(
+                        inputs_embeds, timestep, gen_timestep_scatter_index
+                    )
                 else:
                     t_emb = self.time_embed(timestep)
                     image_emb, token_h, token_w = self.patch_embed(images, t_emb)
@@ -642,7 +648,6 @@ class TrainStepForHunyuanImage(nn.Cell):
         labels,
         *args,
     ):
-
         # prepare inputs
         mode = "gen_image"
 
@@ -732,7 +737,6 @@ class TrainStepForHunyuanImage(nn.Cell):
             pred = model_output["diffusion_prediction"]
             pred = pred.to(dtype=ms.float32)  # (2, 3, 512, 512)
 
-
             # perform guidance
             if do_classifier_free_guidance:
                 pred_cond, pred_uncond = pred.chunk(2)
@@ -740,7 +744,7 @@ class TrainStepForHunyuanImage(nn.Cell):
 
                 if guidance_rescale > 0.0:
                     # Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf
-                    pred = self.rescale_noise_cfg(pred, pred_cond, guidance_rescale=guidance_scale)   # (1, 3, 512, 512)
+                    pred = self.rescale_noise_cfg(pred, pred_cond, guidance_rescale=guidance_scale)  # (1, 3, 512, 512)
 
             # compute the previous noisy sample x_t -> x_t-1
             latents = self.scheduler.step(pred, t, latents, **_scheduler_step_extra_kwargs, return_dict=False)[0]

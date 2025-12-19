@@ -28,6 +28,7 @@ from mindspore import mint, nn
 
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
 from mindone.diffusers.models.activations import get_activation
+
 # from mindone.diffusers.models.modeling_outputs import AutoencoderKLOutput
 from mindone.diffusers.models.modeling_utils import ModelMixin
 from mindone.diffusers.utils import BaseOutput
@@ -961,7 +962,7 @@ class AutoencoderKLConv3D(ModelMixin, ConfigMixin):
         Support slicing and tiling for memory efficiency.
         """
         # [B, C, H, W] -> [B, C, T, H, W]
-        if len(z.shape) == 4 and hasattr(self, "ffactor_temporal"): 
+        if len(z.shape) == 4 and hasattr(self, "ffactor_temporal"):
             z = z.unsqueeze(2)
 
         if self.use_slicing and z.shape[0] > 1:
