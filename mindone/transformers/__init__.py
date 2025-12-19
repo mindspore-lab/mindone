@@ -618,6 +618,7 @@ from .models.glm import (
     GlmModel,
     GlmPreTrainedModel,
 )
+from .models.glm4_moe import Glm4MoeForCausalLM, Glm4MoeModel, Glm4MoePreTrainedModel
 from .models.glpn import (
     GLPNFeatureExtractor,
     GLPNForDepthEstimation,
