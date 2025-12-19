@@ -880,6 +880,7 @@ from .models.mixtral import (
     MixtralModel,
     MixtralPreTrainedModel,
 )
+from .models.mlcd import MLCDPreTrainedModel, MLCDVisionModel
 from .models.mllama import (
     MllamaForCausalLM,
     MllamaForConditionalGeneration,
