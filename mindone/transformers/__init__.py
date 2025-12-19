@@ -563,6 +563,7 @@ from .models.flava import (
     FlavaProcessor,
     FlavaTextModel,
 )
+from .models.flex_olmo import FlexOlmoForCausalLM, FlexOlmoModel, FlexOlmoPreTrainedModel
 from .models.florence2 import (
     Florence2ForConditionalGeneration,
     Florence2Model,
