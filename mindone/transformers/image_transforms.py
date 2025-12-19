@@ -15,13 +15,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 from collections import defaultdict
 from collections.abc import Collection, Iterable
 from math import ceil
 from typing import Optional, Union
 
 import numpy as np
+from transformers.utils import logging
 
 from .image_utils import (
     ChannelDimension,

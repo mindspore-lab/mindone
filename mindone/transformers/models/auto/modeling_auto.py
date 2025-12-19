@@ -716,6 +716,7 @@ MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES = OrderedDict(
         ("blip", "BlipForConditionalGeneration"),
         ("blip-2", "Blip2ForConditionalGeneration"),
         ("chameleon", "ChameleonForConditionalGeneration"),
+        ("cohere2_vision", "Cohere2VisionModel"),
         ("fuyu", "FuyuForCausalLM"),
         ("emu3", "Emu3ForConditionalGeneration"),
         ("gemma3", "Gemma3ForConditionalGeneration"),
