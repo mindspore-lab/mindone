@@ -24,7 +24,9 @@ from mindspore import mint, nn, ops
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FluxTransformer2DLoadersMixin, FromOriginalModelMixin, PeftAdapterMixin
 from ...utils import logging
+from .._modeling_parallel import ContextParallelInput, ContextParallelOutput
 from ..attention import AttentionMixin, AttentionModuleMixin, FeedForward
+from ..attention_dispatch import dispatch_attention_fn
 from ..cache_utils import CacheMixin
 from ..embeddings import (
     CombinedTimestepGuidanceTextProjEmbeddings,
@@ -70,8 +72,10 @@ def _get_qkv_projections(attn: "FluxAttention", hidden_states, encoder_hidden_st
     return _get_projections(attn, hidden_states, encoder_hidden_states)
 
 
-@ms.jit_class
 class FluxAttnProcessor:
+    _attention_backend = None
+    _parallel_config = None
+
     def __call__(
         self,
         attn: "FluxAttention",
@@ -107,7 +111,15 @@ class FluxAttnProcessor:
             query = apply_rotary_emb(query, image_rotary_emb, sequence_dim=1)
             key = apply_rotary_emb(key, image_rotary_emb, sequence_dim=1)
 
-        hidden_states = attn.scaled_dot_product_attention(query, key, value, attn_mask=attention_mask)
+        # hidden_states = attn.scaled_dot_product_attention(query, key, value, attn_mask=attention_mask)
+        hidden_states = dispatch_attention_fn(
+            query,
+            key,
+            value,
+            attn_mask=attention_mask,
+            backend=self._attention_backend,
+            parallel_config=self._parallel_config,
+        )
         hidden_states = hidden_states.flatten(2, 3)
         hidden_states = hidden_states.to(query.dtype)
 
@@ -130,6 +142,9 @@ class FluxAttnProcessor:
 
 class FluxIPAdapterAttnProcessor(nn.Cell):
     """Flux Attention processor for IP-Adapter."""
+
+    _attention_backend = None
+    _parallel_config = None
 
     def __init__(self, hidden_size: int, cross_attention_dim: int, num_tokens=(4,), scale=1.0, dtype=None):
         super().__init__()
@@ -193,14 +208,17 @@ class FluxIPAdapterAttnProcessor(nn.Cell):
             query = apply_rotary_emb(query, image_rotary_emb, sequence_dim=1)
             key = apply_rotary_emb(key, image_rotary_emb, sequence_dim=1)
 
-        hidden_states = attn.scaled_dot_product_attention(
+        hidden_states = dispatch_attention_fn(
             query,
             key,
             value,
             attn_mask=attention_mask,
             dropout_p=0.0,
             is_causal=False,
+            backend=self._attention_backend,
+            parallel_config=self._parallel_config,
         )
+
         hidden_states = hidden_states.flatten(2, 3)
         hidden_states = hidden_states.to(query.dtype)
 
@@ -228,13 +246,15 @@ class FluxIPAdapterAttnProcessor(nn.Cell):
                 ip_key = ip_key.view(batch_size, -1, attn.heads, attn.head_dim)
                 ip_value = ip_value.view(batch_size, -1, attn.heads, attn.head_dim)
 
-                current_ip_hidden_states = attn.scaled_dot_product_attention(
+                current_ip_hidden_states = dispatch_attention_fn(
                     ip_query,
                     ip_key,
                     ip_value,
                     attn_mask=None,
                     dropout_p=0.0,
                     is_causal=False,
+                    backend=self._attention_backend,
+                    parallel_config=self._parallel_config,
                 )
                 current_ip_hidden_states = current_ip_hidden_states.reshape(batch_size, -1, attn.heads * attn.head_dim)
                 current_ip_hidden_states = current_ip_hidden_states.to(ip_query.dtype)
@@ -645,6 +665,15 @@ class FluxTransformer2DModel(
     _no_split_modules = ["FluxTransformerBlock", "FluxSingleTransformerBlock"]
     _skip_layerwise_casting_patterns = ["pos_embed", "norm"]
     _repeated_blocks = ["FluxTransformerBlock", "FluxSingleTransformerBlock"]
+    _cp_plan = {
+        "": {
+            "hidden_states": ContextParallelInput(split_dim=1, expected_dims=3, split_output=False),
+            "encoder_hidden_states": ContextParallelInput(split_dim=1, expected_dims=3, split_output=False),
+            "img_ids": ContextParallelInput(split_dim=0, expected_dims=2, split_output=False),
+            "txt_ids": ContextParallelInput(split_dim=0, expected_dims=2, split_output=False),
+        },
+        "proj_out": ContextParallelOutput(gather_dim=1, expected_dims=3),
+    }
 
     @register_to_config
     def __init__(

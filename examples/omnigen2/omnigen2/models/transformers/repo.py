@@ -25,7 +25,8 @@ class OmniGen2RotaryPosEmbed(nn.Cell):
     def get_freqs_cis(axes_dim: tuple[int, int, int], axes_lens: tuple[int, int, int], theta: int) -> list[Tensor]:
         freqs_cis = []
         for i, (d, e) in enumerate(zip(axes_dim, axes_lens)):
-            emb = get_1d_rotary_pos_embed(d, e, theta=theta, freqs_dtype=ms.float64)  # TODO: check precision
+            # MS doesn't support complex numbers
+            emb = ops.view_as_real(get_1d_rotary_pos_embed(d, e, theta=theta, freqs_dtype=ms.float64)).flatten(-2, -1)
             freqs_cis.append(emb)
         return freqs_cis
 
@@ -33,9 +34,7 @@ class OmniGen2RotaryPosEmbed(nn.Cell):
         result = []
         for i in range(len(self.axes_dim)):
             index = ids[:, :, i : i + 1].repeat(1, 1, freqs_cis[i].shape[-1]).to(ms.int64)
-            result.append(
-                ops.gather(freqs_cis[i], axis=0, input_indices=index)[..., 0, :]  # FIXME: mint doesn't support complex
-            )
+            result.append(mint.gather(freqs_cis[i].unsqueeze(0).repeat(index.shape[0], 1, 1), dim=1, index=index))
         return mint.cat(result, dim=-1)
 
     def construct(

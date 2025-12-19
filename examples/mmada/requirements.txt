@@ -9,3 +9,4 @@ datasets
 image-reward
 gradio>=4.44.1
 huggingface_hub[cli]
+ml_dtypes
