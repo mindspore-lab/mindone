@@ -436,8 +436,8 @@ def build_2d_rope(
             beta_x = L + (w * h - w) / 2
             grid = get_meshgrid_nd((beta_y, beta_x), (beta_y + h, beta_x + w))  # [2, h, w]
             grid = grid.reshape(2, -1)  # (y, x)
-            y_sections.append(grid[0])
-            x_sections.append(grid[1])
+            y_sections.append(grid[0].to(ms.int64))
+            x_sections.append(grid[1].to(ms.int64))
             # step
             last_pos = L + w * h
         # final text
@@ -875,7 +875,6 @@ class UNetUp(nn.Cell):
 
     # batch_size, seq_len, model_dim
     def construct(self, x, t, token_h, token_w):
-        # x = rearrange(x, "b (h w) c -> b c h w", h=token_h, w=token_w)
         B, _, C = x.shape
         x = x.reshape(B, token_h, token_w, C)  # b, h, w, c
         x = x.permute(0, 3, 1, 2)  # b, c, h, w
@@ -955,8 +954,11 @@ class HunyuanStaticCache(StaticCache):
             # `tensor[:, :, index] = ms.Tensor`, but the first one is compile-friendly and it does explicitly an in-place
             # operation, that avoids copies and uses less memory.
             if cache_position.dim() == 1:
-                k_out.index_copy_(2, cache_position, key_states)
-                v_out.index_copy_(2, cache_position, value_states)
+                # tensor.index_copy_ is new in ms2.7.1, temporarily commented to support ms2.7.0
+                # k_out.index_copy_(2, cache_position, key_states)
+                # v_out.index_copy_(2, cache_position, value_states)
+                k_out[:, :, cache_position] = key_states
+                v_out[:, :, cache_position] = value_states
 
                 if self.dynamic:
                     end = cache_position[-1].item() + 1
@@ -971,10 +973,12 @@ class HunyuanStaticCache(StaticCache):
                 assert batch_size == value_states.shape[0]
 
                 for i in range(batch_size):
-                    unbatched_dim = 1
-                    k_out[i].index_copy_(unbatched_dim, cache_position[i], key_states[i])
-                    v_out[i].index_copy_(unbatched_dim, cache_position[i], value_states[i])
-
+                    # tensor.index_copy_ is new in ms2.7.1, temporarily commented to support ms2.7.0
+                    # unbatched_dim = 1
+                    # k_out[i].index_copy_(unbatched_dim, cache_position[i], key_states[i])
+                    # v_out[i].index_copy_(unbatched_dim, cache_position[i], value_states[i])
+                    k_out[i][:, cache_position[i]] = key_states[i]
+                    v_out[i][:, cache_position[i]] = value_states[i]
                 if self.dynamic:
                     assert len(cache_position) == 1
                     end = cache_position[0, -1].item() + 1
@@ -1271,8 +1275,7 @@ class HunyuanImage3SDPAAttention(nn.Cell):
                 "HunyuanImage3Model is using HunyuanImage3SDPAAttention,"
                 "but `torch.nn.functional.scaled_dot_product_attention` does not support `output_attentions=True`."
             )
-
-        bsz, q_len, _ = hidden_states.size()
+        bsz, q_len, _ = hidden_states.shape
 
         qkv_states = self.qkv_proj(hidden_states)
         qkv_states = qkv_states.reshape(
@@ -1481,7 +1484,7 @@ Hunyuan_ATTENTION_CLASSES = {
 
 
 class HunyuanImage3DecoderLayer(nn.Cell):
-    # @lazy_inline
+    @ms.lazy_inline
     def __init__(self, config: HunyuanImage3Config, layer_idx: int):
         super().__init__()
         self.hidden_size = config.hidden_size
@@ -1692,8 +1695,8 @@ class HunyuanImage3Model(HunyuanImage3PreTrainedModel):
         self.layers = nn.CellList(
             [HunyuanImage3DecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]
         )
-        # for layer in self.layers:
-        #     layer.offload(backward_prefetch='Auto')
+        for layer in self.layers:
+            layer.offload(backward_prefetch='Auto')
         if not config.add_classification_head:
             self.ln_f = HunyuanRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
