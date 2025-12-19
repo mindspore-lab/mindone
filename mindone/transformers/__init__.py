@@ -1487,6 +1487,7 @@ from .models.whisper import (
     WhisperProcessor,
 )
 from .models.x_clip import XCLIPModel, XCLIPPreTrainedModel, XCLIPTextModel, XCLIPVisionModel
+from .models.xcodec import XcodecModel, XcodecPreTrainedModel
 from .models.xglm import XGLMForCausalLM, XGLMModel, XGLMPreTrainedModel
 from .models.xlm import (
     XLMForMultipleChoice,

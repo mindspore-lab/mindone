@@ -260,6 +260,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("whisper", "WhisperModel"),
         ("xglm", "XGLMModel"),
         ("xclip", "XCLIPModel"),
+        ("xcodec", "XcodecModel"),
         ("xlm", "XLMModel"),
         ("xlm-prophetnet", "XLMProphetNetModel"),
         ("xlm-roberta", "XLMRobertaModel"),
