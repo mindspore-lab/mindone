@@ -721,7 +721,7 @@ def _preprocess_mask_arguments(
         batch_size = input_embeds.shape[0]
         # The position ids are sometimes just unsqueezed, without being expanded
         if batch_size != position_ids.shape[0]:
-            position_ids = position_ids.expand(batch_size, -1)
+            position_ids = position_ids.expand((batch_size, -1))
         packed_sequence_mask = find_packed_sequence_indices(position_ids)
 
     return False, attention_mask, packed_sequence_mask, kv_length, kv_offset
