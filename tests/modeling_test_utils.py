@@ -167,6 +167,11 @@ def convert_state_dict(m, state_dict_pt):
     state_dict_ms = {}
     for name_pt, data_pt in state_dict_pt.items():
         name_ms, data_mapping = mappings.get(name_pt, (name_pt, lambda x: x))
+        # for torch back compatibility
+        # for torch <2.0, dtype of num_batches_tracked is int32, for torch>=2.0, dtype of num_batches_tracked is int64,
+        # mindspore.mint is aligned with torch>=2.0
+        if "num_batches_tracked" in name_pt and data_pt.dtype == torch.int32:
+            data_pt = data_pt.to(torch.int64)
         data_ms = ms.Parameter(
             data_mapping(ms.Tensor.from_numpy(data_pt.float().numpy()).to(dtype_mappings[data_pt.dtype])), name=name_ms
         )
