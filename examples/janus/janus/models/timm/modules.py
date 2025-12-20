@@ -151,8 +151,8 @@ class AttentionPoolLatent(nn.Cell):
             # FIXME interpolate
             x = x + self.pos_embed.unsqueeze(0).to(x.dtype)
 
-        q_latent = self.latent.expand(B, -1, -1)
-        q = self.q(q_latent).reshape(B, self.latent_len, self.num_heads, self.head_dim).transpose(0, 2, 1)
+        q_latent = self.latent.expand((B, -1, -1))
+        q = self.q(q_latent).reshape(B, self.latent_len, self.num_heads, self.head_dim).transpose((0, 2, 1, 3))
 
         kv = self.kv(x).reshape(B, N, 2, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
         k, v = kv.unbind(0)
@@ -166,7 +166,7 @@ class AttentionPoolLatent(nn.Cell):
             attn = q @ k.transpose(-2, -1)
             attn = attn.softmax(dim=-1)
             x = attn @ v
-        x = x.transpose(0, 2, 1).reshape(B, self.latent_len, C)
+        x = x.transpose((0, 2, 1, 3)).reshape(B, self.latent_len, C)
         x = self.proj(x)
         x = self.proj_drop(x)
 
