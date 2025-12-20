@@ -834,6 +834,7 @@ from .models.llava_onevision import (
     LlavaOnevisionProcessor,
     LlavaOnevisionVideoProcessor,
 )
+from .models.longcat_flash import LongcatFlashForCausalLM, LongcatFlashModel, LongcatFlashPreTrainedModel
 from .models.longformer import (
     LongformerForMaskedLM,
     LongformerForMultipleChoice,
