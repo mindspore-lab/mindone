@@ -225,6 +225,7 @@ from .models.biogpt import (
     BioGptPreTrainedModel,
 )
 from .models.bit import BitBackbone
+from .models.bitnet import BitNetForCausalLM, BitNetModel, BitNetPreTrainedModel
 from .models.blenderbot import (
     BlenderbotForCausalLM,
     BlenderbotForConditionalGeneration,
