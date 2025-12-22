@@ -99,12 +99,12 @@ class MultiScaleDeformableAttention(ms.nn.Cell):
             sampling_grid_l_ = sampling_grids[:, :, :, level_id].transpose(1, 2).flatten(0, 1)
             # batch_size*num_heads, hidden_dim, num_queries, num_points
             sampling_value_l_ = mint.nn.functional.grid_sample(
-                value_l_,
-                sampling_grid_l_,
+                value_l_.to(ms.float32),
+                sampling_grid_l_.to(ms.float32),
                 mode="bilinear",
                 padding_mode="zeros",
                 align_corners=False,
-            )
+            ).to(value_l_.dtype)
             sampling_value_list.append(sampling_value_l_)
         # (batch_size, num_queries, num_heads, num_levels, num_points)
         # -> (batch_size, num_heads, num_queries, num_levels, num_points)
@@ -529,7 +529,7 @@ class MMGroundingDinoPreTrainedModel(PreTrainedModel):
             module.sampling_offsets.weight.set_data(
                 initializer(Constant(0.0), module.sampling_offsets.weight.shape, module.sampling_offsets.weight.dtype)
             )
-            default_dtype = ms.get_dtype()
+            default_dtype = module.sampling_offsets.weight.dtype
             thetas = mint.arange(module.n_heads, dtype=ms.int64).to(default_dtype) * (2.0 * math.pi / module.n_heads)
             grid_init = mint.stack([thetas.cos(), thetas.sin()], -1)
             grid_init = (
@@ -701,7 +701,7 @@ def replace_batch_norm(model):
             new_module.running_var.set_data(module.running_var)
 
             # model._modules[name] = new_module
-            setattr(module, name, new_module)
+            setattr(model, name, new_module)
 
         if len(list(module.name_cells())) > 0:
             replace_batch_norm(module)
@@ -1206,6 +1206,8 @@ class MMGroundingDinoEncoder(MMGroundingDinoPreTrainedModel):
         """
         reference_points_list = []
         for level, (height, width) in enumerate(spatial_shapes):
+            height = int(height)
+            width = int(width)
             ref_y, ref_x = meshgrid(
                 mint.linspace(
                     0.5,
@@ -1300,7 +1302,7 @@ class MMGroundingDinoEncoder(MMGroundingDinoPreTrainedModel):
         reference_points = self.get_reference_points(
             spatial_shapes,
             valid_ratios,
-        )
+        ).to(valid_ratios.dtype)
 
         encoder_vision_states = () if output_hidden_states else None
         encoder_text_states = () if output_hidden_states else None
@@ -1616,7 +1618,9 @@ class MMGroundingDinoDecoder(MMGroundingDinoPreTrainedModel):
                 reference_points_input = reference_points[:, :, None] * valid_ratios[:, None]
             else:
                 raise ValueError("Last dim of reference_points must be 2 or 4, but got {reference_points.shape[-1]}")
-            query_pos = get_sine_pos_embed(reference_points_input[:, :, 0, :], num_pos_feats=self.config.d_model // 2)
+            query_pos = get_sine_pos_embed(
+                reference_points_input[:, :, 0, :], num_pos_feats=self.config.d_model // 2
+            ).to(reference_points_input.dtype)
             query_pos = self.reference_points_head(query_pos)
 
             # In original implementation they apply layer norm before outputting intermediate hidden states
@@ -1937,7 +1941,7 @@ class MMGroundingDinoModel(MMGroundingDinoPreTrainedModel):
         self.decoder = MMGroundingDinoDecoder(config)
 
         self.level_embed = ms.Parameter(
-            ms.Tensor(shape=(config.num_feature_levels, config.d_model), dtype=MMGroundingDinoConvEncoder.dtype)
+            ms.Tensor(shape=(config.num_feature_levels, config.d_model), dtype=self.encoder.dtype)
         )
 
         self.enc_output = mint.nn.Linear(config.d_model, config.d_model)
@@ -2058,7 +2062,8 @@ class MMGroundingDinoModel(MMGroundingDinoPreTrainedModel):
         Examples:
 
         ```python
-        >>> from transformers import AutoProcessor, AutoModel
+        >>> from transformers import AutoProcessor,
+        >>> from mindone.transformers import AutoModel
         >>> from PIL import Image
         >>> import requests
 
@@ -2069,7 +2074,7 @@ class MMGroundingDinoModel(MMGroundingDinoPreTrainedModel):
         >>> processor = AutoProcessor.from_pretrained("IDEA-Research/grounding-dino-tiny")
         >>> model = AutoModel.from_pretrained("IDEA-Research/grounding-dino-tiny")
 
-        >>> inputs = processor(images=image, text=text, return_tensors="pt")
+        >>> inputs = processor(images=image, text=text, return_tensors="np")
         >>> outputs = model(**inputs)
 
         >>> last_hidden_states = outputs.last_hidden_state
@@ -2168,7 +2173,7 @@ class MMGroundingDinoModel(MMGroundingDinoPreTrainedModel):
         spatial_shapes = ms.Tensor(spatial_shapes_list, dtype=ms.int64)
         level_start_index = mint.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
         valid_ratios = mint.stack([self.get_valid_ratio(m) for m in masks], 1)
-        valid_ratios = valid_ratios.float()
+        valid_ratios = valid_ratios.to(lvl_pos_embed_flatten.dtype)
 
         # Fourth, sent source_flatten + mask_flatten + lvl_pos_embed_flatten (backbone + proj layer output) through encoder
         # Also provide spatial_shapes, level_start_index and valid_ratios
@@ -2210,6 +2215,8 @@ class MMGroundingDinoModel(MMGroundingDinoPreTrainedModel):
             object_query_embedding, output_proposals = self.generate_encoder_output_proposals(
                 encoder_outputs[0], ~mask_flatten, spatial_shapes
             )
+            object_query_embedding = object_query_embedding.to(encoder_outputs[0].dtype)
+            output_proposals = output_proposals.to(encoder_outputs[0].dtype)
 
             # hack implementation as in two-stage Deformable DETR
             # apply a detection head to each pixel (A.4 in paper)
@@ -2541,20 +2548,20 @@ class MMGroundingDinoForObjectDetection(MMGroundingDinoPreTrainedModel):
 
         >>> import torch
         >>> from PIL import Image
-        >>> from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import AutoModelForZeroShotObjectDetection
 
         >>> model_id = "IDEA-Research/grounding-dino-tiny"
-        >>> device = "cuda"
 
         >>> processor = AutoProcessor.from_pretrained(model_id)
-        >>> model = AutoModelForZeroShotObjectDetection.from_pretrained(model_id).to(device)
+        >>> model = AutoModelForZeroShotObjectDetection.from_pretrained(model_id)
 
         >>> image_url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(image_url, stream=True).raw)
         >>> # Check for cats and remote controls
         >>> text_labels = [["a cat", "a remote control"]]
 
-        >>> inputs = processor(images=image, text=text_labels, return_tensors="pt").to(device)
+        >>> inputs = processor(images=image, text=text_labels, return_tensors="np")
         >>> outputs = model(**inputs)
 
         >>> results = processor.post_process_grounded_object_detection(
