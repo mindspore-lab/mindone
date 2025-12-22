@@ -63,8 +63,10 @@ else:
             ("dinov2", ("BitImageProcessor",)),
             ("dpt", ("DPTImageProcessor",)),
             ("efficientnet", ("EfficientNetImageProcessor",)),
+            ("eomt", ("EomtImageProcessor", "EomtImageProcessorFast")),
             ("flava", ("FlavaImageProcessor",)),
-            ("llava_next", ("LlavaNextImageProcessor",)),
+            ("got_ocr2", ("GotOcr2ImageProcessor", "GotOcr2ImageProcessorFast")),
+            ("llava_next", ("LlavaNextImageProcessor", "LlavaNextImageProcessorFast")),
             ("llava_next_video", ("LlavaNextVideoImageProcessor",)),
             ("llava_onevision", ("LlavaOnevisionImageProcessor",)),
             ("maskformer", ("MaskFormerImageProcessor",)),
@@ -72,7 +74,9 @@ else:
             ("oneformer", ("OneFormerImageProcessor",)),
             ("owlv2", ("Owlv2ImageProcessor",)),
             ("owlvit", ("OwlViTImageProcessor",)),
-            ("qwen2_5_vl", ("Qwen2VLImageProcessor",)),
+            ("phi4_multimodal", (None, "Phi4MultimodalImageProcessorFast")),
+            ("qwen2_5_vl", ("Qwen2VLImageProcessor", "Qwen2VLImageProcessorFast")),
+            ("qwen2_vl", ("Qwen2VLImageProcessor", "Qwen2VLImageProcessorFast")),
             ("sam", ("SamImageProcessor",)),
             ("segformer", ("SegformerImageProcessor",)),
             ("siglip", ("SiglipImageProcessor", "SiglipImageProcessorFast")),
@@ -83,7 +87,7 @@ else:
 
 
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
-    IMAGE_PROCESSOR_MAPPING_NAMES.update({"glm4v": ("Glm4vImageProcessor",)})
+    IMAGE_PROCESSOR_MAPPING_NAMES.update({"glm4v": ("Glm4vImageProcessor", "Glm4vImageProcessorFast")})
 
 if version.parse(transformers.__version__) >= version.parse("4.57.0"):
     IMAGE_PROCESSOR_MAPPING_NAMES.update({"qwen3_vl": ("Qwen2VLImageProcessor", "Qwen2VLImageProcessorFast")})

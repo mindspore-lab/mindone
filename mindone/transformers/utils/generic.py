@@ -25,11 +25,11 @@ import tempfile
 import warnings
 from collections import OrderedDict, UserDict, defaultdict
 from collections.abc import MutableMapping
-from contextlib import ExitStack, contextmanager
+from contextlib import AbstractContextManager, ExitStack, contextmanager
 from dataclasses import dataclass, fields, is_dataclass
 from enum import Enum
 from functools import wraps
-from typing import Any, Callable, ContextManager, Optional, TypedDict
+from typing import Any, Callable, Optional, TypedDict
 
 import numpy as np
 from transformers.utils import logging
@@ -42,29 +42,6 @@ from mindone.transformers.utils.import_utils import is_mindspore_available
 _CAN_RECORD_REGISTRY = {}
 
 logger = logging.get_logger(__name__)
-
-
-class cached_property(property):
-    """
-    Descriptor that mimics @property but caches output in member variable.
-
-    From tensorflow_datasets
-
-    Built-in in functools from Python 3.8.
-    """
-
-    def __get__(self, obj, objtype=None):
-        # See docs.python.org/3/howto/descriptor.html#properties
-        if obj is None:
-            return self
-        if self.fget is None:
-            raise AttributeError("unreadable attribute")
-        attr = "__cached_" + self.fget.__name__
-        cached = getattr(obj, attr, None)
-        if cached is None:
-            cached = self.fget(obj)
-            setattr(obj, attr, cached)
-        return cached
 
 
 # vendored from distutils.util
@@ -290,12 +267,10 @@ class ModelOutput(OrderedDict):
             # if we provided an iterator as first field and the iterator is a (key, value) iterator
             # set the associated fields
             if first_field_iterator:
+                # reset first field to None
+                setattr(self, class_fields[0].name, None)
                 for idx, element in enumerate(iterator):
-                    if (
-                        not isinstance(element, (list, tuple))
-                        or not len(element) == 2
-                        or not isinstance(element[0], str)
-                    ):
+                    if not isinstance(element, (list, tuple)) or len(element) != 2 or not isinstance(element[0], str):
                         if idx == 0:
                             # If we do not have an iterator of key/values, set it as attribute
                             self[class_fields[0].name] = first_field
@@ -354,7 +329,7 @@ class ModelOutput(OrderedDict):
         args = tuple(getattr(self, field.name) for field in fields(self))
         return callable, args, *remaining
 
-    def to_tuple(self) -> tuple[Any]:
+    def to_tuple(self) -> tuple:
         """
         Convert self to a tuple containing all the attributes/keys that are not `None`.
         """
@@ -400,7 +375,7 @@ class ContextManagers:
     in the `fastcore` library.
     """
 
-    def __init__(self, context_managers: list[ContextManager]):
+    def __init__(self, context_managers: list[AbstractContextManager]):
         self.context_managers = context_managers
         self.stack = ExitStack()
 
@@ -570,44 +545,6 @@ def mindspore_float(x):
     return x.to(ms.float32) if isinstance(x, ms.Tensor) else int(x)
 
 
-class TransformersKwargs(TypedDict, total=False):
-    """
-    Keyword arguments to be passed to the loss function
-
-    Attributes:
-        num_items_in_batch (`Optional[ms.Tensor]`, *optional*):
-            Number of items in the batch. It is recommended to pass it when
-            you are doing gradient accumulation.
-        output_hidden_states (`Optional[bool]`, *optional*):
-            Most of the models support outputing all hidden states computed during the forward pass.
-        output_attentions (`Optional[bool]`, *optional*):
-            Turn this on to return the intermediary attention scores.
-        output_router_logits (`Optional[bool]`, *optional*):
-            For MoE models, this allows returning the router logits to compute the loss.
-    """
-
-    num_items_in_batch: Optional["ms.Tensor"]
-    output_hidden_states: Optional[bool]
-    output_attentions: Optional[bool]
-    output_router_logits: Optional[bool]
-
-
-@dataclass
-class OutputRecorder:
-    """
-    Configuration for recording outputs from a model via hooks.
-
-    Attributes:
-        target_class (Type): The class (e.g., nn.Cell) to which the hook will be attached.
-        index (Optional[int]): If the output is a tuple/list, optionally record only at a specific index.
-        layer_name (Optional[str]): Name of the submodule to target (if needed), e.g., "transformer.layer.3.attn".
-    """
-
-    target_class: "type[nn.Cell]"
-    index: Optional[int] = 0
-    layer_name: Optional[str] = None
-
-
 def filter_out_non_signature_kwargs(extra: Optional[list] = None):
     """
     Decorator to filter out named arguments that are not in the function signature.
@@ -662,7 +599,7 @@ def filter_out_non_signature_kwargs(extra: Optional[list] = None):
                     invalid_kwargs[k] = v
 
             if invalid_kwargs:
-                invalid_kwargs_names = [f"'{k}'" for k in invalid_kwargs.keys()]
+                invalid_kwargs_names = [f"'{k}'" for k in invalid_kwargs]
                 invalid_kwargs_names = ", ".join(invalid_kwargs_names)
 
                 # Get the class name for better warning message
@@ -685,6 +622,40 @@ def filter_out_non_signature_kwargs(extra: Optional[list] = None):
         return wrapper
 
     return decorator
+
+
+class TransformersKwargs(TypedDict, total=False):
+    """
+    Keyword arguments to be passed to the forward pass of a `PreTrainedModel`.
+
+    Attributes:
+        num_items_in_batch (`Optional[ms.Tensor]`, *optional*):
+            Number of items in the batch. It is recommended to pass it when
+            you are doing gradient accumulation.
+        output_hidden_states (`Optional[bool]`, *optional*):
+            Most of the models support outputing all hidden states computed during the forward pass.
+        output_attentions (`Optional[bool]`, *optional*):
+            Turn this on to return the intermediary attention scores.
+        output_router_logits (`Optional[bool]`, *optional*):
+            For MoE models, this allows returning the router logits to compute the loss.
+        cu_seq_lens_q (`ms.Tensor`, *optional*)
+            Gets cumulative sequence length for query state.
+        cu_seq_lens_k (`ms.Tensor`, *optional*)
+            Gets cumulative sequence length for key state.
+        max_length_q (`int`, *optional*):
+            Maximum sequence length for query state.
+        max_length_k (`int`, *optional*):
+            Maximum sequence length for key state.
+    """
+
+    num_items_in_batch: Optional["ms.Tensor"]
+    output_hidden_states: Optional[bool]
+    output_attentions: Optional[bool]
+    output_router_logits: Optional[bool]
+    cu_seq_lens_q: Optional["ms.Tensor"]
+    cu_seq_lens_k: Optional["ms.Tensor"]
+    max_length_q: Optional[int]
+    max_length_k: Optional[int]
 
 
 def is_timm_config_dict(config_dict: dict[str, Any]) -> bool:
@@ -764,6 +735,23 @@ def can_return_tuple(func):
     return wrapper
 
 
+@dataclass
+class OutputRecorder:
+    """
+    Configuration for recording outputs from a model via hooks.
+
+    Attributes:
+        target_class (Type): The class (e.g., nn.Cell) to which the hook will be attached.
+        index (Optional[int]): If the output is a tuple/list, optionally record only at a specific index.
+        layer_name (Optional[str]): Name of the submodule to target (if needed), e.g., "transformer.layer.3.attn".
+    """
+
+    target_class: "type[nn.Cell]"
+    index: int = 0
+    layer_name: Optional[str] = None
+    class_name: Optional[str] = None
+
+
 def check_model_inputs(func):
     """
     Decorator to intercept specific layer outputs without using hooks.
@@ -771,28 +759,28 @@ def check_model_inputs(func):
 
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        use_cache = kwargs.get("use_cache", None)
-        if use_cache is None:
-            use_cache = getattr(self.config, "use_cache", False)
+        use_cache = (
+            kwargs["use_cache"] if kwargs.get("use_cache") is not None else getattr(self.config, "use_cache", None)
+        )
+        if use_cache is not None:
+            if getattr(self, "gradient_checkpointing", False) and self.training and use_cache:
+                logger.warning_once(
+                    "`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`."
+                )
+                use_cache = False
+
+            kwargs["use_cache"] = use_cache
 
         return_dict = kwargs.pop("return_dict", None)
         if return_dict is None:
             return_dict = getattr(self.config, "return_dict", True)
-
-        if getattr(self, "gradient_checkpointing", False) and self.training and use_cache:
-            logger.warning_once(
-                "`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`."
-            )
-            use_cache = False
-
-        kwargs["use_cache"] = use_cache
 
         all_args = kwargs.copy()
         if "kwargs" in all_args:
             for k, v in all_args["kwargs"].items():
                 all_args[k] = v
 
-        capture_flags = _CAN_RECORD_REGISTRY.get(str(self.__class__), {})
+        capture_flags = _CAN_RECORD_REGISTRY.get(str(self.__class__), {})  # there is a weak ref for executorch
         recordable_keys = {
             f"output_{k}": all_args.get(
                 f"output_{k}",
@@ -804,19 +792,45 @@ def check_model_inputs(func):
             )
             for k in capture_flags
         }
+
+        # We let cross attentions to be saved separately because some models add `cross-attn` layer
+        # when certain conditions are met. Let's output cross attention if attentions are requested (for BC)
+        if "output_attentions" in recordable_keys:
+            recordable_keys["output_cross_attentions"] = recordable_keys["output_attentions"]
+
         collected_outputs = defaultdict(tuple)
         monkey_patched_layers = []
+
+        # Check attention implementation is properly set for capturing attention outputs
+        if recordable_keys.get("output_attentions", False):
+            supported_attn = ["eager", "eager_paged", "flex_attention"]
+            config_attn = getattr(self.config, "_attn_implementation", None)
+            sub_configs = [getattr(self.config, key, None) for key in self.config.sub_configs]
+            sub_configs_attn = [
+                getattr(config, "_attn_implementation", None) for config in sub_configs if config is not None
+            ]
+            if config_attn not in supported_attn or any(attn not in supported_attn for attn in sub_configs_attn):
+                warnings.warn(
+                    f"`output_attentions=True` is not supported with `attn_implementation` other than {supported_attn}. "
+                    "Please use `model.set_attn_implementation('eager')` to enable capturing attention outputs.",
+                    UserWarning,
+                )
 
         def make_capture_wrapper(module, orig_forward, key, index):
             @wraps(orig_forward)
             def wrapped_forward(*args, **kwargs):
                 if key == "hidden_states" and len(collected_outputs[key]) == 0:
                     collected_outputs[key] += (args[0],)
+                if kwargs.get("debug_io", False):
+                    logger.warning("currently do not support debug utils yet")
                 output = orig_forward(*args, **kwargs)
                 if not isinstance(output, tuple):
                     collected_outputs[key] += (output,)
                 elif output[index] is not None:
-                    collected_outputs[key] += (output[index],)
+                    if key not in collected_outputs:
+                        collected_outputs[key] = (output[index],)
+                    else:
+                        collected_outputs[key] += (output[index],)
                 return output
 
             return wrapped_forward
@@ -831,12 +845,17 @@ def check_model_inputs(func):
                 for specs in layer_specs:
                     if not isinstance(specs, OutputRecorder):
                         index = 0 if "hidden_states" in key else 1
-                        specs = OutputRecorder(target_class=specs, index=index)
+                        class_name = None if not isinstance(specs, str) else specs
+                        target_class = specs if not isinstance(specs, str) else None
+                        specs = OutputRecorder(target_class=target_class, index=index, class_name=class_name)
                     capture_tasks.append((key, specs))
 
             for name, module in self.cells_and_names():
                 for key, specs in capture_tasks:
-                    if isinstance(module, specs.target_class):
+                    # The second check is for multimodals where only backbone layer suffix is available
+                    if (specs.target_class is not None and isinstance(module, specs.target_class)) or (
+                        specs.class_name is not None and name.endswith(specs.class_name)
+                    ):
                         if specs.layer_name is not None and specs.layer_name not in name:
                             continue
                         # Monkey patch forward
@@ -844,7 +863,22 @@ def check_model_inputs(func):
                         module.construct = make_capture_wrapper(module, original_forward, key, specs.index)
                         monkey_patched_layers.append((module, original_forward))
 
-        outputs = func(self, *args, **kwargs)
+        try:
+            outputs = func(self, *args, **kwargs)
+        except TypeError as original_exception:
+            # If we get a TypeError, it's possible that the model is not receiving the recordable kwargs correctly.
+            # Get a TypeError even after removing the recordable kwargs -> re-raise the original exception
+            # Otherwise -> we're probably missing `**kwargs` in the decorated function
+            kwargs_without_recordable = {k: v for k, v in kwargs.items() if k not in recordable_keys}
+            try:
+                outputs = func(self, *args, **kwargs_without_recordable)
+            except TypeError:
+                raise original_exception
+            raise TypeError(
+                "Missing `**kwargs` in the signature of the `@check_model_inputs`-decorated function "
+                f"({func.__qualname__})"
+            )
+
         # Restore original forward methods
         for module, original_forward in monkey_patched_layers:
             module.construct = original_forward
@@ -852,10 +886,11 @@ def check_model_inputs(func):
         # Inject collected outputs into model output
         for key in collected_outputs:
             if key == "hidden_states":
-                collected_outputs[key] = collected_outputs[key][:-1]
                 if hasattr(outputs, "vision_hidden_states"):
+                    collected_outputs[key] = collected_outputs[key][:-1]
                     collected_outputs[key] += (outputs.vision_hidden_states,)
                 elif hasattr(outputs, "last_hidden_state"):
+                    collected_outputs[key] = collected_outputs[key][:-1]
                     collected_outputs[key] += (outputs.last_hidden_state,)
 
                 outputs[key] = collected_outputs[key]

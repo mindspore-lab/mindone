@@ -14,6 +14,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from .accelerate import *
 from .flash_attention import *
+from .integration_utils import get_reporting_integration_callbacks
 from .peft import PeftAdapterMixin
 from .sdpa_attention import *

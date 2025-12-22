@@ -32,9 +32,6 @@ from .repo import OmniGen2RotaryPosEmbed
 
 logger = logging.get_logger(__name__)
 
-# Note: PEFT backend is not supported
-USE_PEFT_BACKEND = False
-
 
 class OmniGen2TransformerBlock(nn.Cell):
     """
@@ -361,7 +358,7 @@ class OmniGen2Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, From
         # Add learnable embeddings to distinguish different images (support max 5 ref images)
         self.image_index_embedding = Parameter(tensor(np.random.randn(5, hidden_size), dtype=ms.float32))
 
-        self.gradient_checkpointing = False
+        self._gradient_checkpointing = False
 
         self.initialize_weights()
 
@@ -372,6 +369,21 @@ class OmniGen2Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, From
 
         coefficients = [-5.48259225, 11.48772289, -4.47407401, 2.47730926, -0.03316487]
         self.rescale_func = np.poly1d(coefficients)
+
+    @property
+    def gradient_checkpointing(self):
+        return self._gradient_checkpointing
+
+    @gradient_checkpointing.setter
+    def gradient_checkpointing(self, value):
+        if self._gradient_checkpointing != value:
+            self._gradient_checkpointing = value
+            for block in self.layers:
+                block.recompute()
+                # TODO: no FA recompute
+
+    def _set_gradient_checkpointing(self, enable=False):
+        self.gradient_checkpointing = enable
 
     def initialize_weights(self) -> None:
         """
@@ -579,12 +591,8 @@ class OmniGen2Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, From
         else:
             lora_scale = 1.0
 
-        if USE_PEFT_BACKEND:
-            # weight the lora layers by setting `lora_scale` for each PEFT layer
-            scale_lora_layers(self, lora_scale)
-        else:
-            if attention_kwargs is not None and attention_kwargs.get("scale", None) is not None:
-                logger.warning("Passing `scale` via `attention_kwargs` when not using the PEFT backend is ineffective.")
+        # weight the lora layers by setting `lora_scale` for each PEFT layer
+        scale_lora_layers(self, lora_scale)
 
         # 1. Condition, positional & patch embedding
         batch_size = len(hidden_states)
@@ -710,9 +718,8 @@ class OmniGen2Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, From
         if is_hidden_states_tensor:
             output = mint.stack(output, dim=0)
 
-        if USE_PEFT_BACKEND:
-            # remove `lora_scale` from each PEFT layer
-            unscale_lora_layers(self, lora_scale)
+        # remove `lora_scale` from each PEFT layer
+        unscale_lora_layers(self, lora_scale)
 
         if enable_taylorseer:
             self.current["step"] += 1

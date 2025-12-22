@@ -72,15 +72,13 @@ def validate_fast_preprocess_arguments(
     do_normalize: Optional[bool] = None,
     image_mean: Optional[Union[float, list[float]]] = None,
     image_std: Optional[Union[float, list[float]]] = None,
-    do_pad: Optional[bool] = None,
-    size_divisibility: Optional[int] = None,
     do_center_crop: Optional[bool] = None,
     crop_size: Optional[SizeDict] = None,
     do_resize: Optional[bool] = None,
     size: Optional[SizeDict] = None,
-    resample: Optional["PILImageResampling"] = None,
+    interpolation: Optional["InterpolationMode"] = None,
     return_tensors: Optional[Union[str, TensorType]] = None,
-    data_format: Optional[ChannelDimension] = ChannelDimension.FIRST,
+    data_format: ChannelDimension = ChannelDimension.FIRST,
 ):
     """
     Checks validity of typically used arguments in an `ImageProcessorFast` `preprocess` method.
@@ -92,13 +90,11 @@ def validate_fast_preprocess_arguments(
         do_normalize=do_normalize,
         image_mean=image_mean,
         image_std=image_std,
-        do_pad=do_pad,
-        size_divisibility=size_divisibility,
         do_center_crop=do_center_crop,
         crop_size=crop_size,
         do_resize=do_resize,
         size=size,
-        resample=resample,
+        interpolation=interpolation,
     )
 
     if data_format != ChannelDimension.FIRST:
@@ -125,7 +121,7 @@ def max_across_indices(values: Iterable[Any]) -> list[Any]:
     return [max(values_i) for values_i in zip(*values)]
 
 
-def get_max_height_width(images: list["ms.Tensor"]) -> tuple[int]:
+def get_max_height_width(images: list["ms.Tensor"]) -> tuple[int, ...]:
     """
     Get the maximum height and width across all images in a batch.
     """
@@ -135,7 +131,7 @@ def get_max_height_width(images: list["ms.Tensor"]) -> tuple[int]:
     return (max_height, max_width)
 
 
-def divide_to_patches(image: Union[np.array, "ms.Tensor"], patch_size: int) -> list[Union[np.array, "ms.Tensor"]]:
+def divide_to_patches(image: Union[np.ndarray, "ms.Tensor"], patch_size: int) -> list[Union[np.ndarray, "ms.Tensor"]]:
     """
     Divides an image into patches of a specified size.
 
@@ -169,6 +165,8 @@ class DefaultFastImageProcessorKwargs(TypedDict, total=False):
     do_normalize: Optional[bool]
     image_mean: Optional[Union[float, list[float]]]
     image_std: Optional[Union[float, list[float]]]
+    do_pad: Optional[bool]
+    pad_size: Optional[dict[str, int]]
     do_convert_rgb: Optional[bool]
     return_tensors: Optional[Union[str, TensorType]]
     data_format: Optional[ChannelDimension]
@@ -185,6 +183,8 @@ class BaseImageProcessorFast(BaseImageProcessor):
     crop_size = None
     do_resize = None
     do_center_crop = None
+    do_pad = None
+    pad_size = None
     do_rescale = None
     rescale_factor = 1 / 255
     do_normalize = None
@@ -210,7 +210,10 @@ class BaseImageProcessorFast(BaseImageProcessor):
         )
         crop_size = kwargs.pop("crop_size", self.crop_size)
         self.crop_size = get_size_dict(crop_size, param_name="crop_size") if crop_size is not None else None
-        for key in self.valid_kwargs.__annotations__.keys():
+        pad_size = kwargs.pop("pad_size", self.pad_size)
+        self.pad_size = get_size_dict(size=pad_size, param_name="pad_size") if pad_size is not None else None
+
+        for key in self.valid_kwargs.__annotations__:
             kwarg = kwargs.pop(key, None)
             if kwarg is not None:
                 setattr(self, key, kwarg)
@@ -219,6 +222,81 @@ class BaseImageProcessorFast(BaseImageProcessor):
 
         # get valid kwargs names
         self._valid_kwargs_names = list(self.valid_kwargs.__annotations__.keys())
+
+    @property
+    def is_fast(self) -> bool:
+        """
+        `bool`: Whether or not this image processor is a fast processor (backed by PyTorch and TorchVision).
+        """
+        return True
+
+    def pad(
+        self,
+        images: "ms.Tensor",
+        pad_size: SizeDict = None,
+        fill_value: Optional[int] = 0,
+        padding_mode: Optional[str] = "constant",
+        return_mask: bool = False,
+        disable_grouping: Optional[bool] = False,
+        **kwargs,
+    ) -> "ms.Tensor":
+        """
+        Pads images to `(pad_size["height"], pad_size["width"])` or to the largest size in the batch.
+
+        Args:
+            images (`ms.Tensor`):
+                Images to pad.
+            pad_size (`SizeDict`, *optional*):
+                Dictionary in the format `{"height": int, "width": int}` specifying the size of the output image.
+            fill_value (`int`, *optional*, defaults to `0`):
+                The constant value used to fill the padded area.
+            padding_mode (`str`, *optional*, defaults to "constant"):
+                The padding mode to use. Can be any of the modes supported by
+                `torch.nn.functional.pad` (e.g. constant, reflection, replication).
+            return_mask (`bool`, *optional*, defaults to `False`):
+                Whether to return a pixel mask to denote padded regions.
+            disable_grouping (`bool`, *optional*, defaults to `False`):
+                Whether to disable grouping of images by size.
+
+        Returns:
+            `ms.Tensor`: The resized image.
+        """
+        if pad_size is not None:
+            if not (pad_size.height and pad_size.width):
+                raise ValueError(f"Pad size must contain 'height' and 'width' keys only. Got pad_size={pad_size}.")
+            pad_size = (pad_size.height, pad_size.width)
+        else:
+            pad_size = get_max_height_width(images)
+
+        grouped_images, grouped_images_index = group_images_by_shape(images)
+        processed_images_grouped = {}
+        processed_masks_grouped = {}
+        for shape, stacked_images in grouped_images.items():
+            image_size = stacked_images.shape[-2:]
+            padding_height = pad_size[0] - image_size[0]
+            padding_width = pad_size[1] - image_size[1]
+            if padding_height < 0 or padding_width < 0:
+                raise ValueError(
+                    f"Padding dimensions are negative. Please make sure that the `pad_size` is larger than the "
+                    f"image size. Got pad_size={pad_size}, image_size={image_size}."
+                )
+            if image_size != pad_size:
+                padding = (0, 0, padding_width, padding_height)
+                stacked_images = F.pad(stacked_images, padding, value=fill_value, mode=padding_mode)
+            processed_images_grouped[shape] = stacked_images
+
+            if return_mask:
+                # keep only one from the channel dimension in pixel mask
+                stacked_masks = mint.zeros_like(stacked_images, dtype=ms.int64)[..., 0, :, :]
+                stacked_masks[..., : image_size[0], : image_size[1]] = 1
+                processed_masks_grouped[shape] = stacked_masks
+
+        processed_images = reorder_images(processed_images_grouped, grouped_images_index)
+        if return_mask:
+            processed_masks = reorder_images(processed_masks_grouped, grouped_images_index)
+            return processed_images, processed_masks
+
+        return processed_images
 
     def resize(
         self,
@@ -270,7 +348,7 @@ class BaseImageProcessorFast(BaseImageProcessor):
         # Fixme different with torchvision resize, which has inout `antialias`
         resize_op = vision.Resize(new_size, interpolation=interpolation)
         original_shape = image.shape
-        batch_dims = original_shape[:-3]  
+        batch_dims = original_shape[:-3]
         num_batch = 1
         for dim in batch_dims:
             num_batch *= dim
@@ -280,11 +358,13 @@ class BaseImageProcessorFast(BaseImageProcessor):
             img = image_flat[i]  # (C, H, W)
             # image ms.tensor-->numpy-->PIL
             img_np = img.permute(1, 2, 0).asnumpy()
-            img_np = (img_np * 255).clip(0, 255).astype(np.uint8)
+            if img_np.max() <= 1.0:
+                img_np = img_np * 255
+            img_np = img_np.clip(0, 255).astype(np.uint8)
             img_pil = Image.fromarray(img_np)
-            resized_img = ms.tensor(np.array(resize_op(img_pil))).permute(2, 0, 1)  
+            resized_img = ms.tensor(np.array(resize_op(img_pil))).permute(2, 0, 1)
             resized_images.append(resized_img)
-        resized_flat = mint.stack(resized_images, dim=0)  
+        resized_flat = mint.stack(resized_images, dim=0)
         _, new_C, new_H, new_W = resized_flat.shape
         return resized_flat.view(*batch_dims, new_C, new_H, new_W)
 
@@ -296,9 +376,23 @@ class BaseImageProcessorFast(BaseImageProcessor):
         antialias: bool = True,
     ) -> "ms.Tensor":
         """
-        A wrapper around `F.resize` so that it is compatible with torch.compile when the image is a uint8 tensor.
+        A wrapper around `F.interpolate` so that it is compatible with torch.compile when the image is a uint8 tensor.
         """
-        raise NotImplementedError("This method is not implemented for mindspore")
+        # TODO "mindspore.mint.nn.function.interpolate" do not have `antialias` param.
+        if image.dtype == ms.uint8:
+            # 256 is used on purpose instead of 255 to avoid numerical differences
+            # see https://github.com/huggingface/transformers/pull/38540#discussion_r2127165652
+            image = image.float() / 256
+            image = F.interpolate(image, new_size, mode=interpolation)
+            image = image * 256
+            # torch.where is used on purpose instead of torch.clamp to avoid bug in torch.compile
+            # see https://github.com/huggingface/transformers/pull/38540#discussion_r2126888471
+            image = mint.where(image > 255, 255, image)
+            image = mint.where(image < 0, 0, image)
+            image = image.round().to(ms.uint8)
+        else:
+            image = F.interpolate(image, new_size, mode=interpolation)
+        return image
 
     def rescale(
         self,
@@ -341,15 +435,28 @@ class BaseImageProcessorFast(BaseImageProcessor):
         Returns:
             `ms.tensor`: The normalized image with the same shape as input.
         """
-        mean = ms.tensor(mean, dtype=image.dtype)
-	    std = ms.tensor(std, dtype=image.dtype)
-	
-	        
-	    view_shape = (1,) * (image.ndim - 3) + (image.shape[-3], 1, 1)
-	    mean = mean.view(view_shape)
-	    std = std.view(view_shape)
-	
-	    return (image - mean) / std
+        mean = [float(mean[0]), float(mean[1]), float(mean[2])]
+        std = [float(std[0]), float(std[1]), float(std[2])]
+        normalize = vision.Normalize(
+            mean=mean,
+            std=std,
+        )
+        original_shape = image.shape
+        batch_dims = original_shape[:-3]
+        num_batch = 1
+        for dim in batch_dims:
+            num_batch *= dim
+        image_flat = image.view(num_batch, *original_shape[-3:])  # (N, C, H, W)
+        normalized_images = []
+        for i in range(num_batch):
+            img = image_flat[i]  # (C, H, W)
+            normalized_img = normalize(img.permute(1, 2, 0).asnumpy())
+            normalized_img = ms.tensor(normalized_img).permute(2, 0, 1)
+            normalized_images.append(normalized_img)
+        normalized_flat = mint.stack(normalized_images, dim=0)
+        _, new_C, new_H, new_W = normalized_flat.shape
+        return normalized_flat.view(*batch_dims, new_C, new_H, new_W)
+
     @lru_cache(maxsize=10)
     def _fuse_mean_std_and_rescale_factor(
         self,
@@ -396,7 +503,7 @@ class BaseImageProcessorFast(BaseImageProcessor):
     def center_crop(
         self,
         image: "ms.Tensor",
-        size: dict[str, int],
+        size: SizeDict,
         **kwargs,
     ) -> "ms.Tensor":
         """
@@ -414,8 +521,29 @@ class BaseImageProcessorFast(BaseImageProcessor):
         """
         if size.height is None or size.width is None:
             raise ValueError(f"The size dictionary must have keys 'height' and 'width'. Got {size.keys()}")
+        # TODO mindspore 2.7.0 only supports 2 dimension for `size` param.
+        # So right now `left/right/top/bottom` could not be distingushed
         center_crop = vision.CenterCrop((size.height, size.width))
-        return center_crop(image, (size["height"], size["width"]))
+        original_shape = image.shape
+        batch_dims = original_shape[:-3]
+        num_batch = 1
+        for dim in batch_dims:
+            num_batch *= dim
+        image_flat = image.view(num_batch, *original_shape[-3:])  # (N, C, H, W)
+        cropped_images = []
+        for i in range(num_batch):
+            img = image_flat[i]  # (C, H, W)
+            # image ms.tensor-->numpy-->PIL
+            img_np = img.permute(1, 2, 0).asnumpy()
+            if img_np.max() <= 1.0:
+                img_np = img_np * 255
+            img_np = img_np.clip(0, 255).astype(np.uint8)
+            img_pil = Image.fromarray(img_np)
+            cropped_img = ms.tensor(np.array(center_crop(img_pil))).permute(2, 0, 1)
+            cropped_images.append(cropped_img)
+        cropped_flat = mint.stack(cropped_images, dim=0)
+        _, new_C, new_H, new_W = cropped_flat.shape
+        return cropped_flat.view(*batch_dims, new_C, new_H, new_W)
 
     def convert_to_rgb(
         self,
@@ -461,6 +589,8 @@ class BaseImageProcessorFast(BaseImageProcessor):
         Returns:
             `ImageInput`: The images with a valid nesting.
         """
+        # Checks for `str` in case of URL/local path and optionally loads images
+        images = self.fetch_images(images)
         return make_flat_list_of_images(images, expected_ndims=expected_ndims)
 
     def _process_image(
@@ -541,6 +671,7 @@ class BaseImageProcessorFast(BaseImageProcessor):
         self,
         size: Optional[SizeDict] = None,
         crop_size: Optional[SizeDict] = None,
+        pad_size: Optional[SizeDict] = None,
         default_to_square: Optional[bool] = None,
         image_mean: Optional[Union[float, list[float]]] = None,
         image_std: Optional[Union[float, list[float]]] = None,
@@ -557,6 +688,8 @@ class BaseImageProcessorFast(BaseImageProcessor):
             size = SizeDict(**get_size_dict(size=size, default_to_square=default_to_square))
         if crop_size is not None:
             crop_size = SizeDict(**get_size_dict(crop_size, param_name="crop_size"))
+        if pad_size is not None:
+            pad_size = SizeDict(**get_size_dict(size=pad_size, param_name="pad_size"))
         if isinstance(image_mean, list):
             image_mean = tuple(image_mean)
         if isinstance(image_std, list):
@@ -566,10 +699,21 @@ class BaseImageProcessorFast(BaseImageProcessor):
 
         kwargs["size"] = size
         kwargs["crop_size"] = crop_size
-        kwargs["default_to_square"] = default_to_square
+        kwargs["pad_size"] = pad_size
         kwargs["image_mean"] = image_mean
         kwargs["image_std"] = image_std
         kwargs["data_format"] = data_format
+
+        # torch resize uses interpolation instead of resample
+        # Check if resample is an int before checking if it's an instance of PILImageResampling
+        # because if pillow < 9.1.0, resample is an int and PILImageResampling is a module.
+        # Checking PILImageResampling will fail with error `TypeError: isinstance() arg 2 must be a type or tuple of types`.
+        resample = kwargs.pop("resample")
+        kwargs["interpolation"] = (
+            pil_mindspore_interpolation_mapping[resample]
+            if isinstance(resample, (PILImageResampling, int))
+            else resample
+        )
 
         return kwargs
 
@@ -584,7 +728,7 @@ class BaseImageProcessorFast(BaseImageProcessor):
         size: Optional[SizeDict] = None,
         do_center_crop: Optional[bool] = None,
         crop_size: Optional[SizeDict] = None,
-        resample: Optional[Union["PILImageResampling", "InterpolationMode"]] = None,
+        interpolation: Optional["InterpolationMode"] = None,
         return_tensors: Optional[Union[str, TensorType]] = None,
         data_format: Optional[ChannelDimension] = None,
         **kwargs,
@@ -602,7 +746,7 @@ class BaseImageProcessorFast(BaseImageProcessor):
             size=size,
             do_center_crop=do_center_crop,
             crop_size=crop_size,
-            resample=resample,
+            interpolation=interpolation,
             return_tensors=return_tensors,
             data_format=data_format,
         )
@@ -626,23 +770,7 @@ class BaseImageProcessorFast(BaseImageProcessor):
         # Update kwargs that need further processing before being validated
         kwargs = self._further_process_kwargs(**kwargs)
 
-        # Validate kwargs
-        self._validate_preprocess_kwargs(**kwargs)
-
-        # torch resize uses interpolation instead of resample
-        resample = kwargs.pop("resample")
-
-        # Check if resample is an int before checking if it's an instance of PILImageResampling
-        # because if pillow < 9.1.0, resample is an int and PILImageResampling is a module.
-        # Checking PILImageResampling will fail with error `TypeError: isinstance() arg 2 must be a type or tuple of types`.
-        kwargs["interpolation"] = (
-            pil_mindspore_interpolation_mapping[resample]
-            if isinstance(resample, (int, PILImageResampling))
-            else resample
-        )
-
         # Pop kwargs that are not needed in _preprocess
-        kwargs.pop("default_to_square")
         kwargs.pop("data_format")
 
         return self._preprocess_image_like_inputs(
@@ -659,7 +787,7 @@ class BaseImageProcessorFast(BaseImageProcessor):
     ) -> BatchFeature:
         """
         Preprocess image-like inputs.
-        To be overriden by subclasses when image-like inputs other than images should be processed.
+        To be overridden by subclasses when image-like inputs other than images should be processed.
         It can be used for segmentation maps, depth maps, etc.
         """
         # Prepare input images
@@ -681,6 +809,8 @@ class BaseImageProcessorFast(BaseImageProcessor):
         do_normalize: bool,
         image_mean: Optional[Union[float, list[float]]],
         image_std: Optional[Union[float, list[float]]],
+        do_pad: Optional[bool],
+        pad_size: Optional[SizeDict],
         return_tensors: Optional[Union[str, TensorType]],
         **kwargs,
     ) -> BatchFeature:
@@ -709,8 +839,11 @@ class BaseImageProcessorFast(BaseImageProcessor):
                 stacked_images, do_rescale, rescale_factor, do_normalize, image_mean, image_std
             )
             processed_images_grouped[shape] = stacked_images
-
         processed_images = reorder_images(processed_images_grouped, grouped_images_index)
+
+        if do_pad:
+            processed_images = self.pad(processed_images, pad_size=pad_size)
+
         processed_images = mint.stack(processed_images, dim=0) if return_tensors else processed_images
 
         return BatchFeature(data={"pixel_values": processed_images}, tensor_type=return_tensors)

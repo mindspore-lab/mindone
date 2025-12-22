@@ -1,6 +1,11 @@
+datasets
 diffusers
 einops @ git+https://github.com/hadipash/einops@mindspore
-jsonargparse[signatures,omegaconf,urls]
+gradio
+huggingface_hub
+jsonargparse[signatures,omegaconf,urls]~=4.41.0
+matplotlib
+ml_dtypes
 Pillow
 tqdm
 transformers
