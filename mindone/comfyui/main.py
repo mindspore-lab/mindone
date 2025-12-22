@@ -1,23 +1,34 @@
 # replace api for 310p
-import comfy.options
-import mindspore_patch
-
-comfy.options.enable_args_parsing()
-
+import asyncio
+import gc
 import importlib.util
 import itertools
 import logging
 import os
+import shutil
 import sys
+import threading
 import time
 
+import app.logger
+import comfy.model_management
+import comfy.options
+import comfy.utils
+import comfyui_version
+import execution
 import folder_paths
+import hook_breaker_ac10a0
+import nodes
+import server
 import utils.extra_config
 from app.logger import setup_logger
 from comfy.cli_args import args
 from comfy_api import feature_flags
 from comfy_execution.progress import get_progress_state
 from comfy_execution.utils import get_executing_context
+from protocol import BinaryEventTypes
+
+comfy.options.enable_args_parsing()
 
 if __name__ == "__main__":
     # NOTE: These do not do anything on core ComfyUI, they are for custom nodes.
@@ -112,12 +123,7 @@ def execute_prestartup_script():
 apply_custom_paths()
 execute_prestartup_script()
 
-
 # Main code
-import asyncio
-import gc
-import shutil
-import threading
 
 if os.name == "nt":
     os.environ["MIMALLOC_PURGE_DELAY"] = "0"
@@ -154,19 +160,8 @@ if "torch" in sys.modules:
         "WARNING: Potential Error in code: Torch already imported, torch should never be imported before this point."
     )
 
-import app.logger
-import comfy.model_management
-import comfy.utils
-import comfyui_version
-import execution
-import hook_breaker_ac10a0
-import nodes
-import server
-from protocol import BinaryEventTypes
-
 
 def cuda_malloc_warning():
-    device = comfy.model_management.get_mindspore_device()
     device_name = comfy.model_management.get_mindspore_device_name(None)
     cuda_malloc_warning = False
     if "cudaMallocAsync" in device_name:
@@ -318,7 +313,8 @@ def setup_database():
             init_db()
     except Exception as e:
         logging.error(
-            f"Failed to initialize database. Please ensure you have installed the latest requirements. If the error persists, please report this as in future the database will be required: {e}"
+            f"Failed to initialize database. Please ensure you have installed the latest requirements. "
+            f"If the error persists, please report this as in future the database will be required: {e}"
         )
 
 
@@ -338,7 +334,7 @@ def start_comfyui(asyncio_loop=None):
             import new_updater
 
             new_updater.update_windows_updater()
-        except:
+        except Exception:
             pass
 
     if not asyncio_loop:

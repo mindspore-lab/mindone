@@ -1,28 +1,15 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
 import inspect
 import json
 import logging
-import math
 import os
 import random
 import sys
 import time
 import traceback
-
-import numpy as np
-from PIL import Image, ImageOps, ImageSequence
-from PIL.PngImagePlugin import PngInfo
-
-import mindspore
-from mindspore import mint
-
-from mindone.safetensors.mindspore import load_file
-
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "comfy"))
-
-import importlib
 
 import comfy.diffusers_load
 import comfy.model_management
@@ -33,16 +20,25 @@ import comfy.sd
 import comfy.utils
 import folder_paths
 import latent_preview
-import node_helpers
+import numpy as np
 from comfy.cli_args import args
 
 # import comfy.controlnet
-from comfy.comfy_types import IO, ComfyNodeABC, FileLocator, InputTypeDict
+from comfy.comfy_types import IO, ComfyNodeABC, InputTypeDict
 from comfy_api.internal import ComfyAPIWithVersion, register_versions
 from comfy_api.latest import ComfyExtension, io
 from comfy_api.version_list import supported_versions
+from PIL import Image
+from PIL.PngImagePlugin import PngInfo
+
+import mindspore
+from mindspore import mint
+
+from mindone.safetensors.mindspore import load_file
 
 # import comfy.clip_vision
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "comfy"))
 
 
 def before_node_execution():
@@ -76,7 +72,8 @@ class CLIPTextEncode(ComfyNodeABC):
     def encode(self, clip, text):
         if clip is None:
             raise RuntimeError(
-                "ERROR: clip input is invalid: None\n\nIf the clip is from a checkpoint loader node your checkpoint does not contain a valid clip or text encoder model."
+                "ERROR: clip input is invalid: None\n\nIf the clip is from a checkpoint loader node your checkpoint does not "
+                "contain a valid clip or text encoder model."
             )
         tokens = clip.tokenize(text)
         return (clip.encode_from_tokens_scheduled(tokens),)
@@ -109,7 +106,8 @@ class CLIPTextEncode(ComfyNodeABC):
 #         out = []
 
 #         if len(conditioning_from) > 1:
-#             logging.warning("Warning: ConditioningAverage conditioning_from contains more than 1 cond, only the first one will actually be applied to conditioning_to.")
+#             logging.warning("Warning: ConditioningAverage conditioning_from contains more than 1 cond,
+#             only the first one will actually be applied to conditioning_to.")
 
 #         cond_from = conditioning_from[0][0]
 #         pooled_output_from = conditioning_from[0][1].get("pooled_output", None)
@@ -124,7 +122,8 @@ class CLIPTextEncode(ComfyNodeABC):
 #             tw = torch.mul(t1, conditioning_to_strength) + torch.mul(t0, (1.0 - conditioning_to_strength))
 #             t_to = conditioning_to[i][1].copy()
 #             if pooled_output_from is not None and pooled_output_to is not None:
-#                 t_to["pooled_output"] = torch.mul(pooled_output_to, conditioning_to_strength) + torch.mul(pooled_output_from, (1.0 - conditioning_to_strength))
+#                 t_to["pooled_output"] = torch.mul(pooled_output_to, conditioning_to_strength) +
+#                 torch.mul(pooled_output_from, (1.0 - conditioning_to_strength))
 #             elif pooled_output_from is not None:
 #                 t_to["pooled_output"] = pooled_output_from
 
@@ -148,7 +147,8 @@ class CLIPTextEncode(ComfyNodeABC):
 #         out = []
 
 #         if len(conditioning_from) > 1:
-#             logging.warning("Warning: ConditioningConcat conditioning_from contains more than 1 cond, only the first one will actually be applied to conditioning_to.")
+#             logging.warning("Warning: ConditioningConcat conditioning_from contains more than 1 cond,
+#             only the first one will actually be applied to conditioning_to.")
 
 #         cond_from = conditioning_from[0][0]
 
@@ -314,8 +314,10 @@ class VAEDecode:
 #         return {"required": {"samples": ("LATENT", ), "vae": ("VAE", ),
 #                              "tile_size": ("INT", {"default": 512, "min": 64, "max": 4096, "step": 32}),
 #                              "overlap": ("INT", {"default": 64, "min": 0, "max": 4096, "step": 32}),
-#                              "temporal_size": ("INT", {"default": 64, "min": 8, "max": 4096, "step": 4, "tooltip": "Only used for video VAEs: Amount of frames to decode at a time."}),
-#                              "temporal_overlap": ("INT", {"default": 8, "min": 4, "max": 4096, "step": 4, "tooltip": "Only used for video VAEs: Amount of frames to overlap."}),
+#                              "temporal_size": ("INT", {"default": 64, "min": 8, "max": 4096, "step": 4,
+#                              "tooltip": "Only used for video VAEs: Amount of frames to decode at a time."}),
+#                              "temporal_overlap": ("INT", {"default": 8, "min": 4, "max": 4096, "step": 4,
+#                              "tooltip": "Only used for video VAEs: Amount of frames to overlap."}),
 #                             }}
 #     RETURN_TYPES = ("IMAGE",)
 #     FUNCTION = "decode"
@@ -336,7 +338,8 @@ class VAEDecode:
 #             temporal_overlap = None
 
 #         compression = vae.spacial_compression_decode()
-#         images = vae.decode_tiled(samples["samples"], tile_x=tile_size // compression, tile_y=tile_size // compression, overlap=overlap // compression, tile_t=temporal_size, overlap_t=temporal_overlap)
+#         images = vae.decode_tiled(samples["samples"], tile_x=tile_size // compression,
+#         tile_y=tile_size // compression, overlap=overlap // compression, tile_t=temporal_size, overlap_t=temporal_overlap)
 #         if len(images.shape) == 5: #Combine batches
 #             images = images.reshape(-1, images.shape[-3], images.shape[-2], images.shape[-1])
 #         return (images, )
@@ -360,8 +363,10 @@ class VAEDecode:
 #         return {"required": {"pixels": ("IMAGE", ), "vae": ("VAE", ),
 #                              "tile_size": ("INT", {"default": 512, "min": 64, "max": 4096, "step": 64}),
 #                              "overlap": ("INT", {"default": 64, "min": 0, "max": 4096, "step": 32}),
-#                              "temporal_size": ("INT", {"default": 64, "min": 8, "max": 4096, "step": 4, "tooltip": "Only used for video VAEs: Amount of frames to encode at a time."}),
-#                              "temporal_overlap": ("INT", {"default": 8, "min": 4, "max": 4096, "step": 4, "tooltip": "Only used for video VAEs: Amount of frames to overlap."}),
+#                              "temporal_size": ("INT", {"default": 64, "min": 8, "max": 4096, "step": 4,
+#                              "tooltip": "Only used for video VAEs: Amount of frames to encode at a time."}),
+#                              "temporal_overlap": ("INT", {"default": 8, "min": 4, "max": 4096, "step": 4,
+#                              "tooltip": "Only used for video VAEs: Amount of frames to overlap."}),
 #                             }}
 #     RETURN_TYPES = ("LATENT",)
 #     FUNCTION = "encode"
@@ -375,7 +380,8 @@ class VAEDecode:
 # class VAEEncodeForInpaint:
 #     @classmethod
 #     def INPUT_TYPES(s):
-#         return {"required": { "pixels": ("IMAGE", ), "vae": ("VAE", ), "mask": ("MASK", ), "grow_mask_by": ("INT", {"default": 6, "min": 0, "max": 64, "step": 1}),}}
+#         return {"required": { "pixels": ("IMAGE", ), "vae": ("VAE", ), "mask": ("MASK", ),
+#         "grow_mask_by": ("INT", {"default": 6, "min": 0, "max": 64, "step": 1}),}}
 #     RETURN_TYPES = ("LATENT",)
 #     FUNCTION = "encode"
 
@@ -384,7 +390,8 @@ class VAEDecode:
 #     def encode(self, vae, pixels, mask, grow_mask_by=6):
 #         x = (pixels.shape[1] // vae.downscale_ratio) * vae.downscale_ratio
 #         y = (pixels.shape[2] // vae.downscale_ratio) * vae.downscale_ratio
-#         mask = torch.nn.functional.interpolate(mask.reshape((-1, 1, mask.shape[-2], mask.shape[-1])), size=(pixels.shape[1], pixels.shape[2]), mode="bilinear")
+#         mask = torch.nn.functional.interpolate(mask.reshape((-1, 1, mask.shape[-2], mask.shape[-1])),
+#         size=(pixels.shape[1], pixels.shape[2]), mode="bilinear")
 
 #         pixels = pixels.clone()
 #         if pixels.shape[1] != x or pixels.shape[2] != y:
@@ -420,7 +427,9 @@ class VAEDecode:
 #                              "vae": ("VAE", ),
 #                              "pixels": ("IMAGE", ),
 #                              "mask": ("MASK", ),
-#                              "noise_mask": ("BOOLEAN", {"default": True, "tooltip": "Add a noise mask to the latent so sampling will only happen within the mask. Might improve results or completely break things depending on the model."}),
+#                              "noise_mask": ("BOOLEAN", {"default": True, "tooltip":
+#                              "Add a noise mask to the latent so sampling will only happen within the mask.
+#                              Might improve results or completely break things depending on the model."}),
 #                              }}
 
 #     RETURN_TYPES = ("CONDITIONING","CONDITIONING","LATENT")
@@ -432,7 +441,8 @@ class VAEDecode:
 #     def encode(self, positive, negative, pixels, vae, mask, noise_mask=True):
 #         x = (pixels.shape[1] // 8) * 8
 #         y = (pixels.shape[2] // 8) * 8
-#         mask = torch.nn.functional.interpolate(mask.reshape((-1, 1, mask.shape[-2], mask.shape[-1])), size=(pixels.shape[1], pixels.shape[2]), mode="bilinear")
+#         mask = torch.nn.functional.interpolate(mask.reshape((-1, 1, mask.shape[-2], mask.shape[-1])),
+#         size=(pixels.shape[1], pixels.shape[2]), mode="bilinear")
 
 #         orig_pixels = pixels
 #         pixels = orig_pixels.clone()
@@ -573,14 +583,16 @@ class LoadLatent:
 #     def load_checkpoint(self, config_name, ckpt_name):
 #         config_path = folder_paths.get_full_path("configs", config_name)
 #         ckpt_path = folder_paths.get_full_path_or_raise("checkpoints", ckpt_name)
-#         return comfy.sd.load_checkpoint(config_path, ckpt_path, output_vae=True, output_clip=True, embedding_directory=folder_paths.get_folder_paths("embeddings"))
+#         return comfy.sd.load_checkpoint(config_path, ckpt_path, output_vae=True,
+#         output_clip=True, embedding_directory=folder_paths.get_folder_paths("embeddings"))
 
 # class CheckpointLoaderSimple:
 #     @classmethod
 #     def INPUT_TYPES(s):
 #         return {
 #             "required": {
-#                 "ckpt_name": (folder_paths.get_filename_list("checkpoints"), {"tooltip": "The name of the checkpoint (model) to load."}),
+#                 "ckpt_name": (folder_paths.get_filename_list("checkpoints"),
+#                 {"tooltip": "The name of the checkpoint (model) to load."}),
 #             }
 #         }
 #     RETURN_TYPES = ("MODEL", "CLIP", "VAE")
@@ -594,7 +606,8 @@ class LoadLatent:
 
 #     def load_checkpoint(self, ckpt_name):
 #         ckpt_path = folder_paths.get_full_path_or_raise("checkpoints", ckpt_name)
-#         out = comfy.sd.load_checkpoint_guess_config(ckpt_path, output_vae=True, output_clip=True, embedding_directory=folder_paths.get_folder_paths("embeddings"))
+#         out = comfy.sd.load_checkpoint_guess_config(ckpt_path, output_vae=True, output_clip=True,
+#                                                     embedding_directory=folder_paths.get_folder_paths("embeddings"))
 #         return out[:3]
 
 # class DiffusersLoader:
@@ -621,7 +634,8 @@ class LoadLatent:
 #                     model_path = path
 #                     break
 
-#         return comfy.diffusers_load.load_diffusers(model_path, output_vae=output_vae, output_clip=output_clip, embedding_directory=folder_paths.get_folder_paths("embeddings"))
+#         return comfy.diffusers_load.load_diffusers(model_path, output_vae=output_vae,
+#         output_clip=output_clip, embedding_directory=folder_paths.get_folder_paths("embeddings"))
 
 
 # class unCLIPCheckpointLoader:
@@ -636,7 +650,8 @@ class LoadLatent:
 
 #     def load_checkpoint(self, ckpt_name, output_vae=True, output_clip=True):
 #         ckpt_path = folder_paths.get_full_path_or_raise("checkpoints", ckpt_name)
-#         out = comfy.sd.load_checkpoint_guess_config(ckpt_path, output_vae=True, output_clip=True, output_clipvision=True, embedding_directory=folder_paths.get_folder_paths("embeddings"))
+#         out = comfy.sd.load_checkpoint_guess_config(ckpt_path, output_vae=True,
+#         output_clip=True, output_clipvision=True, embedding_directory=folder_paths.get_folder_paths("embeddings"))
 #         return out
 
 # class CLIPSetLastLayer:
@@ -666,8 +681,10 @@ class LoadLatent:
 #                 "model": ("MODEL", {"tooltip": "The diffusion model the LoRA will be applied to."}),
 #                 "clip": ("CLIP", {"tooltip": "The CLIP model the LoRA will be applied to."}),
 #                 "lora_name": (folder_paths.get_filename_list("loras"), {"tooltip": "The name of the LoRA."}),
-#                 "strength_model": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01, "tooltip": "How strongly to modify the diffusion model. This value can be negative."}),
-#                 "strength_clip": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01, "tooltip": "How strongly to modify the CLIP model. This value can be negative."}),
+#                 "strength_model": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0,
+#                 "step": 0.01, "tooltip": "How strongly to modify the diffusion model. This value can be negative."}),
+#                 "strength_clip": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0,
+#                 "step": 0.01, "tooltip": "How strongly to modify the CLIP model. This value can be negative."}),
 #             }
 #         }
 
@@ -676,7 +693,8 @@ class LoadLatent:
 #     FUNCTION = "load_lora"
 
 #     CATEGORY = "loaders"
-#     DESCRIPTION = "LoRAs are used to modify diffusion and CLIP models, altering the way in which latents are denoised such as applying styles. Multiple LoRA nodes can be linked together."
+#     DESCRIPTION = "LoRAs are used to modify diffusion and CLIP models, altering the way in which latents are denoised " \
+#                   "such as applying styles. Multiple LoRA nodes can be linked together."
 
 #     def load_lora(self, model, clip, lora_name, strength_model, strength_clip):
 #         if strength_model == 0 and strength_clip == 0:
@@ -993,7 +1011,11 @@ class CLIPLoader:
 
     CATEGORY = "advanced/loaders"
 
-    DESCRIPTION = "[Recipes]\n\nstable_diffusion: clip-l\nstable_cascade: clip-g\nsd3: t5 xxl/ clip-g / clip-l\nstable_audio: t5 base\nmochi: t5 xxl\ncosmos: old t5 xxl\nlumina2: gemma 2 2B\nwan: umt5 xxl\n hidream: llama-3.1 (Recommend) or t5\nomnigen2: qwen vl 2.5 3B"
+    DESCRIPTION = (
+        "[Recipes]\n\nstable_diffusion: clip-l\nstable_cascade: clip-g\nsd3: t5 xxl/ clip-g / clip-l\nstable_audio: "
+        "t5 base\nmochi: t5 xxl\ncosmos: old t5 xxl\nlumina2: gemma 2 2B\nwan: umt5 xxl\n hidream: llama-3.1 (Recommend) "
+        "or t5\nomnigen2: qwen vl 2.5 3B"
+    )
 
     def load_clip(self, clip_name, type="stable_diffusion", device="default"):
         clip_type = getattr(comfy.sd.CLIPType, type.upper(), comfy.sd.CLIPType.STABLE_DIFFUSION)
@@ -1033,7 +1055,10 @@ class DualCLIPLoader:
 
     CATEGORY = "advanced/loaders"
 
-    DESCRIPTION = "[Recipes]\n\nsdxl: clip-l, clip-g\nsd3: clip-l, clip-g / clip-l, t5 / clip-g, t5\nflux: clip-l, t5\nhidream: at least one of t5 or llama, recommended t5 and llama\nhunyuan_image: qwen2.5vl 7b and byt5 small"
+    DESCRIPTION = (
+        "[Recipes]\n\nsdxl: clip-l, clip-g\nsd3: clip-l, clip-g / clip-l, t5 / clip-g, t5\nflux: clip-l, "
+        "t5\nhidream: at least one of t5 or llama, recommended t5 and llama\nhunyuan_image: qwen2.5vl 7b and byt5 small"
+    )
 
     def load_clip(self, clip_name1, clip_name2, type, device="default"):
         clip_type = getattr(comfy.sd.CLIPType, type.upper(), comfy.sd.CLIPType.STABLE_DIFFUSION)
@@ -1182,7 +1207,8 @@ class DualCLIPLoader:
 #         if strength == 0:
 #             return (conditioning, )
 
-#         c = node_helpers.conditioning_set_values(conditioning, {"unclip_conditioning": [{"clip_vision_output": clip_vision_output, "strength": strength, "noise_augmentation": noise_augmentation}]}, append=True)
+#         c = node_helpers.conditioning_set_values(conditioning, {"unclip_conditioning":
+#         [{"clip_vision_output": clip_vision_output, "strength": strength, "noise_augmentation": noise_augmentation}]}, append=True)
 #         return (c, )
 
 # class GLIGENLoader:
@@ -1457,7 +1483,8 @@ class EmptyLatentImage:
 #         samples_to = samples_to["samples"]
 #         samples_from = samples_from["samples"]
 #         if feather == 0:
-#             s[:,:,y:y+samples_from.shape[2],x:x+samples_from.shape[3]] = samples_from[:,:,:samples_to.shape[2] - y, :samples_to.shape[3] - x]
+#             s[:,:,y:y+samples_from.shape[2],x:x+samples_from.shape[3]] = \
+#                 samples_from[:,:,:samples_to.shape[2] - y, :samples_to.shape[3] - x]
 #         else:
 #             samples_from = samples_from[:,:,:samples_to.shape[2] - y, :samples_to.shape[3] - x]
 #             mask = torch.ones_like(samples_from)
@@ -1472,7 +1499,9 @@ class EmptyLatentImage:
 #                 if x + samples_from.shape[3] < samples_to.shape[3]:
 #                     mask[:,:,:,mask.shape[3]- 1 - t: mask.shape[3]- t] *= ((1.0/feather) * (t + 1))
 #             rev_mask = torch.ones_like(mask) - mask
-#             s[:,:,y:y+samples_from.shape[2],x:x+samples_from.shape[3]] = samples_from[:,:,:samples_to.shape[2] - y, :samples_to.shape[3] - x] * mask + s[:,:,y:y+samples_from.shape[2],x:x+samples_from.shape[3]] * rev_mask
+#             s[:,:,y:y+samples_from.shape[2],x:x+samples_from.shape[3]] = \
+#                 samples_from[:,:,:samples_to.shape[2] - y, :samples_to.shape[3] - x] * mask + \
+#                 s[:,:,y:y+samples_from.shape[2],x:x+samples_from.shape[3]] * rev_mask
 #         samples_out["samples"] = s
 #         return (samples_out,)
 
@@ -1656,13 +1685,15 @@ class KSampler:
                         "max": 100.0,
                         "step": 0.1,
                         "round": 0.01,
-                        "tooltip": "The Classifier-Free Guidance scale balances creativity and adherence to the prompt. Higher values result in images more closely matching the prompt however too high values will negatively impact quality.",
+                        "tooltip": "The Classifier-Free Guidance scale balances creativity and adherence to the prompt. "
+                        "Higher values result in images more closely matching the prompt however too high values will negatively impact quality.",
                     },
                 ),
                 "sampler_name": (
                     comfy.samplers.KSampler.SAMPLERS,
                     {
-                        "tooltip": "The algorithm used when sampling, this can affect the quality, speed, and style of the generated output."
+                        "tooltip": "The algorithm used when sampling, this can affect the quality, "
+                        "speed, and style of the generated output."
                     },
                 ),
                 "scheduler": (
@@ -1685,7 +1716,8 @@ class KSampler:
                         "min": 0.0,
                         "max": 1.0,
                         "step": 0.01,
-                        "tooltip": "The amount of denoising applied, lower values will maintain the structure of the initial image allowing for image to image sampling.",
+                        "tooltip": "The amount of denoising applied, lower values will maintain the structure of "
+                        "the initial image allowing for image to image sampling.",
                     },
                 ),
             }
@@ -1729,14 +1761,17 @@ class KSampler:
 
 #     CATEGORY = "sampling"
 
-#     def sample(self, model, add_noise, noise_seed, steps, cfg, sampler_name, scheduler, positive, negative, latent_image, start_at_step, end_at_step, return_with_leftover_noise, denoise=1.0):
+# def sample(self, model, add_noise, noise_seed, steps, cfg, sampler_name, scheduler, positive,
+#            negative, latent_image, start_at_step, end_at_step, return_with_leftover_noise, denoise=1.0):
 #         force_full_denoise = True
 #         if return_with_leftover_noise == "enable":
 #             force_full_denoise = False
 #         disable_noise = False
 #         if add_noise == "disable":
 #             disable_noise = True
-#         return common_ksampler(model, noise_seed, steps, cfg, sampler_name, scheduler, positive, negative, latent_image, denoise=denoise, disable_noise=disable_noise, start_step=start_at_step, last_step=end_at_step, force_full_denoise=force_full_denoise)
+#         return common_ksampler(model, noise_seed, steps, cfg, sampler_name, scheduler, positive, negative, latent_image,
+#                                denoise=denoise, disable_noise=disable_noise, start_step=start_at_step, last_step=end_at_step,
+#                                force_full_denoise=force_full_denoise)
 
 
 class SaveImage:
@@ -1755,7 +1790,8 @@ class SaveImage:
                     "STRING",
                     {
                         "default": "ComfyUI",
-                        "tooltip": "The prefix for the file to save. This may include formatting information such as %date:yyyy-MM-dd% or %Empty Latent Image.width% to include values from nodes.",
+                        "tooltip": "The prefix for the file to save. This may include formatting information "
+                        "such as %date:yyyy-MM-dd% or %Empty Latent Image.width% to include values from nodes.",
                     },
                 ),
             },
@@ -1957,7 +1993,8 @@ class PreviewImage(SaveImage):
 #             }
 #         }
 
-#     DESCRIPTION = "Load an image from the output folder. When the refresh button is clicked, the node will update the image list and automatically select the first image, allowing for easy iteration."
+#     DESCRIPTION = "Load an image from the output folder. When the refresh button is clicked, the node will update the image list " \
+#                   "and automatically select the first image, allowing for easy iteration."
 #     EXPERIMENTAL = True
 #     FUNCTION = "load_image"
 
