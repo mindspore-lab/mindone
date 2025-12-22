@@ -218,7 +218,6 @@ class BaseVideoProcessor(BaseImageProcessorFast):
             alpha = video[..., 3, :, :] / 255.0
             video = (1 - alpha[..., None, :, :]) * 255 + alpha[..., None, :, :] * video[..., :3, :, :]
             return video
-
         return video
 
     def sample_frames(
