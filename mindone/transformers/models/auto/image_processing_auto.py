@@ -57,6 +57,7 @@ else:
             ("clip", ("CLIPImageProcessor",)),
             ("convnext", ("ConvNextImageProcessor",)),
             ("convnextv2", ("ConvNextImageProcessor",)),
+            ("colqwen2", ("Qwen2VLImageProcessor",)),
             ("cvt", ("ConvNextImageProcessor",)),
             ("depth_anything", ("DPTImageProcessor",)),
             ("depth_pro", ("DepthProImageProcessor",)),
