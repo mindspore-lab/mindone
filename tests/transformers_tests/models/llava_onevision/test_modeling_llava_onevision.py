@@ -164,6 +164,8 @@ def test_named_modules(
         pt_dtype, ms_dtype, *inputs_args, **inputs_kwargs
     )
 
+    ms_inputs_kwargs["use_cache"] = False
+
     with torch.no_grad():
         pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
     ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
