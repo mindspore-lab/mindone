@@ -20,6 +20,7 @@ from packaging import version
 from . import (
     albert,
     apertus,
+    arcee,
     aria,
     audio_spectrogram_transformer,
     auto,
@@ -133,6 +134,7 @@ from . import (
     levit,
     lilt,
     llama,
+    llama4,
     llava,
     llava_next,
     llava_next_video,
