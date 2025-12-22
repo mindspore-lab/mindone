@@ -48,12 +48,14 @@ else:
             ("internvl", "InternVLVideoProcessor"),
             ("llava_next_video", "LlavaNextVideoVideoProcessor"),
             ("qwen2_5_vl", "Qwen2VLVideoProcessor"),
+            ("qwen2_vl", "Qwen2VLVideoProcessor"),
         ]
     )
 
 if version.parse(transformers.__version__) >= version.parse("4.57.0"):
     VIDEO_PROCESSOR_MAPPING_NAMES.update(
         [
+            ("qwen3_omni_moe", "Qwen2VLVideoProcessor"),
             ("qwen3_vl", "Qwen3VLVideoProcessor"),
             ("qwen3_vl_moe", "Qwen3VLVideoProcessor"),
         ]

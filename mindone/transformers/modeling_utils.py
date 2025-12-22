@@ -24,6 +24,7 @@ import os
 import re
 import sys
 import warnings
+from abc import abstractmethod
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 from enum import Enum
@@ -4030,3 +4031,26 @@ ALL_ATTENTION_FUNCTIONS: AttentionInterface = AttentionInterface()
 
 # for BC
 MSPreTrainedModel = PreTrainedModel
+
+
+class PreTrainedAudioTokenizerBase(PreTrainedModel):
+    """
+    Class that additionally defines the behavior of any `audio_tokenizer` to be added.
+    Characteristic for any of them:
+        1. Encode raw audio into discrete audio codebooks (with x channels)
+        2. Decode from discrete audio codebooks back to raw audio
+    It is possible that they can decode in different ways given a different representation
+    but they are forced to support 2. nonetheless, e.g. see `DAC`.
+    """
+
+    @abstractmethod
+    def encode(self, input_values: ms.Tensor, *args, **kwargs):
+        """
+        Encode raw audio retrieved from a respective `FeatureExtractor` into discrete audio codebooks (with x channels)
+        """
+        pass
+
+    @abstractmethod
+    def decode(self, audio_codes: ms.Tensor, *args, **kwargs):
+        """Decode from discrete audio codebooks back to raw audio"""
+        pass
