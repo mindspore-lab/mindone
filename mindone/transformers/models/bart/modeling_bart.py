@@ -1180,7 +1180,6 @@ class BartModel(BartPreTrainedModel):
     def get_encoder(self):
         return self.encoder
 
-    # TODO figure out why "auto_docstring" here could not parse correctly
     def construct(
         self,
         input_ids: ms.Tensor = None,
