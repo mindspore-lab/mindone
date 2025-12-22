@@ -18,7 +18,7 @@
 Sequence feature extraction class for common feature extractors to preprocess sequences.
 """
 
-from typing import Dict, List, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 from transformers.utils import logging
@@ -56,10 +56,10 @@ class SequenceFeatureExtractor(FeatureExtractionMixin):
         self,
         processed_features: Union[
             BatchFeature,
-            List[BatchFeature],
-            Dict[str, BatchFeature],
-            Dict[str, List[BatchFeature]],
-            List[Dict[str, BatchFeature]],
+            list[BatchFeature],
+            dict[str, BatchFeature],
+            dict[str, list[BatchFeature]],
+            list[dict[str, BatchFeature]],
         ],
         padding: Union[bool, str, PaddingStrategy] = True,
         max_length: Optional[int] = None,
@@ -84,11 +84,10 @@ class SequenceFeatureExtractor(FeatureExtractionMixin):
         </Tip>
 
         Args:
-            processed_features ([`BatchFeature`], list of [`BatchFeature`], `Dict[str, List[float]]`,
-                `Dict[str, List[List[float]]` or `List[Dict[str, List[float]]]`):
-                Processed inputs. Can represent one input ([`BatchFeature`] or `Dict[str, List[float]]`) or a batch of
-                input values / vectors (list of [`BatchFeature`], *Dict[str, List[List[float]]]* or *List[Dict[str,
-                List[float]]]*) so you can use this method during preprocessing as well as in a MindSpore Dataloader
+            processed_features ([`BatchFeature`], list of [`BatchFeature`], `dict[str, list[float]]`, `dict[str, list[list[float]]` or `list[dict[str, list[float]]]`): # noqa E501
+                Processed inputs. Can represent one input ([`BatchFeature`] or `dict[str, list[float]]`) or a batch of
+                input values / vectors (list of [`BatchFeature`], *dict[str, list[list[float]]]* or *list[dict[str,
+                list[float]]]*) so you can use this method during preprocessing as well as in a MindSpore Dataloader
                 collate function.
 
                 Instead of `List[float]` you can have tensors (numpy arrays, MindSpore tensors or TensorFlow tensors),
@@ -128,7 +127,7 @@ class SequenceFeatureExtractor(FeatureExtractionMixin):
         # We do this to allow using this method as a collate_fn function in MindSpore Dataloader
         if isinstance(processed_features, (list, tuple)) and isinstance(processed_features[0], (dict, BatchFeature)):
             processed_features = {
-                key: [example[key] for example in processed_features] for key in processed_features[0].keys()
+                key: [example[key] for example in processed_features] for key in processed_features[0]
             }
 
         # The model's main input name, usually `input_values`, has be passed for padding
@@ -227,7 +226,7 @@ class SequenceFeatureExtractor(FeatureExtractionMixin):
 
     def _pad(
         self,
-        processed_features: Union[Dict[str, np.ndarray], BatchFeature],
+        processed_features: Union[dict[str, np.ndarray], BatchFeature],
         max_length: Optional[int] = None,
         padding_strategy: PaddingStrategy = PaddingStrategy.DO_NOT_PAD,
         pad_to_multiple_of: Optional[int] = None,
@@ -237,9 +236,9 @@ class SequenceFeatureExtractor(FeatureExtractionMixin):
         Pad inputs (on left/right and up to predefined length or max length in the batch)
 
         Args:
-            processed_features (`Union[Dict[str, np.ndarray], BatchFeature]`):
-                Dictionary of input values (`np.ndarray[float]`) / input vectors (`List[np.ndarray[float]]`) or batch
-                of inputs values (`List[np.ndarray[int]]`) / input vectors (`List[np.ndarray[int]]`)
+            processed_features (`Union[dict[str, np.ndarray], BatchFeature]`):
+                Dictionary of input values (`np.ndarray[float]`) / input vectors (`list[np.ndarray[float]]`) or batch
+                of inputs values (`list[np.ndarray[int]]`) / input vectors (`list[np.ndarray[int]]`)
             max_length (`int`, *optional*):
                 Maximum length of the returned list and optionally padding length (see below)
             padding_strategy (`PaddingStrategy`, *optional*, default to `PaddingStrategy.DO_NOT_PAD`):
@@ -295,7 +294,7 @@ class SequenceFeatureExtractor(FeatureExtractionMixin):
 
     def _truncate(
         self,
-        processed_features: Union[Dict[str, np.ndarray], BatchFeature],
+        processed_features: Union[dict[str, np.ndarray], BatchFeature],
         max_length: Optional[int] = None,
         pad_to_multiple_of: Optional[int] = None,
         truncation: Optional[bool] = None,
@@ -304,9 +303,9 @@ class SequenceFeatureExtractor(FeatureExtractionMixin):
         Truncate inputs to predefined length or max length in the batch
 
         Args:
-            processed_features(`Union[Dict[str, np.ndarray], BatchFeature]`):
-                Dictionary of input values (`np.ndarray[float]`) / input vectors (`List[np.ndarray[float]]`) or batch
-                of inputs values (`List[np.ndarray[int]]`) / input vectors (`List[np.ndarray[int]]`)
+            processed_features(`Union[dict[str, np.ndarray], BatchFeature]`):
+                Dictionary of input values (`np.ndarray[float]`) / input vectors (`list[np.ndarray[float]]`) or batch
+                of inputs values (`list[np.ndarray[int]]`) / input vectors (`list[np.ndarray[int]]`)
             max_length (`int`, *optional*):
                 maximum length of the returned list and optionally padding length (see below)
             pad_to_multiple_of (`int`, *optional*) :

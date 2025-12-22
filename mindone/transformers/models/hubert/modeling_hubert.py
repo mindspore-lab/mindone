@@ -915,7 +915,7 @@ class HubertModel(HubertPreTrainedModel):
         mask_time_indices: Optional[mindspore.tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = None,
     ) -> Union[Tuple, BaseModelOutput]:
         """
 

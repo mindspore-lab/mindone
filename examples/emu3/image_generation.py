@@ -7,7 +7,7 @@ from PIL import Image
 from transformers.generation.configuration_utils import GenerationConfig
 
 import mindspore as ms
-from mindspore import Tensor, nn, ops
+from mindspore import Tensor, mint, ops
 
 from mindone.transformers.generation.logits_process import (
     LogitsProcessorList,
@@ -44,7 +44,7 @@ image_tokenizer = Emu3VisionVQModel.from_pretrained(VQ_HUB, use_safetensors=True
     False
 )
 image_tokenizer = auto_mixed_precision(
-    image_tokenizer, amp_level="O2", dtype=VQ_DTYPE, custom_fp32_cells=[nn.BatchNorm3d]
+    image_tokenizer, amp_level="O2", dtype=VQ_DTYPE, custom_fp32_cells=[mint.nn.BatchNorm3d]
 )
 processor = Emu3Processor(image_processor, image_tokenizer, tokenizer)
 
