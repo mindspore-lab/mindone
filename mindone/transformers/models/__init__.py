@@ -69,6 +69,8 @@ from . import (
     diffllama,
     dinov2,
     dinov2_with_registers,
+    dinov3_convnext,
+    dinov3_vit,
     distilbert,
     doge,
     dpr,
