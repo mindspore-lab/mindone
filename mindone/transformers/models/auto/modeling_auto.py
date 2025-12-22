@@ -42,7 +42,6 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("aria_text", "AriaTextModel"),
         ("audio-spectrogram-transformer", "ASTModel"),
         ("bamba", "BambaModel"),
-        ("mm-grounding-dino", "MMGroundingDinoModel"),
         ("bart", "BartModel"),
         ("beit", "BeitModel"),
         ("bert", "BertModel"),

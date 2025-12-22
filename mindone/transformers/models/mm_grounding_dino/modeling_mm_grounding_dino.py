@@ -18,27 +18,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import mindspore as ms
-from mindspore import ops
-from mindspore import mint, nn
-from ...utils.mindspore_utils import dtype_to_min, dtype_to_max
 import math
 import warnings
 from dataclasses import dataclass
 from typing import Optional, Union
 
-import mint.nn.functional as F
-from mindspore import Tensor, nn
+from transformers import MMGroundingDinoConfig
+from transformers.file_utils import ModelOutput, is_timm_available, requires_backends
+
+import mindspore as ms
+from mindspore import Tensor, mint, ops
+from mindspore.common.initializer import Constant, Normal, Uniform, XavierUniform, initializer
+
+from mindone.diffusers.utils.mindspore_utils import dtype_to_max, dtype_to_min
 
 from ...activations import ACT2FN
-from ...file_utils import ModelOutput, is_timm_available, requires_backends
-from ...integrations import use_kernel_forward_from_hub
-from ...modeling_utils import PreTrainedModel
 from ...mindspore_utils import meshgrid
+from ...modeling_utils import PreTrainedModel
 from ...utils.backbone_utils import load_backbone
 from ..auto.modeling_auto import AutoModel
-from .configuration_mm_grounding_dino import MMGroundingDinoConfig
-
 
 if is_timm_available():
     from timm import create_model
@@ -68,7 +66,6 @@ class MMGroundingDinoContrastiveEmbedding(ms.nn.Cell):
         return new_res
 
 
-@use_kernel_forward_from_hub("MultiScaleDeformableAttention")
 class MultiScaleDeformableAttention(ms.nn.Cell):
     def construct(
         self,
@@ -137,8 +134,12 @@ class MMGroundingDinoLearnedPositionEmbedding(ms.nn.Cell):
 
     def construct(self, pixel_values, pixel_mask=None):
         height, width = pixel_values.shape[-2:]
-        width_values = mint.arange(width, )
-        height_values = mint.arange(height, )
+        width_values = mint.arange(
+            width,
+        )
+        height_values = mint.arange(
+            height,
+        )
         x_emb = self.column_embeddings(width_values)
         y_emb = self.row_embeddings(height_values)
         pos = mint.cat([x_emb.unsqueeze(0).repeat(height, 1, 1), y_emb.unsqueeze(1).repeat(1, width, 1)], dim=-1)
@@ -371,13 +372,13 @@ class MMGroundingDinoBiMultiHeadAttention(ms.nn.Cell):
             )
             text_attn_weights = ops.masked_fill(text_attn_weights, vision_attention_mask, float("-inf"))
 
-        text_attn_weights = text_attn_weights.softmax(dim=-1)
+        text_attn_weights = text_attn_weights.softmax(axis=-1)
 
         # mask language for vision
         if text_attention_mask is not None:
             text_attention_mask = text_attention_mask[:, None, None, :].repeat(1, self.num_heads, 1, 1).flatten(0, 1)
             attn_weights = ops.masked_fill(attn_weights, text_attention_mask, float("-inf"))
-        vision_attn_weights = attn_weights.softmax(dim=-1)
+        vision_attn_weights = attn_weights.softmax(axis=-1)
 
         vision_attn_probs = mint.nn.functional.dropout(vision_attn_weights, p=self.dropout, training=self.training)
         text_attn_probs = mint.nn.functional.dropout(text_attn_weights, p=self.dropout, training=self.training)
@@ -423,7 +424,10 @@ def drop_path(input: ms.Tensor, drop_prob: float = 0.0, training: bool = False) 
         return input
     keep_prob = 1 - drop_prob
     shape = (input.shape[0],) + (1,) * (input.ndim - 1)  # work with diff dim tensors, not just 2D ConvNets
-    random_tensor = keep_prob + mint.rand(shape, dtype=input.dtype, )
+    random_tensor = keep_prob + mint.rand(
+        shape,
+        dtype=input.dtype,
+    )
     random_tensor.floor_()  # binarize
     output = input.div(keep_prob) * random_tensor
     return output
@@ -515,14 +519,18 @@ class MMGroundingDinoPreTrainedModel(PreTrainedModel):
         std = self.config.init_std
 
         if isinstance(module, MMGroundingDinoLearnedPositionEmbedding):
-            module.row_embeddings.weight.set_data(ms.common.initializer.initializer(ms.common.initializer.Uniform(), module.row_embeddings.weight.shape, module.row_embeddings.weight.dtype))
-            module.column_embeddings.weight.set_data(ms.common.initializer.initializer(ms.common.initializer.Uniform(), module.column_embeddings.weight.shape, module.column_embeddings.weight.dtype))
-        elif isinstance(module, MMGroundingDinoMultiscaleDeformableAttention):
-            module.sampling_offsets.weight.set_data(ms.common.initializer.initializer(ms.common.initializer.Constant(0.0), module.sampling_offsets.weight.shape, module.sampling_offsets.weight.dtype))
-            default_dtype = ms.get_dtype()
-            thetas = mint.arange(module.n_heads, dtype=ms.int64).to(default_dtype) * (
-                2.0 * math.pi / module.n_heads
+            module.row_embeddings.weight.set_data(
+                initializer(Uniform(), module.row_embeddings.weight.shape, module.row_embeddings.weight.dtype)
             )
+            module.column_embeddings.weight.set_data(
+                initializer(Uniform(), module.column_embeddings.weight.shape, module.column_embeddings.weight.dtype)
+            )
+        elif isinstance(module, MMGroundingDinoMultiscaleDeformableAttention):
+            module.sampling_offsets.weight.set_data(
+                initializer(Constant(0.0), module.sampling_offsets.weight.shape, module.sampling_offsets.weight.dtype)
+            )
+            default_dtype = ms.get_dtype()
+            thetas = mint.arange(module.n_heads, dtype=ms.int64).to(default_dtype) * (2.0 * math.pi / module.n_heads)
             grid_init = mint.stack([thetas.cos(), thetas.sin()], -1)
             grid_init = (
                 (grid_init / grid_init.abs().max(-1, keepdim=True)[0])
@@ -532,52 +540,104 @@ class MMGroundingDinoPreTrainedModel(PreTrainedModel):
             for i in range(module.n_points):
                 grid_init[:, :, i, :] *= i + 1
             module.sampling_offsets.bias.set_data(grid_init.view(-1))
-            module.attention_weights.weight.set_data(ms.common.initializer.initializer(ms.common.initializer.Constant(0.0), module.attention_weights.weight.shape, module.attention_weights.weight.dtype))
-            module.attention_weights.bias.set_data(ms.common.initializer.initializer(ms.common.initializer.Constant(0.0), module.attention_weights.bias.shape, module.attention_weights.bias.dtype))
-            module.value_proj.weight.set_data(ms.common.initializer.initializer(ms.common.initializer.XavierUniform(), module.value_proj.weight.shape, module.value_proj.weight.dtype))
-            module.value_proj.bias.set_data(ms.common.initializer.initializer(ms.common.initializer.Constant(0.0), module.value_proj.bias.shape, module.value_proj.bias.dtype))
-            module.output_proj.weight.set_data(ms.common.initializer.initializer(ms.common.initializer.XavierUniform(), module.output_proj.weight.shape, module.output_proj.weight.dtype))
-            module.output_proj.bias.set_data(ms.common.initializer.initializer(ms.common.initializer.Constant(0.0), module.output_proj.bias.shape, module.output_proj.bias.dtype))
+            module.attention_weights.weight.set_data(
+                initializer(Constant(0.0), module.attention_weights.weight.shape, module.attention_weights.weight.dtype)
+            )
+            module.attention_weights.bias.set_data(
+                initializer(Constant(0.0), module.attention_weights.bias.shape, module.attention_weights.bias.dtype)
+            )
+            module.value_proj.weight.set_data(
+                initializer(XavierUniform(), module.value_proj.weight.shape, module.value_proj.weight.dtype)
+            )
+            module.value_proj.bias.set_data(
+                initializer(Constant(0.0), module.value_proj.bias.shape, module.value_proj.bias.dtype)
+            )
+            module.output_proj.weight.set_data(
+                initializer(XavierUniform(), module.output_proj.weight.shape, module.output_proj.weight.dtype)
+            )
+            module.output_proj.bias.set_data(
+                initializer(Constant(0.0), module.output_proj.bias.shape, module.output_proj.bias.dtype)
+            )
         elif isinstance(module, MMGroundingDinoBiMultiHeadAttention):
-            module.vision_proj.weight.set_data(ms.common.initializer.initializer(ms.common.initializer.XavierUniform(), module.vision_proj.weight.shape, module.vision_proj.weight.dtype))
-            module.vision_proj.bias.set_data(ms.common.initializer.initializer(ms.common.initializer.Constant(0.0), module.vision_proj.bias.shape, module.vision_proj.bias.dtype))
-            module.text_proj.weight.set_data(ms.common.initializer.initializer(ms.common.initializer.XavierUniform(), module.text_proj.weight.shape, module.text_proj.weight.dtype))
-            module.text_proj.bias.set_data(ms.common.initializer.initializer(ms.common.initializer.Constant(0.0), module.text_proj.bias.shape, module.text_proj.bias.dtype))
-            module.values_vision_proj.weight.set_data(ms.common.initializer.initializer(ms.common.initializer.XavierUniform(), module.values_vision_proj.weight.shape, module.values_vision_proj.weight.dtype))
-            module.values_vision_proj.bias.set_data(ms.common.initializer.initializer(ms.common.initializer.Constant(0.0), module.values_vision_proj.bias.shape, module.values_vision_proj.bias.dtype))
-            module.values_text_proj.weight.set_data(ms.common.initializer.initializer(ms.common.initializer.XavierUniform(), module.values_text_proj.weight.shape, module.values_text_proj.weight.dtype))
-            module.values_text_proj.bias.set_data(ms.common.initializer.initializer(ms.common.initializer.Constant(0.0), module.values_text_proj.bias.shape, module.values_text_proj.bias.dtype))
-            module.out_vision_proj.weight.set_data(ms.common.initializer.initializer(ms.common.initializer.XavierUniform(), module.out_vision_proj.weight.shape, module.out_vision_proj.weight.dtype))
-            module.out_vision_proj.bias.set_data(ms.common.initializer.initializer(ms.common.initializer.Constant(0.0), module.out_vision_proj.bias.shape, module.out_vision_proj.bias.dtype))
-            module.out_text_proj.weight.set_data(ms.common.initializer.initializer(ms.common.initializer.XavierUniform(), module.out_text_proj.weight.shape, module.out_text_proj.weight.dtype))
-            module.out_text_proj.bias.set_data(ms.common.initializer.initializer(ms.common.initializer.Constant(0.0), module.out_text_proj.bias.shape, module.out_text_proj.bias.dtype))
+            module.vision_proj.weight.set_data(
+                initializer(XavierUniform(), module.vision_proj.weight.shape, module.vision_proj.weight.dtype)
+            )
+            module.vision_proj.bias.set_data(
+                initializer(Constant(0.0), module.vision_proj.bias.shape, module.vision_proj.bias.dtype)
+            )
+            module.text_proj.weight.set_data(
+                initializer(XavierUniform(), module.text_proj.weight.shape, module.text_proj.weight.dtype)
+            )
+            module.text_proj.bias.set_data(
+                initializer(Constant(0.0), module.text_proj.bias.shape, module.text_proj.bias.dtype)
+            )
+            module.values_vision_proj.weight.set_data(
+                initializer(
+                    XavierUniform(), module.values_vision_proj.weight.shape, module.values_vision_proj.weight.dtype
+                )
+            )
+            module.values_vision_proj.bias.set_data(
+                initializer(Constant(0.0), module.values_vision_proj.bias.shape, module.values_vision_proj.bias.dtype)
+            )
+            module.values_text_proj.weight.set_data(
+                initializer(XavierUniform(), module.values_text_proj.weight.shape, module.values_text_proj.weight.dtype)
+            )
+            module.values_text_proj.bias.set_data(
+                initializer(Constant(0.0), module.values_text_proj.bias.shape, module.values_text_proj.bias.dtype)
+            )
+            module.out_vision_proj.weight.set_data(
+                initializer(XavierUniform(), module.out_vision_proj.weight.shape, module.out_vision_proj.weight.dtype)
+            )
+            module.out_vision_proj.bias.set_data(
+                initializer(Constant(0.0), module.out_vision_proj.bias.shape, module.out_vision_proj.bias.dtype)
+            )
+            module.out_text_proj.weight.set_data(
+                initializer(XavierUniform(), module.out_text_proj.weight.shape, module.out_text_proj.weight.dtype)
+            )
+            module.out_text_proj.bias.set_data(
+                initializer(Constant(0.0), module.out_text_proj.bias.shape, module.out_text_proj.bias.dtype)
+            )
         elif isinstance(module, MMGroundingDinoFusionLayer):
-            module.vision_param.set_data(ms.common.initializer.initializer(ms.common.initializer.Constant(1e-4), module.vision_param.shape, module.vision_param.dtype))
-            module.text_param.set_data(ms.common.initializer.initializer(ms.common.initializer.Constant(1e-4), module.text_param.shape, module.text_param.dtype))
+            module.vision_param.set_data(
+                initializer(Constant(1e-4), module.vision_param.shape, module.vision_param.dtype)
+            )
+            module.text_param.set_data(initializer(Constant(1e-4), module.text_param.shape, module.text_param.dtype))
         elif isinstance(module, (mint.nn.Linear, mint.nn.Conv2d, mint.nn.BatchNorm2d)):
             # Slightly different from the TF version which uses truncated_normal for initialization
             # cf https://github.com/pytorch/pytorch/pull/5617
-            module.weight.set_data(ms.common.initializer.initializer(ms.common.initializer.Normal(std), module.weight.shape, module.weight.dtype))
+            module.weight.set_data(initializer(Normal(std), module.weight.shape, module.weight.dtype))
             if module.bias is not None:
-                module.bias.set_data(ms.common.initializer.initializer(ms.common.initializer.Constant(0.0), module.bias.shape, module.bias.dtype))
+                module.bias.set_data(initializer(Constant(0.0), module.bias.shape, module.bias.dtype))
         elif isinstance(module, (mint.nn.LayerNorm, mint.nn.GroupNorm)):
-            module.weight.set_data(ms.common.initializer.initializer(ms.common.initializer.Constant(1.0), module.weight.shape, module.weight.dtype))
-            module.bias.set_data(ms.common.initializer.initializer(ms.common.initializer.Constant(0.0), module.bias.shape, module.bias.dtype))
+            module.weight.set_data(initializer(Constant(1.0), module.weight.shape, module.weight.dtype))
+            module.bias.set_data(initializer(Constant(0.0), module.bias.shape, module.bias.dtype))
         elif isinstance(module, mint.nn.Embedding):
-            module.weight.set_data(ms.common.initializer.initializer(ms.common.initializer.Normal(std), module.weight.shape, module.weight.dtype))
+            module.weight.set_data(initializer(Normal(std), module.weight.shape, module.weight.dtype))
             if module.padding_idx is not None:
-                module.weight.set_data(mint.index_fill(module.weight, 0, ms.Tensor([module.padding_idx]), ms.Tensor([0.0])))
+                module.weight.set_data(
+                    mint.index_fill(module.weight, 0, ms.Tensor([module.padding_idx]), ms.Tensor([0.0]))
+                )
         elif isinstance(module, MMGroundingDinoMLPPredictionHead):
-            module.layers[-1].weight.set_data(ms.common.initializer.initializer(ms.common.initializer.Constant(0.0), module.layers[-1].weight.shape, module.layers[-1].weight.dtype))
-            module.layers[-1].bias.set_data(ms.common.initializer.initializer(ms.common.initializer.Constant(0.0), module.layers[-1].bias.shape, module.layers[-1].bias.dtype))
+            module.layers[-1].weight.set_data(
+                initializer(Constant(0.0), module.layers[-1].weight.shape, module.layers[-1].weight.dtype)
+            )
+            module.layers[-1].bias.set_data(
+                initializer(Constant(0.0), module.layers[-1].bias.shape, module.layers[-1].bias.dtype)
+            )
 
         if hasattr(module, "reference_points") and not self.config.two_stage:
-            module.reference_points.weight.set_data(ms.common.initializer.initializer(ms.common.initializer.XavierUniform(), module.reference_points.weight.shape, module.reference_points.weight.dtype))
-            module.reference_points.bias.set_data(ms.common.initializer.initializer(ms.common.initializer.Constant(0.0), module.reference_points.bias.shape, module.reference_points.bias.dtype))
+            module.reference_points.weight.set_data(
+                initializer(XavierUniform(), module.reference_points.weight.shape, module.reference_points.weight.dtype)
+            )
+            module.reference_points.bias.set_data(
+                initializer(Constant(0.0), module.reference_points.bias.shape, module.reference_points.bias.dtype)
+            )
         if hasattr(module, "level_embed"):
-            module.level_embed.set_data(ms.common.initializer.initializer(ms.common.initializer.Normal(), module.level_embed.shape, module.level_embed.dtype))
+            module.level_embed.set_data(initializer(Normal(), module.level_embed.shape, module.level_embed.dtype))
         if isinstance(module, MMGroundingDinoContrastiveEmbedding):
-            module.bias.set_data(ms.common.initializer.initializer(ms.common.initializer.Constant(-math.log((1 - 0.01) / 0.01)), module.bias.shape, module.bias.dtype))
+            module.bias.set_data(
+                initializer(Constant(-math.log((1 - 0.01) / 0.01)), module.bias.shape, module.bias.dtype)
+            )
 
     def _set_gradient_checkpointing(self, module, value=False):
         if isinstance(module, MMGroundingDinoDecoder):
@@ -631,19 +691,19 @@ def replace_batch_norm(model):
         model (mindspore.nn.Cell):
             input model
     """
-    for name, module in model.named_children():
+    for name, module in model.name_cells().items():
         if isinstance(module, mint.nn.BatchNorm2d):
             new_module = MMGroundingDinoFrozenBatchNorm2d(module.num_features)
 
-            if str(module.weight.device) != "meta":
-                new_module.weight.set_data(module.weight)
-                new_module.bias.set_data(module.bias)
-                new_module.running_mean.set_data(module.running_mean)
-                new_module.running_var.set_data(module.running_var)
+            new_module.weight.set_data(module.weight)
+            new_module.bias.set_data(module.bias)
+            new_module.running_mean.set_data(module.running_mean)
+            new_module.running_var.set_data(module.running_var)
 
-            model._modules[name] = new_module
+            # model._modules[name] = new_module
+            setattr(module, name, new_module)
 
-        if len(list(module.children())) > 0:
+        if len(list(module.name_cells())) > 0:
             replace_batch_norm(module)
 
 
@@ -785,9 +845,7 @@ class MMGroundingDinoMultiheadAttention(ms.nn.Cell):
     ) -> tuple[ms.Tensor]:
         batch_size, seq_length, _ = queries.shape
         query_layer = (
-            self.query(queries)
-            .view(batch_size, -1, self.num_attention_heads, self.attention_head_size)
-            .transpose(1, 2)
+            self.query(queries).view(batch_size, -1, self.num_attention_heads, self.attention_head_size).transpose(1, 2)
         )
         key_layer = (
             self.key(keys).view(batch_size, -1, self.num_attention_heads, self.attention_head_size).transpose(1, 2)
@@ -1010,7 +1068,10 @@ def get_sine_pos_embed(
         position_embeddings (ms.Tensor): shape: [..., n * hidden_size].
     """
     scale = 2 * math.pi
-    dim_t = mint.arange(num_pos_feats, dtype=ms.float32, )
+    dim_t = mint.arange(
+        num_pos_feats,
+        dtype=ms.float32,
+    )
     dim_t = temperature ** (2 * mint.div(dim_t, 2, rounding_mode="floor") / num_pos_feats)
 
     def sine_func(x: ms.Tensor):
@@ -1044,7 +1105,9 @@ class MMGroundingDinoEncoderLayer(ms.nn.Cell):
     ) -> Tensor:
         batch_size, seq_length, _ = text_features.shape
         if text_position_embedding is None and text_position_ids is None:
-            text_position_embedding = mint.arange(seq_length, )
+            text_position_embedding = mint.arange(
+                seq_length,
+            )
             text_position_embedding = text_position_embedding.float()
             text_position_embedding = text_position_embedding.unsqueeze(0).unsqueeze(-1)
             text_position_embedding = text_position_embedding.repeat(batch_size, 1, 1)
@@ -1075,7 +1138,7 @@ class MMGroundingDinoEncoderLayer(ms.nn.Cell):
     ):
         text_position_embedding = self.get_text_position_embeddings(
             text_features, text_position_embedding, text_position_ids
-        )
+        ).to(text_features.dtype)
 
         (vision_features, vision_fused_attn), (text_features, text_fused_attn) = self.fusion_layer(
             vision_features=vision_features,
@@ -1127,7 +1190,7 @@ class MMGroundingDinoEncoder(MMGroundingDinoPreTrainedModel):
         self.post_init()
 
     @staticmethod
-    def get_reference_points(spatial_shapes, valid_ratios, device):
+    def get_reference_points(spatial_shapes, valid_ratios):
         """
         Get reference points for each feature map.
 
@@ -1144,8 +1207,18 @@ class MMGroundingDinoEncoder(MMGroundingDinoPreTrainedModel):
         reference_points_list = []
         for level, (height, width) in enumerate(spatial_shapes):
             ref_y, ref_x = meshgrid(
-                mint.linspace(0.5, height - 0.5, height, dtype=ms.float32, ),
-                mint.linspace(0.5, width - 0.5, width, dtype=ms.float32, ),
+                mint.linspace(
+                    0.5,
+                    height - 0.5,
+                    height,
+                    dtype=ms.float32,
+                ),
+                mint.linspace(
+                    0.5,
+                    width - 0.5,
+                    width,
+                    dtype=ms.float32,
+                ),
                 indexing="ij",
             )
             # TODO: valid_ratios could be useless here. check https://github.com/fundamentalvision/Deformable-DETR/issues/36
@@ -1224,7 +1297,10 @@ class MMGroundingDinoEncoder(MMGroundingDinoPreTrainedModel):
         )
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        reference_points = self.get_reference_points(spatial_shapes, valid_ratios, )
+        reference_points = self.get_reference_points(
+            spatial_shapes,
+            valid_ratios,
+        )
 
         encoder_vision_states = () if output_hidden_states else None
         encoder_text_states = () if output_hidden_states else None
@@ -1528,7 +1604,7 @@ class MMGroundingDinoDecoder(MMGroundingDinoPreTrainedModel):
                 1, self.config.decoder_attention_heads, self.config.num_queries, 1
             )
             text_encoder_attention_mask = text_encoder_attention_mask.to(dtype=dtype)
-            text_encoder_attention_mask = text_encoder_attention_mask * ms.dtype_to_nptype(dtype).min
+            text_encoder_attention_mask = text_encoder_attention_mask * dtype_to_min(dtype)
 
         for idx, decoder_layer in enumerate(self.layers):
             num_coordinates = reference_points.shape[-1]
@@ -1599,13 +1675,15 @@ class MMGroundingDinoDecoder(MMGroundingDinoPreTrainedModel):
                     new_reference_points = new_reference_points.sigmoid()
                 elif num_coordinates == 2:
                     new_reference_points = tmp
-                    new_reference_points[..., :2] = tmp[..., :2] + ops.log(reference_points / (1 - reference_points + 1e-5))
+                    new_reference_points[..., :2] = tmp[..., :2] + ops.log(
+                        reference_points / (1 - reference_points + 1e-5)
+                    )
                     new_reference_points = new_reference_points.sigmoid()
                 else:
                     raise ValueError(
                         f"Last dim of reference_points must be 2 or 4, but got {reference_points.shape[-1]}"
                     )
-                reference_points = new_reference_points.detach()
+                reference_points = new_reference_points
 
             intermediate += (self.layer_norm(hidden_states),)
             intermediate_reference_points += (reference_points,)
@@ -1667,29 +1745,36 @@ class MMGroundingDinoModelOutput(ModelOutput):
         Sequence of hidden-states at the output of the last layer of the encoder of the model.
     encoder_last_hidden_state_text (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
         Sequence of hidden-states at the output of the last layer of the encoder of the model.
-    encoder_vision_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+    encoder_vision_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed
+    or when `config.output_hidden_states=True`):
         Tuple of `ms.Tensor` (one for the output of the vision embeddings + one for the output of each
         layer) of shape `(batch_size, sequence_length, hidden_size)`. Hidden-states of the vision encoder at the
         output of each layer plus the initial embedding outputs.
-    encoder_text_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+    encoder_text_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or
+    when `config.output_hidden_states=True`):
         Tuple of `ms.Tensor` (one for the output of the text embeddings + one for the output of each layer)
         of shape `(batch_size, sequence_length, hidden_size)`. Hidden-states of the text encoder at the output of
         each layer plus the initial embedding outputs.
-    encoder_attentions (`tuple(tuple(ms.Tensor))`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+    encoder_attentions (`tuple(tuple(ms.Tensor))`, *optional*, returned when `output_attentions=True` is passed or when
+    `config.output_attentions=True`):
         Tuple of tuples of `ms.Tensor` (one for attention for each layer) of shape `(batch_size, num_heads,
         sequence_length, sequence_length)`. Attentions weights after the attention softmax, used to compute the
         weighted average in the text-vision attention, vision-text attention, text-enhancer (self-attention) and
         multi-scale deformable attention heads. attention softmax, used to compute the weighted average in the
         bi-attention heads.
-    enc_outputs_class (`ms.Tensor` of shape `(batch_size, sequence_length, config.num_labels)`, *optional*, returned when `config.two_stage=True`):
+    enc_outputs_class (`ms.Tensor` of shape `(batch_size, sequence_length, config.num_labels)`, *optional*, returned
+    when `config.two_stage=True`):
         Predicted bounding boxes scores where the top `config.num_queries` scoring bounding boxes are picked as
         region proposals in the first stage. Output of bounding box binary classification (i.e. foreground and
         background).
-    enc_outputs_coord_logits (`ms.Tensor` of shape `(batch_size, sequence_length, 4)`, *optional*, returned when `config.two_stage=True`):
+    enc_outputs_coord_logits (`ms.Tensor` of shape `(batch_size, sequence_length, 4)`, *optional*, returned when
+    `config.two_stage=True`):
         Logits of predicted bounding boxes coordinates in the first stage.
-    encoder_logits (`ms.Tensor` of shape `(batch_size, sequence_length, config.num_labels)`, *optional*, returned when `config.two_stage=True`):
+    encoder_logits (`ms.Tensor` of shape `(batch_size, sequence_length, config.num_labels)`, *optional*, returned when
+    `config.two_stage=True`):
         Logits of top `config.num_queries` scoring bounding boxes in the first stage.
-    encoder_pred_boxes (`ms.Tensor` of shape `(batch_size, sequence_length, 4)`, *optional*, returned when `config.two_stage=True`):
+    encoder_pred_boxes (`ms.Tensor` of shape `(batch_size, sequence_length, 4)`, *optional*, returned when
+    `config.two_stage=True`):
         Coordinates of top `config.num_queries` scoring bounding boxes in the first stage.
     """
 
@@ -1729,7 +1814,10 @@ class MMGroundingDinoSinePositionEmbedding(ms.nn.Cell):
         y_embed = y_embed / (y_embed[:, -1:, :] + eps) * self.scale
         x_embed = x_embed / (x_embed[:, :, -1:] + eps) * self.scale
 
-        dim_t = mint.arange(self.embedding_dim, dtype=ms.float32, )
+        dim_t = mint.arange(
+            self.embedding_dim,
+            dtype=ms.float32,
+        )
         dim_t = self.temperature ** (2 * mint.div(dim_t, 2, rounding_mode="floor") / self.embedding_dim)
 
         pos_x = x_embed[:, :, :, None] / dim_t
@@ -1767,7 +1855,9 @@ def generate_masks_with_special_tokens_and_transfer_map(input_ids: ms.Tensor) ->
     """
     batch_size, num_token = input_ids.shape
     # special_tokens_mask: batch_size, num_token. 1 for special tokens. 0 for normal tokens
-    special_tokens_mask = mint.zeros((batch_size, num_token), ).bool()
+    special_tokens_mask = mint.zeros(
+        (batch_size, num_token),
+    ).bool()
     for special_token in SPECIAL_TOKENS:
         special_tokens_mask = mint.logical_or(special_tokens_mask, input_ids == special_token)
 
@@ -1775,18 +1865,31 @@ def generate_masks_with_special_tokens_and_transfer_map(input_ids: ms.Tensor) ->
     idxs = mint.nonzero(special_tokens_mask)
 
     # generate attention mask and positional ids
-    attention_mask = mint.eye(num_token, ).bool().unsqueeze(0).repeat(batch_size, 1, 1)
-    position_ids = mint.zeros((batch_size, num_token), )
+    attention_mask = (
+        mint.eye(
+            num_token,
+        )
+        .bool()
+        .unsqueeze(0)
+        .repeat(batch_size, 1, 1)
+    )
+    position_ids = mint.zeros(
+        (batch_size, num_token),
+    )
     previous_col = 0
     for i in range(idxs.shape[0]):
         row, col = idxs[i]
+        row = int(row)
+        col = int(col)
         if (col == 0) or (col == num_token - 1):
             attention_mask[row, col, col] = True
             position_ids[row, col] = 0
         else:
             attention_mask[row, previous_col + 1 : col + 1, previous_col + 1 : col + 1] = True
             position_ids[row, previous_col + 1 : col + 1] = mint.arange(
-                0, col - previous_col, )
+                0,
+                col - previous_col,
+            )
 
         previous_col = col
 
@@ -1833,7 +1936,9 @@ class MMGroundingDinoModel(MMGroundingDinoPreTrainedModel):
         self.encoder = MMGroundingDinoEncoder(config)
         self.decoder = MMGroundingDinoDecoder(config)
 
-        self.level_embed = ms.Parameter(ms.Tensor(config.num_feature_levels, config.d_model))
+        self.level_embed = ms.Parameter(
+            ms.Tensor(shape=(config.num_feature_levels, config.d_model), dtype=MMGroundingDinoConvEncoder.dtype)
+        )
 
         self.enc_output = mint.nn.Linear(config.d_model, config.d_model)
         self.enc_output_norm = mint.nn.LayerNorm(config.d_model, config.layer_norm_eps)
@@ -1882,20 +1987,32 @@ class MMGroundingDinoModel(MMGroundingDinoPreTrainedModel):
         proposals = []
         current_position = 0
         for level, (height, width) in enumerate(spatial_shapes):
+            height = int(height)
+            width = int(width)
             mask_flatten_ = padding_mask[:, current_position : (current_position + height * width)]
             mask_flatten_ = mask_flatten_.view(batch_size, height, width, 1)
             valid_height = mint.sum(~mask_flatten_[:, :, 0, 0], 1)
             valid_width = mint.sum(~mask_flatten_[:, 0, :, 0], 1)
 
             grid_y, grid_x = meshgrid(
-                mint.linspace(0, height - 1, height, dtype=ms.float32, ),
-                mint.linspace(0, width - 1, width, dtype=ms.float32, ),
+                mint.linspace(
+                    0,
+                    height - 1,
+                    height,
+                    dtype=ms.float32,
+                ),
+                mint.linspace(
+                    0,
+                    width - 1,
+                    width,
+                    dtype=ms.float32,
+                ),
                 indexing="ij",
             )
             grid = mint.cat([grid_x.unsqueeze(-1), grid_y.unsqueeze(-1)], -1)
 
             scale = mint.cat([valid_width.unsqueeze(-1), valid_height.unsqueeze(-1)], 1).view(batch_size, 1, 1, 2)
-            grid = (grid.unsqueeze(0).expand(batch_size, -1, -1, -1) + 0.5) / scale
+            grid = (grid.unsqueeze(0).expand([batch_size, -1, -1, -1]) + 0.5) / scale
             width_height = mint.ones_like(grid) * 0.05 * (2.0**level)
             proposal = mint.cat((grid, width_height), -1).view(batch_size, -1, 4)
             proposals.append(proposal)
@@ -1991,10 +2108,12 @@ class MMGroundingDinoModel(MMGroundingDinoPreTrainedModel):
         text_features = self.text_projection(text_features)
 
         batch_size, num_channels, height, width = pixel_values.shape
-        device = pixel_values.device
 
         if pixel_mask is None:
-            pixel_mask = mint.ones(((batch_size, height, width)), dtype=ms.int64, )
+            pixel_mask = mint.ones(
+                ((batch_size, height, width)),
+                dtype=ms.int64,
+            )
 
         # Extract multi-scale feature maps of same resolution `config.d_model` (cf Figure 4 in paper)
         # First, sent pixel_values + pixel_mask through Backbone to obtain the features
@@ -2106,19 +2225,15 @@ class MMGroundingDinoModel(MMGroundingDinoPreTrainedModel):
             topk = self.config.num_queries
             topk_logits = enc_outputs_class.max(-1)[0]
             topk_proposals = mint.topk(topk_logits, topk, dim=1)[1]
-            topk_coords_logits = mint.gather(
-                enc_outputs_coord_logits, 1, topk_proposals.unsqueeze(-1).repeat(1, 1, 4)
-            )
+            topk_coords_logits = mint.gather(enc_outputs_coord_logits, 1, topk_proposals.unsqueeze(-1).repeat(1, 1, 4))
 
-            topk_coords_logits = topk_coords_logits.detach()
+            # topk_coords_logits = topk_coords_logits.detach()
             reference_points = topk_coords_logits.sigmoid()
             init_reference_points = reference_points
             if query_embeds is not None:
                 target = query_embeds.unsqueeze(0).repeat(batch_size, 1, 1)
             else:
-                target = mint.gather(
-                    object_query_embedding, 1, topk_proposals.unsqueeze(-1).repeat(1, 1, self.d_model)
-                ).detach()
+                target = mint.gather(object_query_embedding, 1, topk_proposals.unsqueeze(-1).repeat(1, 1, self.d_model))
 
             # Set intermediate topk proposals (coords and class) for loss computation
             encoder_pred_boxes = reference_points
@@ -2194,7 +2309,7 @@ class MMGroundingDinoMLPPredictionHead(ms.nn.Cell):
         super().__init__()
         self.num_layers = num_layers
         h = [hidden_dim] * (num_layers - 1)
-        self.layers = ms.nn.CellList(mint.nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
+        self.layers = ms.nn.CellList([mint.nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim])])
 
     def construct(self, x):
         for i, layer in enumerate(self.layers):
@@ -2234,23 +2349,29 @@ class MMGroundingDinoObjectDetectionOutput(ModelOutput):
         Sequence of hidden-states at the output of the last layer of the encoder of the model.
     encoder_last_hidden_state_text (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
         Sequence of hidden-states at the output of the last layer of the encoder of the model.
-    encoder_vision_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+    encoder_vision_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed
+    or when `config.output_hidden_states=True`):
         Tuple of `ms.Tensor` (one for the output of the vision embeddings + one for the output of each
         layer) of shape `(batch_size, sequence_length, hidden_size)`. Hidden-states of the vision encoder at the
         output of each layer plus the initial embedding outputs.
-    encoder_text_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+    encoder_text_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or
+    when `config.output_hidden_states=True`):
         Tuple of `ms.Tensor` (one for the output of the text embeddings + one for the output of each layer)
         of shape `(batch_size, sequence_length, hidden_size)`. Hidden-states of the text encoder at the output of
         each layer plus the initial embedding outputs.
-    enc_outputs_class (`ms.Tensor` of shape `(batch_size, sequence_length, config.num_labels)`, *optional*, returned when `config.two_stage=True`):
+    enc_outputs_class (`ms.Tensor` of shape `(batch_size, sequence_length, config.num_labels)`, *optional*, returned
+    when `config.two_stage=True`):
         Predicted bounding boxes scores where the top `config.num_queries` scoring bounding boxes are picked as
         region proposals in the first stage. Output of bounding box binary classification (i.e. foreground and
         background).
-    enc_outputs_coord_logits (`ms.Tensor` of shape `(batch_size, sequence_length, 4)`, *optional*, returned when `config.two_stage=True`):
+    enc_outputs_coord_logits (`ms.Tensor` of shape `(batch_size, sequence_length, 4)`, *optional*, returned when
+    `config.two_stage=True`):
         Logits of predicted bounding boxes coordinates in the first stage.
-    encoder_logits (`ms.Tensor` of shape `(batch_size, sequence_length, config.num_labels)`, *optional*, returned when `config.two_stage=True`):
+    encoder_logits (`ms.Tensor` of shape `(batch_size, sequence_length, config.num_labels)`, *optional*, returned when
+    `config.two_stage=True`):
         Logits of top `config.num_queries` scoring bounding boxes in the first stage.
-    encoder_pred_boxes (`ms.Tensor` of shape `(batch_size, sequence_length, 4)`, *optional*, returned when `config.two_stage=True`):
+    encoder_pred_boxes (`ms.Tensor` of shape `(batch_size, sequence_length, 4)`, *optional*, returned when
+    `config.two_stage=True`):
         Coordinates of top `config.num_queries` scoring bounding boxes in the first stage.
     input_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
         Encoded candidate labels sequence. Used in processor to post process object detection result.
@@ -2307,7 +2428,9 @@ def build_label_maps(logits: ms.Tensor, input_ids: ms.Tensor) -> tuple[ms.Tensor
     """
     max_seq_len = logits.shape[-1]
     # Add [PAD] token to the list of special tokens
-    delimiter_tokens = ms.Tensor(SPECIAL_TOKENS + [0], )
+    delimiter_tokens = ms.Tensor(
+        SPECIAL_TOKENS + [0],
+    )
 
     # MindSpore equivalent of torch.isin
     delimiter_token_masks = ops.isin(input_ids, delimiter_tokens)

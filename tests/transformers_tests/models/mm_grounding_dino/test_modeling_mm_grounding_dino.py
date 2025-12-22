@@ -201,7 +201,7 @@ MOBILEBERT_CASES = [
         (config,),
         {},
         (),
-        {inputs_dict},
+        {**inputs_dict},
         {
             "last_hidden_state": 0,
         },

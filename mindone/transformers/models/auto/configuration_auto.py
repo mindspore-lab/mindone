@@ -354,6 +354,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
     [
         # Add full (and cased) model names here
         ("aimv2", "AIMv2"),
+        ("mm-grounding-dino", "MM Grounding DINO"),
         ("albert", "ALBERT"),
         ("align", "ALIGN"),
         ("altclip", "AltCLIP"),
