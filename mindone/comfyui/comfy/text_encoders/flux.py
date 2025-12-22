@@ -7,7 +7,6 @@ from comfy import sd1_clip
 from transformers import T5TokenizerFast
 
 import mindspore
-from mindspore import mint
 
 
 class T5XXLTokenizer(sd1_clip.SDTokenizer):
