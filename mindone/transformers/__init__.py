@@ -691,6 +691,13 @@ from .models.gptj import (
     GPTJPreTrainedModel,
 )
 from .models.granite import GraniteForCausalLM, GraniteModel, GranitePreTrainedModel
+from .models.granite_speech import (
+    GraniteSpeechCTCEncoder,
+    GraniteSpeechFeatureExtractor,
+    GraniteSpeechForConditionalGeneration,
+    GraniteSpeechPreTrainedModel,
+    GraniteSpeechProcessor,
+)
 from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
 from .models.granitemoeshared import GraniteMoeSharedForCausalLM, GraniteMoeSharedModel, GraniteMoeSharedPreTrainedModel
 from .models.grounding_dino import (

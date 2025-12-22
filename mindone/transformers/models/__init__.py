@@ -114,6 +114,7 @@ from . import (
     gpt_neox_japanese,
     gptj,
     granite,
+    granite_speech,
     granitemoe,
     granitemoeshared,
     groupvit,
