@@ -16,6 +16,7 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
+from .feature_extraction_whisper import WhisperFeatureExtractor
 from .modeling_whisper import (
     WhisperForAudioClassification,
     WhisperForCausalLM,

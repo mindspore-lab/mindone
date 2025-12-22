@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 from ..utils import _LazyModule
 
 _import_structure = {
+    "_modeling_parallel": ["ContextParallelConfig", "ParallelConfig"],
     "adapter": ["MultiAdapter", "T2IAdapter"],
     "auto_model": ["AutoModel"],
     "autoencoders.autoencoder_asym_kl": ["AsymmetricAutoencoderKL"],
@@ -70,6 +71,7 @@ _import_structure = {
     "transformers.t5_film_transformer": ["T5FilmDecoder"],
     "transformers.transformer_2d": ["Transformer2DModel"],
     "transformers.transformer_allegro": ["AllegroTransformer3DModel"],
+    "transformers.transformer_bria": ["BriaTransformer2DModel"],
     "transformers.transformer_chroma": ["ChromaTransformer2DModel"],
     "transformers.transformer_cogview3plus": ["CogView3PlusTransformer2DModel"],
     "transformers.transformer_cogview4": ["CogView4Transformer2DModel"],
@@ -79,6 +81,7 @@ _import_structure = {
     "transformers.transformer_hidream_image": ["HiDreamImageTransformer2DModel"],
     "transformers.transformer_hunyuan_video": ["HunyuanVideoTransformer3DModel"],
     "transformers.transformer_hunyuan_video_framepack": ["HunyuanVideoFramepackTransformer3DModel"],
+    "transformers.transformer_kandinsky": ["Kandinsky5Transformer3DModel"],
     "transformers.transformer_ltx": ["LTXVideoTransformer3DModel"],
     "transformers.transformer_lumina2": ["Lumina2Transformer2DModel"],
     "transformers.transformer_mochi": ["MochiTransformer3DModel"],
@@ -102,6 +105,7 @@ _import_structure = {
 }
 
 if TYPE_CHECKING:
+    from ._modeling_parallel import ContextParallelConfig, ParallelConfig
     from .adapter import MultiAdapter, T2IAdapter
     from .auto_model import AutoModel
     from .autoencoders import (
@@ -145,6 +149,7 @@ if TYPE_CHECKING:
     from .transformers import (
         AllegroTransformer3DModel,
         AuraFlowTransformer2DModel,
+        BriaTransformer2DModel,
         ChromaTransformer2DModel,
         CogVideoXTransformer3DModel,
         CogView3PlusTransformer2DModel,
@@ -159,6 +164,7 @@ if TYPE_CHECKING:
         HunyuanDiT2DModel,
         HunyuanVideoFramepackTransformer3DModel,
         HunyuanVideoTransformer3DModel,
+        Kandinsky5Transformer3DModel,
         LatteTransformer3DModel,
         LTXVideoTransformer3DModel,
         Lumina2Transformer2DModel,

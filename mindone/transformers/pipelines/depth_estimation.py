@@ -1,6 +1,6 @@
 # This code is adapted from https://github.com/huggingface/transformers
 # with modifications to run transformers on mindspore.
-from typing import List, Union
+from typing import Any, Union, overload
 
 from ..utils import is_mindspore_available, is_vision_available, logging, requires_backends
 from .base import Pipeline
@@ -41,17 +41,32 @@ class DepthEstimationPipeline(Pipeline):
     See the list of available models on [huggingface.co/models](https://huggingface.co/models?filter=depth-estimation).
     """
 
+    _load_processor = False
+    _load_image_processor = True
+    _load_feature_extractor = False
+    _load_tokenizer = False
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         requires_backends(self, "vision")
         self.check_model_type(MODEL_FOR_DEPTH_ESTIMATION_MAPPING_NAMES)
 
-    def __call__(self, inputs: Union[str, List[str], "Image.Image", List["Image.Image"]] = None, **kwargs):
+    @overload
+    def __call__(self, inputs: Union[str, "Image.Image"], **kwargs: Any) -> dict[str, Any]:
+        ...
+
+    @overload
+    def __call__(self, inputs: list[Union[str, "Image.Image"]], **kwargs: Any) -> list[dict[str, Any]]:
+        ...
+
+    def __call__(
+        self, inputs: Union[str, list[str], "Image.Image", list["Image.Image"]], **kwargs: Any
+    ) -> Union[dict[str, Any], list[dict[str, Any]]]:
         """
         Predict the depth(s) of the image(s) passed as inputs.
 
         Args:
-            inputs (`str`, `List[str]`, `PIL.Image` or `List[PIL.Image]`):
+            inputs (`str`, `list[str]`, `PIL.Image` or `list[PIL.Image]`):
                 The pipeline handles three types of images:
 
                 - A string containing a http link pointing to an image
@@ -99,7 +114,7 @@ class DepthEstimationPipeline(Pipeline):
         try:
             model_inputs = self.image_processor(images=image, return_tensors=self.framework)
             if self.framework == "ms":
-                model_inputs = model_inputs.to(self.mindspore_dtype)
+                model_inputs = model_inputs.to(self.dtype)
         except ValueError:
             # for transformer image processor compatibility
             # FIXME: consider to drop this branch if all processors are migrated to mindone.transformers in future
@@ -109,7 +124,7 @@ class DepthEstimationPipeline(Pipeline):
             model_inputs = self.image_processor(image, return_tensors="np")
             if self.framework == "ms":
                 for k, v in model_inputs.items():
-                    model_inputs[k] = ms.tensor(v, dtype=self.mindspore_dtype)
+                    model_inputs[k] = ms.tensor(v, dtype=self.dtype)
 
         model_inputs["target_size"] = image.size[::-1]
         return model_inputs

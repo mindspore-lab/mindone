@@ -14,7 +14,8 @@
 # limitations under the License.
 """MindSpore Pixtral model."""
 
-from typing import Optional, Tuple, Union
+from collections.abc import Callable
+from typing import Optional, Union
 
 from transformers.models.pixtral.configuration_pixtral import PixtralVisionConfig
 
@@ -23,9 +24,12 @@ from mindspore import mint, nn, ops
 
 from ...activations import ACT2FN
 from ...mindspore_adapter import dtype_to_min
+from ...modeling_flash_attention_utils import FlashAttentionKwargs
+from ...modeling_layers import GradientCheckpointingLayer
 from ...modeling_outputs import BaseModelOutput
-from ...modeling_utils import PreTrainedModel
-from ...utils import logging
+from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
+from ...processing_utils import Unpack
+from ...utils import can_return_tuple, logging
 
 logger = logging.get_logger(__name__)
 
@@ -52,6 +56,8 @@ class PixtralRotaryEmbedding(nn.Cell):
     This simply means that for each image hidden state, you are going to add
     a corresponding positional embedding, based on its index in the grid.
     """
+
+    inv_freq: ms.Tensor  # fix linting for `register_buffer`
 
     def __init__(self, config):
         super().__init__()
@@ -126,8 +132,34 @@ def apply_rotary_pos_emb(q, k, cos, sin, position_ids=None, unsqueeze_dim=1):
     return q_embed, k_embed
 
 
+# Copied from transformers.models.siglip.modeling_siglip.eager_attention_forward
+def eager_attention_forward(
+    module: nn.Cell,
+    query: ms.Tensor,
+    key: ms.Tensor,
+    value: ms.Tensor,
+    attention_mask: Optional[ms.Tensor],
+    scaling: float,
+    dropout: float = 0.0,
+    **kwargs,
+):
+    attn_weights = mint.matmul(query, key.swapaxes(-1, -2)) * scaling
+    if attention_mask is not None:
+        attn_weights = attn_weights + attention_mask
+
+    attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query.dtype)
+    attn_weights = mint.nn.functional.dropout(attn_weights, p=dropout, training=module.training)
+
+    attn_output = mint.matmul(attn_weights, value)
+    attn_output = attn_output.swapaxes(1, 2).contiguous()
+
+    return attn_output, attn_weights
+
+
 class PixtralAttention(nn.Cell):
-    """Multi-headed attention from 'Attention Is All You Need' paper"""
+    """
+    Multi-headed attention compatible with ALL_ATTENTION_FUNCTIONS.
+    """
 
     def __init__(self, config):
         super().__init__()
@@ -135,8 +167,11 @@ class PixtralAttention(nn.Cell):
         self.embed_dim = config.hidden_size
         self.num_heads = config.num_attention_heads
         self.head_dim = self.embed_dim // self.num_heads
+        self.is_causal = False
 
-        self.scale = self.head_dim**-0.5
+        self.scaling = self.head_dim**-0.5
+        self.is_causal = False
+
         self.dropout = config.attention_dropout
 
         self.k_proj = mint.nn.Linear(self.embed_dim, self.embed_dim, bias=False)
@@ -148,9 +183,10 @@ class PixtralAttention(nn.Cell):
         self,
         hidden_states: ms.Tensor,
         attention_mask: Optional[ms.Tensor] = None,
-        position_embeddings: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
+        position_embeddings: Optional[tuple[ms.Tensor, ms.Tensor]] = None,
         output_attentions: Optional[bool] = False,
-    ) -> Tuple[ms.Tensor, Optional[ms.Tensor]]:
+        **kwargs: Unpack[FlashAttentionKwargs],
+    ) -> tuple[ms.Tensor, Optional[ms.Tensor]]:
         """Input shape: Batch x Time x Channel"""
 
         batch_size, patches, _ = hidden_states.shape
@@ -166,21 +202,30 @@ class PixtralAttention(nn.Cell):
         cos, sin = position_embeddings
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, unsqueeze_dim=0)
 
-        attn_weights = mint.matmul(query_states, key_states.swapaxes(2, 3)) * self.scale
+        attention_interface: Callable = eager_attention_forward
+        if self.config._attn_implementation != "eager":
+            attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
 
-        if attention_mask is not None:
-            attn_weights = attn_weights + attention_mask
+        # Since we use packing, if flash_attention_2 is selected we rely on position_ids
+        if self.config._attn_implementation == "flash_attention_2":
+            kwargs["position_ids"] = kwargs["position_ids"].to(hidden_states.device, non_blocking=True)
 
-        # upcast attention to fp32
-        attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query_states.dtype)
-        attn_weights = mint.nn.functional.dropout(attn_weights, p=self.dropout, training=self.training)
-        attn_output = mint.matmul(attn_weights, value_states)
+        attn_output, attn_weights = attention_interface(
+            self,
+            query_states,
+            key_states,
+            value_states,
+            attention_mask,
+            dropout=0.0 if not self.training else self.dropout,
+            scaling=self.scaling,
+            **kwargs,
+        )
 
-        attn_output = attn_output.swapaxes(1, 2).contiguous()
-        attn_output = attn_output.reshape(batch_size, patches, -1)
-
+        attn_output = attn_output.reshape(batch_size, patches, -1).contiguous()
         attn_output = self.o_proj(attn_output)
 
+        if not output_attentions:
+            attn_weights = None
         return attn_output, attn_weights
 
 
@@ -222,7 +267,7 @@ class PixtralRMSNorm(nn.Cell):
         return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
 
 
-class PixtralAttentionLayer(nn.Cell):
+class PixtralAttentionLayer(GradientCheckpointingLayer):
     def __init__(self, config):
         super().__init__()
         self.attention_norm = PixtralRMSNorm(config.hidden_size, eps=1e-5)
@@ -234,9 +279,10 @@ class PixtralAttentionLayer(nn.Cell):
         self,
         hidden_states: ms.Tensor,
         attention_mask: ms.Tensor,
-        position_embeddings: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
+        position_embeddings: Optional[tuple[ms.Tensor, ms.Tensor]] = None,
         output_attentions: Optional[bool] = None,
-    ) -> Tuple[ms.Tensor]:
+        **kwargs: Unpack[FlashAttentionKwargs],
+    ) -> tuple[ms.Tensor]:
         """
         Args:
             hidden_states (`ms.Tensor`):
@@ -255,6 +301,7 @@ class PixtralAttentionLayer(nn.Cell):
             attention_mask=attention_mask,
             position_embeddings=position_embeddings,
             output_attentions=output_attentions,
+            **kwargs,
         )
         hidden_states = residual + hidden_states
 
@@ -283,11 +330,12 @@ class PixtralTransformer(nn.Cell):
         self,
         inputs_embeds,
         attention_mask: Optional[ms.Tensor] = None,
-        position_embeddings: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
+        position_embeddings: Optional[tuple[ms.Tensor, ms.Tensor]] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = False,
-    ) -> Union[Tuple, BaseModelOutput]:
+        **kwargs: Unpack[FlashAttentionKwargs],
+    ) -> Union[tuple, BaseModelOutput]:
         r"""
         Args:
             inputs_embeds (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
@@ -321,12 +369,12 @@ class PixtralTransformer(nn.Cell):
         for encoder_layer in self.layers:
             if output_hidden_states:
                 encoder_states = encoder_states + (hidden_states,)
-
             layer_outputs = encoder_layer(
                 hidden_states,
                 attention_mask,
                 position_embeddings=position_embeddings,
                 output_attentions=output_attentions,
+                **kwargs,
             )
 
             hidden_states = layer_outputs[0]
@@ -342,51 +390,19 @@ class PixtralTransformer(nn.Cell):
         return BaseModelOutput(last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions)
 
 
-PIXTRAL_START_DOCSTRING = r"""
-    This model inherits from [`PreTrainedModel`]. Check the superclass documentation for the generic methods the
-    library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
-    etc.)
-
-    This model is also a MindSpore
-    [ms.nn.Cell](https://www.mindspore.cn/docs/zh-CN/master/api_python/nn/mindspore.nn.Cell.html) subclass.
-    Use it as a regular MindSpore Cell and refer to the MindSpore documentation for all matter related to general usage
-    and behavior.
-
-    Parameters:
-        config ([`PixtralVisionConfig`]):
-            Model configuration class with all the parameters of the vision encoder. Initializing with a config file does not
-            load the weights associated with the model, only the configuration. Check out the
-            [`~PreTrainedModel.from_pretrained`] method to load the model weights.
-"""
-
-
 class PixtralPreTrainedModel(PreTrainedModel):
-    config_class = PixtralVisionConfig
+    config: PixtralVisionConfig
     base_model_prefix = "model"
     main_input_name = "pixel_values"
     supports_gradient_checkpointing = True
+    _supports_attention_backend = True
+    _supports_flash_attn = True
+    _supports_sdpa = True
+    _supports_flex_attn = True
     _no_split_modules = ["PixtralAttentionLayer"]
 
     def _init_weights(self, module):
         pass
-
-
-PIXTRAL_INPUTS_DOCSTRING = r"""
-    Args:
-        pixel_values (`ms.Tensor` of shape `(batch_size, num_channels, height, width)`):
-            Pixel values. Pixel values can be obtained using [`AutoImageProcessor`]. See [`AutoImageProcessor.__call__`]
-            for details.
-        image_sizes (`ms.Tensor` of shape `(batch_size, 2)`, *optional*):
-            The sizes of the images in the batch, being (height, width) for each image.
-        output_attentions (`bool`, *optional*):
-            Whether or not to return the attentions tensors of all attention layers. See `attentions` under returned
-            tensors for more detail.
-        output_hidden_states (`bool`, *optional*):
-            Whether or not to return the hidden states of all layers. See `hidden_states` under returned tensors for
-            more detail.
-        return_dict (`bool`, *optional*):
-            Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
-"""
 
 
 def generate_block_attention_mask(patch_embeds_list, tensor):
@@ -427,21 +443,21 @@ class PixtralVisionModel(PixtralPreTrainedModel):
     def get_input_embeddings(self):
         return self.patch_conv
 
+    @can_return_tuple
     def construct(
         self,
         pixel_values: ms.Tensor,
-        image_sizes: ms.Tensor,
+        image_sizes: Optional[ms.Tensor] = None,
         output_hidden_states: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         return_dict: Optional[bool] = False,
         *args,
-        **kwargs,
-    ) -> Union[Tuple, BaseModelOutput]:
-        """
-        Returns:
-            pixel_values: tensor of token features for
-                all tokens of all images of shape (N_toks, D)
-        """
+        **kwargs: Unpack[FlashAttentionKwargs],
+    ) -> Union[tuple, BaseModelOutput]:
+        if image_sizes is None:
+            batch_size, _, height, width = pixel_values.shape
+            image_sizes = [(height, width)] * batch_size
+
         # pass images through initial convolution independently
         patch_embeds = self.patch_conv(pixel_values)
         patch_embeds_list = [
@@ -457,22 +473,27 @@ class PixtralVisionModel(PixtralPreTrainedModel):
         position_ids = position_ids_in_meshgrid(
             patch_embeds_list, max_width=self.config.image_size // self.config.patch_size
         )
+        kwargs["position_ids"] = position_ids
+
         position_embeddings = self.patch_positional_embedding(patch_embeds, position_ids)
 
-        attention_mask = generate_block_attention_mask(
-            [p.shape[-2] * p.shape[-1] for p in patch_embeds_list], patch_embeds
-        )
+        if self.config._attn_implementation == "flash_attention_2":
+            # We only rely on position_ids when using flash_attention_2
+            attention_mask = None
+        else:
+            attention_mask = generate_block_attention_mask(
+                [p.shape[-2] * p.shape[-1] for p in patch_embeds_list], patch_embeds
+            )
 
-        out = self.transformer(
+        return self.transformer(
             patch_embeds,
             attention_mask=attention_mask,
             position_embeddings=position_embeddings,
             output_hidden_states=output_hidden_states,
             output_attentions=output_attentions,
-            return_dict=return_dict,
+            return_dict=True,
+            **kwargs,
         )
-
-        return out
 
 
 __all__ = ["PixtralVisionModel", "PixtralPreTrainedModel"]

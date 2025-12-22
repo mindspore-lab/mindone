@@ -21,7 +21,7 @@
 # to defer the actual importing for when the objects are requested. This way `import transformers` provides the names
 # in the namespace without actually importing anything (and especially none of the backends).
 
-__version__ = "4.54.1"
+__version__ = "4.57.1"
 import transformers
 from packaging import version
 
@@ -39,6 +39,7 @@ from .feature_extraction_sequence_utils import SequenceFeatureExtractor
 
 # Feature Extractor
 from .feature_extraction_utils import BatchFeature, FeatureExtractionMixin
+from .generation import CompileConfig
 from .image_processing_base import ImageProcessingMixin
 from .image_processing_utils import BaseImageProcessor
 from .image_processing_utils_fast import BaseImageProcessorFast
@@ -57,6 +58,7 @@ from .models.albert import (
 )
 from .models.align import AlignModel, AlignPreTrainedModel, AlignTextModel, AlignVisionModel
 from .models.altclip import AltCLIPModel, AltCLIPPreTrainedModel, AltCLIPTextModel, AltCLIPVisionModel
+from .models.apertus import ApertusForCausalLM, ApertusForTokenClassification, ApertusModel, ApertusPreTrainedModel
 from .models.aria import (
     AriaForConditionalGeneration,
     AriaPreTrainedModel,
@@ -158,6 +160,7 @@ from .models.auto import (
     AutoModelForZeroShotObjectDetection,
     AutoModelWithLMHead,
     AutoProcessor,
+    AutoVideoProcessor,
 )
 from .models.aya_vision import AyaVisionForConditionalGeneration, AyaVisionPreTrainedModel
 from .models.bamba import BambaForCausalLM, BambaModel, BambaPreTrainedModel
@@ -261,6 +264,7 @@ from .models.bloom import (
     BloomModel,
     BloomPreTrainedModel,
 )
+from .models.blt import BltForCausalLM, BltModel, BltPatcher, BltPreTrainedModel
 from .models.bridgetower import (
     BridgeTowerForContrastiveLearning,
     BridgeTowerForImageAndTextRetrieval,
@@ -371,6 +375,13 @@ from .models.convnextv2 import (
     ConvNextV2Model,
     ConvNextV2PreTrainedModel,
 )
+from .models.csm import (
+    CsmBackboneModel,
+    CsmDepthDecoderForCausalLM,
+    CsmDepthDecoderModel,
+    CsmForConditionalGeneration,
+    CsmPreTrainedModel,
+)
 from .models.ctrl import CTRLForSequenceClassification, CTRLLMHeadModel, CTRLModel, CTRLPreTrainedModel
 from .models.cvt import CvtForImageClassification, CvtModel, CvtPreTrainedModel
 from .models.dac import DacModel, DacPreTrainedModel
@@ -453,6 +464,7 @@ from .models.distilbert import (
     DistilBertModel,
     DistilBertPreTrainedModel,
 )
+from .models.doge import DogeForCausalLM, DogeForSequenceClassification, DogeModel, DogePreTrainedModel
 from .models.dpr import (
     DPRContextEncoder,
     DPRPretrainedContextEncoder,
@@ -483,6 +495,7 @@ from .models.electra import (
 from .models.emu3 import Emu3ForCausalLM, Emu3ForConditionalGeneration, Emu3PreTrainedModel, Emu3TextModel, Emu3VQVAE
 from .models.encodec import EncodecModel, EncodecPreTrainedModel
 from .models.encoder_decoder import EncoderDecoderModel
+from .models.eomt import EomtForUniversalSegmentation, EomtImageProcessor, EomtImageProcessorFast, EomtPreTrainedModel
 from .models.ernie import (
     ErnieForCausalLM,
     ErnieForMaskedLM,
@@ -495,12 +508,23 @@ from .models.ernie import (
     ErnieModel,
     ErniePreTrainedModel,
 )
+from .models.ernie4_5 import Ernie4_5ForCausalLM, Ernie4_5Model, Ernie4_5PreTrainedModel
+from .models.ernie4_5_moe import Ernie4_5_MoeForCausalLM, Ernie4_5_MoeModel, Ernie4_5_MoePreTrainedModel
 from .models.esm import (
     EsmForMaskedLM,
     EsmForSequenceClassification,
     EsmForTokenClassification,
     EsmModel,
     EsmPreTrainedModel,
+)
+from .models.evolla import EvollaForProteinText2Text, EvollaModel, EvollaPreTrainedModel, EvollaProcessor
+from .models.exaone4 import (
+    Exaone4ForCausalLM,
+    Exaone4ForQuestionAnswering,
+    Exaone4ForSequenceClassification,
+    Exaone4ForTokenClassification,
+    Exaone4Model,
+    Exaone4PreTrainedModel,
 )
 from .models.falcon import (
     FalconForCausalLM,
@@ -538,6 +562,14 @@ from .models.flava import (
     FlavaPreTrainedModel,
     FlavaProcessor,
     FlavaTextModel,
+)
+from .models.flex_olmo import FlexOlmoForCausalLM, FlexOlmoModel, FlexOlmoPreTrainedModel
+from .models.florence2 import (
+    Florence2ForConditionalGeneration,
+    Florence2Model,
+    Florence2PreTrainedModel,
+    Florence2VisionBackbone,
+    Florence2VisionPreTrainedModel,
 )
 from .models.fnet import (
     FNetForMaskedLM,
@@ -594,6 +626,7 @@ from .models.glm import (
     GlmModel,
     GlmPreTrainedModel,
 )
+from .models.glm4_moe import Glm4MoeForCausalLM, Glm4MoeModel, Glm4MoePreTrainedModel
 from .models.glpn import (
     GLPNFeatureExtractor,
     GLPNForDepthEstimation,
@@ -601,7 +634,12 @@ from .models.glpn import (
     GLPNModel,
     GLPNPreTrainedModel,
 )
-from .models.got_ocr2 import GotOcr2ForConditionalGeneration, GotOcr2PreTrainedModel
+from .models.got_ocr2 import (
+    GotOcr2ForConditionalGeneration,
+    GotOcr2ImageProcessor,
+    GotOcr2ImageProcessorFast,
+    GotOcr2PreTrainedModel,
+)
 from .models.gpt2 import (
     GPT2DoubleHeadsModel,
     GPT2ForQuestionAnswering,
@@ -666,6 +704,7 @@ from .models.helium import (
     HeliumModel,
     HeliumPreTrainedModel,
 )
+from .models.hgnet_v2 import HGNetV2Backbone, HGNetV2ForImageClassification, HGNetV2PreTrainedModel
 from .models.hiera import (
     HieraBackbone,
     HieraForImageClassification,
@@ -719,6 +758,7 @@ from .models.instructblipvideo import (
     InstructBlipVideoQFormerModel,
     InstructBlipVideoVisionModel,
 )
+from .models.internvl import InternVLProcessor, InternVLVideoProcessor
 from .models.jamba import JambaForCausalLM, JambaForSequenceClassification, JambaModel, JambaPreTrainedModel
 from .models.jetmoe import (
     JetMoeConfig,
@@ -728,6 +768,11 @@ from .models.jetmoe import (
     JetMoePreTrainedModel,
 )
 from .models.kosmos2 import Kosmos2ForConditionalGeneration, Kosmos2Model, Kosmos2PreTrainedModel
+from .models.kyutai_speech_to_text import (
+    KyutaiSpeechToTextForConditionalGeneration,
+    KyutaiSpeechToTextModel,
+    KyutaiSpeechToTextPreTrainedModel,
+)
 from .models.layoutlm import (
     LayoutLMForMaskedLM,
     LayoutLMForQuestionAnswering,
@@ -771,6 +816,7 @@ from .models.llava import LlavaConfig, LlavaForConditionalGeneration
 from .models.llava_next import (
     LlavaNextForConditionalGeneration,
     LlavaNextImageProcessor,
+    LlavaNextImageProcessorFast,
     LlavaNextPreTrainedModel,
     LlavaNextProcessor,
 )
@@ -779,6 +825,7 @@ from .models.llava_next_video import (
     LlavaNextVideoImageProcessor,
     LlavaNextVideoPreTrainedModel,
     LlavaNextVideoProcessor,
+    LlavaNextVideoVideoProcessor,
 )
 from .models.llava_onevision import (
     LlavaOnevisionForConditionalGeneration,
@@ -851,6 +898,15 @@ from .models.megatron_bert import (
 from .models.mgp_str import MgpstrForSceneTextRecognition, MgpstrModel, MgpstrPreTrainedModel, MgpstrProcessor
 from .models.mimi import MimiModel, MimiPreTrainedModel
 from .models.minicpm4 import MiniCPMForCausalLM, MiniCPMForSequenceClassification, MiniCPMModel
+from .models.minicpmv_4_5 import MiniCPMVImageProcessor, MiniCPMVProcessor, MiniCPMVTokenizerFast
+from .models.ministral import (
+    MinistralForCausalLM,
+    MinistralForQuestionAnswering,
+    MinistralForSequenceClassification,
+    MinistralForTokenClassification,
+    MinistralModel,
+    MinistralPreTrainedModel,
+)
 from .models.mistral import (
     MistralForCausalLM,
     MistralForQuestionAnswering,
@@ -868,6 +924,7 @@ from .models.mixtral import (
     MixtralModel,
     MixtralPreTrainedModel,
 )
+from .models.mlcd import MLCDPreTrainedModel, MLCDVisionModel
 from .models.mllama import (
     MllamaForCausalLM,
     MllamaForConditionalGeneration,
@@ -920,6 +977,12 @@ from .models.modernbert import (
     ModernBertForTokenClassification,
     ModernBertModel,
     ModernBertPreTrainedModel,
+)
+from .models.modernbert_decoder import (
+    ModernBertDecoderForCausalLM,
+    ModernBertDecoderForSequenceClassification,
+    ModernBertDecoderModel,
+    ModernBertDecoderPreTrainedModel,
 )
 from .models.moonshine import MoonshineForConditionalGeneration, MoonshineModel, MoonshinePreTrainedModel
 from .models.moshi import MoshiForCausalLM, MoshiForConditionalGeneration, MoshiModel, MoshiPreTrainedModel
@@ -1020,6 +1083,7 @@ from .models.opt import (
     OPTModel,
     OPTPreTrainedModel,
 )
+from .models.ovis2 import Ovis2ForConditionalGeneration, Ovis2Model, Ovis2PreTrainedModel
 from .models.owlv2 import (
     Owlv2ForObjectDetection,
     Owlv2ImageProcessor,
@@ -1039,6 +1103,7 @@ from .models.owlvit import (
     OwlViTVisionModel,
 )
 from .models.paligemma import PaliGemmaForConditionalGeneration, PaliGemmaPreTrainedModel
+from .models.parakeet import ParakeetEncoder, ParakeetForCTC, ParakeetPreTrainedModel
 from .models.pegasus import PegasusForCausalLM, PegasusForConditionalGeneration, PegasusModel, PegasusPreTrainedModel
 from .models.pegasus_x import PegasusXForConditionalGeneration, PegasusXModel, PegasusXPreTrainedModel
 from .models.perceiver import (
@@ -1072,6 +1137,11 @@ from .models.phi3 import (
     Phi3ForTokenClassification,
     Phi3Model,
     Phi3PreTrainedModel,
+)
+from .models.phi4_multimodal import (
+    Phi4MultimodalFeatureExtractor,
+    Phi4MultimodalImageProcessorFast,
+    Phi4MultimodalProcessor,
 )
 from .models.phimoe import PhimoeForCausalLM, PhimoeForSequenceClassification, PhimoeModel, PhimoePreTrainedModel
 from .models.pix2struct import (
@@ -1108,7 +1178,12 @@ from .models.qwen2_5_vl import (
     Qwen2_5_VLPreTrainedModel,
     Qwen2_5_VLProcessor,
 )
-from .models.qwen2_audio import Qwen2AudioEncoder, Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel
+from .models.qwen2_audio import (
+    Qwen2AudioEncoder,
+    Qwen2AudioForConditionalGeneration,
+    Qwen2AudioPreTrainedModel,
+    Qwen2AudioProcessor,
+)
 from .models.qwen2_moe import (
     Qwen2MoeForCausalLM,
     Qwen2MoeForQuestionAnswering,
@@ -1120,8 +1195,17 @@ from .models.qwen2_moe import (
 from .models.qwen2_vl import (
     Qwen2VLForConditionalGeneration,
     Qwen2VLImageProcessor,
+    Qwen2VLImageProcessorFast,
     Qwen2VLModel,
     Qwen2VLPreTrainedModel,
+    Qwen2VLVideoProcessor,
+)
+from .models.qwen3_next import (
+    Qwen3NextForCausalLM,
+    Qwen3NextForQuestionAnswering,
+    Qwen3NextForSequenceClassification,
+    Qwen3NextForTokenClassification,
+    Qwen3NextPreTrainedModel,
 )
 from .models.rag import RagModel, RagPreTrainedModel, RagSequenceForGeneration, RagTokenForGeneration
 from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
@@ -1194,6 +1278,7 @@ from .models.rt_detr import RTDetrForObjectDetection, RTDetrModel, RTDetrPreTrai
 from .models.rt_detr_v2 import RTDetrV2ForObjectDetection, RTDetrV2Model, RTDetrV2PreTrainedModel
 from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
 from .models.sam import SamImageProcessor, SamModel, SamPreTrainedModel, SamProcessor
+from .models.sam_hq import SamHQModel, SamHQPreTrainedModel, SamHQProcessor, SamHQVisionModel
 from .models.seamless_m4t import (
     SeamlessM4TConfig,
     SeamlessM4TFeatureExtractor,
@@ -1211,6 +1296,14 @@ from .models.seamless_m4t_v2 import (
     SeamlessM4Tv2ForTextToText,
     SeamlessM4Tv2Model,
     SeamlessM4Tv2PreTrainedModel,
+)
+from .models.seed_oss import (
+    SeedOssForCausalLM,
+    SeedOssForQuestionAnswering,
+    SeedOssForSequenceClassification,
+    SeedOssForTokenClassification,
+    SeedOssModel,
+    SeedOssPreTrainedModel,
 )
 from .models.segformer import (
     SegformerDecodeHead,
@@ -1240,6 +1333,12 @@ from .models.siglip2 import (
     Siglip2PreTrainedModel,
     Siglip2TextModel,
     Siglip2VisionModel,
+)
+from .models.smollm3 import (
+    SmolLM3ForCausalLM,
+    SmolLM3ForQuestionAnswering,
+    SmolLM3ForSequenceClassification,
+    SmolLM3ForTokenClassification,
 )
 from .models.smolvlm import (
     SmolVLMForConditionalGeneration,
@@ -1318,6 +1417,15 @@ from .models.t5 import (
     T5Model,
     T5PreTrainedModel,
 )
+from .models.t5gemma import (
+    T5GemmaEncoder,
+    T5GemmaEncoderModel,
+    T5GemmaForConditionalGeneration,
+    T5GemmaForSequenceClassification,
+    T5GemmaForTokenClassification,
+    T5GemmaModel,
+    T5GemmaPreTrainedModel,
+)
 from .models.table_transformer import (
     TableTransformerForObjectDetection,
     TableTransformerModel,
@@ -1331,10 +1439,12 @@ from .models.tapas import (
     TapasPreTrainedModel,
 )
 from .models.textnet import TextNetBackbone, TextNetForImageClassification, TextNetModel, TextNetPreTrainedModel
+from .models.timesfm import TimesFmModel, TimesFmModelForPrediction, TimesFmPreTrainedModel
 from .models.timesformer import TimesformerForVideoClassification, TimesformerModel, TimesformerPreTrainedModel
 from .models.trocr import TrOCRForCausalLM, TrOCRPreTrainedModel
 from .models.tvp import TvpForVideoGrounding, TvpModel, TvpPreTrainedModel
 from .models.udop import UdopEncoderModel, UdopForConditionalGeneration, UdopModel, UdopPreTrainedModel
+from .models.ultravox import UltravoxProcessor
 from .models.umt5 import (
     UMT5EncoderModel,
     UMT5ForQuestionAnswering,
@@ -1361,6 +1471,7 @@ from .models.unispeech_sat import (
 )
 from .models.univnet import UnivNetModel
 from .models.upernet import UperNetForSemanticSegmentation, UperNetPreTrainedModel
+from .models.vaultgemma import VaultGemmaForCausalLM, VaultGemmaModel, VaultGemmaPreTrainedModel
 from .models.video_llava import VideoLlavaForConditionalGeneration, VideoLlavaPreTrainedModel
 from .models.videomae import (
     VideoMAEForPreTraining,
@@ -1437,6 +1548,7 @@ from .models.wavlm import (
     WavLMPreTrainedModel,
 )
 from .models.whisper import (
+    WhisperFeatureExtractor,
     WhisperForAudioClassification,
     WhisperForCausalLM,
     WhisperForConditionalGeneration,
@@ -1445,6 +1557,7 @@ from .models.whisper import (
     WhisperProcessor,
 )
 from .models.x_clip import XCLIPModel, XCLIPPreTrainedModel, XCLIPTextModel, XCLIPVisionModel
+from .models.xcodec import XcodecModel, XcodecPreTrainedModel
 from .models.xglm import XGLMForCausalLM, XGLMModel, XGLMPreTrainedModel
 from .models.xlm import (
     XLMForMultipleChoice,
@@ -1520,7 +1633,8 @@ from .pipelines import (
 from .processing_utils import ProcessorMixin
 from .trainer import Trainer
 from .training_args import TrainingArguments
-from .utils import logging
+from .utils import TensorType, logging
+from .video_processing_utils import BaseVideoProcessor
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
     from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
@@ -1546,10 +1660,12 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     from .models.glm4v import (
         Glm4vForConditionalGeneration,
         Glm4vImageProcessor,
+        Glm4vImageProcessorFast,
         Glm4vModel,
         Glm4vPreTrainedModel,
         Glm4vProcessor,
         Glm4vTextModel,
+        Glm4vVideoProcessor,
         Glm4vVisionModel,
     )
     from .models.minimax import (
@@ -1575,12 +1691,16 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     from .models.vjepa2 import VJEPA2ForVideoClassification, VJEPA2Model, VJEPA2PreTrainedModel
 
 if version.parse(transformers.__version__) >= version.parse("4.57.0"):
+    from .models.hunyuan_v1_dense import HunYuanDenseV1ForCausalLM, HunYuanDenseV1ForSequenceClassification
+    from .models.hunyuan_v1_moe import HunYuanMoEV1ForCausalLM, HunYuanMoEV1ForSequenceClassification
+    from .models.qwen3_omni_moe import *
     from .models.qwen3_vl import (
         Qwen3VLForConditionalGeneration,
         Qwen3VLModel,
         Qwen3VLPreTrainedModel,
         Qwen3VLProcessor,
         Qwen3VLTextModel,
+        Qwen3VLVideoProcessor,
         Qwen3VLVisionModel,
     )
     from .models.qwen3_vl_moe import (

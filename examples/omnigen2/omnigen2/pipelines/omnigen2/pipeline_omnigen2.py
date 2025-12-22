@@ -196,7 +196,7 @@ class OmniGen2Pipeline(DiffusionPipeline, OmniGen2LoraLoaderMixin):
             z0 = z0 - self.vae.config.shift_factor
         if self.vae.config.scaling_factor is not None:
             z0 = z0 * self.vae.config.scaling_factor
-        z0 = z0.to(dtype=self.vae.dtype)
+        z0 = z0.to(dtype=self.transformer.dtype)
         return z0
 
     def prepare_image(
@@ -407,7 +407,6 @@ class OmniGen2Pipeline(DiffusionPipeline, OmniGen2LoraLoaderMixin):
     def cfg_range(self):
         return self._cfg_range
 
-    # @torch.no_grad()  TODO
     def __call__(
         self,
         prompt: Optional[Union[str, list[str]]] = None,

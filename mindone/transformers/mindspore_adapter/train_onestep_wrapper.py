@@ -95,6 +95,10 @@ class LossWithScaleSense(nn.Cell):
         self.network = network
         self.scaler = scaler
 
+    def set_train(self, mode: bool = True):
+        # Delegate control of training-mode behavior to the network.
+        self.network.set_train(mode)
+
     def construct(self, *args, **kwargs) -> Tensor:
         loss = self.network(*args, **kwargs)
         scale_sense = self.scaler.scale_value
@@ -122,7 +126,9 @@ class TrainOneStepWrapper(nn.Cell):
         scaler: Literal["default", "static", "auto", "dynamic", "none"] = "default",
         scaler_config: Dict = {},
         gradient_accumulation_steps: int = 1,
-        clip_grad: str = "none",
+        clip_grad: Literal[
+            "norm", "l2norm", "l2_norm", "global", "global_norm", "total", "total_norm", "local", "value", "none"
+        ] = "none",
         clip_value: float = 1.0,
         zero_helper: Optional["ZeroHelper"] = None,
     ):
@@ -175,6 +181,10 @@ class TrainOneStepWrapper(nn.Cell):
                     super(ScalingLossForGradAccum, self).__init__(auto_prefix=False)
                     self.net = net
                     self.accum_steps_ = accum_steps_
+
+                def set_train(self, mode: bool = True):
+                    # Delegate control of training-mode behavior to the network.
+                    self.net.set_train(mode)
 
                 def construct(self, *args, **kwargs):
                     loss = self.net(*args, **kwargs)
@@ -234,6 +244,10 @@ class TrainOneStepWrapper(nn.Cell):
             self.zero_helper.split_params()
             if gradient_accumulation_steps > 1:
                 self.accumulated_grads = optimizer.parameters.clone(prefix="accum_grad", init="zeros")
+
+    def set_train(self, mode: bool = True):
+        # Delegate control of training-mode behavior to the network.
+        self.network.set_train(mode)
 
     def do_optim(self, loss, grads):
         if self.accum_steps == 1:

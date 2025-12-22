@@ -556,7 +556,6 @@ class OmniGen2ChatPipeline(DiffusionPipeline):
 
         return image
 
-    # @torch.no_grad()  TODO
     def __call__(
         self,
         prompt: Optional[Union[str, list[str]]] = None,
