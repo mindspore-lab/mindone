@@ -11,7 +11,7 @@ ONE is short for "ONE for all"
 
 ## Quick tour
 
-To install v0.3.0, please install [MindSpore 2.5.0](https://www.mindspore.cn/install) and run `pip install mindone`
+To install v0.5.0, please install [MindSpore 2.7.0](https://www.mindspore.cn/install) and run `pip install mindone`
 
 Alternatively, to install the latest version from the `master` branch, please run.
 ```

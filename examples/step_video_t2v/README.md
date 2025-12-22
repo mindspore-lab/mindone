@@ -52,13 +52,12 @@ The following table shows the requirements for running **Step-Video-T2V** model 
   * The model is tested on 6 NPUs. (Including 2 NPUs used to provide prompt encoding and VAE video decoding services.)
 * Tested operating system: **EulerOS**
 
-### ⬇️ 3.2 Dependencies and Installation
 
-| mindspore  | ascend driver  |  firmware   |cann toolkit/kernel |
-|:----------:|:--------------:|:-----------:|:------------------:|
-|   **2.5.0**    |    24.1.RC2    | 7.3.0.1.231 |   8.0.0.beta1    |
-|   **2.6.0**    |    24.1.RC2    | 7.3.0.1.231 |   8.1.RC1    |
-|   **2.7.0**    |    24.1.RC2    | 7.3.0.1.231 |   8.2.RC1    |
+### 📦 3.2 Requirements
+
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.5.0    | >=24.1.RC2 |   >=8.0.0.beta1 |
 
 To install other dependent packages:
 

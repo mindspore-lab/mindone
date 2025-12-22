@@ -21,6 +21,14 @@ The abstract from the paper is the following:
 > [!NOTE]
 > The model is identical to Donut in terms of architecture.
 
+## 📦 Requirements
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
+
+
+
+
 ## Inference
 
 Nougat’s `VisionEncoderDecoder` model accepts images as input and makes use of `generate()` to autoregressively generate

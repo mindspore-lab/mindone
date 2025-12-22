@@ -39,12 +39,15 @@ Spark-TTS is an advanced text-to-speech system that uses the power of large lang
 
 - **[2025-04-08]** MindSpore implementation of SparkTTS inference is now supported.
 
-## 🔧 Dependencies and Installation
+## 📦 Requirements
 
-| mindspore  | ascend driver  |  firmware   |cann toolkit/kernel |
-|:----------:|:--------------:|:-----------:|:------------------:|
-|   2.6.0    |    24.1.RC3    | 7.5.T11.0.B088 |   8.1.RC1     |
-|   2.7.0    |    24.1.RC3    | 7.5.T11.0.B088 |   8.2.RC1     |
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
+
+
+
+## 🔧 Dependencies and Installation
 
 To install other dependent packages:
 ```bash

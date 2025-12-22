@@ -75,14 +75,13 @@ huggingface-cli download deepseek-ai/Janus-Pro-7B --revision refs/pr/110 --local
 
 ## 3. Quick Start
 
-### Requirments
+## 📦 Requirements
 
-The code is tested in the following environments
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=25.0.RC1.1 |   >=8.1.RC1 |
 
-| mindspore | ascend driver | firmware    | cann tookit/kernel |
-| :-------: | :-----------: | :---------: | :----------------: |
-| 2.6.0     |  25.0.RC1.1   | 7.7.0.1.231 | 8.1.RC1            |
-| 2.7.0     |  25.2.0       | 7.7.0.6.236 | 8.2.RC1            |
+
 
 
 ### Installation
@@ -90,6 +89,7 @@ The code is tested in the following environments
 On the basis of `Python >= 3.8` environment, install the necessary dependencies by running the following command:
 
 ```shell
+cd mindone
 pip install -e .
 ```
 

@@ -28,6 +28,16 @@ Knowledge distillation for better tiny models: To provide compact and efficient 
 - [Blog post](https://huggingface.co/blog/falcon3)
 - [Models on Huggingface](https://huggingface.co/collections/tiiuae/falcon3-67605ae03578be86e4e87026)
 
+## 📦 Requirements
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
+
+
+
+
+## Usage
+
 ```python
 import mindspore as ms
 from mindone.transformers import pipeline

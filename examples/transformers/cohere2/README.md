@@ -9,6 +9,12 @@ The model features three layers with sliding window attention (window size 4096)
 
 The model has been trained on 23 languages: English, French, Spanish, Italian, German, Portuguese, Japanese, Korean, Arabic, Chinese, Russian, Polish, Turkish, Vietnamese, Dutch, Czech, Indonesian, Ukrainian, Romanian, Greek, Hindi, Hebrew, and Persian.
 
+## 📦 Requirements
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
+
+
 
 
 ## Checkpoints

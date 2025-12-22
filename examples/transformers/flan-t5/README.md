@@ -20,6 +20,16 @@ rendered properly in your Markdown viewer.
 
 FLAN-T5 was released in the paper [Scaling Instruction-Finetuned Language Models](https://arxiv.org/pdf/2210.11416.pdf) - it is an enhanced version of T5 that has been finetuned in a mixture of tasks.
 
+## 📦 Requirements
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
+
+
+
+
+## Usage
+
 One can directly use FLAN-T5 weights without finetuning the model:
 
 ```python

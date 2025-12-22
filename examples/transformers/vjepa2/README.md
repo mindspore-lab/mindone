@@ -13,11 +13,12 @@ You can find all original V-JEPA2 checkpoints under the [V-JEPA 2](https://huggi
 
 
 # Get Started
-## Requirements
-|mindspore |	ascend driver | firmware | cann tookit/kernel|
-|--- | --- | --- | --- |
-|2.5.0 | 24.1.RC3 | 7.5.T11.0 | 8.0.0.beta1|
-|2.6.0 | 24.1.RC3 | 7.5.T11.0 | 8.0.0.beta1|
+## 📦 Requirements
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.5.0    | >=24.1.RC3 |   >=8.0.0.beta1 |
+
+
 
 ### Installation
 ```

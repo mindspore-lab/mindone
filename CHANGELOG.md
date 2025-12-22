@@ -2,6 +2,10 @@
 
 ## [v0.5.0] - 2025-12-21
 
+### Compatibility Updates
+- **mindone.diffusers**: Compatible with 🤗 diffusers v0.35.0
+- **mindone.transformers**: Compatible with 🤗 transformers v4.57.1
+
 ### Highlights
 - Added dozens of new transformer checkpoints and processors (e.g., CSM, ModernBERT Decoder, SmolLM3, Hunyuan v1, GLM4 variants, Qwen3/Qwen3-Omni, Mlcd) and refreshed the transformers base to 4.57.1, expanding support for the latest model families. ([#1391](https://github.com/mindspore-lab/mindone/pull/1391), [#1396](https://github.com/mindspore-lab/mindone/pull/1396), [#1397](https://github.com/mindspore-lab/mindone/pull/1397), [#1399](https://github.com/mindspore-lab/mindone/pull/1399), [#1401](https://github.com/mindspore-lab/mindone/pull/1401), [#1403](https://github.com/mindspore-lab/mindone/pull/1403), [#1409](https://github.com/mindspore-lab/mindone/pull/1409), [#1411](https://github.com/mindspore-lab/mindone/pull/1411), [#1462](https://github.com/mindspore-lab/mindone/pull/1462), [#1464](https://github.com/mindspore-lab/mindone/pull/1464), [#1472](https://github.com/mindspore-lab/mindone/pull/1472))
 - Expanded generative pipelines and diffusion tooling with new QwenImage, HiDream, CannyEdit, and OmniGen2 fine-tuning utilities alongside ComfyUI root assets and text encoder resources. ([#1288](https://github.com/mindspore-lab/mindone/pull/1288), [#1346](https://github.com/mindspore-lab/mindone/pull/1346), [#1360](https://github.com/mindspore-lab/mindone/pull/1360), [#1410](https://github.com/mindspore-lab/mindone/pull/1410), [#1480](https://github.com/mindspore-lab/mindone/pull/1480), [#1481](https://github.com/mindspore-lab/mindone/pull/1481))

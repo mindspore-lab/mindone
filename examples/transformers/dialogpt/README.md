@@ -41,6 +41,14 @@ generation and the development of more intelligent open-domain dialogue systems.
 
 The original code can be found [here](https://github.com/microsoft/DialoGPT).
 
+## 📦 Requirements
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
+
+
+
+
 ## Usage tips
 
 - DialoGPT is a model with absolute position embeddings so it's usually advised to pad the inputs on the right rather
