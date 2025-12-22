@@ -31,8 +31,6 @@ from typing import Optional, Union
 import numpy as np
 from transformers.tokenization_utils_base import PreTokenizedInput, TextInput
 
-import mindspore as ms
-
 from ...feature_extraction_utils import BatchFeature
 from ...image_utils import ImageInput
 from ...processing_utils import ImagesKwargs, MultiModalData, ProcessingKwargs, ProcessorMixin, Unpack, VideosKwargs
@@ -194,10 +192,7 @@ class Qwen2_5_VLProcessor(ProcessorMixin):
 
         return_tensors = output_kwargs["text_kwargs"].pop("return_tensors", None)
         return_mm_token_type_ids = output_kwargs["text_kwargs"].pop("return_mm_token_type_ids", None)
-        text_inputs = self.tokenizer(text, **output_kwargs["text_kwargs"], return_tensors="np")
-        if return_tensors == "ms":
-            for k, v in text_inputs.items():
-                text_inputs[k] = ms.tensor(v)
+        text_inputs = self.tokenizer(text, **output_kwargs["text_kwargs"])
         self._check_special_mm_tokens(text, text_inputs, modalities=["image", "video"])
 
         if return_mm_token_type_ids:
