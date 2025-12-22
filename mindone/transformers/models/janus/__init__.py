@@ -1,4 +1,4 @@
-# Copyright 2025 The HuggingFace Team. All rights reserved.
+# Copyright 2025 Deepseek AI and The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/transformers
 # with modifications to run transformers on mindspore.
@@ -15,6 +15,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .modeling_internvl import *
-from .processing_internvl import InternVLProcessor
-from .video_processing_internvl import InternVLVideoProcessor
+from .modeling_janus import *

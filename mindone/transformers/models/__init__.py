@@ -126,6 +126,7 @@ from . import (
     instructblipvideo,
     internvl,
     jamba,
+    janus,
     jetmoe,
     kosmos2,
     kyutai_speech_to_text,
