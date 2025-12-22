@@ -987,6 +987,7 @@ class HunyuanStaticCache(StaticCache):
 
         return k_out, v_out
 
+
 @ms._no_grad()
 class HunyuanRMSNorm(nn.Cell):
     def __init__(self, hidden_size, eps=1e-6):
@@ -1696,7 +1697,7 @@ class HunyuanImage3Model(HunyuanImage3PreTrainedModel):
             [HunyuanImage3DecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]
         )
         for layer in self.layers:
-            layer.offload(backward_prefetch='Auto')
+            layer.offload(backward_prefetch="Auto")
         if not config.add_classification_head:
             self.ln_f = HunyuanRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
