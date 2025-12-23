@@ -1,4 +1,3 @@
-
 # coding=utf-8
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
 #
@@ -121,6 +120,7 @@ class Sam2MaskDecoderTester:
 
         return config, dummy_inputs
 
+
 class Sam2ModelTester:
     def __init__(
         self,
@@ -139,7 +139,6 @@ class Sam2ModelTester:
         batch_size=2,
         is_training=False,
     ):
-
         self.image_size = image_size
         self.hidden_size = hidden_size
         self.patch_kernel_size = patch_kernel_size
@@ -204,6 +203,7 @@ class Sam2ModelTester:
         config, pixel_values = config_and_inputs
         inputs_dict = {"pixel_values": pixel_values}
         return config, inputs_dict
+
 
 model_tester = Sam2ModelTester()
 config, inputs_dict = model_tester.prepare_config_and_inputs_for_common()
