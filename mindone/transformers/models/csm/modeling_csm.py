@@ -26,7 +26,6 @@ from dataclasses import dataclass
 from typing import Callable, Optional, Union
 
 from transformers import CsmConfig, CsmDepthDecoderConfig
-from transformers.integrations import use_kernel_forward_from_hub
 from transformers.utils import ModelOutput, TransformersKwargs
 
 import mindspore
@@ -94,7 +93,6 @@ class CsmOutputWithPast(ModelOutput):
     backbone_loss: Optional[Tensor] = None
 
 
-@use_kernel_forward_from_hub("RMSNorm")
 class CsmRMSNorm(nn.Cell):
     def __init__(self, hidden_size, eps=1e-6):
         """

@@ -59,6 +59,7 @@ from .models.albert import (
 from .models.align import AlignModel, AlignPreTrainedModel, AlignTextModel, AlignVisionModel
 from .models.altclip import AltCLIPModel, AltCLIPPreTrainedModel, AltCLIPTextModel, AltCLIPVisionModel
 from .models.apertus import ApertusForCausalLM, ApertusForTokenClassification, ApertusModel, ApertusPreTrainedModel
+from .models.arcee import *
 from .models.aria import (
     AriaForConditionalGeneration,
     AriaPreTrainedModel,
@@ -352,6 +353,7 @@ from .models.codegen import CodeGenForCausalLM, CodeGenModel, CodeGenPreTrainedM
 from .models.cohere import CohereForCausalLM, CohereModel, CoherePreTrainedModel
 from .models.cohere2 import Cohere2ForCausalLM, Cohere2Model, Cohere2PreTrainedModel
 from .models.colpali import ColPaliForRetrieval, ColPaliPreTrainedModel, ColPaliProcessor
+from .models.colqwen2 import ColQwen2ForRetrieval, ColQwen2PreTrainedModel, ColQwen2Processor
 from .models.convbert import (
     ConvBertForMaskedLM,
     ConvBertForMultipleChoice,
@@ -455,6 +457,8 @@ from .models.dinov2_with_registers import (
     Dinov2WithRegistersModel,
     Dinov2WithRegistersPreTrainedModel,
 )
+from .models.dinov3_convnext import DINOv3ConvNextModel, DINOv3ConvNextPreTrainedModel
+from .models.dinov3_vit import DINOv3ViTModel, DINOv3ViTPreTrainedModel, DINOv3ViTImageProcessorFast
 from .models.distilbert import (
     DistilBertForMaskedLM,
     DistilBertForMultipleChoice,
@@ -687,6 +691,13 @@ from .models.gptj import (
     GPTJPreTrainedModel,
 )
 from .models.granite import GraniteForCausalLM, GraniteModel, GranitePreTrainedModel
+from .models.granite_speech import (
+    GraniteSpeechCTCEncoder,
+    GraniteSpeechFeatureExtractor,
+    GraniteSpeechForConditionalGeneration,
+    GraniteSpeechPreTrainedModel,
+    GraniteSpeechProcessor,
+)
 from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
 from .models.granitemoeshared import GraniteMoeSharedForCausalLM, GraniteMoeSharedModel, GraniteMoeSharedPreTrainedModel
 from .models.grounding_dino import (
@@ -758,8 +769,17 @@ from .models.instructblipvideo import (
     InstructBlipVideoQFormerModel,
     InstructBlipVideoVisionModel,
 )
-from .models.internvl import InternVLProcessor, InternVLVideoProcessor
+from .models.internvl import (
+    InternVLForConditionalGeneration,
+    InternVLModel,
+    InternVLPreTrainedModel,
+    InternVLProcessor,
+    InternVLVideoProcessor,
+    InternVLVisionModel,
+    InternVLVisionPreTrainedModel,
+)
 from .models.jamba import JambaForCausalLM, JambaForSequenceClassification, JambaModel, JambaPreTrainedModel
+from .models.janus import JanusForConditionalGeneration, JanusModel, JanusPreTrainedModel, JanusVisionModel, JanusVQVAE
 from .models.jetmoe import (
     JetMoeConfig,
     JetMoeForCausalLM,
@@ -812,6 +832,7 @@ from .models.lilt import (
     LiltPreTrainedModel,
 )
 from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
+from .models.llama4 import *
 from .models.llava import LlavaConfig, LlavaForConditionalGeneration
 from .models.llava_next import (
     LlavaNextForConditionalGeneration,

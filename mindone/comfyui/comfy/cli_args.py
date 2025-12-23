@@ -44,7 +44,9 @@ parser.add_argument(
     metavar="IP",
     nargs="?",
     const="0.0.0.0,::",
-    help="Specify the IP address to listen on (default: 127.0.0.1). You can give a list of ip addresses by separating them with a comma like: 127.2.2.2,127.3.3.3 If --listen is provided without an argument, it defaults to 0.0.0.0,:: (listens on all ipv4 and ipv6)",
+    help="Specify the IP address to listen on (default: 127.0.0.1). "
+    "You can give a list of ip addresses by separating them with a comma like: 127.2.2.2,127.3.3.3 "
+    "If --listen is provided without an argument, it defaults to 0.0.0.0,:: (listens on all ipv4 and ipv6)",
 )
 parser.add_argument("--port", type=int, default=8188, help="Set the listen port.")
 parser.add_argument(
@@ -210,7 +212,8 @@ cache_group.add_argument(
     const=4.0,
     type=float,
     default=0,
-    help="Use RAM pressure caching with the specified headroom threshold. If available RAM drops below the threhold the cache remove large items to free RAM. Default 4GB",
+    help="Use RAM pressure caching with the specified headroom threshold. "
+    "If available RAM drops below the threhold the cache remove large items to free RAM. Default 4GB",
 )
 
 attn_group = parser.add_mutually_exclusive_group()
@@ -273,7 +276,8 @@ parser.add_argument("--async-offload", action="store_true", help="Use async weig
 parser.add_argument(
     "--force-non-blocking",
     action="store_true",
-    help="Force ComfyUI to use non-blocking operations for all applicable tensors. This may improve performance on some non-Nvidia systems but can cause issues with some workflows.",
+    help="Force ComfyUI to use non-blocking operations for all applicable tensors. "
+    "This may improve performance on some non-Nvidia systems but can cause issues with some workflows.",
 )
 
 parser.add_argument(
@@ -307,7 +311,9 @@ parser.add_argument(
     "--fast",
     nargs="*",
     type=PerformanceFeature,
-    help="Enable some untested and potentially quality deteriorating optimizations. This is used to test new features so using it might crash your comfyui. --fast with no arguments enables everything. You can pass a list specific optimizations if you only want to enable specific ones. Current valid optimizations: {}".format(
+    help="Enable some untested and potentially quality deteriorating optimizations. "
+    "This is used to test new features so using it might crash your comfyui. --fast with no arguments enables everything. "
+    "You can pass a list specific optimizations if you only want to enable specific ones. Current valid optimizations: {}".format(
         " ".join(map(lambda c: c.value, PerformanceFeature))
     ),
 )
@@ -322,7 +328,8 @@ parser.add_argument("--quick-test-for-ci", action="store_true", help="Quick test
 parser.add_argument(
     "--windows-standalone-build",
     action="store_true",
-    help="Windows standalone build: Enable convenient things that most people using the standalone windows build will probably enjoy (like auto opening the page on startup).",
+    help="Windows standalone build: Enable convenient things that most people using the standalone windows build will probably enjoy "
+    "(like auto opening the page on startup).",
 )
 
 parser.add_argument("--disable-metadata", action="store_true", help="Disable saving prompt metadata in files.")
