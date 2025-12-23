@@ -1233,6 +1233,7 @@ from .models.qwen2_vl import (
     Qwen2VLImageProcessorFast,
     Qwen2VLModel,
     Qwen2VLPreTrainedModel,
+    Qwen2VLProcessor,
     Qwen2VLVideoProcessor,
 )
 from .models.qwen3_next import (

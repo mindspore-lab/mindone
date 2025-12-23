@@ -482,12 +482,11 @@ def _init_parallel_settings(net, optimizer_parallel_group, parallel_modules=None
             return new_net
     for module, parallel_module in special_cases_parallel_module.items():
         if isinstance(net, module):
-            if net.trainable_params():
-                if "gate_up_proj" in net.trainable_params()[0].name:
-                    cell_type = get_cell_dtype(net)
-                    new_net = parallel_module(net, 3, optimizer_parallel_group)
-                    if cell_type is not None:
-                        new_net.to_float(cell_type)
+            if hasattr(net, "gate_up_proj"):
+                cell_type = get_cell_dtype(net)
+                new_net = parallel_module(net, 3, optimizer_parallel_group)
+                if cell_type is not None:
+                    new_net.to_float(cell_type)
                 return new_net
     return None
 

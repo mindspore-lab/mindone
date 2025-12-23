@@ -1481,6 +1481,10 @@ LATTE_TRANSORMER3D_CASES = [
             "enable_temporal_attentions": True,
         },
     ],
+]
+
+
+WANVACE_TRANSFORMER3D_CASES = [
     [
         "WanVACETransformer3DModel",
         "diffusers.models.transformers.transformer_wan_vace.WanVACETransformer3DModel",
@@ -1642,6 +1646,7 @@ TRANSFORMERS_CASES = (
     + TRANSFORMER2D_CASES
     + FLUX_TRANSFORMER2D_CASES
     + LATTE_TRANSORMER3D_CASES
+    + WANVACE_TRANSFORMER3D_CASES
     + LUMINA_NEXTDIT2D_CASES
     + LUMINA2_TRANSFORMER2D_CASES
     + CHROMA_TRANSFORMER2D_CASES

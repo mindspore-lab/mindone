@@ -233,6 +233,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
         ("qwen2_moe", "Qwen2MoeModel"),
         ("qwen2_vl", "Qwen2VLModel"),
+        ("qwen2_vl_text", "Qwen2VLTextModel"),
         ("qwen3_next", "Qwen3NextModel"),
         ("recurrent_gemma", "RecurrentGemmaModel"),
         ("regnet", "RegNetModel"),
