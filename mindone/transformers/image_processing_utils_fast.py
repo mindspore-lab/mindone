@@ -171,6 +171,7 @@ class DefaultFastImageProcessorKwargs(TypedDict, total=False):
     return_tensors: Optional[Union[str, TensorType]]
     data_format: Optional[ChannelDimension]
     input_data_format: Optional[Union[str, ChannelDimension]]
+    disable_grouping: Optional[bool]
 
 
 @auto_docstring
@@ -811,6 +812,7 @@ class BaseImageProcessorFast(BaseImageProcessor):
         image_std: Optional[Union[float, list[float]]],
         do_pad: Optional[bool],
         pad_size: Optional[SizeDict],
+        disable_grouping: Optional[bool],
         return_tensors: Optional[Union[str, TensorType]],
         **kwargs,
     ) -> BatchFeature:

@@ -600,7 +600,7 @@ class LlamaModel(LlamaPreTrainedModel):
         hidden_states = self.norm(hidden_states)
 
         if not return_dict:
-            return tuple(v for v in [hidden_states] if v is not None)
+            return tuple(v for v in [hidden_states, past_key_values] if v is not None)
         return BaseModelOutputWithPast(
             last_hidden_state=hidden_states,
             past_key_values=past_key_values,

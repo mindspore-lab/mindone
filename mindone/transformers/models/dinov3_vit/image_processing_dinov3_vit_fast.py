@@ -16,16 +16,13 @@
 
 from typing import Optional, Union
 
+import mindspore as ms
+from mindspore import mint
+
 from ...image_processing_base import BatchFeature
 from ...image_processing_utils_fast import BaseImageProcessorFast, group_images_by_shape, reorder_images
 from ...image_utils import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD, PILImageResampling, SizeDict
-from ...utils import (
-    TensorType,
-    logging,
-)
-
-import mindspore as ms
-from mindspore import mint
+from ...utils import TensorType, logging
 
 logger = logging.get_logger(__name__)
 
@@ -68,12 +65,10 @@ class DINOv3ViTImageProcessorFast(BaseImageProcessorFast):
                 #  batch_size stacked image should be computed in one iteration
                 # batch_size, channels = stacked_images.shape[0], stacked_images.shape[1]
                 # stacked_images_updated = mint.zeros((batch_size, channels, resized_height, resized_width), dtype=stacked_images.dtype)
-                # TODO: current implementation of resize require input to be unscaled image, so the order is changed to: 
+                # TODO: current implementation of resize require input to be unscaled image, so the order is changed to:
                 # resize -> rescale -> normalize, causing ~e-3 precision difference
                 if do_resize:
-                    image = self.resize(
-                        image=image, size=size, interpolation=interpolation, antialias=True
-                    )
+                    image = self.resize(image=image, size=size, interpolation=interpolation, antialias=True)
                 if do_rescale:
                     image = self.rescale(image, rescale_factor)
                 stacked_images_updated.append(image)
