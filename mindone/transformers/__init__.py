@@ -387,6 +387,7 @@ from .models.csm import (
 )
 from .models.ctrl import CTRLForSequenceClassification, CTRLLMHeadModel, CTRLModel, CTRLPreTrainedModel
 from .models.cvt import CvtForImageClassification, CvtModel, CvtPreTrainedModel
+from .models.d_fine import DFineForObjectDetection, DFineModel, DFinePreTrainedModel
 from .models.dac import DacModel, DacPreTrainedModel
 from .models.data2vec import (
     Data2VecAudioForAudioFrameClassification,
@@ -709,6 +710,7 @@ from .models.granite_speech import (
     GraniteSpeechProcessor,
 )
 from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
+from .models.granitemoehybrid import GraniteMoeHybridForCausalLM, GraniteMoeHybridModel, GraniteMoeHybridPreTrainedModel
 from .models.granitemoeshared import GraniteMoeSharedForCausalLM, GraniteMoeSharedModel, GraniteMoeSharedPreTrainedModel
 from .models.grounding_dino import (
     GroundingDinoForObjectDetection,
@@ -1310,7 +1312,7 @@ from .models.roformer import (
     RoFormerModel,
     RoFormerPreTrainedModel,
 )
-from .models.rt_detr import RTDetrForObjectDetection, RTDetrModel, RTDetrPreTrainedModel
+from .models.rt_detr import RTDetrForObjectDetection, RTDetrImageProcessor, RTDetrModel, RTDetrPreTrainedModel
 from .models.rt_detr_v2 import RTDetrV2ForObjectDetection, RTDetrV2Model, RTDetrV2PreTrainedModel
 from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
 from .models.sam import SamImageProcessor, SamModel, SamPreTrainedModel, SamProcessor

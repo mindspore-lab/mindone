@@ -79,6 +79,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("csm", "CsmForConditionalGeneration"),
         ("ctrl", "CTRLModel"),
         ("cvt", "CvtModel"),
+        ("d_fine", "DFineModel"),
         ("dac", "DacModel"),
         ("data2vec-audio", "Data2VecAudioModel"),
         ("data2vec-text", "Data2VecTextModel"),
@@ -134,6 +135,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("gptj", "GPTJModel"),
         ("granite", "GraniteModel"),
         ("granitemoe", "GraniteMoeModel"),
+        ("granitemoehybrid", "GraniteMoeHybridModel"),
         ("granitemoeshared", "GraniteMoeSharedModel"),
         ("groupvit", "GroupViTModel"),
         ("grounding-dino", "GroundingDinoModel"),
@@ -522,6 +524,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("gptj", "GPTJForCausalLM"),
         ("granite", "GraniteForCausalLM"),
         ("granitemoe", "GraniteMoeForCausalLM"),
+        ("granitemoehybrid", "GraniteMoeHybridForCausalLM"),
         ("granitemoeshared", "GraniteMoeSharedForCausalLM"),
         ("helium", "HeliumForCausalLM"),
         ("hunyuan_v1_dense", "HunYuanDenseV1ForCausalLM"),
@@ -877,6 +880,7 @@ MODEL_FOR_MASKED_LM_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_OBJECT_DETECTION_MAPPING_NAMES = OrderedDict(
     [
         # Model for Object Detection mapping
+        ("d_fine", "DFineForObjectDetection"),
         ("deformable_detr", "DeformableDetrForObjectDetection"),
         ("deta", "DetaForObjectDetection"),
         ("detr", "DetrForObjectDetection"),
@@ -1376,7 +1380,11 @@ MODEL_FOR_KEYPOINT_DETECTION_MAPPING_NAMES = OrderedDict(
     ]
 )
 
-MODEL_FOR_KEYPOINT_MATCHING_MAPPING_NAMES = OrderedDict()
+MODEL_FOR_KEYPOINT_MATCHING_MAPPING_NAMES = OrderedDict(
+    [
+        ("efficientloftr", "EfficientLoFTRForKeypointMatching"),
+    ]
+)
 
 
 MODEL_FOR_TEXT_ENCODING_MAPPING_NAMES = OrderedDict(
