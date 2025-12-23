@@ -426,6 +426,24 @@ from .models.deberta_v2 import (
     DebertaV2Model,
     DebertaV2PreTrainedModel,
 )
+from .models.deepseek_v2 import (
+    DeepseekV2ForCausalLM,
+    DeepseekV2ForSequenceClassification,
+    DeepseekV2Model,
+    DeepseekV2PreTrainedModel,
+)
+from .models.deepseek_vl import (
+    DeepseekVLForConditionalGeneration,
+    DeepseekVLModel,
+    DeepseekVLPreTrainedModel,
+    DeepseekVLProcessor,
+)
+from .models.deepseek_vl_hybrid import (
+    DeepseekVLHybridForConditionalGeneration,
+    DeepseekVLHybridModel,
+    DeepseekVLHybridPreTrainedModel,
+    DeepseekVLHybridProcessor,
+)
 from .models.deit import (
     DeiTForImageClassification,
     DeiTForImageClassificationWithTeacher,

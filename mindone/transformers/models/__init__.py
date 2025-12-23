@@ -63,6 +63,7 @@ from . import (
     dac,
     data2vec,
     dbrx,
+    deepseek_v2,
     deit,
     deprecated,
     depth_anything,
