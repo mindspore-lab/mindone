@@ -1,32 +1,118 @@
 # Changelog
 
-## [v0.5.0] - 2025-12-21
+## [v0.5.0] - 2025-12-23
 
 ### Compatibility Updates
-- **mindone.diffusers**: Compatible with 🤗 diffusers v0.35.0
+- **mindone.diffusers**: Compatible with 🤗 diffusers v0.35.2, preview supports for sota v0.36 pipelines
 - **mindone.transformers**: Compatible with 🤗 transformers v4.57.1
+- **ComfyUI**: Added initial ComfyUI integration support
+- **MindSpore**: Compatible with MindSpore 2.6.0 - 2.7.1
 
-### Highlights
-- Added dozens of new transformer checkpoints and processors (e.g., CSM, ModernBERT Decoder, SmolLM3, Hunyuan v1, GLM4 variants, Qwen3/Qwen3-Omni, Mlcd) and refreshed the transformers base to 4.57.1, expanding support for the latest model families. ([#1391](https://github.com/mindspore-lab/mindone/pull/1391), [#1396](https://github.com/mindspore-lab/mindone/pull/1396), [#1397](https://github.com/mindspore-lab/mindone/pull/1397), [#1399](https://github.com/mindspore-lab/mindone/pull/1399), [#1401](https://github.com/mindspore-lab/mindone/pull/1401), [#1403](https://github.com/mindspore-lab/mindone/pull/1403), [#1409](https://github.com/mindspore-lab/mindone/pull/1409), [#1411](https://github.com/mindspore-lab/mindone/pull/1411), [#1462](https://github.com/mindspore-lab/mindone/pull/1462), [#1464](https://github.com/mindspore-lab/mindone/pull/1464), [#1472](https://github.com/mindspore-lab/mindone/pull/1472))
-- Expanded generative pipelines and diffusion tooling with new QwenImage, HiDream, CannyEdit, and OmniGen2 fine-tuning utilities alongside ComfyUI root assets and text encoder resources. ([#1288](https://github.com/mindspore-lab/mindone/pull/1288), [#1346](https://github.com/mindspore-lab/mindone/pull/1346), [#1360](https://github.com/mindspore-lab/mindone/pull/1360), [#1410](https://github.com/mindspore-lab/mindone/pull/1410), [#1480](https://github.com/mindspore-lab/mindone/pull/1480), [#1481](https://github.com/mindspore-lab/mindone/pull/1481))
-- Improved interoperability and performance through AutoencoderMixin, context parallelism enhancements, accelerated pipelines, and wide-ranging compatibility fixes for MindSpore 2.6/2.7 and downstream examples. ([#1433](https://github.com/mindspore-lab/mindone/pull/1433), [#1438](https://github.com/mindspore-lab/mindone/pull/1438), [#1444](https://github.com/mindspore-lab/mindone/pull/1444), [#1383](https://github.com/mindspore-lab/mindone/pull/1383), [#1385](https://github.com/mindspore-lab/mindone/pull/1385), [#1417](https://github.com/mindspore-lab/mindone/pull/1417))
+### mindone.transformers updates
+- **Major upgrade**: Enhanced compatibility with 🤗 transformers v4.54 and v4.57.1. Check supported models [here](./mindone/transformers/SUPPORTED_MODELS.md).
 
-### Added
-- Introduced many new transformer models and processors, including Exaone, Florence2, Parakeet, VaultGemma, T5Gemma, DOGE, Ernie 4.5 (dense & MoE), SAM-HQ, BLT/Apertus/Ministral, Mistral3 (4.57.1), EOMT, TimesFM, XCodec, Kyutai Speech-to-Text, and more. ([#1392](https://github.com/mindspore-lab/mindone/pull/1392), [#1393](https://github.com/mindspore-lab/mindone/pull/1393), [#1395](https://github.com/mindspore-lab/mindone/pull/1395), [#1396](https://github.com/mindspore-lab/mindone/pull/1396), [#1397](https://github.com/mindspore-lab/mindone/pull/1397), [#1399](https://github.com/mindspore-lab/mindone/pull/1399), [#1401](https://github.com/mindspore-lab/mindone/pull/1401), [#1403](https://github.com/mindspore-lab/mindone/pull/1403), [#1407](https://github.com/mindspore-lab/mindone/pull/1407), [#1420](https://github.com/mindspore-lab/mindone/pull/1420), [#1451](https://github.com/mindspore-lab/mindone/pull/1451), [#1452](https://github.com/mindspore-lab/mindone/pull/1452), [#1453](https://github.com/mindspore-lab/mindone/pull/1453), [#1454](https://github.com/mindspore-lab/mindone/pull/1454), [#1457](https://github.com/mindspore-lab/mindone/pull/1457), [#1462](https://github.com/mindspore-lab/mindone/pull/1462), [#1464](https://github.com/mindspore-lab/mindone/pull/1464))
-- Added new pipelines and demos such as QwenImage diffusers support, HiDream, CannyEdit, updated accelerated pipelines, and ComfyUI root/CLI assets; added text encoder files for inference setups. ([#1288](https://github.com/mindspore-lab/mindone/pull/1288), [#1346](https://github.com/mindspore-lab/mindone/pull/1346), [#1360](https://github.com/mindspore-lab/mindone/pull/1360), [#1433](https://github.com/mindspore-lab/mindone/pull/1433), [#1480](https://github.com/mindspore-lab/mindone/pull/1480), [#1481](https://github.com/mindspore-lab/mindone/pull/1481))
-- Extended example coverage with OmniGen2 fine-tuning, MovieGen MindSpore 2.7.0 support, and new examples for MMS, Nougat, MyT5, Granite-Vision, MatCha, DePlot, fill-mask pipe usage, Jamba, and others. ([#1329](https://github.com/mindspore-lab/mindone/pull/1329), [#1333](https://github.com/mindspore-lab/mindone/pull/1333), [#1334](https://github.com/mindspore-lab/mindone/pull/1334), [#1335](https://github.com/mindspore-lab/mindone/pull/1335), [#1336](https://github.com/mindspore-lab/mindone/pull/1336), [#1337](https://github.com/mindspore-lab/mindone/pull/1337), [#1341](https://github.com/mindspore-lab/mindone/pull/1341), [#1362](https://github.com/mindspore-lab/mindone/pull/1362), [#1410](https://github.com/mindspore-lab/mindone/pull/1410))
-- Added AutoencoderMixin and updated CLI/processors for Phi4, Whisper, UltraVox, InternVL, Qwen2 Audio, MiniCPMV, LLaVA Next (image/video), plus supplemental GLM4V processors. ([#1349](https://github.com/mindspore-lab/mindone/pull/1349), [#1429](https://github.com/mindspore-lab/mindone/pull/1429), [#1471](https://github.com/mindspore-lab/mindone/pull/1471), [#1444](https://github.com/mindspore-lab/mindone/pull/1444))
+#### Base Updates
+- Transformers 4.54 base support ([#1387](https://github.com/mindspore-lab/mindone/pull/1387))
+- Transformers 4.57 base support ([#1445](https://github.com/mindspore-lab/mindone/pull/1445))
+
+#### New Models
+- **Vision Models**:
+  - AIMv2 ([#1456](https://github.com/mindspore-lab/mindone/pull/1456))
+  - DINOv3 ViT/ConvNeXt (v4.57.1) ([#1439](https://github.com/mindspore-lab/mindone/pull/1439))
+  - SAM-HQ (v4.57.1) ([#1457](https://github.com/mindspore-lab/mindone/pull/1457))
+  - Bria ([#1384](https://github.com/mindspore-lab/mindone/pull/1384))
+  - Florence2 ([#1453](https://github.com/mindspore-lab/mindone/pull/1453))
+  - EfficientLoftr ([#1456](https://github.com/mindspore-lab/mindone/pull/1456))
+  - HGNet_v2 ([#1395](https://github.com/mindspore-lab/mindone/pull/1395))
+  - Ovis2 ([#1454](https://github.com/mindspore-lab/mindone/pull/1454))
+
+- **Audio/Speech Models**:
+  - Granite Speech ([#1406](https://github.com/mindspore-lab/mindone/pull/1406))
+  - Kyutai Speech-to-Text ([#1407](https://github.com/mindspore-lab/mindone/pull/1407))
+  - Voxtral ([#1456](https://github.com/mindspore-lab/mindone/pull/1456))
+  - Parakeet ([#1451](https://github.com/mindspore-lab/mindone/pull/1451))
+  - XCodec ([#1452](https://github.com/mindspore-lab/mindone/pull/1452))
+  - Dia ([#1404](https://github.com/mindspore-lab/mindone/pull/1404))
+  - CSM (v4.54.1) ([#1399](https://github.com/mindspore-lab/mindone/pull/1399))
+
+- **Text/Language Models**:
+  - Llama4 ([#1470](https://github.com/mindspore-lab/mindone/pull/1470))
+  - Arcee ([#1470](https://github.com/mindspore-lab/mindone/pull/1470))
+  - Falcon H1 ([#1465](https://github.com/mindspore-lab/mindone/pull/1465))
+  - Dots1 ([#1469](https://github.com/mindspore-lab/mindone/pull/1469))
+  - SmolLM3 (v4.54.1) ([#1391](https://github.com/mindspore-lab/mindone/pull/1391))
+  - ModernBERT Decoder (v4.54.1) ([#1397](https://github.com/mindspore-lab/mindone/pull/1397))
+  - Hunyuan V1 Dense/MoE (v4.57.1) ([#1401](https://github.com/mindspore-lab/mindone/pull/1401))
+  - Evolla (v4.54.1) ([#1440](https://github.com/mindspore-lab/mindone/pull/1440))
+  - EXAONE ([#1396](https://github.com/mindspore-lab/mindone/pull/1396))
+  - Doge ([#1392](https://github.com/mindspore-lab/mindone/pull/1392))
+  - ERNIE 4.5 & ERNIE 4.5 MoE ([#1393](https://github.com/mindspore-lab/mindone/pull/1393))
+  - GLM4 MoE ([#1409](https://github.com/mindspore-lab/mindone/pull/1409))
+  - Flex OLMo ([#1442](https://github.com/mindspore-lab/mindone/pull/1442))
+  - T5Gemma ([#1420](https://github.com/mindspore-lab/mindone/pull/1420))
+  - VaultGemma ([#1450](https://github.com/mindspore-lab/mindone/pull/1450))
+  - BLT/Apertus/Ministral ([#1462](https://github.com/mindspore-lab/mindone/pull/1462))
+  - EOMT/TimesFM ([#1403](https://github.com/mindspore-lab/mindone/pull/1403))
+  - Seed OSS ([#1441](https://github.com/mindspore-lab/mindone/pull/1441))
+
+- **Multimodal Models**:
+  - Qwen3 Omni ([#1411](https://github.com/mindspore-lab/mindone/pull/1411))
+  - Qwen3 Next ([#1476](https://github.com/mindspore-lab/mindone/pull/1476))
+  - ColQwen2 (v4.54.1) ([#1414](https://github.com/mindspore-lab/mindone/pull/1414))
+  - Cohere2 Vision (v4.57.1) ([#1473](https://github.com/mindspore-lab/mindone/pull/1473))
+  - InternVL (v4.57) ([#1463](https://github.com/mindspore-lab/mindone/pull/1463))
+  - Janus (v4.57) ([#1463](https://github.com/mindspore-lab/mindone/pull/1463))
+  - Kosmos-2.5 ([#1456](https://github.com/mindspore-lab/mindone/pull/1456))
+  - LFM2/LFM2-VL ([#1456](https://github.com/mindspore-lab/mindone/pull/1456))
+  - MetaCLIP 2 ([#1456](https://github.com/mindspore-lab/mindone/pull/1456))
+  - Mlcd ([#1472](https://github.com/mindspore-lab/mindone/pull/1472))
+
+#### Processor Updates for vllm-mindspore community
+- Qwen2.5VL ImageProcessor Fast / VideoProcessor ([#1429](https://github.com/mindspore-lab/mindone/pull/1429))
+- Qwen3_VL Video Processor & Qwen2_VL Image Processor Fast ([#1419](https://github.com/mindspore-lab/mindone/pull/1419))
+- Phi4/Whisper/Ultravox/InternVL/Qwen2_audio/MiniCPMV/LLaVA-Next/LLaVA-Next-Video processors ([#1471](https://github.com/mindspore-lab/mindone/pull/1471))
+
+#### Model Updates
+- Update Mistral3 to v4.57.1 ([#1464](https://github.com/mindspore-lab/mindone/pull/1464))
+- Update Qwen2.5VL to v4.54.1 ([#1421](https://github.com/mindspore-lab/mindone/pull/1421))
+
+### mindone.diffusers updates
+
+#### New Features
+- Context parallelism: Ring & Ulysses & Unified Attention ([#1438](https://github.com/mindspore-lab/mindone/pull/1438))
+- Added AutoencoderMixin ([#1444](https://github.com/mindspore-lab/mindone/pull/1444))
+
+### New Pipelines
+- Kandinsky5 ([#1388](https://github.com/mindspore-lab/mindone/pull/1388))
+- Lucy ([#1390](https://github.com/mindspore-lab/mindone/pull/1390))
+
+#### Bug Fixes
+- Fixed some diffusers bugs ([#1448](https://github.com/mindspore-lab/mindone/pull/1448))
+
+### Examples Updates
+- Added OmniGen2 fine-tuning script ([#1410](https://github.com/mindspore-lab/mindone/pull/1410))
+- Added back examples/dit_infer_acceleration (renamed to accelerated_pipelines) ([#1433](https://github.com/mindspore-lab/mindone/pull/1433))
+- Updated Emu3 performance for MindSpore 2.6.0 and 2.7.0 ([#1417](https://github.com/mindspore-lab/mindone/pull/1417))
+- Updated HunyuanVideo-I2V to MS 2.6.0 and MS 2.7.0 ([#1385](https://github.com/mindspore-lab/mindone/pull/1385))
+
+### ComfyUI Integration
+- Added ComfyUI root files and CLI args ([#1480](https://github.com/mindspore-lab/mindone/pull/1480))
+- Added text encoder files ([#1481](https://github.com/mindspore-lab/mindone/pull/1481))
+- Updated clip_model.py ([#1479](https://github.com/mindspore-lab/mindone/pull/1479))
 
 ### Fixed
-- Resolved multiple transformer and pipeline bugs, including Qwen3-VL text attention selection, GLM4.1V batch generation index handling, Accelerate import guards, FA missing_keys warnings, Reformer UT stability, and division-by-zero in compute_diffs. ([#1351](https://github.com/mindspore-lab/mindone/pull/1351), [#1343](https://github.com/mindspore-lab/mindone/pull/1343), [#1354](https://github.com/mindspore-lab/mindone/pull/1354), [#1368](https://github.com/mindspore-lab/mindone/pull/1368), [#1371](https://github.com/mindspore-lab/mindone/pull/1371), [#1431](https://github.com/mindspore-lab/mindone/pull/1431), [#1437](https://github.com/mindspore-lab/mindone/pull/1437), [#1455](https://github.com/mindspore-lab/mindone/pull/1455))
-- Stabilized UT thresholds for BF16, Seamless M4T, Emu3, Zero helper, and RT-DETR fast UT cases; updated fast unit tests for various models across MindSpore versions. ([#1187](https://github.com/mindspore-lab/mindone/pull/1187), [#1345](https://github.com/mindspore-lab/mindone/pull/1345), [#1358](https://github.com/mindspore-lab/mindone/pull/1358), [#1359](https://github.com/mindspore-lab/mindone/pull/1359), [#1366](https://github.com/mindspore-lab/mindone/pull/1366), [#1373](https://github.com/mindspore-lab/mindone/pull/1373), [#1383](https://github.com/mindspore-lab/mindone/pull/1383))
-- Fixed from_pretrained loading in OpenSora/OmniGen pipelines, added lora scale coverage in diffusers tests, and sorted auto-mapping to reduce nondeterminism. ([#1187](https://github.com/mindspore-lab/mindone/pull/1187), [#1370](https://github.com/mindspore-lab/mindone/pull/1370), [#1353](https://github.com/mindspore-lab/mindone/pull/1353))
+- Fixed AIMv2/Arcee rely on torch bug ([#1485](https://github.com/mindspore-lab/mindone/pull/1485))
+- Fixed bugs of mindone.transformers models that rely on torch ([#1482](https://github.com/mindspore-lab/mindone/pull/1482))
+- Fixed Qwen2.5VLProcessor tokenizer converting tensor bug ([#1483](https://github.com/mindspore-lab/mindone/pull/1483))
+- Fixed Qwen3_VL text attention selection bug ([#1455](https://github.com/mindspore-lab/mindone/pull/1455))
+- Fixed GLM4.1V bs>1 generation index bug ([#1437](https://github.com/mindspore-lab/mindone/pull/1437))
+- Fixed training issue in TrainOneStepWrapper ([#1408](https://github.com/mindspore-lab/mindone/pull/1408))
+- Fixed import error if env contains accelerate module ([#1431](https://github.com/mindspore-lab/mindone/pull/1431))
+- ZeRO: Support training with MS 2.6.0 and 2.7.0 ([#1383](https://github.com/mindspore-lab/mindone/pull/1383))
+- Misc bugfixes ([#1424](https://github.com/mindspore-lab/mindone/pull/1424))
 
-### Documentation & Examples
-- Refreshed READMEs and tutorials for Llama2/Llama3, SparkTTS, SAM2/LanguageSAM, MmaDA, Wan2.1, Janus-Pro, Emu3, and general repository instructions; improved performance notes for multiple demos. ([#1344](https://github.com/mindspore-lab/mindone/pull/1344), [#1377](https://github.com/mindspore-lab/mindone/pull/1377), [#1369](https://github.com/mindspore-lab/mindone/pull/1369), [#1376](https://github.com/mindspore-lab/mindone/pull/1376), [#1378](https://github.com/mindspore-lab/mindone/pull/1378), [#1417](https://github.com/mindspore-lab/mindone/pull/1417))
-- Updated OpenSora-HPC AI, HunyuanVideo I2V, and Emu3 examples for MindSpore 2.6.0/2.7.0 compatibility and performance. ([#1385](https://github.com/mindspore-lab/mindone/pull/1385), [#1417](https://github.com/mindspore-lab/mindone/pull/1417))
-- Added new documentation for GPT-SW3/MADLAD-400, MMS, and various model usage guides. ([#1329](https://github.com/mindspore-lab/mindone/pull/1329), [#1335](https://github.com/mindspore-lab/mindone/pull/1335))
-
-## [v0.4.0]
-
-For details of the previous release, see the [v0.4.0 changelog](https://github.com/mindspore-lab/mindone/blob/refs/tags/v0.4.0/CHANGELOG.md).
+### Statistics
+- **Total commits**: 63
+- **Files changed**: 679
+- **Lines added**: 121,102
+- **Lines deleted**: 23,268

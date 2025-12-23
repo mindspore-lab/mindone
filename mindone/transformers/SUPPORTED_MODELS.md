@@ -13,7 +13,7 @@ Support list for new added models.
 *  **Text models**
 
     | model | fp32 | fp16 | bf16 | inference | notes |
-    | --- | --- | --- | --- | --- | --- |
+    | :--- | :--- | :--- | :--- | :--- | :--- |
     | apertus | ✅ | ✅ | ✅ | ✅ | [#1462](https://github.com/mindspore-lab/mindone/pull/1462)  |
     | arcee | ✅ | ✅ | ✅ | ✅ |  [#1470](https://github.com/mindspore-lab/mindone/pull/1470) |
     | bitnet | ✅ | ✅ | ✅ | ✖️ | quantized model inference is temporarily unsupported. [#1416](https://github.com/mindspore-lab/mindone/pull/1416) |
@@ -50,7 +50,7 @@ Support list for new added models.
 * **Vision models**
 
     | model | fp32 | fp16 | bf16 | inference | notes |
-    | --- | --- | --- | --- | --- | --- |
+    | :--- | :--- | :--- | :--- | :--- | :--- |
     | aimv2 | ✅ | ✅ | ✅ | ✅ |  [#1456](https://github.com/mindspore-lab/mindone/pull/1456) |
     | d_fine | ✖️ | ✖️ | ✖️ | ✅ | the order of results returned by `ms.mint.topk()` and `torch.topk()`may differ  when tensor elements are identical. temporarily skip the comparative tests. The model remains fully functional for users. |
     | dinov3_vit | ✅ | ✅ | ✅ | ✅ | a precision gap of ~1e-3 exists in image processing due to resize implementation differences; hence the HF processor is retained. [#1439](https://github.com/mindspore-lab/mindone/pull/1439) |
@@ -65,7 +65,7 @@ Support list for new added models.
 * **Multimodal models**
 
     | model | fp32 | fp16 | bf16 | inference | notes |
-    | --- | --- | --- | --- | --- | --- |
+    | :--- | :--- | :--- | :--- | :--- | :--- |
     | cohere2_vision | ✅ | ✅ | ✅ | ✅ | 112b. requires zero3 parallel inference with 6p. [#1473](https://github.com/mindspore-lab/mindone/pull/1473) |
     | colqwen2 | ✅ | ✅ | ✅ | ✅ | [#1414](https://github.com/mindspore-lab/mindone/pull/1414)  |
     | deepseek_vl | ✅ | ✅ | ✅ | ✅ | [#1477](https://github.com/mindspore-lab/mindone/pull/1477)  |
@@ -98,13 +98,13 @@ Support list for new added models.
 * **Time series models**
 
     | model | fp32 | fp16 | bf16 | inference | notes |
-    | --- | --- | --- | --- | --- | --- |
+    | :--- | :--- | :--- | :--- | :--- | :--- |
     | timesfm | ✅ | ✖️ | ✅ | ✅ | fp16 infernece has `nan` ouputs in torch or mindspore. [#1403](https://github.com/mindspore-lab/mindone/pull/1403)  |
 
 * **Audio / Video models**
 
     | model | fp32 | fp16 | bf16 | inference | notes |
-    | --- | --- | --- | --- | --- | --- |
+    | :--- | :--- | :--- | :--- | :--- | :--- |
     | csm | ✅ | ✅ | ✅ | ✅ | [#1399](https://github.com/mindspore-lab/mindone/pull/1399) |
     | dia | ✅ | ✅ | ✅ | ✅ | [#1404](https://github.com/mindspore-lab/mindone/pull/1404) |
     | granite_speech | ✅ | ✅ | ✅ | ✅ | [#1406](https://github.com/mindspore-lab/mindone/pull/1406) |
@@ -120,7 +120,7 @@ Support list for new added models.
 
 In the previous version (aligned with 🤗 Transformers v4.50.0), 240+ models were added. Some scripts have been upgraded to ensure that all existing model interfaces pass the fast unit tests. We do not guarantee that all model scripts are fully consistent with v4.57.1.
 
-Fast UT validates pruned models that match the 🤗 Transformers' precision. For real‑weight inference, please switch back to mindone v0.4.0. Community upgrades are welcome.
+Fast UT validates pruned models that match the 🤗 Transformers' precision. For real‑weight inference, please switch back to mindone v0.4.0 for attempts. Community upgrades are very welcome.
 
 
 | model | fp32 | fp16 | bf16 |
