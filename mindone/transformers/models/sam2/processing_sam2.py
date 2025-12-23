@@ -23,13 +23,14 @@ from copy import deepcopy
 from typing import Optional, Union
 
 import numpy as np
+from transformers.tokenization_utils_base import BatchEncoding
+
+import mindspore as ms
+import mindspore.mint as mint
 
 from ...image_utils import ImageInput
 from ...processing_utils import ProcessorMixin
-from transformers.tokenization_utils_base import BatchEncoding
 from ...utils import TensorType, logging
-import mindspore as ms
-import mindspore.mint as mint
 
 logger = logging.get_logger(__name__)
 
@@ -52,7 +53,7 @@ class Sam2Processor(ProcessorMixin):
     """
     attributes = ["image_processor"]
     image_processor_class = "Sam2ImageProcessorFast"
-    
+
     def __init__(self, image_processor, target_size: Optional[int] = None, point_pad_value: int = -10, **kwargs):
         super().__init__(image_processor, **kwargs)
         self.point_pad_value = point_pad_value
@@ -187,7 +188,7 @@ class Sam2Processor(ProcessorMixin):
                 final_boxes = ms.tensor(processed_boxes, dtype=ms.float32)
                 self._normalize_tensor_coordinates(final_boxes, original_sizes, is_bounding_box=True)
                 encoding_image_processor.update({"input_boxes": final_boxes})
-        encoding_image_processor['pixel_values'] = ms.Tensor(encoding_image_processor['pixel_values'].numpy())
+        encoding_image_processor["pixel_values"] = ms.Tensor(encoding_image_processor["pixel_values"].numpy())
         return encoding_image_processor
 
     def _normalize_coordinates(

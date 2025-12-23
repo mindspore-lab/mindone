@@ -27,11 +27,11 @@ from itertools import product
 from typing import Any, Optional, Union
 
 import numpy as np
+
 import mindspore as ms
 import mindspore.mint.nn.functional as F
 from mindspore import mint, ops
 
-from ...mindspore_adapter.batched_nms import batched_nms
 from ...image_processing_utils import BatchFeature, get_size_dict
 from ...image_processing_utils_fast import BaseImageProcessorFast, DefaultFastImageProcessorKwargs
 from ...image_utils import (
@@ -43,6 +43,7 @@ from ...image_utils import (
     SizeDict,
     pil_mindspore_interpolation_mapping,
 )
+from ...mindspore_adapter.batched_nms import batched_nms
 from ...processing_utils import Unpack
 from ...utils import TensorType
 
@@ -59,9 +60,7 @@ class Sam2FastImageProcessorKwargs(DefaultFastImageProcessorKwargs):
 def _compute_stability_score(masks: "ms.Tensor", mask_threshold: float, stability_score_offset: int):
     # One mask is always contained inside the other.
     # Save memory by preventing unnecessary cast to torch.int64
-    intersections = (
-        (masks > (mask_threshold + stability_score_offset)).sum(-1, dtype=ms.int16).sum(-1, dtype=ms.int32)
-    )
+    intersections = (masks > (mask_threshold + stability_score_offset)).sum(-1, dtype=ms.int16).sum(-1, dtype=ms.int32)
     unions = (masks > (mask_threshold - stability_score_offset)).sum(-1, dtype=ms.int16).sum(-1, dtype=ms.int32)
     stability_scores = intersections / unions
     return stability_scores
@@ -113,7 +112,6 @@ def _batched_mask_to_box(masks: "ms.Tensor"):
     Args:
         - masks (`ms.Tensor` of shape `(batch, nb_mask, height, width)`)
     """
-
 
     if ops.numel(masks) == 0:
         return mint.zeros(*masks.shape[:-2], 4, device=masks.device)
@@ -597,9 +595,7 @@ class Sam2ImageProcessorFast(BaseImageProcessorFast):
         masks = masks > mask_threshold
         converted_boxes = _batched_mask_to_box(masks)
 
-        keep_mask = ~_is_box_near_crop_edge(
-            converted_boxes, cropped_box_image, [0, 0, original_width, original_height]
-        )
+        keep_mask = ~_is_box_near_crop_edge(converted_boxes, cropped_box_image, [0, 0, original_width, original_height])
 
         scores = scores[keep_mask]
         masks = masks[keep_mask]

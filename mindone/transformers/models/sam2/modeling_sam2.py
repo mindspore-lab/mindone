@@ -25,24 +25,9 @@
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Optional, Union, Tuple, List
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
-import mindspore as ms
-import mindspore.mint as mint
-import mindspore.mint.nn.functional as F
-from mindspore import Tensor, nn, ops
-
-from transformers.utils.generic import OutputRecorder
-from ...processing_utils import Unpack
-from ...modeling_flash_attention_utils import FlashAttentionKwargs
-from ...activations import ACT2FN
-from ...modeling_layers import GradientCheckpointingLayer
-from ...modeling_outputs import BaseModelOutput
-from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
-from ...utils import ModelOutput
-from ..auto import AutoModel
-from mindone.transformers.generation import GenerationMixin
 from transformers import (
     Sam2Config,
     Sam2HieraDetConfig,
@@ -50,6 +35,23 @@ from transformers import (
     Sam2PromptEncoderConfig,
     Sam2VisionConfig,
 )
+from transformers.utils.generic import OutputRecorder
+
+import mindspore as ms
+import mindspore.mint as mint
+import mindspore.mint.nn.functional as F
+from mindspore import Tensor, nn, ops
+
+from mindone.transformers.generation import GenerationMixin
+
+from ...activations import ACT2FN
+from ...modeling_flash_attention_utils import FlashAttentionKwargs
+from ...modeling_layers import GradientCheckpointingLayer
+from ...modeling_outputs import BaseModelOutput
+from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
+from ...processing_utils import Unpack
+from ...utils import ModelOutput
+from ..auto import AutoModel
 
 
 @dataclass
@@ -229,9 +231,7 @@ class Sam2VisionNeck(nn.Cell):
                 ).to(lateral_features.dtype)
                 prev_features = lateral_features + top_down_features
 
-            prev_position_encoding = self.position_encoding(
-                prev_features
-            ).to(prev_features.dtype)
+            prev_position_encoding = self.position_encoding(prev_features).to(prev_features.dtype)
 
             fpn_hidden_states += (prev_features,)
             fpn_position_encoding += (prev_position_encoding,)
@@ -612,7 +612,6 @@ class Sam2HieraDetModel(Sam2PreTrainedModel, GenerationMixin):
         pos_embed = pos_embed.permute(0, 2, 3, 1)
         return pos_embed
 
-
     def construct(
         self,
         pixel_values: Optional[ms.Tensor] = None,
@@ -687,7 +686,7 @@ class Sam2PositionalEmbedding(nn.Cell):
         super().__init__()
         self.scale = config.scale
         self.positional_embedding = ms.Parameter(self.scale * mint.randn((2, config.hidden_size // 2)))
-        #self.register_buffer("positional_embedding", positional_embedding)
+        # self.register_buffer("positional_embedding", positional_embedding)
 
     def construct(self, input_coords, input_shape=None):
         """Positionally encode points that are normalized to [0,1]."""
@@ -1064,7 +1063,9 @@ class Sam2MaskDecoder(nn.Cell):
 
         # should we create a new class for this?
         self.upscale_conv1 = mint.nn.ConvTranspose2d(self.hidden_size, self.hidden_size // 4, kernel_size=2, stride=2)
-        self.upscale_conv2 = mint.nn.ConvTranspose2d(self.hidden_size // 4, self.hidden_size // 8, kernel_size=2, stride=2)
+        self.upscale_conv2 = mint.nn.ConvTranspose2d(
+            self.hidden_size // 4, self.hidden_size // 8, kernel_size=2, stride=2
+        )
         self.upscale_layer_norm = Sam2LayerNorm(self.hidden_size // 4, data_format="channels_first")
         self.activation = mint.nn.GELU()
 
@@ -1250,7 +1251,6 @@ class Sam2MaskDecoder(nn.Cell):
         return mask_logits_out, iou_scores_out
 
 
-
 class Sam2Model(Sam2PreTrainedModel, GenerationMixin):
     input_modalities = ["image", "text"]
     _tied_weights_keys = ["prompt_encoder.shared_embedding.positional_embedding"]
@@ -1283,7 +1283,6 @@ class Sam2Model(Sam2PreTrainedModel, GenerationMixin):
         self.no_memory_embedding = ms.Parameter(mint.zeros((1, 1, self.hidden_dim)))
 
         self.post_init()
-
 
     def get_input_embeddings(self):
         return self.vision_encoder.get_input_embeddings()
@@ -1458,9 +1457,7 @@ class Sam2Model(Sam2PreTrainedModel, GenerationMixin):
 
         if input_points is None and input_boxes is None:
             # If no points are provide, pad with an empty point (with label -1)
-            input_points = mint.zeros(
-                (batch_size, 1, 1, 2), dtype=image_embeddings[-1].dtype
-            )
+            input_points = mint.zeros((batch_size, 1, 1, 2), dtype=image_embeddings[-1].dtype)
             input_labels = -mint.ones((batch_size, 1, 1), dtype=ms.int32)
 
         if input_masks is not None:
@@ -1503,12 +1500,7 @@ class Sam2Model(Sam2PreTrainedModel, GenerationMixin):
     def get_image_features(
         self,
         pixel_values: ms.Tensor,
-    ) -> Tuple[
-        list[ms.Tensor],
-        list[ms.Tensor],
-        Optional[Tuple[ms.Tensor, ...]],
-        Optional[Tuple[ms.Tensor, ...]],
-    ]:
+    ) -> Tuple[list[ms.Tensor], list[ms.Tensor], Optional[Tuple[ms.Tensor, ...]], Optional[Tuple[ms.Tensor, ...]],]:
         r"""
         Extract and preprocess image features using the vision encoder.
 
