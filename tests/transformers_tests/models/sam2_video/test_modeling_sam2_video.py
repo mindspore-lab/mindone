@@ -1,4 +1,3 @@
-
 # coding=utf-8
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
 #
@@ -22,19 +21,21 @@ import numpy as np
 import pytest
 import torch
 from transformers import (
+    Sam2HieraDetConfig,
     Sam2VideoConfig,
     Sam2VideoMaskDecoderConfig,
     Sam2VideoPromptEncoderConfig,
     Sam2VisionConfig,
-    Sam2HieraDetConfig,
 )
 from transformers.models.sam2_video.modeling_sam2_video import Sam2VideoInferenceSession as ptSam2VideoInferenceSession
+
 import mindspore as ms
 
+from mindone.transformers.models.sam2_video.modeling_sam2_video import (
+    Sam2VideoInferenceSession as msSam2VideoInferenceSession,
+)
 from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
 from tests.transformers_tests.models.modeling_common import floats_numpy
-from mindone.transformers.models.sam2_video.modeling_sam2_video import Sam2VideoInferenceSession as msSam2VideoInferenceSession
-
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
@@ -242,8 +243,6 @@ _CASES = [
 ]
 
 
-
-
 @pytest.mark.parametrize(
     "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",
     [case + [dtype] + [mode] for case in _CASES for dtype in DTYPE_AND_THRESHOLDS.keys() for mode in MODES],
@@ -254,10 +253,10 @@ def test_named_modules(
     ms.set_context(mode=mode)
 
     (pt_model, ms_model, pt_dtype, ms_dtype) = get_modules(pt_module, ms_module, dtype, *init_args, **init_kwargs)
-    
+
     # Make a copy of inputs_kwargs to avoid modifying the original
     inputs_kwargs = dict(inputs_kwargs) if inputs_kwargs else {}
-    
+
     # Extract session creation data from inputs_kwargs
     video_frames = inputs_kwargs.pop("video_frames", None)
     video_height = inputs_kwargs.pop("video_height", None)
@@ -270,10 +269,12 @@ def test_named_modules(
         dtype=ms.float32 if ms_dtype == "fp32" else ms.float16 if ms_dtype == "fp16" else ms.bfloat16,
     )
     obj_idx = session_ms.obj_id_to_idx(1)
-    session_ms.add_point_inputs(obj_idx, 0, {"point_coords": ms.Tensor([[[[50, 50]]]]), "point_labels": ms.Tensor([[[1]]])})
-    
+    session_ms.add_point_inputs(
+        obj_idx, 0, {"point_coords": ms.Tensor([[[[50, 50]]]]), "point_labels": ms.Tensor([[[1]]])}
+    )
+
     session_ms.obj_with_new_inputs = [1]
-    
+
     session_pt = ptSam2VideoInferenceSession(
         video=torch.Tensor(video_frames),
         video_height=video_height,
@@ -282,7 +283,9 @@ def test_named_modules(
         dtype=torch.float32 if pt_dtype == "fp32" else torch.float16 if pt_dtype == "fp16" else torch.bfloat16,
     )
     obj_idx = session_pt.obj_id_to_idx(1)
-    session_pt.add_point_inputs(obj_idx, 0, {"point_coords": torch.Tensor([[[[50, 50]]]]), "point_labels": torch.LongTensor([[[1]]])})
+    session_pt.add_point_inputs(
+        obj_idx, 0, {"point_coords": torch.Tensor([[[[50, 50]]]]), "point_labels": torch.LongTensor([[[1]]])}
+    )
     session_pt.obj_with_new_inputs = [1]
     pt_inputs_kwargs = {
         "inference_session": session_pt,
