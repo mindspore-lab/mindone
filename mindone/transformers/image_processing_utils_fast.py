@@ -812,7 +812,6 @@ class BaseImageProcessorFast(BaseImageProcessor):
         image_std: Optional[Union[float, list[float]]],
         do_pad: Optional[bool],
         pad_size: Optional[SizeDict],
-        disable_grouping: Optional[bool],
         return_tensors: Optional[Union[str, TensorType]],
         disable_grouping: Optional[bool] = False,
         **kwargs,
