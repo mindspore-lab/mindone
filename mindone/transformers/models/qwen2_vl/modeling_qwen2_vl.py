@@ -1133,16 +1133,10 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
         self.post_init()
 
     def get_input_embeddings(self):
-        return self.language_model.embed_tokens
+        return self.language_model.get_input_embeddings()
 
     def set_input_embeddings(self, value):
-        self.language_model.embed_tokens = value
-
-    def get_output_embeddings(self):
-        return self.lm_head
-
-    def set_output_embeddings(self, new_embeddings):
-        self.lm_head = new_embeddings
+        self.language_model.set_input_embeddings(value)
 
     def set_decoder(self, decoder):
         self.language_model = decoder
@@ -1308,6 +1302,78 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
                 )
 
             return position_ids, mrope_position_deltas
+
+    def get_video_features(self, pixel_values_videos: ms.Tensor, video_grid_thw: Optional[ms.Tensor] = None):
+        """
+        Encodes videos into continuous embeddings that can be forwarded to the language model.
+
+        Args:
+            pixel_values_videos (`ms.Tensor` of shape `(batch_size, num_channels, image_size, image_size)`):
+                The tensors corresponding to the input videos.
+            video_grid_thw (`ms.Tensor` of shape `(num_videos, 3)`, *optional*):
+                The temporal, height and width of feature shape of each video in LLM.
+        """
+        pixel_values_videos = pixel_values_videos.type(self.visual.dtype)
+        video_embeds = self.visual(pixel_values_videos, grid_thw=video_grid_thw)
+        split_sizes = (mint.prod(video_grid_thw, dim=-1) // self.visual.spatial_merge_size**2).tolist()
+        video_embeds = mint.split(video_embeds, split_sizes)
+        return video_embeds
+
+    def get_image_features(self, pixel_values: ms.Tensor, image_grid_thw: Optional[ms.Tensor] = None):
+        """
+        Encodes images into continuous embeddings that can be forwarded to the language model.
+
+        Args:
+            pixel_values (`ms.Tensor` of shape `(batch_size, num_channels, image_size, image_size)`):
+                The tensors corresponding to the input images.
+            image_grid_thw (`ms.Tensor` of shape `(num_images, 3)`, *optional*):
+                The temporal, height and width of feature shape of each image in LLM.
+        """
+        pixel_values = pixel_values.type(self.visual.dtype)
+        image_embeds = self.visual(pixel_values, grid_thw=image_grid_thw)
+        split_sizes = (mint.prod(image_grid_thw, dim=-1) // self.visual.spatial_merge_size**2).tolist()
+        image_embeds = mint.split(image_embeds, split_sizes)
+        return image_embeds
+
+    def get_placeholder_mask(
+        self,
+        input_ids: ms.Tensor,
+        inputs_embeds: ms.Tensor,
+        image_features: Optional[ms.Tensor] = None,
+        video_features: Optional[ms.Tensor] = None,
+    ):
+        """
+        Obtains multimodal placeholder mask from `input_ids` or `inputs_embeds`, and checks that the placeholder token count is
+        equal to the length of multimodal features. If the lengths are different, an error is raised.
+        """
+        if input_ids is None:
+            special_image_mask = inputs_embeds == self.get_input_embeddings()(
+                ms.Tensor(self.config.image_token_id, dtype=ms.int64)
+            )
+            special_image_mask = special_image_mask.all(-1)
+            special_video_mask = inputs_embeds == self.get_input_embeddings()(
+                ms.Tensor(self.config.video_token_id, dtype=ms.int64)
+            )
+            special_video_mask = special_video_mask.all(-1)
+        else:
+            special_image_mask = input_ids == self.config.image_token_id
+            special_video_mask = input_ids == self.config.video_token_id
+
+        n_image_tokens = special_image_mask.sum()
+        special_image_mask = special_image_mask.unsqueeze(-1).expand_as(inputs_embeds)
+        if image_features is not None and inputs_embeds[special_image_mask].numel() != image_features.numel():
+            raise ValueError(
+                f"Image features and image tokens do not match: tokens: {n_image_tokens}, features {image_features.shape[0]}"
+            )
+
+        n_video_tokens = special_video_mask.sum()
+        special_video_mask = special_video_mask.unsqueeze(-1).expand_as(inputs_embeds)
+        if video_features is not None and inputs_embeds[special_video_mask].numel() != video_features.numel():
+            raise ValueError(
+                f"Videos features and video tokens do not match: tokens: {n_video_tokens}, features {video_features.shape[0]}"
+            )
+
+        return special_image_mask, special_video_mask
 
     def construct(
         self,

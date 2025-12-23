@@ -82,7 +82,10 @@ class LLAMAModel(sd1_clip.SDClipModel):
 class HunyuanVideoTokenizer:
     def __init__(self, embedding_directory=None, tokenizer_data={}):
         self.clip_l = sd1_clip.SDTokenizer(embedding_directory=embedding_directory, tokenizer_data=tokenizer_data)
-        self.llama_template = """<|start_header_id|>system<|end_header_id|>\n\nDescribe the video by detailing the following aspects: 1. The main content and theme of the video.2. The color, shape, size, texture, quantity, text, and spatial relationships of the objects.3. Actions, events, behaviors temporal relationships, physical movement changes of the objects.4. background environment, light, style and atmosphere.5. camera angles, movements, and transitions used in the video:<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{}<|eot_id|>"""  # 95 tokens
+        self.llama_template = """<|start_header_id|>system<|end_header_id|>\n\nDescribe the video by detailing the following aspects:
+        1. The main content and theme of the video.2. The color, shape, size, texture, quantity, text, and spatial relationships of the objects.3.
+        Actions, events, behaviors temporal relationships, physical movement changes of the objects.4. background environment, light, style and atmosphere.
+        5. camera angles, movements, and transitions used in the video:<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{}<|eot_id|>"""  # 95 tokens
         self.llama = LLAMA3Tokenizer(
             embedding_directory=embedding_directory, min_length=1, tokenizer_data=tokenizer_data
         )
