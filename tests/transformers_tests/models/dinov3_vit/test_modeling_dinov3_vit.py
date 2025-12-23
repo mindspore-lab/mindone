@@ -19,7 +19,6 @@
 import numpy as np
 import pytest
 import torch
-
 from transformers import DINOv3ViTConfig
 
 import mindspore as ms
@@ -117,7 +116,6 @@ class DINOv3ViTModelTester:
         ) = config_and_inputs
         inputs_dict = {"pixel_values": pixel_values}
         return config, inputs_dict
-
 
 
 model_tester = DINOv3ViTModelTester()
