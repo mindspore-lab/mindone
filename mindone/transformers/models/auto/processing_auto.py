@@ -51,26 +51,41 @@ logger = logging.get_logger(__name__)
 
 PROCESSOR_MAPPING_NAMES = OrderedDict(
     [
+        ("aimv2", "CLIPProcessor"),
         ("blip", "BlipProcessor"),
         ("chameleon", "ChameleonProcessor"),
         ("chinese_clip", "ChineseCLIPProcessor"),
+        ("cohere2_vision", "Cohere2VisionProcessor"),
         ("colpali", "ColPaliProcessor"),
+        ("colqwen2", "ColQwen2Processor"),
+        ("dia", "DiaProcessor"),
+        ("evolla", "EvollaProcessor"),
         ("flava", "FlavaProcessor"),
+        ("granite_speech", "GraniteSpeechProcessor"),
         ("idefics", "IdeficsProcessor"),
         ("instructblip", "InstructBlipProcessor"),
+        ("internvl", "InternVLProcessor"),
+        ("kosmos-2.5", "Kosmos2_5Processor"),
         ("layoutlmv3", "LayoutMv3Processor"),
+        ("lfm2_vl", "Lfm2VlProcessor"),
         ("llava_next", "LlavaNextProcessor"),
         ("llava_next_video", "LlavaNextVideoProcessor"),
         ("llava_onevision", "LlavaOnevisionProcessor"),
+        ("metaclip_2", "CLIPProcessor"),
         ("oneformer", "OneFormerProcessor"),
         ("owlv2", "Owlv2Processor"),
         ("owlvit", "OwlViTProcessor"),
+        ("phi4_multimodal", "Phi4MultimodalProcessor"),
         ("pop2piano", "Pop2PianoProcessor"),
         ("qwen2_5_vl", "Qwen2_5_VLProcessor"),
+        ("qwen2_audio", "Qwen2AudioProcessor"),
         ("qwen2_vl", "Qwen2VLProcessor"),
         ("sam", "SamProcessor"),
+        ("sam_hq", "SamHQProcessor"),
         ("seamless_m4t", "SeamlessM4TProcessor"),
         ("siglip", "SiglipProcessor"),
+        ("voxtral", "VoxtralProcessor"),
+        ("whisper", "WhisperProcessor"),
     ]
 )
 
@@ -78,7 +93,9 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     PROCESSOR_MAPPING_NAMES.update({"glm4v": "Glm4vProcessor"})
 
 if version.parse(transformers.__version__) >= version.parse("4.57.0"):
-    PROCESSOR_MAPPING_NAMES.update({"qwen3_vl": "Qwen3VLProcessor", "qwen3_vl_moe": "Qwen3VLProcessor"})
+    PROCESSOR_MAPPING_NAMES.update(
+        {"qwen3_vl": "Qwen3VLProcessor", "qwen3_vl_moe": "Qwen3VLProcessor", "qwen3_omni_moe": "Qwen3OmniMoeProcessor"}
+    )
 
 PROCESSOR_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, PROCESSOR_MAPPING_NAMES)
 

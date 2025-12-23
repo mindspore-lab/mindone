@@ -55,6 +55,24 @@ class FlashAttentionKwargs(TypedDict, total=False):
     max_length_k: Optional[int]
 
 
+def _is_packed_sequence(position_ids, batch_size):
+    """
+    # NOTE `position_ids` here is for allowing padding free approach -> enable varlen flash attn. not for real computing.
+    # it is user's responsibility to take care of flattening `position_ids` if that's needed by the model. and curren†ly
+    # varlen flash attn are not avaliable yet.
+
+    Check the position ids whether packed sequences are indicated or not
+        1. Position ids exist
+        2. Flattened sequences only are supported
+        3. Compile-friendly `not (torch.diff(position_ids, dim=-1) >= 0).all()`, i.e. we have multiple increasing sequences
+    """
+    if position_ids is None:
+        return False
+
+    increasing_position_sequences = mint.arange(position_ids.shape[1]) + position_ids.min()
+    return batch_size == 1 and (increasing_position_sequences - position_ids).abs().sum().bool()
+
+
 def _flash_attention_forward(
     query_states: ms.Tensor,
     key_states: ms.Tensor,
@@ -112,30 +130,40 @@ def _flash_attention_forward(
     #     )
     # ):
     #     raise RuntimeError("FlashAttention's variable-length attention is not available.")
-    if softmax_scale is None:
-        # `flash_attention_score` does not support `None`
-        # and the value can't be set in jit mode, thus must be set in advance
-        raise ValueError("`softmax_scale` must be provided.")
+
+    # NOTE: `max_length_q`, `max_length_k`, `cu_seq_lens_q`, `cu_seq_lens_k` are originally for variable-length flash attn,
+    # not available yet.
     if max_length_q is not None or max_length_k is not None:
         raise RuntimeError("FlashAttention's variable-length attention is not available.")
-    if sliding_window is not None:
-        raise NotImplementedError("Sliding window is not supported yet. Please set `sliding_window=None`.")
-    if use_top_left_mask:
-        raise NotImplementedError("Top left mask is not supported yet. Please set `use_top_left_mask=False`.")
-    if softcap is not None:
-        raise NotImplementedError("Softcap is not supported yet. Please set `softcap=None`.")
-    if deterministic:
-        raise NotImplementedError("`deterministic` option is not supported yet. Please set `deterministic=None`.")
     if cu_seq_lens_q is not None or cu_seq_lens_k is not None:
         raise ValueError(
             "`_flash_attention_forward` does not support `cu_seq_lens_q` or `cu_seq_lens_k` yet,"
             "please use `ops.flash_attention_score` with input_layout `TND` instead."
+        )
+
+    if sliding_window is not None:
+        raise NotImplementedError("Sliding window is not supported yet. Please set `sliding_window=None`.")
+    if use_top_left_mask:
+        raise NotImplementedError(
+            "Top left mask is not supported yet. Please set `use_top_left_mask=False`."
+            "it's an outdated args for BC in upstream repo. will be deprecated in future version"
+        )
+    if softcap is not None:
+        raise NotImplementedError("Softcap is not supported yet. Please set `softcap=None`.")
+    if deterministic:
+        raise NotImplementedError(
+            "`deterministic` option is not supported yet. Please set `deterministic=None`. "
+            "originally introduced in flash_attn>=2.4.1"
         )
     if input_layout == "TND":
         raise ValueError(
             "`_flash_attention_forward` does not support input_layout `TND` yet, "
             "please use `ops.flash_attention_score` instead."
         )
+    if softmax_scale is None:
+        # `flash_attention_score` does not support `None`
+        # and the value can't be set in jit mode, thus must be set in advance
+        raise ValueError("`softmax_scale` must be provided.")
 
     num_head = query_states.shape[2] if input_layout == "BSND" else query_states.shape[1]
 

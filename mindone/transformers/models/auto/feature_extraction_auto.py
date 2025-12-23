@@ -46,8 +46,12 @@ FEATURE_EXTRACTOR_MAPPING_NAMES = OrderedDict(
         ("chinese_clip", "ChineseCLIPFeatureExtractor"),
         ("convnext", "ConvNextFeatureExtractor"),
         ("cvt", "ConvNextFeatureExtractor"),
+        ("dia", "DiaFeatureExtractor"),
         ("flava", "FlavaFeatureExtractor"),
+        ("granite_speech", "GraniteSpeechFeatureExtractor"),
+        ("phi4_multimodal", "Phi4MultimodalFeatureExtractor"),
         ("seamless_m4t", "SeamlessM4TFeatureExtractor"),
+        ("whisper", "WhisperFeatureExtractor"),
     ]
 )
 

@@ -1,2 +1,3 @@
 from omnigen2.pipelines.omnigen2.pipeline_omnigen2 import OmniGen2Pipeline
 from omnigen2.pipelines.omnigen2.pipeline_omnigen2_chat import OmniGen2ChatPipeline
+from omnigen2.pipelines.omnigen2.train_pipeline import OmniGen2TrainPipeline

@@ -129,7 +129,6 @@ class Qwen3VLVideoProcessor(BaseVideoProcessor):
 
     def sample_frames(
         self,
-        video: "ms.Tensor",
         metadata: VideoMetadata,
         num_frames: Optional[int] = None,
         fps: Optional[Union[int, float]] = None,
@@ -175,13 +174,11 @@ class Qwen3VLVideoProcessor(BaseVideoProcessor):
 
         indices = np.linspace(0, total_num_frames - 1, num_frames).round().astype(int)
 
-        video = video[indices].contiguous()
-        return video
+        return indices
 
     def _preprocess(
         self,
         videos: list[ms.Tensor],
-        video_metadata: Union[list[VideoMetadata], list[dict]],
         do_convert_rgb: bool = True,
         do_resize: bool = True,
         size: Optional[SizeDict] = None,
@@ -194,17 +191,9 @@ class Qwen3VLVideoProcessor(BaseVideoProcessor):
         patch_size: Optional[int] = None,
         temporal_patch_size: Optional[int] = None,
         merge_size: Optional[int] = None,
-        fps: Optional[Union[int, float]] = None,
-        num_frames: Optional[int] = None,
         return_tensors: Optional[Union[str, TensorType]] = None,
         **kwargs,
     ):
-        # Sample video frames
-        videos = [
-            self.sample_frames(video, metadata=metadata, num_frames=num_frames, fps=fps)
-            for video, metadata in zip(videos, video_metadata)
-        ]
-
         grouped_videos, grouped_videos_index = group_videos_by_shape(videos)
         resized_videos_grouped = {}
 
