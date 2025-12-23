@@ -75,6 +75,7 @@ from . import (
     dinov3_vit,
     distilbert,
     doge,
+    dots1,
     dpr,
     dpt,
     efficientloftr,

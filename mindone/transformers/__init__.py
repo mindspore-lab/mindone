@@ -471,6 +471,7 @@ from .models.distilbert import (
     DistilBertPreTrainedModel,
 )
 from .models.doge import DogeForCausalLM, DogeForSequenceClassification, DogeModel, DogePreTrainedModel
+from .models.dots1 import Dots1ForCausalLM, Dots1Model, Dots1PreTrainedModel
 from .models.dpr import (
     DPRContextEncoder,
     DPRPretrainedContextEncoder,
