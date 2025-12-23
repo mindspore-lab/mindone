@@ -55,6 +55,7 @@ PROCESSOR_MAPPING_NAMES = OrderedDict(
         ("blip", "BlipProcessor"),
         ("chameleon", "ChameleonProcessor"),
         ("chinese_clip", "ChineseCLIPProcessor"),
+        ("cohere2_vision", "Cohere2VisionProcessor"),
         ("colpali", "ColPaliProcessor"),
         ("colqwen2", "ColQwen2Processor"),
         ("evolla", "EvollaProcessor"),
