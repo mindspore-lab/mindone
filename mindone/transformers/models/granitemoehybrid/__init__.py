@@ -1,4 +1,9 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# coding=utf-8
+# Copyright 2025 IBM and the HuggingFace Inc. team. All rights reserved.
+#
+#
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,7 +16,4 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from .image_processing_rt_detr import *
-from .modeling_rt_detr import RTDetrForObjectDetection, RTDetrModel, RTDetrPreTrainedModel
-from .modeling_rt_detr_resnet import RTDetrResNetBackbone, RTDetrResNetPreTrainedModel
+from .modeling_granitemoehybrid import *
