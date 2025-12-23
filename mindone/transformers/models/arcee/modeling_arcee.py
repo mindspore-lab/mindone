@@ -344,7 +344,6 @@ class ArceeModel(ArceePreTrainedModel):
         self.post_init()
 
     @check_model_inputs
-    @auto_docstring
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
