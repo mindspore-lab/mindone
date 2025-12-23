@@ -177,6 +177,7 @@ from . import (
     mistral3,
     mixtral,
     mllama,
+    mm_grounding_dino,
     mobilebert,
     mobilenet_v1,
     mobilenet_v2,

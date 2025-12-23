@@ -46,6 +46,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("audio-spectrogram-transformer", "ASTConfig"),
         ("aya_vision", "AyaVisionConfig"),
         ("bamba", "BambaConfig"),
+        ("mm-grounding-dino", "MMGroundingDinoConfig"),
         ("bart", "BartConfig"),
         ("beit", "BeitConfig"),
         ("bert", "BertConfig"),
@@ -364,6 +365,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
     [
         # Add full (and cased) model names here
         ("aimv2", "AIMv2"),
+        ("mm-grounding-dino", "MM Grounding DINO"),
         ("albert", "ALBERT"),
         ("align", "ALIGN"),
         ("altclip", "AltCLIP"),

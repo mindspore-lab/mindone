@@ -987,6 +987,11 @@ from .models.mllama import (
     MllamaTextModel,
     MllamaVisionModel,
 )
+from .models.mm_grounding_dino import (
+    MMGroundingDinoForObjectDetection,
+    MMGroundingDinoModel,
+    MMGroundingDinoPreTrainedModel,
+)
 from .models.mobilebert import (
     MobileBertForMaskedLM,
     MobileBertForMultipleChoice,

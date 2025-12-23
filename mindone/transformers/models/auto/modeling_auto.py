@@ -142,6 +142,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("granitemoeshared", "GraniteMoeSharedModel"),
         ("groupvit", "GroupViTModel"),
         ("grounding-dino", "GroundingDinoModel"),
+        ("mm-grounding-dino", "MMGroundingDinoModel"),
         ("helium", "HeliumModel"),
         ("hgnet_v2", "HGNetV2Backbone"),
         ("hiera", "HieraModel"),
@@ -900,6 +901,7 @@ MODEL_FOR_OBJECT_DETECTION_MAPPING_NAMES = OrderedDict(
         ("rt_detr_v2", "RTDetrV2ForObjectDetection"),
         ("table-transformer", "TableTransformerForObjectDetection"),
         ("yolos", "YolosForObjectDetection"),
+        ("mm-grounding-dino", "MMGroundingDinoForObjectDetection"),
     ]
 )
 
