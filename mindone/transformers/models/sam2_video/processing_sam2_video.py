@@ -25,14 +25,14 @@ from copy import deepcopy
 from typing import Optional, Union
 
 import numpy as np
+from transformers.tokenization_utils_base import BatchEncoding
+
 import mindspore as ms
 from mindspore import mint
 
 from ...image_utils import ImageInput
 from ...processing_utils import ProcessorMixin
-from transformers.tokenization_utils_base import BatchEncoding
 from ...utils import TensorType
-
 from ...video_utils import VideoInput
 from .modeling_sam2_video import Sam2VideoInferenceSession
 
@@ -58,7 +58,7 @@ class Sam2VideoProcessor(ProcessorMixin):
     attributes = ["image_processor", "video_processor"]
     image_processor_class = "Sam2ImageProcessorFast"
     video_processor_class = "Sam2VideoVideoProcessor"
-    
+
     def __init__(
         self, image_processor, video_processor, target_size: Optional[int] = None, point_pad_value: int = -10, **kwargs
     ):
@@ -549,7 +549,7 @@ class Sam2VideoProcessor(ProcessorMixin):
         video_height = None
         video_width = None
         if video is not None:
-            processed_video = self.video_processor(videos=video,return_tensors="ms")
+            processed_video = self.video_processor(videos=video, return_tensors="ms")
             pixel_values_video = processed_video.pixel_values_videos[0]
             video_height = processed_video.original_sizes[0][0]
             video_width = processed_video.original_sizes[0][1]
@@ -717,12 +717,8 @@ class Sam2VideoProcessor(ProcessorMixin):
                 existing_points = inference_session.point_inputs_per_obj[obj_idx].get(frame_idx, None)
                 if existing_points is not None:
                     # Concatenate with existing points
-                    input_points_for_obj = mint.cat(
-                        [existing_points["point_coords"], input_points_for_obj], dim=2
-                    )
-                    input_labels_for_obj = mint.cat(
-                        [existing_points["point_labels"], input_labels_for_obj], dim=2
-                    )
+                    input_points_for_obj = mint.cat([existing_points["point_coords"], input_points_for_obj], dim=2)
+                    input_labels_for_obj = mint.cat([existing_points["point_labels"], input_labels_for_obj], dim=2)
             point_inputs = {
                 "point_coords": input_points_for_obj,
                 "point_labels": input_labels_for_obj,
@@ -763,7 +759,6 @@ class Sam2VideoProcessor(ProcessorMixin):
 
         for obj_id, mask in zip(obj_ids, input_masks):
             obj_idx = inference_session.obj_id_to_idx(obj_id)
-
 
             # Process mask
             if not isinstance(mask, ms.Tensor):
