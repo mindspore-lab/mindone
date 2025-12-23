@@ -1622,6 +1622,41 @@ CHROMA_TRANSFORMER2D_CASES = [
     ]
 ]
 
+
+BRIAFIBO_TRANSFORMER2D_CASES = [
+    [
+        "BriaFiboTransformer2DModel",
+        "diffusers.models.transformers.transformer_bria_fibo.BriaFiboTransformer2DModel",
+        "mindone.diffusers.models.transformers.transformer_bria_fibo.BriaFiboTransformer2DModel",
+        (),
+        {
+            "patch_size": 1,
+            "in_channels": 48,
+            "num_layers": 1,
+            "num_single_layers": 1,
+            "attention_head_dim": 8,
+            "num_attention_heads": 2,
+            "joint_attention_dim": 64,
+            "text_encoder_dim": 32,
+            "pooled_projection_dim": None,
+            "axes_dims_rope": [0, 4, 4],
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(1, 16 * 16, 48),
+            "encoder_hidden_states": np.random.default_rng(seed=0).standard_normal((1, 32, 64)),
+            "img_ids": np.random.randn(16 * 16, 3),
+            "txt_ids": np.random.randn(32, 3),
+            "timestep": np.ones(1),
+            "text_encoder_layers": [
+                np.random.default_rng(seed=0).standard_normal((1, 32, 64))[:, :, :32],
+                np.random.default_rng(seed=0).standard_normal((1, 32, 64))[:, :, :32],
+            ],
+        },
+    ]
+]
+
+
 TRANSFORMERS_CASES = (
     ALLEGRO_TRANSFORMER3D_CASES
     + AURAFLOW_TRANSFORMER2D_CASES
@@ -1650,6 +1685,7 @@ TRANSFORMERS_CASES = (
     + LUMINA_NEXTDIT2D_CASES
     + LUMINA2_TRANSFORMER2D_CASES
     + CHROMA_TRANSFORMER2D_CASES
+    + BRIAFIBO_TRANSFORMER2D_CASES
 )
 
 

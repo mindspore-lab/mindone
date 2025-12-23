@@ -30,6 +30,7 @@ _import_structure = {
     ],
     "blip_diffusion": ["BlipDiffusionPipeline"],
     "bria": ["BriaPipeline"],
+    "bria_fibo": ["BriaFiboPipeline"],
     "chroma": ["ChromaPipeline", "ChromaImg2ImgPipeline"],
     "cogvideo": [
         "CogVideoXPipeline",
@@ -295,6 +296,7 @@ if TYPE_CHECKING:
     from .auto_pipeline import AutoPipelineForImage2Image, AutoPipelineForInpainting, AutoPipelineForText2Image
     from .blip_diffusion import BlipDiffusionPipeline
     from .bria import BriaPipeline
+    from .bria_fibo import BriaFiboPipeline
     from .chroma import ChromaImg2ImgPipeline, ChromaPipeline
     from .cogvideo import (
         CogVideoXFunControlPipeline,
