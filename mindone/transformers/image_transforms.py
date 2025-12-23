@@ -21,6 +21,7 @@ from math import ceil
 from typing import Optional, Union
 
 import numpy as np
+from transformers.utils import logging
 
 from .image_utils import (
     ChannelDimension,
@@ -31,6 +32,8 @@ from .image_utils import (
 )
 from .utils import ExplicitEnum, TensorType, is_mindspore_tensor
 from .utils.import_utils import is_mindspore_available, is_vision_available, requires_backends
+
+logger = logging.get_logger(__name__)
 
 if is_vision_available():
     import PIL
@@ -844,6 +847,7 @@ def _reconstruct_nested_structure(indices, processed_images):
 
 def group_images_by_shape(
     images: Union[list["ms.Tensor"], "ms.Tensor"],
+    disable_grouping: bool = False,
     is_nested: bool = False,
 ) -> tuple[dict[tuple[int, int], list["ms.Tensor"]], dict[Union[int, tuple[int, int]], tuple[tuple[int, int], int]]]:
     """
@@ -865,7 +869,10 @@ def group_images_by_shape(
             - A dictionary with shape as key and list of images with that shape as value
             - A dictionary mapping original indices to (shape, index) tuples
     """
-    # TODO mindone.transformers hasn't supported disable_grouping yet
+    # If disable grouping is not explicitly provided, original repo favor disabling it if the images are on CPU, and enabling it otherwise.
+    # TODO basically ms.tensors in mindone.transformers should be on device, so no device detection is performed here, and provide stack operation always.
+    if disable_grouping:
+        logger.warining("mindone.transformers currently does not support disable_grouping in image_transformers")
 
     # Handle single level nested structure
     grouped_images, grouped_images_index = _group_images_by_shape(images, is_nested)

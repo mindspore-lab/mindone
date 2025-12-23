@@ -209,7 +209,7 @@ class Lumina2Pipeline(DiffusionPipeline, Lumina2LoraLoaderMixin):
         prompt_attention_mask = ms.tensor(text_inputs.attention_mask)
         text_input_ids = ms.tensor(text_input_ids)
         prompt_embeds = self.text_encoder(
-            text_input_ids, attention_mask=prompt_attention_mask, output_hidden_states=True
+            text_input_ids, attention_mask=prompt_attention_mask, output_hidden_states=True, return_dict=True
         )
         prompt_embeds = prompt_embeds.hidden_states[-2]
 

@@ -116,7 +116,7 @@ def is_loopback(host):
             return True
         else:
             return False
-    except:
+    except Exception:
         pass
 
     loopback = False
@@ -137,7 +137,8 @@ def is_loopback(host):
 def create_origin_only_middleware():
     @web.middleware
     async def origin_only_middleware(request: web.Request, handler):
-        # this code is used to prevent the case where a random website can queue comfy workflows by making a POST to 127.0.0.1 which browsers don't prevent for some dumb reason.
+        # this code is used to prevent the case where a random website can queue comfy workflows
+        # by making a POST to 127.0.0.1 which browsers don't prevent for some dumb reason.
         # in that case the Host and Origin hostnames won't match
         # I know the proper fix would be to add a cookie but this should take care of the problem in the meantime
         if "Host" in request.headers and "Origin" in request.headers:
@@ -307,7 +308,8 @@ class PromptServer:
         @routes.get("/models/{folder}")
         async def get_models(request):
             folder = request.match_info.get("folder", None)
-            if not folder in folder_paths.folder_names_and_paths:
+            folder_in_path = folder in folder_paths.folder_names_and_paths
+            if not folder_in_path:
                 return web.Response(status=404)
             files = folder_paths.get_filename_list(folder)
             return web.json_response(files)
@@ -583,7 +585,8 @@ class PromptServer:
             folder_name = request.match_info.get("folder_name", None)
             if folder_name is None:
                 return web.Response(status=404)
-            if not "filename" in request.rel_url.query:
+            file_name_query_check = "filename" in request.rel_url.query
+            if not file_name_query_check:
                 return web.Response(status=404)
 
             filename = request.rel_url.query["filename"]
@@ -597,15 +600,14 @@ class PromptServer:
             if out is None:
                 return web.Response(status=404)
             dt = json.loads(out)
-            if not "__metadata__" in dt:
+            dt_metadata_check = "__metadata__" in dt
+            if not dt_metadata_check:
                 return web.Response(status=404)
             return web.json_response(dt["__metadata__"])
 
         @routes.get("/system_stats")
         async def system_stats(request):
-            device = comfy.model_management.get_mindspore_device()
             device_name = comfy.model_management.get_mindspore_device_name(None)
-            cpu_device = None  # comfy.model_management.torch.device("cpu")
             ram_total = comfy.model_management.get_total_memory(None)
             ram_free = comfy.model_management.get_free_memory(None)
             vram_total, mindspore_vram_total = comfy.model_management.get_total_memory(None, mindspore_total_too=True)
@@ -673,7 +675,7 @@ class PromptServer:
             info["description"] = obj_class.DESCRIPTION if hasattr(obj_class, "DESCRIPTION") else ""
             info["python_module"] = getattr(obj_class, "RELATIVE_PYTHON_MODULE", "nodes")
             info["category"] = "sd"
-            if hasattr(obj_class, "OUTPUT_NODE") and obj_class.OUTPUT_NODE == True:
+            if hasattr(obj_class, "OUTPUT_NODE") and obj_class.OUTPUT_NODE:
                 info["output_node"] = True
             else:
                 info["output_node"] = False
