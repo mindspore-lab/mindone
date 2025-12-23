@@ -46,6 +46,7 @@ from .image_processing_utils_fast import BaseImageProcessorFast
 from .image_utils import ImageFeatureExtractionMixin
 from .masking_utils import AttentionMaskInterface
 from .modeling_utils import MSPreTrainedModel, PreTrainedModel
+from .models.aimv2 import Aimv2Model, Aimv2PreTrainedModel, Aimv2TextModel, Aimv2VisionModel
 from .models.albert import (
     AlbertForMaskedLM,
     AlbertForMultipleChoice,
@@ -458,7 +459,7 @@ from .models.dinov2_with_registers import (
     Dinov2WithRegistersPreTrainedModel,
 )
 from .models.dinov3_convnext import DINOv3ConvNextModel, DINOv3ConvNextPreTrainedModel
-from .models.dinov3_vit import DINOv3ViTModel, DINOv3ViTPreTrainedModel, DINOv3ViTImageProcessorFast
+from .models.dinov3_vit import DINOv3ViTImageProcessorFast, DINOv3ViTModel, DINOv3ViTPreTrainedModel
 from .models.distilbert import (
     DistilBertForMaskedLM,
     DistilBertForMultipleChoice,
@@ -479,6 +480,12 @@ from .models.dpr import (
     DPRReader,
 )
 from .models.dpt import DPTForDepthEstimation, DPTImageProcessor, DPTModel, DPTPreTrainedModel
+from .models.efficientloftr import (
+    EfficientLoFTRForKeypointMatching,
+    EfficientLoFTRImageProcessor,
+    EfficientLoFTRModel,
+    EfficientLoFTRPreTrainedModel,
+)
 from .models.efficientnet import (
     EfficientNetForImageClassification,
     EfficientNetImageProcessor,
@@ -788,6 +795,7 @@ from .models.jetmoe import (
     JetMoePreTrainedModel,
 )
 from .models.kosmos2 import Kosmos2ForConditionalGeneration, Kosmos2Model, Kosmos2PreTrainedModel
+from .models.kosmos2_5 import *
 from .models.kyutai_speech_to_text import (
     KyutaiSpeechToTextForConditionalGeneration,
     KyutaiSpeechToTextModel,
@@ -824,6 +832,8 @@ from .models.levit import (
     LevitModel,
     LevitPreTrainedModel,
 )
+from .models.lfm2 import *
+from .models.lfm2_vl import *
 from .models.lilt import (
     LiltForQuestionAnswering,
     LiltForSequenceClassification,
@@ -916,6 +926,7 @@ from .models.megatron_bert import (
     MegatronBertModel,
     MegatronBertPreTrainedModel,
 )
+from .models.metaclip_2 import *
 from .models.mgp_str import MgpstrForSceneTextRecognition, MgpstrModel, MgpstrPreTrainedModel, MgpstrProcessor
 from .models.mimi import MimiModel, MimiPreTrainedModel
 from .models.minicpm4 import MiniCPMForCausalLM, MiniCPMForSequenceClassification, MiniCPMModel
@@ -1531,6 +1542,7 @@ from .models.vitpose import VitPoseForPoseEstimation, VitPosePreTrainedModel
 from .models.vitpose_backbone import VitPoseBackbone, VitPoseBackbonePreTrainedModel
 from .models.vits import VitsModel, VitsPreTrainedModel
 from .models.vivit import VivitForVideoClassification, VivitModel, VivitPreTrainedModel
+from .models.voxtral import VoxtralEncoder, VoxtralForConditionalGeneration, VoxtralPreTrainedModel, VoxtralProcessor
 from .models.wav2vec2 import (
     Wav2Vec2FeatureExtractor,
     Wav2Vec2ForAudioFrameClassification,

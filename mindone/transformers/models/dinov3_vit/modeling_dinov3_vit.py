@@ -26,8 +26,12 @@ import math
 from typing import Callable, Optional
 
 import numpy as np
+from transformers.models.dinov3_vit.configuration_dinov3_vit import DINOv3ViTConfig
+
 import mindspore as ms
 from mindspore import mint, nn
+
+from mindone.models.utils import ones_, trunc_normal_, zeros_
 
 from ...activations import ACT2FN
 from ...modeling_layers import GradientCheckpointingLayer
@@ -36,8 +40,6 @@ from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
 from ...utils import TransformersKwargs
 from ...utils.generic import check_model_inputs
-from mindone.models.utils import ones_, trunc_normal_, zeros_
-from transformers.models.dinov3_vit.configuration_dinov3_vit import DINOv3ViTConfig
 
 
 class DINOv3ViTEmbeddings(nn.Cell):
@@ -75,9 +77,7 @@ class DINOv3ViTEmbeddings(nn.Cell):
         return embeddings
 
 
-def get_patches_center_coordinates(
-    num_patches_h: int, num_patches_w: int, dtype: ms.dtype
-) -> ms.Tensor:
+def get_patches_center_coordinates(num_patches_h: int, num_patches_w: int, dtype: ms.dtype) -> ms.Tensor:
     """
     Computes the 2D coordinates of the centers of image patches, normalized to the range [-1, +1].
     The center of each patch is exactly halfway between its top-left and bottom-right corners.
@@ -155,8 +155,7 @@ class DINOv3ViTRopePositionEmbedding(nn.Cell):
         # Although we could precompute static patch_coords from image_size and patch_size in the config,
         # the model was trained with random_scale, so it can process images of varying sizes.
         # Therefore, it's better to compute patch_coords dynamically (with lru_cache).
-        patch_coords = get_patches_center_coordinates(
-            num_patches_h, num_patches_w, dtype=ms.float32)
+        patch_coords = get_patches_center_coordinates(num_patches_h, num_patches_w, dtype=ms.float32)
         if self.training:
             patch_coords = augment_patches_center_coordinates(
                 patch_coords,

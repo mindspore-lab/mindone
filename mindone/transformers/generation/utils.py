@@ -1987,7 +1987,7 @@ class GenerationMixin:
         """
         # NOTE: remove xlnet/reformer when the models are deprecated, non-standard model architecture/cache name
         return not cls._is_stateful and all(
-            special_model_name not in cls.__class__.__name__.lower()
+            special_model_name not in cls.__name__.lower()
             for special_model_name in [
                 "reformer",
                 "minimax",

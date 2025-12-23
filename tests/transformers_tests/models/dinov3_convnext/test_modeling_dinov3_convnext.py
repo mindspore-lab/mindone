@@ -19,7 +19,6 @@
 import numpy as np
 import pytest
 import torch
-
 from transformers import DINOv3ConvNextConfig
 
 import mindspore as ms

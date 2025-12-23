@@ -49,6 +49,7 @@ if TYPE_CHECKING:
 else:
     IMAGE_PROCESSOR_MAPPING_NAMES = OrderedDict(
         [
+            ("aimv2", ("CLIPImageProcessor", "CLIPImageProcessorFast")),
             ("beit", ("BeitImageProcessor",)),
             ("blip", ("BlipImageProcessor",)),
             ("blip-2", ("BlipImageProcessor",)),
@@ -65,15 +66,20 @@ else:
             ("dinov2", ("BitImageProcessor",)),
             ("dinov3_vit", ("DINOv3ViTImageProcessorFast",)),
             ("dpt", ("DPTImageProcessor",)),
+            ("efficientloftr", ("EfficientLoFTRImageProcessor",)),
             ("efficientnet", ("EfficientNetImageProcessor",)),
             ("eomt", ("EomtImageProcessor", "EomtImageProcessorFast")),
             ("flava", ("FlavaImageProcessor",)),
             ("got_ocr2", ("GotOcr2ImageProcessor", "GotOcr2ImageProcessorFast")),
+            ("kosmos-2.5", ("Kosmos2_5ImageProcessor", "Kosmos2_5ImageProcessorFast")),
             ("llama4", ("Llama4ImageProcessor", "Llama4ImageProcessorFast")),
             ("llava_next", ("LlavaNextImageProcessor", "LlavaNextImageProcessorFast")),
+            ("lfm2_vl", (None, "Lfm2VlImageProcessorFast")),
+            ("llava_next", ("LlavaNextImageProcessor",)),
             ("llava_next_video", ("LlavaNextVideoImageProcessor",)),
             ("llava_onevision", ("LlavaOnevisionImageProcessor",)),
             ("maskformer", ("MaskFormerImageProcessor",)),
+            ("metaclip_2", ("CLIPImageProcessor", "CLIPImageProcessorFast")),
             ("mllama", ("MllamaImageProcessor",)),
             ("oneformer", ("OneFormerImageProcessor",)),
             ("owlv2", ("Owlv2ImageProcessor",)),
