@@ -443,6 +443,7 @@ from .models.deprecated.xlm_prophetnet import (
 )
 from .models.depth_anything import DepthAnythingForDepthEstimation, DepthAnythingPreTrainedModel
 from .models.depth_pro import DepthProForDepthEstimation, DepthProImageProcessor, DepthProModel, DepthProPreTrainedModel
+from .models.dia import DiaForConditionalGeneration, DiaModel, DiaPreTrainedModel, DiaProcessor
 from .models.diffllama import (
     DiffLlamaForCausalLM,
     DiffLlamaForQuestionAnswering,
@@ -1724,6 +1725,13 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     from .models.vjepa2 import VJEPA2ForVideoClassification, VJEPA2Model, VJEPA2PreTrainedModel
 
 if version.parse(transformers.__version__) >= version.parse("4.57.0"):
+    from .models.cohere2_vision import (
+        Cohere2VisionForConditionalGeneration,
+        Cohere2VisionImageProcessorFast,
+        Cohere2VisionModel,
+        Cohere2VisionPreTrainedModel,
+        Cohere2VisionProcessor,
+    )
     from .models.hunyuan_v1_dense import HunYuanDenseV1ForCausalLM, HunYuanDenseV1ForSequenceClassification
     from .models.hunyuan_v1_moe import HunYuanMoEV1ForCausalLM, HunYuanMoEV1ForSequenceClassification
     from .models.qwen3_omni_moe import *
