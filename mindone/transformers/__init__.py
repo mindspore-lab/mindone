@@ -547,6 +547,7 @@ from .models.falcon import (
     FalconModel,
     FalconPreTrainedModel,
 )
+from .models.falcon_h1 import FalconH1ForCausalLM, FalconH1Model, FalconH1PreTrainedModel
 from .models.falcon_mamba import FalconMambaForCausalLM, FalconMambaModel, FalconMambaPreTrainedModel
 from .models.fastspeech2_conformer import (
     FastSpeech2ConformerHifiGan,
