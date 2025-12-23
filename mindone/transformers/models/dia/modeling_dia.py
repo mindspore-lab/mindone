@@ -25,7 +25,6 @@
 from typing import Callable, Optional, Union
 
 from transformers import DiaConfig, DiaDecoderConfig, DiaEncoderConfig
-from transformers.integrations import use_kernel_forward_from_hub
 
 import mindspore
 from mindspore import Parameter, Tensor, mint, nn
@@ -109,7 +108,6 @@ class DiaMLP(nn.Cell):
         return self.down_proj(up_states)
 
 
-@use_kernel_forward_from_hub("RMSNorm")
 class DiaRMSNorm(nn.Cell):
     def __init__(self, hidden_size, eps=1e-6):
         """

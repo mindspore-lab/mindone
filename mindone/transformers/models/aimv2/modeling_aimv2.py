@@ -575,7 +575,6 @@ class Aimv2TextModel(Aimv2PreTrainedModel):
         self.embeddings.token_embedding = value
 
     @can_return_tuple
-    @auto_docstring
     def construct(
         self,
         input_ids,
