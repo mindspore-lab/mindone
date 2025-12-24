@@ -27,7 +27,8 @@ LoRA is a fast and lightweight training method that inserts and trains a signifi
 - `WanLoraLoaderMixin` provides similar functions for [Wan](../../api/pipelines/wan.md).
 - `SkyReelsV2LoraLoaderMixin` provides similar functions for [SkyReels-V2](../../api/pipelines/skyreels_v2.md).
 - `AmusedLoraLoaderMixin` is for the [AmusedPipeline](../../api/pipelines/amused.md).
-- `QwenImageLoraLoaderMixin` provides similar functions for [QwenImage](../../api/pipelines/qwenimage.md)
+- `QwenImageLoraLoaderMixin` provides similar functions for [Qwen Image](../../api/pipelines/qwenimage.md)
+- `Flux2LoraLoaderMixin` provides similar functions for [Flux2](../../api/pipelines/flux2.md).
 - `LoraBaseMixin` provides a base class with several utility methods to fuse, unfuse, unload, LoRAs and more.
 
 !!! tip
@@ -42,6 +43,8 @@ LoRA is a fast and lightweight training method that inserts and trains a signifi
 ::: mindone.diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin
 
 ::: mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin
+
+::: mindone.diffusers.loaders.lora_pipeline.Flux2LoraLoaderMixin
 
 ::: mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin
 

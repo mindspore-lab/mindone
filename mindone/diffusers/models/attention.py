@@ -98,7 +98,7 @@ class AttentionMixin:
                 raise ValueError("`fuse_qkv_projections()` is not supported for models having added KV projections.")
 
         for module in self.cells():
-            if isinstance(module, AttentionModuleMixin):
+            if isinstance(module, AttentionModuleMixin) and module._supports_qkv_fusion:
                 module.fuse_projections()
 
     def unfuse_qkv_projections(self):
@@ -111,13 +111,14 @@ class AttentionMixin:
         </Tip>
         """
         for module in self.cells():
-            if isinstance(module, AttentionModuleMixin):
+            if isinstance(module, AttentionModuleMixin) and module._supports_qkv_fusion:
                 module.unfuse_projections()
 
 
 class AttentionModuleMixin:
     _default_processor_cls = None
     _available_processors = []
+    _supports_qkv_fusion = True
     fused_projections = False
 
     def set_processor(self, processor: AttentionProcessor) -> None:
@@ -164,6 +165,14 @@ class AttentionModuleMixin:
         """
         Fuse the query, key, and value projections into a single projection for efficiency.
         """
+        # Skip if the AttentionModuleMixin subclass does not support fusion (for example, the QKV projections in Flux2
+        # single stream blocks are always fused)
+        if not self._supports_qkv_fusion:
+            logger.debug(
+                f"{self.__class__.__name__} does not support fusing QKV projections, so `fuse_projections` will no-op."
+            )
+            return
+
         # Skip if already fused
         if getattr(self, "fused_projections", False):
             return
@@ -215,10 +224,16 @@ class AttentionModuleMixin:
 
         self.fused_projections = True
 
+    @ms._no_grad()
     def unfuse_projections(self):
         """
         Unfuse the query, key, and value projections back to separate projections.
         """
+        # Skip if the AttentionModuleMixin subclass does not support fusion (for example, the QKV projections in Flux2
+        # single stream blocks are always fused)
+        if not self._supports_qkv_fusion:
+            return
+
         # Skip if not fused
         if not getattr(self, "fused_projections", False):
             return

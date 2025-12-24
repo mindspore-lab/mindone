@@ -27,6 +27,8 @@ Key Features:
         [2025/11/12]
         - **scaled_dot_product_attention**: Always custom due to framework limitations.
         - **DeviceMesh**: Always custom due to framework limitations.
+        [2025/11/27]
+        - **cartesian_prod**: Always custom due to framework limitations.
 
 Example:
     Import this module and use the operators as you would with native MindSpore functions, with the assurance of cross-version compatibility.
@@ -771,3 +773,11 @@ def flash_attention_op(
     return ops.operations.nn_ops.FlashAttentionScore(
         head_num=head_num, keep_prob=keep_prob, scale_value=scale, input_layout=input_layout
     )(query, key, value, None, None, None, attn_mask)[3]
+
+
+def cartesian_prod(*tensors):
+    """
+    Equivalence of `torch.cartesian_prod`
+    """
+    grids = mint.meshgrid(*tensors, indexing="ij")
+    return mint.stack(tuple(grid.reshape(-1) for grid in grids), dim=1)
