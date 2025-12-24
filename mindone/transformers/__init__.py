@@ -387,6 +387,7 @@ from .models.csm import (
 )
 from .models.ctrl import CTRLForSequenceClassification, CTRLLMHeadModel, CTRLModel, CTRLPreTrainedModel
 from .models.cvt import CvtForImageClassification, CvtModel, CvtPreTrainedModel
+from .models.d_fine import DFineForObjectDetection, DFineModel, DFinePreTrainedModel
 from .models.dac import DacModel, DacPreTrainedModel
 from .models.data2vec import (
     Data2VecAudioForAudioFrameClassification,
@@ -425,6 +426,24 @@ from .models.deberta_v2 import (
     DebertaV2ForTokenClassification,
     DebertaV2Model,
     DebertaV2PreTrainedModel,
+)
+from .models.deepseek_v2 import (
+    DeepseekV2ForCausalLM,
+    DeepseekV2ForSequenceClassification,
+    DeepseekV2Model,
+    DeepseekV2PreTrainedModel,
+)
+from .models.deepseek_vl import (
+    DeepseekVLForConditionalGeneration,
+    DeepseekVLModel,
+    DeepseekVLPreTrainedModel,
+    DeepseekVLProcessor,
+)
+from .models.deepseek_vl_hybrid import (
+    DeepseekVLHybridForConditionalGeneration,
+    DeepseekVLHybridModel,
+    DeepseekVLHybridPreTrainedModel,
+    DeepseekVLHybridProcessor,
 )
 from .models.deit import (
     DeiTForImageClassification,
@@ -709,6 +728,7 @@ from .models.granite_speech import (
     GraniteSpeechProcessor,
 )
 from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
+from .models.granitemoehybrid import GraniteMoeHybridForCausalLM, GraniteMoeHybridModel, GraniteMoeHybridPreTrainedModel
 from .models.granitemoeshared import GraniteMoeSharedForCausalLM, GraniteMoeSharedModel, GraniteMoeSharedPreTrainedModel
 from .models.grounding_dino import (
     GroundingDinoForObjectDetection,
@@ -967,6 +987,11 @@ from .models.mllama import (
     MllamaTextModel,
     MllamaVisionModel,
 )
+from .models.mm_grounding_dino import (
+    MMGroundingDinoForObjectDetection,
+    MMGroundingDinoModel,
+    MMGroundingDinoPreTrainedModel,
+)
 from .models.mobilebert import (
     MobileBertForMaskedLM,
     MobileBertForMultipleChoice,
@@ -1103,6 +1128,7 @@ from .models.nystromformer import (
 )
 from .models.olmo import OlmoForCausalLM, OlmoModel, OlmoPreTrainedModel
 from .models.olmo2 import Olmo2ForCausalLM, Olmo2Model, Olmo2PreTrainedModel
+from .models.olmo3 import Olmo3ForCausalLM, Olmo3Model, Olmo3PreTrainedModel
 from .models.olmoe import OlmoeForCausalLM, OlmoeModel, OlmoePreTrainedModel
 from .models.oneformer import (
     OneFormerForUniversalSegmentation,
@@ -1310,7 +1336,7 @@ from .models.roformer import (
     RoFormerModel,
     RoFormerPreTrainedModel,
 )
-from .models.rt_detr import RTDetrForObjectDetection, RTDetrModel, RTDetrPreTrainedModel
+from .models.rt_detr import RTDetrForObjectDetection, RTDetrImageProcessor, RTDetrModel, RTDetrPreTrainedModel
 from .models.rt_detr_v2 import RTDetrV2ForObjectDetection, RTDetrV2Model, RTDetrV2PreTrainedModel
 from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
 from .models.sam import SamImageProcessor, SamModel, SamPreTrainedModel, SamProcessor
@@ -1636,6 +1662,7 @@ from .models.xlnet import (
     XLNetModel,
     XLNetPreTrainedModel,
 )
+from .models.xlstm import xLSTMForCausalLM, xLSTMModel, xLSTMPreTrainedModel
 from .models.xmod import (
     XmodForCausalLM,
     XmodForMaskedLM,
