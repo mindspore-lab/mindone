@@ -54,6 +54,9 @@
   - BLT/Apertus/Ministral ([#1462](https://github.com/mindspore-lab/mindone/pull/1462))
   - EOMT/TimesFM ([#1403](https://github.com/mindspore-lab/mindone/pull/1403))
   - Seed OSS ([#1441](https://github.com/mindspore-lab/mindone/pull/1441))
+  - xLSTM ([#1466](https://github.com/mindspore-lab/mindone/pull/1466))
+  - d_fine, GraniteMoeHybrid, EfficientLoFTR Models ([#1405](https://github.com/mindspore-lab/mindone/pull/1405))
+
 
 - **Multimodal Models**:
   - Qwen3 Omni ([#1411](https://github.com/mindspore-lab/mindone/pull/1411))
@@ -66,6 +69,11 @@
   - LFM2/LFM2-VL ([#1456](https://github.com/mindspore-lab/mindone/pull/1456))
   - MetaCLIP 2 ([#1456](https://github.com/mindspore-lab/mindone/pull/1456))
   - Mlcd ([#1472](https://github.com/mindspore-lab/mindone/pull/1472))
+  - SAM2 ([#1426](https://github.com/mindspore-lab/mindone/pull/1426))
+  - SAM2 Video Support ([#1434](https://github.com/mindspore-lab/mindone/pull/1434))
+  - Olmo3 Model ([#1467](https://github.com/mindspore-lab/mindone/pull/1467))
+  - DeepseekV2/DeepseekVL/DeepseekVLHybrid ([#1477](https://github.com/mindspore-lab/mindone/pull/1477))
+  - MM Grounding DINO ([#1486](https://github.com/mindspore-lab/mindone/pull/1486))
 
 #### Processor Updates for vllm-mindspore community
 - Qwen2.5VL ImageProcessor Fast / VideoProcessor ([#1429](https://github.com/mindspore-lab/mindone/pull/1429))
@@ -89,16 +97,19 @@
 #### Bug Fixes
 - Fixed some diffusers bugs ([#1448](https://github.com/mindspore-lab/mindone/pull/1448))
 
-### Examples Updates
-- Added OmniGen2 fine-tuning script ([#1410](https://github.com/mindspore-lab/mindone/pull/1410))
-- Added back examples/dit_infer_acceleration (renamed to accelerated_pipelines) ([#1433](https://github.com/mindspore-lab/mindone/pull/1433))
-- Updated Emu3 performance for MindSpore 2.6.0 and 2.7.0 ([#1417](https://github.com/mindspore-lab/mindone/pull/1417))
-- Updated HunyuanVideo-I2V to MS 2.6.0 and MS 2.7.0 ([#1385](https://github.com/mindspore-lab/mindone/pull/1385))
-
 ### ComfyUI Integration
 - Added ComfyUI root files and CLI args ([#1480](https://github.com/mindspore-lab/mindone/pull/1480))
 - Added text encoder files ([#1481](https://github.com/mindspore-lab/mindone/pull/1481))
 - Updated clip_model.py ([#1479](https://github.com/mindspore-lab/mindone/pull/1479))
+
+
+### Examples Updates
+- Added Wan2.2 LoRA finetune support ([#1418](https://github.com/mindspore-lab/mindone/pull/1418))
+- Updated Emu3 performance for MindSpore 2.6.0 and 2.7.0 ([#1417](https://github.com/mindspore-lab/mindone/pull/1417))
+- Updated HunyuanVideo-I2V to mindspore 2.6.0 and 2.7.0 ([#1385](https://github.com/mindspore-lab/mindone/pull/1385))
+- Add accelerated dit pipelines compatible with mindspore Graph Mode ([#1433](https://github.com/mindspore-lab/mindone/pull/1433))
+- Added Fb cache taylorseer graph mode implementation for Flux.1 ([#1475](https://github.com/mindspore-lab/mindone/pull/1475))
+
 
 ### Fixed
 - Fixed AIMv2/Arcee rely on torch bug ([#1485](https://github.com/mindspore-lab/mindone/pull/1485))
@@ -110,9 +121,10 @@
 - Fixed import error if env contains accelerate module ([#1431](https://github.com/mindspore-lab/mindone/pull/1431))
 - ZeRO: Support training with MS 2.6.0 and 2.7.0 ([#1383](https://github.com/mindspore-lab/mindone/pull/1383))
 - Misc bugfixes ([#1424](https://github.com/mindspore-lab/mindone/pull/1424))
+- Docs updates for mindone v0.5.0 release, and ut fixes ([#1484](https://github.com/mindspore-lab/mindone/pull/1484))
 
 ### Statistics
-- **Total commits**: 63
-- **Files changed**: 679
-- **Lines added**: 121,102
-- **Lines deleted**: 23,268
+- **Total commits**: 374
+- **Files changed**: 807
+- **Lines added**: 156,792
+- **Lines deleted**: 23,531
