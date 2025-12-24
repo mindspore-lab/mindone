@@ -12654,7 +12654,7 @@ we use the diffusers-native implementation that has been in the codebase for a l
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
             <span class="n">pred</span> <span class="o">=</span> <span class="n">rescale_noise_cfg</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">pred_cond</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">pred</span><span class="p">,</span> <span class="p">{}</span>
+        <span class="k">return</span> <span class="n">GuiderOutput</span><span class="p">(</span><span class="n">pred</span><span class="o">=</span><span class="n">pred</span><span class="p">,</span> <span class="n">pred_cond</span><span class="o">=</span><span class="n">pred_cond</span><span class="p">,</span> <span class="n">pred_uncond</span><span class="o">=</span><span class="n">pred_uncond</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">is_conditional</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
@@ -13055,7 +13055,7 @@ we use the diffusers-native implementation that has been in the codebase for a l
             <span class="n">data_batches</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data_batch</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">data_batches</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pred_cond</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">pred_uncond</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pred_cond</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">pred_uncond</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GuiderOutput</span><span class="p">:</span>
         <span class="n">pred</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_step</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">zero_init_steps</span><span class="p">:</span>
@@ -13075,7 +13075,7 @@ we use the diffusers-native implementation that has been in the codebase for a l
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
             <span class="n">pred</span> <span class="o">=</span> <span class="n">rescale_noise_cfg</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">pred_cond</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">pred</span><span class="p">,</span> <span class="p">{}</span>
+        <span class="k">return</span> <span class="n">GuiderOutput</span><span class="p">(</span><span class="n">pred</span><span class="o">=</span><span class="n">pred</span><span class="p">,</span> <span class="n">pred_cond</span><span class="o">=</span><span class="n">pred_cond</span><span class="p">,</span> <span class="n">pred_uncond</span><span class="o">=</span><span class="n">pred_uncond</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">is_conditional</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
@@ -13790,7 +13790,7 @@ we use the diffusers-native implementation that has been in the codebase for a l
         <span class="n">pred_cond</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
         <span class="n">pred_uncond</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">pred_cond_skip</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GuiderOutput</span><span class="p">:</span>
         <span class="n">pred</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_cfg_enabled</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_slg_enabled</span><span class="p">():</span>
@@ -13812,7 +13812,7 @@ we use the diffusers-native implementation that has been in the codebase for a l
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
             <span class="n">pred</span> <span class="o">=</span> <span class="n">rescale_noise_cfg</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">pred_cond</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">pred</span><span class="p">,</span> <span class="p">{}</span>
+        <span class="k">return</span> <span class="n">GuiderOutput</span><span class="p">(</span><span class="n">pred</span><span class="o">=</span><span class="n">pred</span><span class="p">,</span> <span class="n">pred_cond</span><span class="o">=</span><span class="n">pred_cond</span><span class="p">,</span> <span class="n">pred_uncond</span><span class="o">=</span><span class="n">pred_uncond</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">is_conditional</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
@@ -14552,7 +14552,7 @@ we use the diffusers-native implementation that has been in the codebase for a l
         <span class="n">pred_cond</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
         <span class="n">pred_uncond</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">pred_cond_seg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GuiderOutput</span><span class="p">:</span>
         <span class="n">pred</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_cfg_enabled</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_seg_enabled</span><span class="p">():</span>
@@ -14574,7 +14574,7 @@ we use the diffusers-native implementation that has been in the codebase for a l
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
             <span class="n">pred</span> <span class="o">=</span> <span class="n">rescale_noise_cfg</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">pred_cond</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">pred</span><span class="p">,</span> <span class="p">{}</span>
+        <span class="k">return</span> <span class="n">GuiderOutput</span><span class="p">(</span><span class="n">pred</span><span class="o">=</span><span class="n">pred</span><span class="p">,</span> <span class="n">pred_cond</span><span class="o">=</span><span class="n">pred_cond</span><span class="p">,</span> <span class="n">pred_uncond</span><span class="o">=</span><span class="n">pred_uncond</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">is_conditional</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
@@ -15307,7 +15307,7 @@ we use the diffusers-native implementation that has been in the codebase for a l
         <span class="n">pred_cond</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
         <span class="n">pred_uncond</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">pred_cond_skip</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GuiderOutput</span><span class="p">:</span>
         <span class="n">pred</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_cfg_enabled</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_slg_enabled</span><span class="p">():</span>
@@ -15329,7 +15329,7 @@ we use the diffusers-native implementation that has been in the codebase for a l
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
             <span class="n">pred</span> <span class="o">=</span> <span class="n">rescale_noise_cfg</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">pred_cond</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">pred</span><span class="p">,</span> <span class="p">{}</span>
+        <span class="k">return</span> <span class="n">GuiderOutput</span><span class="p">(</span><span class="n">pred</span><span class="o">=</span><span class="n">pred</span><span class="p">,</span> <span class="n">pred_cond</span><span class="o">=</span><span class="n">pred_cond</span><span class="p">,</span> <span class="n">pred_uncond</span><span class="o">=</span><span class="n">pred_uncond</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="c1"># Copied from diffusers.guiders.skip_layer_guidance.SkipLayerGuidance.is_conditional</span>
@@ -15770,7 +15770,7 @@ we use the diffusers-native implementation that has been in the codebase for a l
             <span class="n">data_batches</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data_batch</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">data_batches</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pred_cond</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">pred_uncond</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pred_cond</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">pred_uncond</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GuiderOutput</span><span class="p">:</span>
         <span class="n">pred</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_apg_enabled</span><span class="p">():</span>
@@ -15789,7 +15789,7 @@ we use the diffusers-native implementation that has been in the codebase for a l
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
             <span class="n">pred</span> <span class="o">=</span> <span class="n">rescale_noise_cfg</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">pred_cond</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">pred</span><span class="p">,</span> <span class="p">{}</span>
+        <span class="k">return</span> <span class="n">GuiderOutput</span><span class="p">(</span><span class="n">pred</span><span class="o">=</span><span class="n">pred</span><span class="p">,</span> <span class="n">pred_cond</span><span class="o">=</span><span class="n">pred_cond</span><span class="p">,</span> <span class="n">pred_uncond</span><span class="o">=</span><span class="n">pred_uncond</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">is_conditional</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
@@ -16329,7 +16329,7 @@ we use the diffusers-native implementation that has been in the codebase for a l
             <span class="n">data_batches</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data_batch</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">data_batches</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pred_cond</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">pred_uncond</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pred_cond</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">pred_uncond</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GuiderOutput</span><span class="p">:</span>
         <span class="n">pred</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_ag_enabled</span><span class="p">():</span>
@@ -16342,7 +16342,7 @@ we use the diffusers-native implementation that has been in the codebase for a l
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
             <span class="n">pred</span> <span class="o">=</span> <span class="n">rescale_noise_cfg</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">pred_cond</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">pred</span><span class="p">,</span> <span class="p">{}</span>
+        <span class="k">return</span> <span class="n">GuiderOutput</span><span class="p">(</span><span class="n">pred</span><span class="o">=</span><span class="n">pred</span><span class="p">,</span> <span class="n">pred_cond</span><span class="o">=</span><span class="n">pred_cond</span><span class="p">,</span> <span class="n">pred_uncond</span><span class="o">=</span><span class="n">pred_uncond</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">is_conditional</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
@@ -16687,7 +16687,7 @@ we use the diffusers-native implementation that has been in the codebase for a l
             <span class="n">data_batches</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data_batch</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">data_batches</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pred_cond</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">pred_uncond</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pred_cond</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">pred_uncond</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GuiderOutput</span><span class="p">:</span>
         <span class="n">pred</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_tcfg_enabled</span><span class="p">():</span>
@@ -16698,7 +16698,7 @@ we use the diffusers-native implementation that has been in the codebase for a l
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
             <span class="n">pred</span> <span class="o">=</span> <span class="n">rescale_noise_cfg</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">pred_cond</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">pred</span><span class="p">,</span> <span class="p">{}</span>
+        <span class="k">return</span> <span class="n">GuiderOutput</span><span class="p">(</span><span class="n">pred</span><span class="o">=</span><span class="n">pred</span><span class="p">,</span> <span class="n">pred_cond</span><span class="o">=</span><span class="n">pred_cond</span><span class="p">,</span> <span class="n">pred_uncond</span><span class="o">=</span><span class="n">pred_uncond</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">is_conditional</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>

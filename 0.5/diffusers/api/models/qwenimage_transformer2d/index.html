@@ -11056,9 +11056,7 @@ specific language governing permissions and limitations under the License. -->
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/transformers/transformer_qwenimage.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">457</span>
-<span class="normal">458</span>
-<span class="normal">459</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">459</span>
 <span class="normal">460</span>
 <span class="normal">461</span>
 <span class="normal">462</span>
@@ -11232,7 +11230,20 @@ specific language governing permissions and limitations under the License. -->
 <span class="normal">630</span>
 <span class="normal">631</span>
 <span class="normal">632</span>
-<span class="normal">633</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">QwenImageTransformer2DModel</span><span class="p">(</span>
+<span class="normal">633</span>
+<span class="normal">634</span>
+<span class="normal">635</span>
+<span class="normal">636</span>
+<span class="normal">637</span>
+<span class="normal">638</span>
+<span class="normal">639</span>
+<span class="normal">640</span>
+<span class="normal">641</span>
+<span class="normal">642</span>
+<span class="normal">643</span>
+<span class="normal">644</span>
+<span class="normal">645</span>
+<span class="normal">646</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">QwenImageTransformer2DModel</span><span class="p">(</span>
     <span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">PeftAdapterMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">,</span> <span class="n">CacheMixin</span><span class="p">,</span> <span class="n">AttentionMixin</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -11329,7 +11340,7 @@ specific language governing permissions and limitations under the License. -->
         <span class="n">txt_seq_lens</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">guidance</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>  <span class="c1"># TODO: this should probably be removed</span>
         <span class="n">attention_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">controlnet_block_samples</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">controlnet_block_samples</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">Transformer2DModelOutput</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -11386,19 +11397,30 @@ specific language governing permissions and limitations under the License. -->
         <span class="n">image_rotary_emb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pos_embed</span><span class="p">(</span><span class="n">img_shapes</span><span class="p">,</span> <span class="n">txt_seq_lens</span><span class="p">)</span>
 
         <span class="k">for</span> <span class="n">index_block</span><span class="p">,</span> <span class="n">block</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transformer_blocks</span><span class="p">):</span>
-            <span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">block</span><span class="p">(</span>
-                <span class="n">hidden_states</span><span class="o">=</span><span class="n">hidden_states</span><span class="p">,</span>
-                <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="n">encoder_hidden_states</span><span class="p">,</span>
-                <span class="n">encoder_hidden_states_mask</span><span class="o">=</span><span class="n">encoder_hidden_states_mask</span><span class="p">,</span>
-                <span class="n">temb</span><span class="o">=</span><span class="n">temb</span><span class="p">,</span>
-                <span class="n">image_rotary_emb</span><span class="o">=</span><span class="n">image_rotary_emb</span><span class="p">,</span>
-                <span class="n">joint_attention_kwargs</span><span class="o">=</span><span class="n">attention_kwargs</span><span class="p">,</span>
-            <span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">gradient_checkpointing</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">training</span><span class="p">:</span>
+                <span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">recompute</span><span class="p">(</span>
+                    <span class="n">block</span><span class="p">,</span>
+                    <span class="n">hidden_states</span><span class="p">,</span>
+                    <span class="n">encoder_hidden_states</span><span class="p">,</span>
+                    <span class="n">encoder_hidden_states_mask</span><span class="p">,</span>
+                    <span class="n">temb</span><span class="p">,</span>
+                    <span class="n">image_rotary_emb</span><span class="p">,</span>
+                    <span class="n">attention_kwargs</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">block</span><span class="p">(</span>
+                    <span class="n">hidden_states</span><span class="o">=</span><span class="n">hidden_states</span><span class="p">,</span>
+                    <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="n">encoder_hidden_states</span><span class="p">,</span>
+                    <span class="n">encoder_hidden_states_mask</span><span class="o">=</span><span class="n">encoder_hidden_states_mask</span><span class="p">,</span>
+                    <span class="n">temb</span><span class="o">=</span><span class="n">temb</span><span class="p">,</span>
+                    <span class="n">image_rotary_emb</span><span class="o">=</span><span class="n">image_rotary_emb</span><span class="p">,</span>
+                    <span class="n">joint_attention_kwargs</span><span class="o">=</span><span class="n">attention_kwargs</span><span class="p">,</span>
+                <span class="p">)</span>
 
             <span class="c1"># controlnet residual</span>
             <span class="k">if</span> <span class="n">controlnet_block_samples</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">interval_control</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transformer_blocks</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">controlnet_block_samples</span><span class="p">)</span>
-                <span class="n">interval_control</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">interval_control</span><span class="p">))</span>
+                <span class="n">interval_control</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">interval_control</span><span class="p">))</span>
                 <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">hidden_states</span> <span class="o">+</span> <span class="n">controlnet_block_samples</span><span class="p">[</span><span class="n">index_block</span> <span class="o">//</span> <span class="n">interval_control</span><span class="p">]</span>
 
         <span class="c1"># Use only the image part (hidden_states) from the dual-stream blocks</span>
@@ -11618,9 +11640,7 @@ tuple.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/transformer_qwenimage.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">544</span>
-<span class="normal">545</span>
-<span class="normal">546</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">546</span>
 <span class="normal">547</span>
 <span class="normal">548</span>
 <span class="normal">549</span>
@@ -11707,7 +11727,20 @@ tuple.</p>
 <span class="normal">630</span>
 <span class="normal">631</span>
 <span class="normal">632</span>
-<span class="normal">633</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
+<span class="normal">633</span>
+<span class="normal">634</span>
+<span class="normal">635</span>
+<span class="normal">636</span>
+<span class="normal">637</span>
+<span class="normal">638</span>
+<span class="normal">639</span>
+<span class="normal">640</span>
+<span class="normal">641</span>
+<span class="normal">642</span>
+<span class="normal">643</span>
+<span class="normal">644</span>
+<span class="normal">645</span>
+<span class="normal">646</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">hidden_states</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">encoder_hidden_states</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -11717,7 +11750,7 @@ tuple.</p>
     <span class="n">txt_seq_lens</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">guidance</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>  <span class="c1"># TODO: this should probably be removed</span>
     <span class="n">attention_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">controlnet_block_samples</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">controlnet_block_samples</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">Transformer2DModelOutput</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -11774,19 +11807,30 @@ tuple.</p>
     <span class="n">image_rotary_emb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pos_embed</span><span class="p">(</span><span class="n">img_shapes</span><span class="p">,</span> <span class="n">txt_seq_lens</span><span class="p">)</span>
 
     <span class="k">for</span> <span class="n">index_block</span><span class="p">,</span> <span class="n">block</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transformer_blocks</span><span class="p">):</span>
-        <span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">block</span><span class="p">(</span>
-            <span class="n">hidden_states</span><span class="o">=</span><span class="n">hidden_states</span><span class="p">,</span>
-            <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="n">encoder_hidden_states</span><span class="p">,</span>
-            <span class="n">encoder_hidden_states_mask</span><span class="o">=</span><span class="n">encoder_hidden_states_mask</span><span class="p">,</span>
-            <span class="n">temb</span><span class="o">=</span><span class="n">temb</span><span class="p">,</span>
-            <span class="n">image_rotary_emb</span><span class="o">=</span><span class="n">image_rotary_emb</span><span class="p">,</span>
-            <span class="n">joint_attention_kwargs</span><span class="o">=</span><span class="n">attention_kwargs</span><span class="p">,</span>
-        <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">gradient_checkpointing</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">training</span><span class="p">:</span>
+            <span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">recompute</span><span class="p">(</span>
+                <span class="n">block</span><span class="p">,</span>
+                <span class="n">hidden_states</span><span class="p">,</span>
+                <span class="n">encoder_hidden_states</span><span class="p">,</span>
+                <span class="n">encoder_hidden_states_mask</span><span class="p">,</span>
+                <span class="n">temb</span><span class="p">,</span>
+                <span class="n">image_rotary_emb</span><span class="p">,</span>
+                <span class="n">attention_kwargs</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">block</span><span class="p">(</span>
+                <span class="n">hidden_states</span><span class="o">=</span><span class="n">hidden_states</span><span class="p">,</span>
+                <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="n">encoder_hidden_states</span><span class="p">,</span>
+                <span class="n">encoder_hidden_states_mask</span><span class="o">=</span><span class="n">encoder_hidden_states_mask</span><span class="p">,</span>
+                <span class="n">temb</span><span class="o">=</span><span class="n">temb</span><span class="p">,</span>
+                <span class="n">image_rotary_emb</span><span class="o">=</span><span class="n">image_rotary_emb</span><span class="p">,</span>
+                <span class="n">joint_attention_kwargs</span><span class="o">=</span><span class="n">attention_kwargs</span><span class="p">,</span>
+            <span class="p">)</span>
 
         <span class="c1"># controlnet residual</span>
         <span class="k">if</span> <span class="n">controlnet_block_samples</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">interval_control</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transformer_blocks</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">controlnet_block_samples</span><span class="p">)</span>
-            <span class="n">interval_control</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">interval_control</span><span class="p">))</span>
+            <span class="n">interval_control</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">interval_control</span><span class="p">))</span>
             <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">hidden_states</span> <span class="o">+</span> <span class="n">controlnet_block_samples</span><span class="p">[</span><span class="n">index_block</span> <span class="o">//</span> <span class="n">interval_control</span><span class="p">]</span>
 
     <span class="c1"># Use only the image part (hidden_states) from the dual-stream blocks</span>
