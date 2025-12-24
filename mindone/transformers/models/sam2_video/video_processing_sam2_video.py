@@ -22,7 +22,6 @@ from typing import Optional, Union
 import numpy as np
 
 import mindspore as ms
-import mindspore.mint as mint
 import mindspore.mint.nn.functional as F
 
 from ...image_processing_utils import BatchFeature

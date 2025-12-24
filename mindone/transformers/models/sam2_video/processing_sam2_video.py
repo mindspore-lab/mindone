@@ -429,7 +429,7 @@ class Sam2VideoProcessor(ProcessorMixin):
             # For tensors/arrays, we can directly check the number of dimensions
             if data.ndim != expected_depth:
                 raise ValueError(
-                    f"Input {input_name} must be a tensor/array with {expected_depth} dimensions. The expected nesting format is {expected_format}. Got {data.ndim} dimensions."
+                    f"Input {input_name} must be a tensor/array with {expected_depth} dimensions. The expected nesting format is {expected_format}. Got {data.ndim} dimensions."  # noqa: E501
                 )
             elif expected_coord_size is not None:
                 if data.shape[-1] != expected_coord_size:
@@ -443,7 +443,7 @@ class Sam2VideoProcessor(ProcessorMixin):
             current_depth = self._get_nesting_level(data)
             if current_depth != expected_depth:
                 raise ValueError(
-                    f"Input {input_name} must be a nested list with {expected_depth} levels. The expected nesting format is {expected_format}. Got {current_depth} levels."
+                    f"Input {input_name} must be a nested list with {expected_depth} levels. The expected nesting format is {expected_format}. Got {current_depth} levels."  # noqa: E501
                 )
             return self._convert_to_nested_list(data, expected_depth)
 

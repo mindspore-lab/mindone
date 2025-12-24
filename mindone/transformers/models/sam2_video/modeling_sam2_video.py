@@ -710,7 +710,8 @@ def rotate_pairwise(x):
     return x.flatten(start_dim=-2)
 
 
-# TODO: This leads to ~1e-07 max diff and ~1e-09 avg diff for q_embed and k_embed from the original implementation, most likely due to the use of complex tensors in the original implementation.
+# TODO: This leads to ~1e-07 max diff and ~1e-09 avg diff for q_embed and k_embed from the original implementation,
+# most likely due to the use of complex tensors in the original implementation.
 def apply_rotary_pos_emb_2d(
     q: ms.Tensor,
     k: ms.Tensor,
@@ -1052,9 +1053,9 @@ class Sam2VideoMemoryEncoder(nn.Cell):
         vision_features: ms.Tensor,
         masks: ms.Tensor,
     ) -> tuple[ms.Tensor, ms.Tensor]:
-        ## Process masks
+        # Process masks
         masks = self.mask_downsampler(masks)
-        ## Fuse pixel_features and downsampled masks
+        # Fuse pixel_features and downsampled masks
 
         vision_features = self.feature_projection(vision_features)
         vision_features = vision_features + masks
@@ -1736,7 +1737,7 @@ class Sam2VideoModel(Sam2VideoPreTrainedModel):
         self,
         pixel_values: ms.Tensor,
         **kwargs: Unpack[FlashAttentionKwargs],
-    ) -> tuple[list[ms.Tensor], list[ms.Tensor], Optional[tuple[ms.Tensor, ...]], Optional[tuple[ms.Tensor, ...]],]:
+    ) -> tuple[list[ms.Tensor], list[ms.Tensor], Optional[tuple[ms.Tensor, ...]], Optional[tuple[ms.Tensor, ...]]]:
         r"""
         Extract and preprocess image features using the vision encoder.
 

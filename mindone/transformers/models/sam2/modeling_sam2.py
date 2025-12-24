@@ -25,7 +25,7 @@
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
 import numpy as np
 from transformers import (
@@ -51,7 +51,6 @@ from ...modeling_outputs import BaseModelOutput
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
 from ...utils import ModelOutput
-from ..auto import AutoModel
 
 
 @dataclass
@@ -1500,7 +1499,7 @@ class Sam2Model(Sam2PreTrainedModel, GenerationMixin):
     def get_image_features(
         self,
         pixel_values: ms.Tensor,
-    ) -> Tuple[list[ms.Tensor], list[ms.Tensor], Optional[Tuple[ms.Tensor, ...]], Optional[Tuple[ms.Tensor, ...]],]:
+    ) -> Tuple[list[ms.Tensor], list[ms.Tensor], Optional[Tuple[ms.Tensor, ...]], Optional[Tuple[ms.Tensor, ...]]]:
         r"""
         Extract and preprocess image features using the vision encoder.
 
