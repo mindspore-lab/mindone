@@ -73,3 +73,12 @@ class Dense(nn.Cell):
 class Linear(Dense):
     def construct(self, x: Tensor) -> Tensor:
         return self.net.dense(x, self.param_wrapper_w(self.net.weight), self.param_wrapper_b(self.net.bias))
+
+
+class Llama4RouterWrapper(Linear):
+    def construct(self, x: Tensor) -> (Tensor, Tensor):
+        router_logits = super().construct(x)
+        router_top_value, router_indices = mint.topk(router_logits, self.net.top_k, dim=1)
+        router_scores = mint.full_like(router_logits, float("-inf")).scatter_(1, router_indices, router_top_value)
+        router_scores = mint.nn.functional.sigmoid(router_scores.float()).to(router_scores.dtype)
+        return router_scores, router_logits

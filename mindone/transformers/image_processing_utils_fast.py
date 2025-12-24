@@ -171,6 +171,7 @@ class DefaultFastImageProcessorKwargs(TypedDict, total=False):
     return_tensors: Optional[Union[str, TensorType]]
     data_format: Optional[ChannelDimension]
     input_data_format: Optional[Union[str, ChannelDimension]]
+    disable_grouping: Optional[bool]
 
 
 @auto_docstring
@@ -268,7 +269,7 @@ class BaseImageProcessorFast(BaseImageProcessor):
         else:
             pad_size = get_max_height_width(images)
 
-        grouped_images, grouped_images_index = group_images_by_shape(images)
+        grouped_images, grouped_images_index = group_images_by_shape(images, disable_grouping=disable_grouping)
         processed_images_grouped = {}
         processed_masks_grouped = {}
         for shape, stacked_images in grouped_images.items():
@@ -812,10 +813,11 @@ class BaseImageProcessorFast(BaseImageProcessor):
         do_pad: Optional[bool],
         pad_size: Optional[SizeDict],
         return_tensors: Optional[Union[str, TensorType]],
+        disable_grouping: Optional[bool] = False,
         **kwargs,
     ) -> BatchFeature:
         # Group images by size for batched resizing
-        grouped_images, grouped_images_index = group_images_by_shape(images)
+        grouped_images, grouped_images_index = group_images_by_shape(images, disable_grouping=disable_grouping)
         resized_images_grouped = {}
         for shape, stacked_images in grouped_images.items():
             if do_resize:
@@ -829,7 +831,7 @@ class BaseImageProcessorFast(BaseImageProcessor):
 
         # Group images by size for further processing
         # Needed in case do_resize is False, or resize returns images with different sizes
-        grouped_images, grouped_images_index = group_images_by_shape(resized_images)
+        grouped_images, grouped_images_index = group_images_by_shape(resized_images, disable_grouping=disable_grouping)
         processed_images_grouped = {}
         for shape, stacked_images in grouped_images.items():
             if do_center_crop:

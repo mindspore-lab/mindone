@@ -21,10 +21,12 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 import PIL.Image
-from transformers import Qwen2Tokenizer, Qwen2VLProcessor
+from transformers import Qwen2Tokenizer
 
 import mindspore as ms
 from mindspore import mint
+
+from mindone.transformers import Qwen2VLProcessor
 
 from ....transformers import Qwen2_5_VLForConditionalGeneration
 from ...image_processor import PipelineImageInput, VaeImageProcessor
@@ -238,7 +240,7 @@ class QwenImageEditInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         self,
         prompt: Union[str, List[str]] = None,
         image: Optional[ms.tensor] = None,
-        dtype: Optional[ms.dtype] = None,
+        dtype: Optional[ms.Type] = None,
     ):
         dtype = dtype or self.text_encoder.dtype
 

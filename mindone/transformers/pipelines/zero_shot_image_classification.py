@@ -153,10 +153,9 @@ class ZeroShotImageClassificationPipeline(Pipeline):
             tokenizer_kwargs = {}
         image = load_image(image, timeout=timeout)
         inputs = self.image_processor(images=[image], return_tensors="np")
-        for k, v in inputs.items():
-            inputs[k] = ms.tensor(v)
         if self.framework == "ms":
-            inputs = inputs.to(self.dtype)
+            for k, v in inputs.items():
+                inputs[k] = ms.tensor(v).to(self.dtype)
         inputs["candidate_labels"] = candidate_labels
         sequences = [hypothesis_template.format(x) for x in candidate_labels]
         tokenizer_default_kwargs = {"padding": True}
@@ -195,7 +194,7 @@ class ZeroShotImageClassificationPipeline(Pipeline):
             if not isinstance(scores, list):
                 scores = [scores]
         elif self.framework == "ms":
-            probs = logits.softmax(dim=-1).squeeze(-1)
+            probs = logits.softmax(axis=-1).squeeze(-1)
             scores = probs.tolist()
             if not isinstance(scores, list):
                 scores = [scores]

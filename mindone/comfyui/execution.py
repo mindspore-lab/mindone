@@ -41,7 +41,6 @@ from comfy_execution.utils import CurrentNodeContext
 from comfy_execution.validation import validate_node_input
 
 import mindspore
-from mindspore import mint
 
 
 class ExecutionResult(Enum):
@@ -648,7 +647,7 @@ async def execute(
                         # Figure out if the newly created node is an output node
                         class_type = node_info["class_type"]
                         class_def = nodes.NODE_CLASS_MAPPINGS[class_type]
-                        if hasattr(class_def, "OUTPUT_NODE") and class_def.OUTPUT_NODE == True:
+                        if hasattr(class_def, "OUTPUT_NODE") and class_def.OUTPUT_NODE:
                             new_output_ids.append(node_id)
                     for i in range(len(node_outputs)):
                         if is_link(node_outputs[i]):
@@ -694,7 +693,8 @@ async def execute(
         tips = ""
 
         # if isinstance(ex, comfy.model_management.OOM_EXCEPTION):
-        #     tips = "This error means you ran out of memory on your GPU.\n\nTIPS: If the workflow worked before you might have accidentally set the batch_size to a large number."
+        #     tips = "This error means you ran out of memory on your GPU.\n\nTIPS:
+        #     If the workflow worked before you might have accidentally set the batch_size to a large number."
         #     logging.error("Got an OOM, unloading all loaded models.")
         #     comfy.model_management.unload_all_models()
 
