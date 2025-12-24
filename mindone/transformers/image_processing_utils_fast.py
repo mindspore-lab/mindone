@@ -427,14 +427,14 @@ class BaseImageProcessorFast(BaseImageProcessor):
 
         Args:
             image (`ms.Tensor`):
-                Image to normalize.
+                Image to normalize. Shape should be (..., C, H, W) where the last 3 dimensions are (C, H, W).
             mean (`ms.tensor`, `float` or `Iterable[float]`):
                 Image mean to use for normalization.
             std (`ms.tensor`, `float` or `Iterable[float]`):
                 Image standard deviation to use for normalization.
 
         Returns:
-            `ms.tensor`: The normalized image.
+            `ms.tensor`: The normalized image with the same shape as input.
         """
         mean = [float(mean[0]), float(mean[1]), float(mean[2])]
         std = [float(std[0]), float(std[1]), float(std[2])]
