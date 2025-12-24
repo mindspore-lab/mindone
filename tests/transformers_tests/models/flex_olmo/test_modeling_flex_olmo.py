@@ -33,9 +33,12 @@ DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]  # not support graph mode yet
 
 
-class FlexOlmoModelTester(CausalLMModelTester(parent=None)):
+class FlexOlmoModelTester(CausalLMModelTester):
     base_model_class = FlexOlmoModel
     config_class = FlexOlmoConfig
+
+    def __init__(self):
+        super().__init__(parent=None)
 
 
 model_tester = FlexOlmoModelTester()

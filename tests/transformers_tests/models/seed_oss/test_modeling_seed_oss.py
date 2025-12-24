@@ -44,6 +44,9 @@ class SeedOssModelTester(CausalLMModelTester(parent=None)):
     base_model_class = SeedOssModel
     config_class = SeedOssConfig
 
+    def __init__(self):
+        super().__init__(parent=None)
+
 
 model_tester = SeedOssModelTester()
 (
