@@ -109,12 +109,12 @@ def sliding_window_causal_mask_function(sliding_window: int) -> Callable:
     return and_masks(sliding_window_overlay(sliding_window), causal_mask_function)
 
 
-def chunked_causal_mask_function(chunk_size: int) -> Callable:
+def chunked_causal_mask_function(chunk_size: int, left_padding: ms.Tensor) -> Callable:
     """
     This return the mask_function function to create a chunked attention mask.
     """
     # We do not add version judgement like transformers, cause mindspore version have upgraded >= 2.6.0
-    return and_masks(chunked_overlay(chunk_size), causal_mask_function)
+    return and_masks(chunked_overlay(chunk_size, left_padding), causal_mask_function)
 
 
 def padding_mask_function(padding_mask: ms.Tensor) -> Callable:
@@ -385,7 +385,7 @@ def sdpa_mask_recent_torch(
     You can do
 
     ```python
-    >>> sdpa_mask(batch_size=1, cache_position=mint.arange(5), kv_length=5, mask_function=chunked_causal_mask_function(3))
+    >>> sdpa_mask(batch_size=1, cache_position=mint.arange(5), kv_length=5, mask_function=chunked_causal_mask_function(3, mint.zeros(1, dtype=ms.int32)))
     >>> tensor([[[[ True, False, False, False, False],
                 [ True,  True, False, False, False],
                 [ True,  True,  True, False, False],
@@ -721,7 +721,7 @@ def _preprocess_mask_arguments(
         batch_size = input_embeds.shape[0]
         # The position ids are sometimes just unsqueezed, without being expanded
         if batch_size != position_ids.shape[0]:
-            position_ids = position_ids.expand(batch_size, -1)
+            position_ids = position_ids.expand((batch_size, -1))
         packed_sequence_mask = find_packed_sequence_indices(position_ids)
 
     return False, attention_mask, packed_sequence_mask, kv_length, kv_offset

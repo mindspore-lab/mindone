@@ -205,14 +205,19 @@ class BaseVideoProcessor(BaseImageProcessorFast):
             `ms.Tensor`: The converted video.
         """
 
-        video = ms.dataset.vision.c_transforms.ConvertColor(video)
-        if video.shape[-3] == 3 or not (video[..., 3, :, :] < 255).any():
+        if video.shape[-3] == 3:
             return video
+        if video.shape[-3] == 1:
+            channel_dim = video.ndim - 3
+            return video.repeat_interleave(3, dim=channel_dim)
 
-        # There is a transparency layer, blend it with a white background.
-        # Calculate the alpha proportion for blending.
-        alpha = video[..., 3, :, :] / 255.0
-        video = (1 - alpha[..., None, :, :]) * 255 + alpha[..., None, :, :] * video[..., :3, :, :]
+        if video.shape[-3] == 4:
+            if not (video[..., 3, :, :] < 255).any():
+                return video[..., :3, :, :]
+
+            alpha = video[..., 3, :, :] / 255.0
+            video = (1 - alpha[..., None, :, :]) * 255 + alpha[..., None, :, :] * video[..., :3, :, :]
+            return video
         return video
 
     def sample_frames(
@@ -220,6 +225,7 @@ class BaseVideoProcessor(BaseImageProcessorFast):
         metadata: VideoMetadata,
         num_frames: Optional[int] = None,
         fps: Optional[Union[int, float]] = None,
+        **kwargs,
     ):
         """
         Default sampling function which uniformly samples the desired number of frames between 0 and total number of frames.

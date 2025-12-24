@@ -452,7 +452,7 @@ class RepetitionPenaltyLogitsProcessor(LogitsProcessor):
         score = mint.gather(scores, 1, input_ids)
         # if score < 0 then repetition penalty has to be multiplied to reduce the token probabilities
         score = mint.where(score < 0, score * self.penalty, score / self.penalty)
-        scores_processed = scores.scatter(1, input_ids, score)
+        scores_processed = scores.scatter_(1, input_ids, score)
         return scores_processed
 
 
@@ -3201,7 +3201,7 @@ class DiaClassifierFreeGuidanceLogitsProcessor(LogitsProcessor):
             # Create top k based on the combined CFG output
             _, top_k_indices = mint.topk(scores_processed, k=self.guidance_top_k, dim=-1)
             top_k_mask = mint.ones_like(scores_processed, dtype=ms.bool_)
-            top_k_mask = top_k_mask.scatter(dim=-1, index=top_k_indices, value=False)
+            top_k_mask = top_k_mask.scatter_(dim=-1, index=top_k_indices, value=False)
             # Only return conditioned logits with top k
             scores_processed = cond_logits.masked_fill(top_k_mask, -float("inf"))
 

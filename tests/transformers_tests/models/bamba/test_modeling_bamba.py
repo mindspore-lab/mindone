@@ -50,7 +50,7 @@ class BambaModelTester:
         use_labels=True,
         vocab_size=99,
         hidden_size=32,
-        num_hidden_layers=4,
+        num_hidden_layers=2,
         num_attention_heads=4,
         num_key_value_heads=2,
         intermediate_size=64,
@@ -104,12 +104,13 @@ class BambaModelTester:
 
         input_mask = None
         if self.use_input_mask:
-            input_mask = ids_numpy([self.batch_size, self.seq_length], 1)
+            input_mask = np.tril(np.ones_like(input_ids))
 
         token_labels = None
         if self.use_labels:
             token_labels = ids_numpy([self.batch_size, self.seq_length], self.num_labels)
 
+        self._update_layer_configs()
         config = self.get_config()
 
         return config, input_ids, input_mask, token_labels
@@ -125,10 +126,12 @@ class BambaModelTester:
         inputs_dict = {"input_ids": input_ids, "attention_mask": input_mask}
         return config, inputs_dict
 
-    def get_config(self):
+    def _update_layer_configs(self):
+        """Configures hidden layers and attn layer indices if they are not set."""
         # Fix for SDPA tests, force at least 4 layers
         if self.num_hidden_layers < 4:
             self.num_hidden_layers = 4
+
         if self.attn_layer_indices is None:
             d = [x for x in range(2, self.num_hidden_layers) if self.num_hidden_layers % x == 0]
             if len(d) == 0:
@@ -136,7 +139,8 @@ class BambaModelTester:
             d = d[-1]  # get the largest divisor
             self.attn_layer_indices = [x + 1 for x in range(0, self.num_hidden_layers, d)]
 
-        return BambaConfig(
+    def get_config(self, **kwargs):
+        return self.config_class(
             vocab_size=self.vocab_size,
             hidden_size=self.hidden_size,
             num_hidden_layers=self.num_hidden_layers,
@@ -156,6 +160,7 @@ class BambaModelTester:
             mamba_d_conv=self.mamba_d_conv,
             mamba_expand=self.mamba_expand,
             mamba_chunk_size=self.mamba_chunk_size,
+            **kwargs,
         )
 
 

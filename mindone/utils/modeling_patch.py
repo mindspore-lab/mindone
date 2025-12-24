@@ -70,7 +70,7 @@ def patch_empty_with_dtype(dtype=ms.float32):
 
         def patched(shape, *args, **kwargs):
             if "dtype" not in kwargs:
-                kwargs["dtype"] = ms.float32
+                kwargs["dtype"] = dtype
             return original(shape, *args, **kwargs)
 
         mint.empty = patched

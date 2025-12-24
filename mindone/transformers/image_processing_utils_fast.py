@@ -171,6 +171,7 @@ class DefaultFastImageProcessorKwargs(TypedDict, total=False):
     return_tensors: Optional[Union[str, TensorType]]
     data_format: Optional[ChannelDimension]
     input_data_format: Optional[Union[str, ChannelDimension]]
+    disable_grouping: Optional[bool]
 
 
 @auto_docstring
@@ -268,7 +269,7 @@ class BaseImageProcessorFast(BaseImageProcessor):
         else:
             pad_size = get_max_height_width(images)
 
-        grouped_images, grouped_images_index = group_images_by_shape(images)
+        grouped_images, grouped_images_index = group_images_by_shape(images, disable_grouping=disable_grouping)
         processed_images_grouped = {}
         processed_masks_grouped = {}
         for shape, stacked_images in grouped_images.items():
@@ -346,12 +347,27 @@ class BaseImageProcessorFast(BaseImageProcessor):
                 f" {size}."
             )
         # Fixme different with torchvision resize, which has inout `antialias`
-        resize = vision.Resize(new_size, interpolation=interpolation)
-        # image ms.tensor-->numpy-->PIL
-        image = image.permute(1, 2, 0).asnumpy()
-        image = (image * 255).clip(0, 255).astype(np.uint8)
-        image = Image.fromarray(image)
-        return ms.tensor(np.array(resize(image))).permute(2, 0, 1)
+        resize_op = vision.Resize(new_size, interpolation=interpolation)
+        original_shape = image.shape
+        batch_dims = original_shape[:-3]
+        num_batch = 1
+        for dim in batch_dims:
+            num_batch *= dim
+        image_flat = image.view(num_batch, *original_shape[-3:])  # (N, C, H, W)
+        resized_images = []
+        for i in range(num_batch):
+            img = image_flat[i]  # (C, H, W)
+            # image ms.tensor-->numpy-->PIL
+            img_np = img.permute(1, 2, 0).asnumpy()
+            if img_np.max() <= 1.0:
+                img_np = img_np * 255
+            img_np = img_np.clip(0, 255).astype(np.uint8)
+            img_pil = Image.fromarray(img_np)
+            resized_img = ms.tensor(np.array(resize_op(img_pil))).permute(2, 0, 1)
+            resized_images.append(resized_img)
+        resized_flat = mint.stack(resized_images, dim=0)
+        _, new_C, new_H, new_W = resized_flat.shape
+        return resized_flat.view(*batch_dims, new_C, new_H, new_W)
 
     @staticmethod
     def compile_friendly_resize(
@@ -420,17 +436,27 @@ class BaseImageProcessorFast(BaseImageProcessor):
         Returns:
             `ms.tensor`: The normalized image.
         """
-        assert image.ndim == 4  # [B, C, H, W]
         mean = [float(mean[0]), float(mean[1]), float(mean[2])]
         std = [float(std[0]), float(std[1]), float(std[2])]
         normalize = vision.Normalize(
             mean=mean,
             std=std,
         )
-        images = []
-        for img in image:
-            images.append(normalize(img.permute(1, 2, 0).asnumpy()))
-        return ms.tensor(images).permute(0, 3, 1, 2)
+        original_shape = image.shape
+        batch_dims = original_shape[:-3]
+        num_batch = 1
+        for dim in batch_dims:
+            num_batch *= dim
+        image_flat = image.view(num_batch, *original_shape[-3:])  # (N, C, H, W)
+        normalized_images = []
+        for i in range(num_batch):
+            img = image_flat[i]  # (C, H, W)
+            normalized_img = normalize(img.permute(1, 2, 0).asnumpy())
+            normalized_img = ms.tensor(normalized_img).permute(2, 0, 1)
+            normalized_images.append(normalized_img)
+        normalized_flat = mint.stack(normalized_images, dim=0)
+        _, new_C, new_H, new_W = normalized_flat.shape
+        return normalized_flat.view(*batch_dims, new_C, new_H, new_W)
 
     @lru_cache(maxsize=10)
     def _fuse_mean_std_and_rescale_factor(
@@ -499,7 +525,26 @@ class BaseImageProcessorFast(BaseImageProcessor):
         # TODO mindspore 2.7.0 only supports 2 dimension for `size` param.
         # So right now `left/right/top/bottom` could not be distingushed
         center_crop = vision.CenterCrop((size.height, size.width))
-        return center_crop(image)
+        original_shape = image.shape
+        batch_dims = original_shape[:-3]
+        num_batch = 1
+        for dim in batch_dims:
+            num_batch *= dim
+        image_flat = image.view(num_batch, *original_shape[-3:])  # (N, C, H, W)
+        cropped_images = []
+        for i in range(num_batch):
+            img = image_flat[i]  # (C, H, W)
+            # image ms.tensor-->numpy-->PIL
+            img_np = img.permute(1, 2, 0).asnumpy()
+            if img_np.max() <= 1.0:
+                img_np = img_np * 255
+            img_np = img_np.clip(0, 255).astype(np.uint8)
+            img_pil = Image.fromarray(img_np)
+            cropped_img = ms.tensor(np.array(center_crop(img_pil))).permute(2, 0, 1)
+            cropped_images.append(cropped_img)
+        cropped_flat = mint.stack(cropped_images, dim=0)
+        _, new_C, new_H, new_W = cropped_flat.shape
+        return cropped_flat.view(*batch_dims, new_C, new_H, new_W)
 
     def convert_to_rgb(
         self,
@@ -768,10 +813,11 @@ class BaseImageProcessorFast(BaseImageProcessor):
         do_pad: Optional[bool],
         pad_size: Optional[SizeDict],
         return_tensors: Optional[Union[str, TensorType]],
+        disable_grouping: Optional[bool] = False,
         **kwargs,
     ) -> BatchFeature:
         # Group images by size for batched resizing
-        grouped_images, grouped_images_index = group_images_by_shape(images)
+        grouped_images, grouped_images_index = group_images_by_shape(images, disable_grouping=disable_grouping)
         resized_images_grouped = {}
         for shape, stacked_images in grouped_images.items():
             if do_resize:
@@ -785,7 +831,7 @@ class BaseImageProcessorFast(BaseImageProcessor):
 
         # Group images by size for further processing
         # Needed in case do_resize is False, or resize returns images with different sizes
-        grouped_images, grouped_images_index = group_images_by_shape(resized_images)
+        grouped_images, grouped_images_index = group_images_by_shape(resized_images, disable_grouping=disable_grouping)
         processed_images_grouped = {}
         for shape, stacked_images in grouped_images.items():
             if do_center_crop:

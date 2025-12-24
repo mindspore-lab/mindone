@@ -17,20 +17,14 @@
 # limitations under the License.
 """Mindspore BART model."""
 
-import copy
 import math
 import warnings
-from typing import List, Optional, Tuple, Union
+from typing import Callable, Optional, Union
 
 import numpy as np
-from transformers.models.bart.configuration_bart import BartConfig
-from transformers.utils import (
-    add_code_sample_docstrings,
-    add_end_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
+from transformers import BartConfig
+from transformers.utils import auto_docstring, logging
+from transformers.utils.deprecation import deprecate_kwarg
 
 import mindspore as ms
 from mindspore import mint, nn, ops
@@ -38,14 +32,16 @@ from mindspore.common.initializer import Normal, initializer
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
+from ...cache_utils import Cache, DynamicCache, EncoderDecoderCache
 from ...generation import GenerationMixin
 from ...modeling_attn_mask_utils import (
+    AttentionMaskConverter,
     _prepare_4d_attention_mask,
     _prepare_4d_attention_mask_for_sdpa,
-    _prepare_4d_causal_attention_mask,
-    _prepare_4d_causal_attention_mask_for_sdpa,
     dtype_to_min,
 )
+from ...modeling_flash_attention_utils import FlashAttentionKwargs
+from ...modeling_layers import GradientCheckpointingLayer
 from ...modeling_outputs import (
     BaseModelOutput,
     BaseModelOutputWithPastAndCrossAttentions,
@@ -55,30 +51,10 @@ from ...modeling_outputs import (
     Seq2SeqQuestionAnsweringModelOutput,
     Seq2SeqSequenceClassifierOutput,
 )
-from ...modeling_utils import PreTrainedModel
-from ...utils import is_flash_attn_2_available
-
-if is_flash_attn_2_available():
-    from mindspore.ops.operations.nn_ops import FlashAttentionScore as MSFlashAttention
-
+from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
+from ...processing_utils import Unpack
 
 logger = logging.get_logger(__name__)
-
-_CHECKPOINT_FOR_DOC = "facebook/bart-base"
-_CONFIG_FOR_DOC = "BartConfig"
-
-# Base model docstring
-_EXPECTED_OUTPUT_SHAPE = [1, 8, 768]
-
-# SequenceClassification docstring
-_CHECKPOINT_FOR_SEQUENCE_CLASSIFICATION = "valhalla/bart-large-sst2"
-_SEQ_CLASS_EXPECTED_LOSS = 0.0
-_SEQ_CLASS_EXPECTED_OUTPUT = "'POSITIVE'"
-
-# QuestionAsnwering docstring
-_CHECKPOINT_FOR_QA = "valhalla/bart-large-finetuned-squadv1"
-_QA_EXPECTED_LOSS = 0.59
-_QA_EXPECTED_OUTPUT = "' nice puppet'"
 
 
 def shift_tokens_right(input_ids: ms.Tensor, pad_token_id: int, decoder_start_token_id: int):
@@ -108,14 +84,20 @@ class BartLearnedPositionalEmbedding(mint.nn.Embedding):
         self.offset = 2
         super().__init__(num_embeddings + self.offset, embedding_dim)
 
-    def construct(self, input_ids: ms.Tensor, past_key_values_length: int = 0):
+    def construct(
+        self, input_ids: ms.Tensor, past_key_values_length: int = 0, position_ids: Optional[ms.Tensor] = None
+    ):
         """`input_ids' shape is expected to be [bsz x seqlen]."""
 
-        bsz, seq_len = input_ids.shape[:2]
-        positions = mint.arange(past_key_values_length, past_key_values_length + seq_len, dtype=ms.int32)
-        positions = mint.broadcast_to(positions, (bsz, seq_len))
+        if position_ids is None:
+            bsz, seq_len = input_ids.shape[:2]
+            position_ids = mint.arange(past_key_values_length, past_key_values_length + seq_len, dtype=ms.int32).expand(
+                (bsz, -1)
+            )
+        else:
+            position_ids = position_ids.unsqueeze(0)
 
-        return super().construct(positions + self.offset)
+        return super().construct(position_ids + self.offset)
 
 
 class BartScaledWordEmbedding(mint.nn.Embedding):
@@ -131,6 +113,36 @@ class BartScaledWordEmbedding(mint.nn.Embedding):
         return super().construct(input_ids) * self.embed_scale
 
 
+def eager_attention_forward(
+    module: nn.Cell,
+    query: ms.Tensor,
+    key: ms.Tensor,
+    value: ms.Tensor,
+    attention_mask: Optional[ms.Tensor],
+    scaling: Optional[float] = None,
+    dropout: float = 0.0,
+    head_mask: Optional[ms.Tensor] = None,
+    **kwargs,
+):
+    if scaling is None:
+        scaling = query.size(-1) ** -0.5
+
+    attn_weights = mint.matmul(query, key.transpose(2, 3)) * scaling
+    if attention_mask is not None:
+        attn_weights = attn_weights + attention_mask
+
+    attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1)
+
+    if head_mask is not None:
+        attn_weights = attn_weights * head_mask.view(1, -1, 1, 1)
+
+    attn_weights = mint.nn.functional.dropout(attn_weights, p=dropout, training=module.training)
+    attn_output = mint.matmul(attn_weights, value)
+    attn_output = attn_output.transpose(1, 2).contiguous()
+
+    return attn_output, attn_weights
+
+
 class BartAttention(nn.Cell):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
 
@@ -143,6 +155,7 @@ class BartAttention(nn.Cell):
         bias: bool = True,
         is_causal: bool = False,
         config: Optional[BartConfig] = None,
+        layer_idx: Optional[int] = None,
     ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -159,301 +172,115 @@ class BartAttention(nn.Cell):
         self.scaling = self.head_dim**-0.5
         self.is_decoder = is_decoder
         self.is_causal = is_causal
+        self.layer_idx = layer_idx
+        if layer_idx is None and self.is_decoder:
+            logger.warning_once(
+                f"Instantiating a decoder {self.__class__.__name__} without passing `layer_idx` is not recommended and "
+                "will lead to errors during the forward call, if caching is used. Please make sure to provide a `layer_idx` "
+                "when creating this class."
+            )
 
         self.k_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
         self.v_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
         self.q_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
         self.out_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
 
-    def _shape(self, tensor: ms.Tensor, seq_len: int, bsz: int):
-        return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).permute(0, 2, 1, 3).contiguous()
-
+    @deprecate_kwarg("past_key_value", new_name="past_key_values", version="4.58")
     def construct(
         self,
         hidden_states: ms.Tensor,
         key_value_states: Optional[ms.Tensor] = None,
-        past_key_value: Optional[Tuple[ms.Tensor]] = None,
+        past_key_values: Optional[Cache] = None,
         attention_mask: Optional[ms.Tensor] = None,
         layer_head_mask: Optional[ms.Tensor] = None,
         output_attentions: bool = False,
-    ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
+        cache_position: Optional[ms.Tensor] = None,
+        # TODO: we need a refactor so that the different attention modules can get their specific kwargs
+        # ATM, we have mixed things encoder, decoder, and encoder-decoder attn
+        **kwargs: Unpack[FlashAttentionKwargs],
+    ) -> tuple[ms.Tensor, Optional[ms.Tensor], Optional[tuple[ms.Tensor]]]:
         """Input shape: Batch x Time x Channel"""
 
         # if key_value_states are provided this layer is used as a cross-attention layer
         # for the decoder
         is_cross_attention = key_value_states is not None
 
-        bsz, tgt_len, _ = hidden_states.shape
+        # determine input shapes
+        bsz, tgt_len = hidden_states.shape[:-1]
+        src_len = key_value_states.shape[1] if is_cross_attention else tgt_len
+
+        q_input_shape = (bsz, tgt_len, -1, self.head_dim)
+        kv_input_shape = (bsz, src_len, -1, self.head_dim)
 
         # get query proj
-        query_states = self.q_proj(hidden_states) * self.scaling
-        # get key, value proj
-        # `past_key_value[0].shape[2] == key_value_states.shape[1]`
-        # is checking that the `sequence_length` of the `past_key_value` is the same as
-        # the provided `key_value_states` to support prefix tuning
-        if (
-            past_key_value is not None
-            and is_cross_attention
-            and is_cross_attention
-            and past_key_value[0].shape[2] == key_value_states.shape[1]
-        ):
-            # reuse k,v, cross_attentions
-            key_states = past_key_value[0]
-            value_states = past_key_value[1]
-        elif is_cross_attention:
-            # cross_attentions
-            key_states = self._shape(self.k_proj(key_value_states), -1, bsz)
-            value_states = self._shape(self.v_proj(key_value_states), -1, bsz)
-        elif past_key_value is not None:
-            # reuse k, v, self_attention
-            key_states = self._shape(self.k_proj(hidden_states), -1, bsz)
-            value_states = self._shape(self.v_proj(hidden_states), -1, bsz)
-            key_states = mint.cat([past_key_value[0], key_states], dim=2)
-            value_states = mint.cat([past_key_value[1], value_states], dim=2)
-        else:
-            # self_attention
-            key_states = self._shape(self.k_proj(hidden_states), -1, bsz)
-            value_states = self._shape(self.v_proj(hidden_states), -1, bsz)
-
-        if self.is_decoder:
-            # if cross_attention save Tuple(ms.Tensor, ms.Tensor) of all cross attention key/value_states.
-            # Further calls to cross_attention layer can then reuse all cross-attention
-            # key/value_states (first "if" case)
-            # if uni-directional self-attention (decoder) save Tuple(ms.Tensor, ms.Tensor) of
-            # all previous decoder key/value_states. Further calls to uni-directional self-attention
-            # can concat previous decoder key/value_states to current projected key/value_states (third "elif" case)
-            # if encoder bi-directional self-attention `past_key_value` is always `None`
-            past_key_value = (key_states, value_states)
-
-        proj_shape = (bsz * self.num_heads, -1, self.head_dim)
-        query_states = self._shape(query_states, tgt_len, bsz).view(*proj_shape)
-        key_states = key_states.reshape(*proj_shape)
-        value_states = value_states.reshape(*proj_shape)
-
-        src_len = key_states.shape[1]
-        attn_weights = mint.bmm(query_states, key_states.permute(0, 2, 1))
-
-        if attn_weights.shape != (bsz * self.num_heads, tgt_len, src_len):
-            raise ValueError(
-                f"Attention weights should be of size {(bsz * self.num_heads, tgt_len, src_len)}, but is"
-                f" {attn_weights.shape}"
-            )
-
-        if attention_mask is not None:
-            if attention_mask.shape != (bsz, 1, tgt_len, src_len):
-                raise ValueError(
-                    f"Attention mask should be of size {(bsz, 1, tgt_len, src_len)}, but is {attention_mask.shape}"
-                )
-            attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len) + attention_mask
-            attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
-
-        attn_weights = mint.softmax(attn_weights, dim=-1)
-
-        if layer_head_mask is not None:
-            if layer_head_mask.shape != (self.num_heads,):
-                raise ValueError(
-                    f"Head mask for a single layer should be of size {(self.num_heads,)}, but is"
-                    f" {layer_head_mask.shape}"
-                )
-            attn_weights = layer_head_mask.view(1, -1, 1, 1) * attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
-            attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
-
-        if output_attentions:
-            # this operation is a bit awkward, but it's required to
-            # make sure that attn_weights keeps its gradient.
-            # In order to do so, attn_weights have to be reshaped
-            # twice and have to be reused in the following
-            attn_weights_reshaped = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
-            attn_weights = attn_weights_reshaped.view(bsz * self.num_heads, tgt_len, src_len)
-        else:
-            attn_weights_reshaped = None
-
-        attn_probs = ops.dropout(attn_weights, p=self.dropout, training=self.training)
-
-        attn_output = mint.bmm(attn_probs, value_states)
-
-        if attn_output.shape != (bsz * self.num_heads, tgt_len, self.head_dim):
-            raise ValueError(
-                f"`attn_output` should be of size {(bsz * self.num_heads, tgt_len, self.head_dim)}, but is"
-                f" {attn_output.shape}"
-            )
-
-        attn_output = attn_output.view(bsz, self.num_heads, tgt_len, self.head_dim)
-        attn_output = attn_output.permute(0, 2, 1, 3)
-
-        # Use the `embed_dim` from the config (stored in the class) rather than `hidden_state` because `attn_output` can be
-        # partitioned across GPUs when using tensor-parallelism.
-        attn_output = attn_output.reshape(bsz, tgt_len, self.embed_dim)
-
-        attn_output = self.out_proj(attn_output)
-
-        return attn_output, attn_weights_reshaped, past_key_value
-
-
-class BartFlashAttention2(BartAttention):
-    """
-    Bart flash attention module. This module inherits from `BartAttention` as the weights of the module stays
-    untouched. The only required change would be on the construct pass where it needs to correctly call the public API of
-    flash attention and deal with padding tokens in case the input contains any of them.
-    """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if not self.training:
-            self.dropout = 0.0
-
-        self.flash_attention = MSFlashAttention(
-            head_num=self.num_heads,
-            keep_prob=1 - self.dropout,
-            scale_value=1.0 / math.sqrt(self.head_dim),
-            input_layout="BSND",
-        )
-
-    def convert_mask_to_fa_format(self, attention_mask):
-        if attention_mask is not None:
-            if attention_mask.dtype == ms.bool_:
-                # flip mask, since ms FA treats 1 as discard, 0 as retain.
-                attention_mask = 1 - attention_mask
-                attention_mask = attention_mask.to(ms.uint8)
+        query_states = self.q_proj(hidden_states).view(*q_input_shape).transpose(1, 2)
+        is_updated = False
+        if past_key_values is not None:
+            if isinstance(past_key_values, EncoderDecoderCache):
+                is_updated = past_key_values.is_updated.get(self.layer_idx)
+                if is_cross_attention:
+                    # after the first generated id, we can subsequently re-use all key/value_states from cache
+                    curr_past_key_value = past_key_values.cross_attention_cache
+                else:
+                    curr_past_key_value = past_key_values.self_attention_cache
             else:
-                # attention_mask has beed inverted before in _prepare_4d_causal_mask: 0: retain, -inf: discard
-                min_dtype = dtype_to_min(attention_mask.dtype)
-                attention_mask = mint.where(
-                    attention_mask == min_dtype,
-                    mint.ones((), dtype=ms.uint8),
-                    mint.zeros((), dtype=ms.uint8),
-                )
+                curr_past_key_value = past_key_values
 
-        return attention_mask
-
-    def _reshape(self, tensor: ms.Tensor, seq_len: int, bsz: int):
-        return tensor.view(bsz, seq_len, self.num_heads, self.head_dim)
-
-    def construct(
-        self,
-        hidden_states: ms.Tensor,
-        key_value_states: Optional[ms.Tensor] = None,
-        past_key_value: Optional[Tuple[ms.Tensor]] = None,
-        attention_mask: Optional[ms.Tensor] = None,
-        layer_head_mask: Optional[ms.Tensor] = None,
-        output_attentions: bool = False,
-    ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
-        # BartFlashAttention2 attention does not support output_attentions
-        if output_attentions:
-            raise ValueError("BartFlashAttention2 attention does not support output_attentions")
-
-        # if key_value_states are provided this layer is used as a cross-attention layer
-        # for the decoder
-        is_cross_attention = key_value_states is not None
-
-        bsz, q_len, _ = hidden_states.shape
-
-        # get query proj
-        query_states = self._reshape(self.q_proj(hidden_states), -1, bsz)
-        # get key, value proj
-        # `past_key_value[0].shape[2] == key_value_states.shape[1]`
-        # is checking that the `sequence_length` of the `past_key_value` is the same as
-        # the provided `key_value_states` to support prefix tuning
-        if (
-            past_key_value is not None
-            and is_cross_attention
-            and past_key_value[0].shape[2] == key_value_states.shape[1]
-        ):
+        current_states = key_value_states if is_cross_attention else hidden_states
+        if is_cross_attention and past_key_values is not None and is_updated:
             # reuse k,v, cross_attentions
-            key_states = past_key_value[0].transpose(1, 2)
-            value_states = past_key_value[1].transpose(1, 2)
-        elif is_cross_attention:
-            # cross_attentions
-            key_states = self._reshape(self.k_proj(key_value_states), -1, bsz)
-            value_states = self._reshape(self.v_proj(key_value_states), -1, bsz)
-        elif past_key_value is not None:
-            # reuse k, v, self_attention
-            key_states = self._reshape(self.k_proj(hidden_states), -1, bsz)
-            value_states = self._reshape(self.v_proj(hidden_states), -1, bsz)
-            key_states = mint.cat([past_key_value[0].transpose(1, 2), key_states], dim=1)
-            value_states = mint.cat([past_key_value[1].transpose(1, 2), value_states], dim=1)
+            key_states = curr_past_key_value.layers[self.layer_idx].keys
+            value_states = curr_past_key_value.layers[self.layer_idx].values
         else:
-            # self_attention
-            key_states = self._reshape(self.k_proj(hidden_states), -1, bsz)
-            value_states = self._reshape(self.v_proj(hidden_states), -1, bsz)
+            key_states = self.k_proj(current_states)
+            value_states = self.v_proj(current_states)
+            key_states = key_states.view(*kv_input_shape).transpose(1, 2)
+            value_states = value_states.view(*kv_input_shape).transpose(1, 2)
 
-        if self.is_decoder:
-            # if cross_attention save Tuple(ms.Tensor, ms.Tensor) of all cross attention key/value_states.
-            # Further calls to cross_attention layer can then reuse all cross-attention
-            # key/value_states (first "if" case)
-            # if uni-directional self-attention (decoder) save Tuple(ms.Tensor, ms.Tensor) of
-            # all previous decoder key/value_states. Further calls to uni-directional self-attention
-            # can concat previous decoder key/value_states to current projected key/value_states (third "elif" case)
-            # if encoder bi-directional self-attention `past_key_value` is always `None`
-            past_key_value = (key_states.permute(0, 2, 1, 3), value_states.permute(0, 2, 1, 3))
+            if past_key_values is not None:
+                # save all key/value_states to cache to be re-used for fast auto-regressive generation
+                cache_position = cache_position if not is_cross_attention else None
+                key_states, value_states = curr_past_key_value.update(
+                    key_states, value_states, self.layer_idx, {"cache_position": cache_position}
+                )
+                # set flag that curr layer for cross-attn is already updated so we can re-use in subsequent calls
+                if is_cross_attention and isinstance(past_key_values, EncoderDecoderCache):
+                    past_key_values.is_updated[self.layer_idx] = True
 
-        kv_seq_len = key_states.shape[-3]
-        if past_key_value is not None:
-            kv_seq_len += past_key_value[0].shape[-2]
+        attention_interface: Callable = eager_attention_forward
+        if self.config._attn_implementation != "eager":
+            attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
 
-        # In PEFT, usually we cast the layer norms in float32 for training stability reasons
-        # therefore the input hidden states gets silently casted in float32. Hence, we need
-        # cast them back in the correct dtype just to be sure everything works as expected.
-        # This might slowdown training & inference so it is recommended to not cast the LayerNorms
-        # in fp32. (LlamaRMSNorm handles it correctly)
-
-        input_dtype = query_states.dtype
-        if input_dtype == ms.float32:
-            # Handle the case where the model is quantized
-            if hasattr(self.config, "_pre_quantization_dtype"):
-                target_dtype = self.config._pre_quantization_dtype
-            else:
-                target_dtype = self.q_proj.weight.dtype
-
-            logger.warning_once(
-                f"The input hidden states seems to be silently casted in float32, this might be related to"
-                f" the fact you have upcasted embedding or layer norm layers in float32. We will cast back the input in"
-                f" {target_dtype}."
-            )
-
-            query_states = query_states.to(target_dtype)
-            key_states = key_states.to(target_dtype)
-            value_states = value_states.to(target_dtype)
-
-        if attention_mask is not None:
-            attention_mask = self.convert_mask_to_fa_format(attention_mask)
-
-        attn_output = self.flash_attention(
+        attn_output, attn_weights = attention_interface(
+            self,
             query_states,
             key_states,
             value_states,
-            None,
-            None,
-            None,
             attention_mask,
-        )[
-            -1
-        ].to(input_dtype)
+            dropout=0.0 if not self.training else self.dropout,
+            scaling=self.scaling,
+            output_attentions=output_attentions,
+            head_mask=layer_head_mask,
+            **kwargs,
+        )
 
-        attn_output = attn_output.reshape(bsz, q_len, -1)
+        attn_output = attn_output.reshape(bsz, tgt_len, -1).contiguous()
         attn_output = self.out_proj(attn_output)
 
-        attn_weights = None
-
-        return attn_output, attn_weights, past_key_value
+        return attn_output, attn_weights
 
 
-BART_ATTENTION_CLASSES = {
-    "eager": BartAttention,
-    "flash_attention_2": BartFlashAttention2,
-}
-
-
-class BartEncoderLayer(nn.Cell):
-    def __init__(self, config: BartConfig):
+class BartEncoderLayer(GradientCheckpointingLayer):
+    def __init__(self, config: BartConfig, layer_idx: Optional[int] = None):
         super().__init__()
         self.embed_dim = config.d_model
 
-        self.self_attn = BART_ATTENTION_CLASSES[config._attn_implementation](
+        self.self_attn = BartAttention(
             embed_dim=self.embed_dim,
             num_heads=config.encoder_attention_heads,
             dropout=config.attention_dropout,
             config=config,
+            layer_idx=layer_idx,
         )
         self.self_attn_layer_norm = mint.nn.LayerNorm(self.embed_dim)
         self.dropout = config.dropout
@@ -469,7 +296,7 @@ class BartEncoderLayer(nn.Cell):
         attention_mask: ms.Tensor,
         layer_head_mask: ms.Tensor,
         output_attentions: Optional[bool] = False,
-    ) -> Tuple[ms.Tensor, Optional[ms.Tensor]]:
+    ) -> tuple[ms.Tensor, Optional[ms.Tensor]]:
         """
         Args:
             hidden_states (`ms.Tensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
@@ -482,21 +309,21 @@ class BartEncoderLayer(nn.Cell):
                 returned tensors for more detail.
         """
         residual = hidden_states
-        hidden_states, attn_weights, _ = self.self_attn(
+        hidden_states, attn_weights = self.self_attn(
             hidden_states=hidden_states,
             attention_mask=attention_mask,
             layer_head_mask=layer_head_mask,
             output_attentions=output_attentions,
         )
-        hidden_states = ops.dropout(hidden_states, p=self.dropout, training=self.training)
+        hidden_states = mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
         hidden_states = residual + hidden_states
         hidden_states = self.self_attn_layer_norm(hidden_states)
 
         residual = hidden_states
         hidden_states = self.activation_fn(self.fc1(hidden_states))
-        hidden_states = ops.dropout(hidden_states, p=self.activation_dropout, training=self.training)
+        hidden_states = mint.nn.functional.dropout(hidden_states, p=self.activation_dropout, training=self.training)
         hidden_states = self.fc2(hidden_states)
-        hidden_states = ops.dropout(hidden_states, p=self.dropout, training=self.training)
+        hidden_states = mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
         hidden_states = residual + hidden_states
         hidden_states = self.final_layer_norm(hidden_states)
 
@@ -512,36 +339,39 @@ class BartEncoderLayer(nn.Cell):
         return outputs
 
 
-class BartDecoderLayer(nn.Cell):
-    def __init__(self, config: BartConfig):
+class BartDecoderLayer(GradientCheckpointingLayer):
+    def __init__(self, config: BartConfig, layer_idx: Optional[int] = None):
         super().__init__()
         self.embed_dim = config.d_model
 
-        self.self_attn = BART_ATTENTION_CLASSES[config._attn_implementation](
+        self.self_attn = BartAttention(
             embed_dim=self.embed_dim,
             num_heads=config.decoder_attention_heads,
             dropout=config.attention_dropout,
             is_decoder=True,
             is_causal=True,
             config=config,
+            layer_idx=layer_idx,
         )
         self.dropout = config.dropout
         self.activation_fn = ACT2FN[config.activation_function]
         self.activation_dropout = config.activation_dropout
 
         self.self_attn_layer_norm = mint.nn.LayerNorm(self.embed_dim)
-        self.encoder_attn = BART_ATTENTION_CLASSES[config._attn_implementation](
+        self.encoder_attn = BartAttention(
             self.embed_dim,
             config.decoder_attention_heads,
             dropout=config.attention_dropout,
             is_decoder=True,
             config=config,
+            layer_idx=layer_idx,
         )
         self.encoder_attn_layer_norm = mint.nn.LayerNorm(self.embed_dim)
         self.fc1 = mint.nn.Linear(self.embed_dim, config.decoder_ffn_dim)
         self.fc2 = mint.nn.Linear(config.decoder_ffn_dim, self.embed_dim)
         self.final_layer_norm = mint.nn.LayerNorm(self.embed_dim)
 
+    @deprecate_kwarg("past_key_value", new_name="past_key_values", version="4.58")
     def construct(
         self,
         hidden_states: ms.Tensor,
@@ -550,10 +380,11 @@ class BartDecoderLayer(nn.Cell):
         encoder_attention_mask: Optional[ms.Tensor] = None,
         layer_head_mask: Optional[ms.Tensor] = None,
         cross_attn_layer_head_mask: Optional[ms.Tensor] = None,
-        past_key_value: Optional[Tuple[ms.Tensor]] = None,
+        past_key_values: Optional[Cache] = None,
         output_attentions: Optional[bool] = False,
         use_cache: Optional[bool] = True,
-    ) -> Tuple[ms.Tensor, Optional[Tuple[ms.Tensor, ms.Tensor]]]:
+        cache_position: Optional[ms.Tensor] = None,
+    ) -> tuple[ms.Tensor, Optional[tuple[ms.Tensor, ms.Tensor]]]:
         """
         Args:
             hidden_states (`ms.Tensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
@@ -567,57 +398,53 @@ class BartDecoderLayer(nn.Cell):
                 `(encoder_attention_heads,)`.
             cross_attn_layer_head_mask (`ms.Tensor`): mask for cross-attention heads in a given layer of
                 size `(decoder_attention_heads,)`.
-            past_key_value (`Tuple(ms.Tensor)`): cached past key and value projection states
+            past_key_values (`Cache`): cached past key and value projection states
             output_attentions (`bool`, *optional*):
                 Whether or not to return the attentions tensors of all attention layers. See `attentions` under
                 returned tensors for more detail.
+            cache_position (`ms.Tensor` of shape `(sequence_length)`, *optional*):
+                Indices depicting the position of the input sequence tokens in the sequence. It is used to update the
+                cache in the correct position and to infer the complete sequence length.
         """
         residual = hidden_states
 
         # Self Attention
-        # decoder uni-directional self-attention cached key/values tuple is at positions 1,2
-        self_attn_past_key_value = past_key_value[:2] if past_key_value is not None else None
-        # add present self-attn cache to positions 1,2 of present_key_value tuple
-        hidden_states, self_attn_weights, present_key_value = self.self_attn(
+        hidden_states, self_attn_weights = self.self_attn(
             hidden_states=hidden_states,
-            past_key_value=self_attn_past_key_value,
+            past_key_values=past_key_values,
             attention_mask=attention_mask,
             layer_head_mask=layer_head_mask,
             output_attentions=output_attentions,
+            cache_position=cache_position,
         )
-        hidden_states = ops.dropout(hidden_states, p=self.dropout, training=self.training)
+        hidden_states = mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
         hidden_states = residual + hidden_states
         hidden_states = self.self_attn_layer_norm(hidden_states)
 
         # Cross-Attention Block
-        cross_attn_present_key_value = None
         cross_attn_weights = None
         if encoder_hidden_states is not None:
             residual = hidden_states
 
-            # cross_attn cached key/values tuple is at positions 3,4 of present_key_value tuple
-            cross_attn_past_key_value = past_key_value[-2:] if past_key_value is not None else None
-            hidden_states, cross_attn_weights, cross_attn_present_key_value = self.encoder_attn(
+            hidden_states, cross_attn_weights = self.encoder_attn(
                 hidden_states=hidden_states,
                 key_value_states=encoder_hidden_states,
                 attention_mask=encoder_attention_mask,
                 layer_head_mask=cross_attn_layer_head_mask,
-                past_key_value=cross_attn_past_key_value,
+                past_key_values=past_key_values,
                 output_attentions=output_attentions,
+                cache_position=cache_position,
             )
-            hidden_states = ops.dropout(hidden_states, p=self.dropout, training=self.training)
+            hidden_states = mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
             hidden_states = residual + hidden_states
             hidden_states = self.encoder_attn_layer_norm(hidden_states)
-
-            # add cross-attn to positions 3,4 of present_key_value tuple
-            present_key_value = present_key_value + cross_attn_present_key_value
 
         # Fully Connected
         residual = hidden_states
         hidden_states = self.activation_fn(self.fc1(hidden_states))
-        hidden_states = ops.dropout(hidden_states, p=self.activation_dropout, training=self.training)
+        hidden_states = mint.nn.functional.dropout(hidden_states, p=self.activation_dropout, training=self.training)
         hidden_states = self.fc2(hidden_states)
-        hidden_states = ops.dropout(hidden_states, p=self.dropout, training=self.training)
+        hidden_states = mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
         hidden_states = residual + hidden_states
         hidden_states = self.final_layer_norm(hidden_states)
 
@@ -625,9 +452,6 @@ class BartDecoderLayer(nn.Cell):
 
         if output_attentions:
             outputs += (self_attn_weights, cross_attn_weights)
-
-        if use_cache:
-            outputs += (present_key_value,)
 
         return outputs
 
@@ -656,15 +480,19 @@ class BartClassificationHead(nn.Cell):
         return hidden_states
 
 
+@auto_docstring
 class BartPreTrainedModel(PreTrainedModel):
-    config_class = BartConfig
+    config = BartConfig
     base_model_prefix = "model"
     supports_gradient_checkpointing = True
     _keys_to_ignore_on_load_unexpected = ["encoder.version", "decoder.version"]
     _no_split_modules = [r"BartEncoderLayer", r"BartDecoderLayer"]
     _skip_keys_device_placement = "past_key_values"
-    _supports_flash_attn_2 = True
+    _supports_flash_attn = True
     _supports_sdpa = True
+    _supports_flex_attn = True
+
+    _can_compile_fullgraph = True
 
     def _init_weights(self, module):
         std = self.config.init_std
@@ -676,6 +504,9 @@ class BartPreTrainedModel(PreTrainedModel):
             module.weight.set_data(initializer(Normal(sigma=std, mean=0.0), module.weight.shape, module.weight.dtype))
             if module.padding_idx is not None:
                 module.weight[module.padding_idx] = 0
+        elif isinstance(module, mint.nn.LayerNorm):
+            module.weight.data.fill_(1.0)
+            module.bias.data.zero_()
 
     @property
     def dummy_inputs(self):
@@ -686,6 +517,187 @@ class BartPreTrainedModel(PreTrainedModel):
             "input_ids": input_ids,
         }
         return dummy_inputs
+
+    def _update_full_mask(
+        self,
+        attention_mask: Union[ms.Tensor, None],
+        inputs_embeds: ms.Tensor,
+    ):
+        if attention_mask is not None:
+            if self.config._attn_implementation == "flash_attention_2":
+                attention_mask = attention_mask if 0 in attention_mask else None
+            elif self.config._attn_implementation == "sdpa":
+                # output_attentions=True & head_mask can not be supported when using SDPA, fall back to
+                # the manual implementation that requires a 4D causal mask in all cases.
+                # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
+                attention_mask = _prepare_4d_attention_mask_for_sdpa(attention_mask, inputs_embeds.dtype)
+            # elif self.config._attn_implementation == "flex_attention":
+            #     if isinstance(attention_mask, ms.Tensor):
+            #         attention_mask = make_flex_block_causal_mask(attention_mask, is_causal=False)
+            else:
+                # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
+                attention_mask = _prepare_4d_attention_mask(attention_mask, inputs_embeds.dtype)
+
+        return attention_mask
+
+    def _update_causal_mask(
+        self,
+        attention_mask: Optional[Union[ms.Tensor]],
+        input_tensor: ms.Tensor,
+        cache_position: ms.Tensor,
+        past_key_values: Cache,
+    ):
+        """
+        if self.config._attn_implementation == "flex_attention":
+            if isinstance(attention_mask, ms.Tensor):
+                attention_mask = make_flex_block_causal_mask(attention_mask)
+            # Other attention flavors support in-built causal (when `mask is None`)
+            # while we need to create our specific block mask regardless
+            elif attention_mask is None:
+                attention_mask = make_flex_block_causal_mask(
+                    mint.ones(
+                        size=(input_tensor.shape[0], input_tensor.shape[1]),
+                    )
+                )
+            return attention_mask
+        """
+
+        if self.config._attn_implementation == "flash_attention_2":
+            if attention_mask is not None and (attention_mask == 0.0).any():
+                return attention_mask
+            return None
+
+        # For SDPA, when possible, we will rely on its `is_causal` argument instead of its `attn_mask` argument, in
+        # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
+        # to infer the attention mask.
+        past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
+        using_compilable_cache = past_key_values.is_compileable if past_key_values is not None else False
+
+        # When output attentions is True, sdpa implementation's forward method calls the eager implementation's forward
+        if self.config._attn_implementation == "sdpa" and not using_compilable_cache:
+            if AttentionMaskConverter._ignore_causal_mask_sdpa(
+                attention_mask,
+                inputs_embeds=input_tensor,
+                past_key_values_length=past_seen_tokens,
+                is_training=self.training,
+            ):
+                return None
+
+        dtype = input_tensor.dtype
+        sequence_length = input_tensor.shape[1]
+        if using_compilable_cache:
+            target_length = past_key_values.get_max_cache_shape()
+        else:
+            target_length = (
+                attention_mask.shape[-1]
+                if isinstance(attention_mask, ms.Tensor)
+                else past_seen_tokens + sequence_length + 1
+            )
+
+        # In case the provided `attention` mask is 2D, we generate a causal mask here (4D).
+        causal_mask = self._prepare_4d_causal_attention_mask_with_cache_position(
+            attention_mask,
+            sequence_length=sequence_length,
+            target_length=target_length,
+            dtype=dtype,
+            cache_position=cache_position,
+            batch_size=input_tensor.shape[0],
+        )
+
+        if self.config._attn_implementation == "sdpa" and attention_mask is not None:
+            # Attend to all tokens in fully masked rows in the causal_mask, for example the relevant first rows when
+            # using left padding. This is required by F.scaled_dot_product_attention memory-efficient attention path.
+            min_dtype = dtype_to_min(dtype)
+            causal_mask = AttentionMaskConverter._unmask_unattended(causal_mask, min_dtype)
+
+        return causal_mask
+
+    @staticmethod
+    # Copied from transformers.models.gptj.modeling_gptj.GPTJModel._prepare_4d_causal_attention_mask_with_cache_position
+    def _prepare_4d_causal_attention_mask_with_cache_position(
+        attention_mask: ms.Tensor,
+        sequence_length: int,
+        target_length: int,
+        dtype: ms.dtype,
+        cache_position: ms.Tensor,
+        batch_size: int,
+        **kwargs,
+    ):
+        """
+        Creates a causal 4D mask of shape `(batch_size, 1, query_length, key_value_length)` from a 2D mask of shape
+        `(batch_size, key_value_length)`, or if the input `attention_mask` is already 4D, do nothing.
+
+        Args:
+            attention_mask (`ms.Tensor`):
+                A 2D attention mask of shape `(batch_size, key_value_length)` or a 4D attention mask of shape
+                `(batch_size, 1, query_length, key_value_length)`.
+            sequence_length (`int`):
+                The sequence length being processed.
+            target_length (`int`):
+                The target length: when generating with static cache, the mask should be as long as the static cache,
+                to account for the 0 padding, the part of the cache that is not filled yet.
+            dtype (`ms.dtype`):
+                The dtype to use for the 4D attention mask.
+            cache_position (`ms.Tensor`):
+                Indices depicting the position of the input sequence tokens in the sequence.
+            batch_size (`ms.Tensor`):
+                Batch size.
+        """
+        if attention_mask is not None and attention_mask.dim() == 4:
+            # In this case we assume that the mask comes already in inverted form and requires no inversion or slicing.
+            causal_mask = attention_mask
+        else:
+            min_dtype = dtype_to_min(dtype)
+            causal_mask = mint.full((sequence_length, target_length), fill_value=min_dtype.item(), dtype=dtype)
+            if sequence_length != 1:
+                causal_mask = mint.triu(causal_mask, diagonal=1)
+            causal_mask *= mint.arange(target_length) > cache_position.reshape(-1, 1)
+            causal_mask = causal_mask[None, None, :, :].expand((batch_size, 1, -1, -1))
+            if attention_mask is not None:
+                causal_mask = causal_mask.clone()  # copy to contiguous memory for in-place edit
+                mask_length = attention_mask.shape[-1]
+                padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :]
+                padding_mask = padding_mask == 0
+                causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(
+                    padding_mask, min_dtype
+                )
+
+        return causal_mask
+
+    def _update_cross_attn_mask(
+        self,
+        encoder_hidden_states: Union[ms.Tensor, None],
+        encoder_attention_mask: Union[ms.Tensor, None],
+        input_shape: tuple[int],
+        inputs_embeds: ms.Tensor,
+    ):
+        # expand encoder attention mask
+        if encoder_hidden_states is not None and encoder_attention_mask is not None:
+            if self.config._attn_implementation == "flash_attention_2":
+                encoder_attention_mask = encoder_attention_mask if 0 in encoder_attention_mask else None
+            elif self.config._attn_implementation == "sdpa":
+                # output_attentions=True & cross_attn_head_mask can not be supported when using SDPA, and we fall back on
+                # the manual implementation that requires a 4D causal mask in all cases.
+                # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
+                encoder_attention_mask = _prepare_4d_attention_mask_for_sdpa(
+                    encoder_attention_mask,
+                    inputs_embeds.dtype,
+                    tgt_len=input_shape[-1],
+                )
+            # elif self.config._attn_implementation == "flex_attention":
+            #     if isinstance(encoder_attention_mask, ms.Tensor):
+            #         encoder_attention_mask = make_flex_block_causal_mask(
+            #             encoder_attention_mask,
+            #             query_length=input_shape[-1],
+            #             is_causal=False,
+            #         )
+            else:
+                # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
+                encoder_attention_mask = _prepare_4d_attention_mask(
+                    encoder_attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1]
+                )
+
+        return encoder_attention_mask
 
 
 class PretrainedBartModel(BartPreTrainedModel):
@@ -702,151 +714,6 @@ class BartPretrainedModel(BartPreTrainedModel):
             "The class `PretrainedBartModel` has been depreciated, please use `BartPreTrainedModel` instead.",
             FutureWarning,
         )
-
-
-BART_GENERATION_EXAMPLE = r"""
-    Summarization example:
-
-    ```python
-    >>> from transformers import AutoTokenizer
-    >>> from mindone.transformers import BartForConditionalGeneration
-    >>> import mindspore as ms
-
-    >>> model = BartForConditionalGeneration.from_pretrained("facebook/bart-large-cnn")
-    >>> tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-cnn")
-
-    >>> ARTICLE_TO_SUMMARIZE = (
-    ...     "PG&E stated it scheduled the blackouts in response to forecasts for high winds "
-    ...     "amid dry conditions. The aim is to reduce the risk of wildfires. Nearly 800 thousand customers were "
-    ...     "scheduled to be affected by the shutoffs which were expected to last through at least midday tomorrow."
-    ... )
-    >>> inputs = tokenizer([ARTICLE_TO_SUMMARIZE], max_length=1024, return_tensors="np")
-
-    >>> # Generate Summary
-    >>> summary_ids = model.generate(ms.tensor(inputs["input_ids"]), num_beams=2, min_length=0, max_length=20)
-    >>> tokenizer.batch_decode(summary_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
-    'PG&E scheduled the blackouts in response to forecasts for high winds amid dry conditions'
-    ```
-
-    Mask filling example:
-
-    ```python
-    >>> from transformers import AutoTokenizer
-    >>> from mindone.transformers import BartForConditionalGeneration
-    >>> import mindspore as ms
-
-    >>> tokenizer = AutoTokenizer.from_pretrained("facebook/bart-base")
-    >>> model = BartForConditionalGeneration.from_pretrained("facebook/bart-base")
-
-    >>> TXT = "My friends are <mask> but they eat too many carbs."
-    >>> input_ids = ms.tensor(tokenizer([TXT], return_tensors="np")["input_ids"])
-    >>> logits = model(input_ids).logits
-
-    >>> masked_index = (input_ids[0] == tokenizer.mask_token_id).nonzero().item()
-    >>> probs = logits[0, masked_index].softmax(dim=0)
-    >>> values, predictions = probs.topk(5)
-
-    >>> tokenizer.decode(predictions).split()
-    ['not', 'good', 'healthy', 'great', 'very']
-    ```
-"""
-
-BART_INPUTS_DOCSTRING = r"""
-    Args:
-        input_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`):
-            Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide
-            it.
-
-            Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
-            [`PreTrainedTokenizer.__call__`] for details.
-
-            [What are input IDs?](../glossary#input-ids)
-        attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
-            Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
-
-            - 1 for tokens that are **not masked**,
-            - 0 for tokens that are **masked**.
-
-            [What are attention masks?](../glossary#attention-mask)
-        decoder_input_ids (`ms.Tensor` of shape `(batch_size, target_sequence_length)`, *optional*):
-            Indices of decoder input sequence tokens in the vocabulary.
-
-            Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
-            [`PreTrainedTokenizer.__call__`] for details.
-
-            [What are decoder input IDs?](../glossary#decoder-input-ids)
-
-            Bart uses the `eos_token_id` as the starting token for `decoder_input_ids` generation. If `past_key_values`
-            is used, optionally only the last `decoder_input_ids` have to be input (see `past_key_values`).
-
-            For translation and summarization training, `decoder_input_ids` should be provided. If no
-            `decoder_input_ids` is provided, the model will create this tensor by shifting the `input_ids` to the right
-            for denoising pre-training following the paper.
-        decoder_attention_mask (`ms.Tensor` of shape `(batch_size, target_sequence_length)`, *optional*):
-            Default behavior: generate a tensor that ignores pad tokens in `decoder_input_ids`. Causal mask will also
-            be used by default.
-
-            If you want to change padding behavior, you should read [`modeling_bart._prepare_decoder_attention_mask`]
-            and modify to your needs. See diagram 1 in [the paper](https://arxiv.org/abs/1910.13461) for more
-            information on the default strategy.
-        head_mask (`ms.Tensor` of shape `(encoder_layers, encoder_attention_heads)`, *optional*):
-            Mask to nullify selected heads of the attention modules in the encoder. Mask values selected in `[0, 1]`:
-
-            - 1 indicates the head is **not masked**,
-            - 0 indicates the head is **masked**.
-
-        decoder_head_mask (`ms.Tensor` of shape `(decoder_layers, decoder_attention_heads)`, *optional*):
-            Mask to nullify selected heads of the attention modules in the decoder. Mask values selected in `[0, 1]`:
-
-            - 1 indicates the head is **not masked**,
-            - 0 indicates the head is **masked**.
-
-        cross_attn_head_mask (`ms.Tensor` of shape `(decoder_layers, decoder_attention_heads)`, *optional*):
-            Mask to nullify selected heads of the cross-attention modules in the decoder. Mask values selected in `[0,
-            1]`:
-
-            - 1 indicates the head is **not masked**,
-            - 0 indicates the head is **masked**.
-
-        encoder_outputs (`tuple(tuple(ms.Tensor)`, *optional*):
-            Tuple consists of (`last_hidden_state`, *optional*: `hidden_states`, *optional*: `attentions`)
-            `last_hidden_state` of shape `(batch_size, sequence_length, hidden_size)`, *optional*) is a sequence of
-            hidden-states at the output of the last layer of the encoder. Used in the cross-attention of the decoder.
-        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
-            `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and 2 additional tensors of shape
-            `(batch_size, num_heads, encoder_sequence_length, embed_size_per_head)`.
-
-            Contains pre-computed hidden-states (key and values in the self-attention blocks and in the cross-attention
-            blocks) that can be used (see `past_key_values` input) to speed up sequential decoding.
-
-            If `past_key_values` are used, the user can optionally input only the last `decoder_input_ids` (those that
-            don't have their past key value states given to this model) of shape `(batch_size, 1)` instead of all
-            `decoder_input_ids` of shape `(batch_size, sequence_length)`.
-        inputs_embeds (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
-            Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation.
-            This is useful if you want more control over how to convert `input_ids` indices into associated vectors
-            than the model's internal embedding lookup matrix.
-        decoder_inputs_embeds (`ms.Tensor` of shape `(batch_size, target_sequence_length, hidden_size)`, *optional*):
-            Optionally, instead of passing `decoder_input_ids` you can choose to directly pass an embedded
-            representation. If `past_key_values` is used, optionally only the last `decoder_inputs_embeds` have to be
-            input (see `past_key_values`). This is useful if you want more control over how to convert
-            `decoder_input_ids` indices into associated vectors than the model's internal embedding lookup matrix.
-
-            If `decoder_input_ids` and `decoder_inputs_embeds` are both unset, `decoder_inputs_embeds` takes the value
-            of `inputs_embeds`.
-        use_cache (`bool`, *optional*):
-            If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding (see
-            `past_key_values`).
-        output_attentions (`bool`, *optional*):
-            Whether or not to return the attentions tensors of all attention layers. See `attentions` under returned
-            tensors for more detail.
-        output_hidden_states (`bool`, *optional*):
-            Whether or not to return the hidden states of all layers. See `hidden_states` under returned tensors for
-            more detail.
-        return_dict (`bool`, *optional*):
-            Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
-"""
 
 
 class BartEncoder(BartPreTrainedModel):
@@ -881,20 +748,12 @@ class BartEncoder(BartPreTrainedModel):
             config.max_position_embeddings,
             embed_dim,
         )
-        self.layers = nn.CellList([BartEncoderLayer(config) for _ in range(config.encoder_layers)])
-        self._use_flash_attention_2 = config._attn_implementation == "flash_attention_2"
-        self._use_sdpa = config._attn_implementation == "sdpa"
+        self.layers = nn.CellList([BartEncoderLayer(config, layer_idx=i) for i in range(config.encoder_layers)])
         self.layernorm_embedding = mint.nn.LayerNorm(embed_dim)
 
         self.gradient_checkpointing = False
         # Initialize weights and apply final processing
         self.post_init()
-
-    def get_input_embeddings(self):
-        return self.embed_tokens
-
-    def set_input_embeddings(self, value):
-        self.embed_tokens = value
 
     def construct(
         self,
@@ -905,7 +764,7 @@ class BartEncoder(BartPreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[Tuple, BaseModelOutput]:
+    ) -> Union[tuple, BaseModelOutput]:
         r"""
         Args:
             input_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`):
@@ -969,21 +828,15 @@ class BartEncoder(BartPreTrainedModel):
         hidden_states = self.layernorm_embedding(hidden_states)
         hidden_states = ops.dropout(hidden_states, p=self.dropout, training=self.training)
 
-        # expand attention_mask
-        if attention_mask is not None:
-            if self._use_sdpa and head_mask is None and not output_attentions:
-                # output_attentions=True & head_mask can not be supported when using SDPA, fall back to
-                # the manual implementation that requires a 4D causal mask in all cases.
-                # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
-                attention_mask = _prepare_4d_attention_mask_for_sdpa(attention_mask, inputs_embeds.dtype)
-            else:
-                # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
-                attention_mask = _prepare_4d_attention_mask(attention_mask, inputs_embeds.dtype)
+        attention_mask = self._update_full_mask(
+            attention_mask,
+            inputs_embeds,
+        )
 
         encoder_states = () if output_hidden_states else None
         all_attentions = () if output_attentions else None
 
-        # check if head_mask has a correct number of layers specified if desired
+        # add LayerDrop (see https://huggingface.co/papers/1909.11556 for description)
         if head_mask is not None:
             if head_mask.shape[0] != (len(self.layers)):
                 raise ValueError(
@@ -1004,21 +857,12 @@ class BartEncoder(BartPreTrainedModel):
             if to_drop:
                 layer_outputs = (None, None)
             else:
-                if self.gradient_checkpointing and self.training:
-                    layer_outputs = self._gradient_checkpointing_func(
-                        encoder_layer.__call__,
-                        hidden_states,
-                        attention_mask,
-                        (head_mask[idx] if head_mask is not None else None),
-                        output_attentions,
-                    )
-                else:
-                    layer_outputs = encoder_layer(
-                        hidden_states,
-                        attention_mask,
-                        layer_head_mask=(head_mask[idx] if head_mask is not None else None),
-                        output_attentions=output_attentions,
-                    )
+                layer_outputs = encoder_layer(
+                    hidden_states,
+                    attention_mask,
+                    layer_head_mask=(head_mask[idx] if head_mask is not None else None),
+                    output_attentions=output_attentions,
+                )
 
                 hidden_states = layer_outputs[0]
 
@@ -1061,21 +905,13 @@ class BartDecoder(BartPreTrainedModel):
             config.max_position_embeddings,
             config.d_model,
         )
-        self.layers = nn.CellList([BartDecoderLayer(config) for _ in range(config.decoder_layers)])
-        self._use_flash_attention_2 = config._attn_implementation == "flash_attention_2"
-        self._use_sdpa = config._attn_implementation == "sdpa"
+        self.layers = nn.CellList([BartDecoderLayer(config, layer_idx=i) for i in range(config.decoder_layers)])
 
         self.layernorm_embedding = mint.nn.LayerNorm(config.d_model)
 
         self.gradient_checkpointing = False
         # Initialize weights and apply final processing
         self.post_init()
-
-    def get_input_embeddings(self):
-        return self.embed_tokens
-
-    def set_input_embeddings(self, value):
-        self.embed_tokens = value
 
     def construct(
         self,
@@ -1085,13 +921,14 @@ class BartDecoder(BartPreTrainedModel):
         encoder_attention_mask: Optional[ms.Tensor] = None,
         head_mask: Optional[ms.Tensor] = None,
         cross_attn_head_mask: Optional[ms.Tensor] = None,
-        past_key_values: Optional[List[ms.Tensor]] = None,
+        past_key_values: Optional[Cache] = None,
         inputs_embeds: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[Tuple, BaseModelOutputWithPastAndCrossAttentions]:
+        cache_position: Optional[ms.Tensor] = None,
+    ) -> Union[tuple, BaseModelOutputWithPastAndCrossAttentions]:
         r"""
         Args:
             input_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`):
@@ -1133,10 +970,9 @@ class BartDecoder(BartPreTrainedModel):
                 - 1 indicates the head is **not masked**,
                 - 0 indicates the head is **masked**.
 
-            past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-                Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of
-                shape `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and 2 additional tensors of
-                shape `(batch_size, num_heads, encoder_sequence_length, embed_size_per_head)`.
+            past_key_values (`Cache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+                It is a [`~cache_utils.Cache`] instance. For more details,
+                see our [kv cache guide](https://huggingface.co/docs/transformers/en/kv_cache).
 
                 Contains pre-computed hidden-states (key and values in the self-attention blocks and in the
                 cross-attention blocks) that can be used (see `past_key_values` input) to speed up sequential decoding.
@@ -1156,6 +992,9 @@ class BartDecoder(BartPreTrainedModel):
                 for more detail.
             return_dict (`bool`, *optional*):
                 Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
+            cache_position (`ms.Tensor` of shape `(sequence_length)`, *optional*):
+                Indices depicting the position of the input sequence tokens in the sequence. It is used to update the
+                cache in the correct position and to infer the complete sequence length.
         """
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
@@ -1164,8 +1003,15 @@ class BartDecoder(BartPreTrainedModel):
         use_cache = use_cache if use_cache is not None else self.config.use_cache
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
+        if self.gradient_checkpointing and self.training:
+            if use_cache:
+                logger.warning_once(
+                    "`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`..."
+                )
+                use_cache = False
+
         # retrieve input_ids and inputs_embeds
-        if input_ids is not None and inputs_embeds is not None:
+        if (input_ids is None) ^ (inputs_embeds is not None):
             raise ValueError("You cannot specify both decoder_input_ids and decoder_inputs_embeds at the same time")
         elif input_ids is not None:
             input = input_ids
@@ -1177,64 +1023,66 @@ class BartDecoder(BartPreTrainedModel):
         else:
             raise ValueError("You have to specify either decoder_input_ids or decoder_inputs_embeds")
 
-        # past_key_values_length
-        past_key_values_length = past_key_values[0][0].shape[2] if past_key_values is not None else 0
-
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input)
 
-        if self._use_sdpa and not output_attentions and cross_attn_head_mask is None:
-            # output_attentions=True & cross_attn_head_mask can not be supported when using SDPA, and we fall back on
-            # the manual implementation that requires a 4D causal mask in all cases.
-            attention_mask = _prepare_4d_causal_attention_mask_for_sdpa(
-                attention_mask,
-                input_shape,
-                inputs_embeds,
-                past_key_values_length,
+        # initialize `past_key_values`
+        if use_cache and past_key_values is None:
+            past_key_values = (
+                EncoderDecoderCache(DynamicCache(config=self.config), DynamicCache(config=self.config))
+                if encoder_hidden_states is not None
+                else DynamicCache(config=self.config)
             )
-        else:
-            attention_mask = _prepare_4d_causal_attention_mask(
-                attention_mask, input_shape, inputs_embeds, past_key_values_length
+        if use_cache and isinstance(past_key_values, tuple):
+            logger.warning_once(
+                "Passing a tuple of `past_key_values` is deprecated and will be removed in Transformers v4.58.0. "
+                "You should pass an instance of `EncoderDecoderCache` instead, e.g. "
+                "`past_key_values=EncoderDecoderCache.from_legacy_cache(past_key_values)`."
             )
+            past_key_values = EncoderDecoderCache.from_legacy_cache(past_key_values)
 
-        # expand encoder attention mask
-        if encoder_attention_mask is not None and encoder_hidden_states is not None:
-            if self._use_sdpa and cross_attn_head_mask is None and not output_attentions:
-                # output_attentions=True & cross_attn_head_mask can not be supported when using SDPA, and we fall back on
-                # the manual implementation that requires a 4D causal mask in all cases.
-                # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
-                encoder_attention_mask = _prepare_4d_attention_mask_for_sdpa(
-                    encoder_attention_mask,
-                    inputs_embeds.dtype,
-                    tgt_len=input_shape[-1],
-                )
-            else:
-                # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
-                encoder_attention_mask = _prepare_4d_attention_mask(
-                    encoder_attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1]
-                )
+        batch_size, seq_length = inputs_embeds.shape[:-1]
+        past_key_values_length = past_key_values.get_seq_length() if past_key_values is not None else 0
+        if cache_position is None:
+            cache_position = mint.arange(past_key_values_length, past_key_values_length + seq_length)
+
+        # if attention_mask is None and not is_torchdynamo_compiling():
+        if attention_mask is None:
+            # required mask seq length can be calculated via length of past cache
+            mask_seq_length = past_key_values_length + seq_length
+            attention_mask = mint.ones((batch_size, mask_seq_length))
+
+        self_attn_cache = (
+            past_key_values.self_attention_cache
+            if isinstance(past_key_values, EncoderDecoderCache)
+            else past_key_values
+        )
+
+        attention_mask = self._update_causal_mask(
+            attention_mask,
+            inputs_embeds,
+            cache_position,
+            self_attn_cache,
+        )
+        encoder_attention_mask = self._update_cross_attn_mask(
+            encoder_hidden_states,
+            encoder_attention_mask,
+            input_shape,
+            inputs_embeds,
+        )
 
         # embed positions
-        positions = self.embed_positions(input, past_key_values_length)
-        positions = positions
+        positions = self.embed_positions(input, past_key_values_length, position_ids=cache_position)
 
         hidden_states = inputs_embeds + positions
         hidden_states = self.layernorm_embedding(hidden_states)
 
-        hidden_states = ops.dropout(hidden_states, p=self.dropout, training=self.training)
-
-        if self.gradient_checkpointing and self.training:
-            if use_cache:
-                logger.warning_once(
-                    "`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`..."
-                )
-                use_cache = False
+        hidden_states = mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
 
         # decoder layers
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
         all_cross_attentions = () if (output_attentions and encoder_hidden_states is not None) else None
-        next_decoder_cache = () if use_cache else None
 
         # check if head_mask/cross_attn_head_mask has a correct number of layers specified if desired
         for attn_mask, mask_name in zip([head_mask, cross_attn_head_mask], ["head_mask", "cross_attn_head_mask"]):
@@ -1246,7 +1094,7 @@ class BartDecoder(BartPreTrainedModel):
                     )
 
         for idx, decoder_layer in enumerate(self.layers):
-            # add LayerDrop (see https://arxiv.org/abs/1909.11556 for description)
+            # add LayerDrop (see https://huggingface.co/papers/1909.11556 for description)
             if output_hidden_states:
                 all_hidden_states += (hidden_states,)
             if self.training:
@@ -1254,40 +1102,19 @@ class BartDecoder(BartPreTrainedModel):
                 if dropout_probability < self.layerdrop:
                     continue
 
-            past_key_value = past_key_values[idx] if past_key_values is not None else None
-
-            if self.gradient_checkpointing and self.training:
-                layer_outputs = self._gradient_checkpointing_func(
-                    decoder_layer.__call__,
-                    hidden_states,
-                    attention_mask,
-                    encoder_hidden_states,
-                    encoder_attention_mask,
-                    head_mask[idx] if head_mask is not None else None,
-                    cross_attn_head_mask[idx] if cross_attn_head_mask is not None else None,
-                    None,
-                    output_attentions,
-                    use_cache,
-                )
-            else:
-                layer_outputs = decoder_layer(
-                    hidden_states,
-                    attention_mask=attention_mask,
-                    encoder_hidden_states=encoder_hidden_states,
-                    encoder_attention_mask=encoder_attention_mask,
-                    layer_head_mask=(head_mask[idx] if head_mask is not None else None),
-                    cross_attn_layer_head_mask=(
-                        cross_attn_head_mask[idx] if cross_attn_head_mask is not None else None
-                    ),
-                    past_key_value=past_key_value,
-                    output_attentions=output_attentions,
-                    use_cache=use_cache,
-                )
+            layer_outputs = decoder_layer(
+                hidden_states,
+                attention_mask,
+                encoder_hidden_states,  # as a positional argument for gradient checkpointing
+                encoder_attention_mask=encoder_attention_mask,
+                layer_head_mask=(head_mask[idx] if head_mask is not None else None),
+                cross_attn_layer_head_mask=(cross_attn_head_mask[idx] if cross_attn_head_mask is not None else None),
+                past_key_values=past_key_values,
+                output_attentions=output_attentions,
+                use_cache=use_cache,
+                cache_position=cache_position,
+            )
             hidden_states = layer_outputs[0]
-
-            if use_cache:
-                next_decoder_cache += (layer_outputs[3 if output_attentions else 1],)
-
             if output_attentions:
                 all_self_attns += (layer_outputs[1],)
 
@@ -1298,22 +1125,22 @@ class BartDecoder(BartPreTrainedModel):
         if output_hidden_states:
             all_hidden_states += (hidden_states,)
 
-        next_cache = next_decoder_cache if use_cache else None
         if not return_dict:
             return tuple(
                 v
-                for v in [hidden_states, next_cache, all_hidden_states, all_self_attns, all_cross_attentions]
+                for v in [hidden_states, past_key_values, all_hidden_states, all_self_attns, all_cross_attentions]
                 if v is not None
             )
         return BaseModelOutputWithPastAndCrossAttentions(
             last_hidden_state=hidden_states,
-            past_key_values=next_cache,
+            past_key_values=past_key_values,
             hidden_states=all_hidden_states,
             attentions=all_self_attns,
             cross_attentions=all_cross_attentions,
         )
 
 
+@auto_docstring
 class BartModel(BartPreTrainedModel):
     _tied_weights_keys = ["encoder.embed_tokens.weight", "decoder.embed_tokens.weight"]
 
@@ -1353,16 +1180,6 @@ class BartModel(BartPreTrainedModel):
     def get_encoder(self):
         return self.encoder
 
-    def get_decoder(self):
-        return self.decoder
-
-    @add_start_docstrings_to_model_forward(BART_INPUTS_DOCSTRING)
-    @add_code_sample_docstrings(
-        checkpoint=_CHECKPOINT_FOR_DOC,
-        output_type=Seq2SeqModelOutput,
-        config_class=_CONFIG_FOR_DOC,
-        expected_output=_EXPECTED_OUTPUT_SHAPE,
-    )
     def construct(
         self,
         input_ids: ms.Tensor = None,
@@ -1372,15 +1189,45 @@ class BartModel(BartPreTrainedModel):
         head_mask: Optional[ms.Tensor] = None,
         decoder_head_mask: Optional[ms.Tensor] = None,
         cross_attn_head_mask: Optional[ms.Tensor] = None,
-        encoder_outputs: Optional[List[ms.Tensor]] = None,
-        past_key_values: Optional[List[ms.Tensor]] = None,
+        encoder_outputs: Optional[list[ms.Tensor]] = None,
+        past_key_values: Optional[Cache] = None,
         inputs_embeds: Optional[ms.Tensor] = None,
         decoder_inputs_embeds: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[Tuple, Seq2SeqModelOutput]:
+        cache_position: Optional[ms.Tensor] = None,
+    ) -> Union[tuple, Seq2SeqModelOutput]:
+        r"""
+        decoder_input_ids (`ms.Tensor` of shape `(batch_size, target_sequence_length)`, *optional*):
+            Indices of decoder input sequence tokens in the vocabulary.
+
+            Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
+            [`PreTrainedTokenizer.__call__`] for details.
+
+            [What are decoder input IDs?](../glossary#decoder-input-ids)
+
+            Bart uses the `eos_token_id` as the starting token for `decoder_input_ids` generation. If `past_key_values`
+            is used, optionally only the last `decoder_input_ids` have to be input (see `past_key_values`).
+
+            For translation and summarization training, `decoder_input_ids` should be provided. If no
+            `decoder_input_ids` is provided, the model will create this tensor by shifting the `input_ids` to the right
+            for denoising pre-training following the paper.
+        decoder_attention_mask (`ms.Tensor` of shape `(batch_size, target_sequence_length)`, *optional*):
+            Default behavior: generate a tensor that ignores pad tokens in `decoder_input_ids`. Causal mask will also
+            be used by default.
+
+            If you want to change padding behavior, you should read [`modeling_bart._prepare_decoder_attention_mask`]
+            and modify to your needs. See diagram 1 in [the paper](https://huggingface.co/papers/1910.13461) for more
+            information on the default strategy.
+        cross_attn_head_mask (`ms.Tensor` of shape `(decoder_layers, decoder_attention_heads)`, *optional*):
+            Mask to nullify selected heads of the cross-attention modules in the decoder. Mask values selected in `[0,
+            1]`:
+
+            - 1 indicates the head is **not masked**,
+            - 0 indicates the head is **masked**.
+        """
         # different to other models, Bart automatically creates decoder_input_ids from
         # input_ids if no decoder_input_ids are provided
         if decoder_input_ids is None and decoder_inputs_embeds is None:
@@ -1420,7 +1267,7 @@ class BartModel(BartPreTrainedModel):
                 attentions=encoder_outputs[2] if len(encoder_outputs) > 2 else None,
             )
 
-        # decoder outputs consists of (dec_features, past_key_value, dec_hidden, dec_attn)
+        # decoder outputs consists of (dec_features, past_key_values, dec_hidden, dec_attn)
         decoder_outputs = self.decoder(
             input_ids=decoder_input_ids,
             attention_mask=decoder_attention_mask,
@@ -1434,6 +1281,7 @@ class BartModel(BartPreTrainedModel):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
+            cache_position=cache_position,
         )
 
         if not return_dict:
@@ -1451,6 +1299,11 @@ class BartModel(BartPreTrainedModel):
         )
 
 
+@auto_docstring(
+    custom_intro="""
+    The BART Model with a language modeling head. Can be used for summarization.
+    """
+)
 class BartForConditionalGeneration(BartPreTrainedModel, GenerationMixin):
     base_model_prefix = "model"
     _tied_weights_keys = [
@@ -1491,20 +1344,12 @@ class BartForConditionalGeneration(BartPreTrainedModel, GenerationMixin):
             new_bias = mint.cat([self.final_logits_bias, extra_bias], dim=1)
         self.register_buffer("final_logits_bias", new_bias)
 
-    def get_output_embeddings(self):
-        return self.lm_head
-
-    def set_output_embeddings(self, new_embeddings):
-        self.lm_head = new_embeddings
-
     def _tie_weights(self):
         if self.config.tie_word_embeddings:
             self.model._tie_weights()
             self._tie_or_clone_weights(self.lm_head, self.model.shared)
 
-    @add_start_docstrings_to_model_forward(BART_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=Seq2SeqLMOutput, config_class=_CONFIG_FOR_DOC)
-    @add_end_docstrings(BART_GENERATION_EXAMPLE)
+    @auto_docstring
     def construct(
         self,
         input_ids: ms.Tensor = None,
@@ -1514,8 +1359,8 @@ class BartForConditionalGeneration(BartPreTrainedModel, GenerationMixin):
         head_mask: Optional[ms.Tensor] = None,
         decoder_head_mask: Optional[ms.Tensor] = None,
         cross_attn_head_mask: Optional[ms.Tensor] = None,
-        encoder_outputs: Optional[List[ms.Tensor]] = None,
-        past_key_values: Optional[List[ms.Tensor]] = None,
+        encoder_outputs: Optional[list[ms.Tensor]] = None,
+        past_key_values: Optional[Cache] = None,
         inputs_embeds: Optional[ms.Tensor] = None,
         decoder_inputs_embeds: Optional[ms.Tensor] = None,
         labels: Optional[ms.Tensor] = None,
@@ -1523,14 +1368,87 @@ class BartForConditionalGeneration(BartPreTrainedModel, GenerationMixin):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[Tuple, Seq2SeqLMOutput]:
+        cache_position: Optional[ms.Tensor] = None,
+    ) -> Union[tuple, Seq2SeqLMOutput]:
         r"""
+        decoder_input_ids (`ms.Tensor` of shape `(batch_size, target_sequence_length)`, *optional*):
+            Indices of decoder input sequence tokens in the vocabulary.
+
+            Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
+            [`PreTrainedTokenizer.__call__`] for details.
+
+            [What are decoder input IDs?](../glossary#decoder-input-ids)
+
+            Bart uses the `eos_token_id` as the starting token for `decoder_input_ids` generation. If `past_key_values`
+            is used, optionally only the last `decoder_input_ids` have to be input (see `past_key_values`).
+
+            For translation and summarization training, `decoder_input_ids` should be provided. If no
+            `decoder_input_ids` is provided, the model will create this tensor by shifting the `input_ids` to the right
+            for denoising pre-training following the paper.
+        decoder_attention_mask (`ms.Tensor` of shape `(batch_size, target_sequence_length)`, *optional*):
+            Default behavior: generate a tensor that ignores pad tokens in `decoder_input_ids`. Causal mask will also
+            be used by default.
+
+            If you want to change padding behavior, you should read [`modeling_bart._prepare_decoder_attention_mask`]
+            and modify to your needs. See diagram 1 in [the paper](https://huggingface.co/papers/1910.13461) for more
+            information on the default strategy.
+        cross_attn_head_mask (`ms.Tensor` of shape `(decoder_layers, decoder_attention_heads)`, *optional*):
+            Mask to nullify selected heads of the cross-attention modules in the decoder. Mask values selected in `[0,
+            1]`:
+
+            - 1 indicates the head is **not masked**,
+            - 0 indicates the head is **masked**.
         labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,
             config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored
             (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`.
 
-        Returns:
+        Example summarization:
+
+        ```python
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import BartForConditionalGeneration
+        >>> import mindspore as ms
+
+        >>> model = BartForConditionalGeneration.from_pretrained("facebook/bart-large-cnn")
+        >>> tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-cnn")
+
+        >>> ARTICLE_TO_SUMMARIZE = (
+        ...     "PG&E stated it scheduled the blackouts in response to forecasts for high winds "
+        ...     "amid dry conditions. The aim is to reduce the risk of wildfires. Nearly 800 thousand customers were "
+        ...     "scheduled to be affected by the shutoffs which were expected to last through at least midday tomorrow."
+        ... )
+        >>> inputs = tokenizer([ARTICLE_TO_SUMMARIZE], max_length=1024, return_tensors="np")
+        >>> inputs = {k: ms.tensor(v) for k, v in inputs.items()}
+
+        >>> # Generate Summary
+        >>> summary_ids = model.generate(inputs["input_ids"], num_beams=2, min_length=0, max_length=20)
+        >>> tokenizer.batch_decode(summary_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
+        'PG&E scheduled the blackouts in response to forecasts for high winds amid dry conditions'
+        ```
+
+        Mask filling example:
+
+        ```python
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import BartForConditionalGeneration
+        >>> import mindspore as ms
+
+        >>> tokenizer = AutoTokenizer.from_pretrained("facebook/bart-base")
+        >>> model = BartForConditionalGeneration.from_pretrained("facebook/bart-base")
+
+        >>> TXT = "My friends are <mask> but they eat too many carbs."
+        >>> input_ids = tokenizer([TXT], return_tensors="np")["input_ids"]
+        >>> input_ids = ms.tensor(input_ids)
+        >>> logits = model(input_ids).logits
+
+        >>> masked_index = (input_ids[0] == tokenizer.mask_token_id).nonzero().item()
+        >>> probs = logits[0, masked_index].softmax(dim=0)
+        >>> values, predictions = probs.topk(5)
+
+        >>> tokenizer.decode(predictions).split()
+        ['not', 'good', 'healthy', 'great', 'very']
+        ```
         """
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
@@ -1559,6 +1477,7 @@ class BartForConditionalGeneration(BartPreTrainedModel, GenerationMixin):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
+            cache_position=cache_position,
         )
 
         lm_logits = self.lm_head(outputs[0])
@@ -1589,17 +1508,8 @@ class BartForConditionalGeneration(BartPreTrainedModel, GenerationMixin):
     def prepare_decoder_input_ids_from_labels(self, labels: ms.Tensor):
         return shift_tokens_right(labels, self.config.pad_token_id, self.config.decoder_start_token_id)
 
-    @staticmethod
-    def _reorder_cache(past_key_values, beam_idx):
-        reordered_past = ()
-        for layer_past in past_key_values:
-            # cached cross_attention states don't have to be reordered -> they are always the same
-            reordered_past += (
-                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past[:2]) + layer_past[2:],
-            )
-        return reordered_past
 
-
+@auto_docstring
 class BartForSequenceClassification(BartPreTrainedModel):
     _tied_weights_keys = ["encoder.embed_tokens.weight", "decoder.embed_tokens.weight"]
 
@@ -1616,14 +1526,7 @@ class BartForSequenceClassification(BartPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @add_start_docstrings_to_model_forward(BART_INPUTS_DOCSTRING)
-    @add_code_sample_docstrings(
-        checkpoint=_CHECKPOINT_FOR_SEQUENCE_CLASSIFICATION,
-        output_type=Seq2SeqSequenceClassifierOutput,
-        config_class=_CONFIG_FOR_DOC,
-        expected_output=_SEQ_CLASS_EXPECTED_OUTPUT,
-        expected_loss=_SEQ_CLASS_EXPECTED_LOSS,
-    )
+    @auto_docstring
     def construct(
         self,
         input_ids: ms.Tensor = None,
@@ -1633,7 +1536,7 @@ class BartForSequenceClassification(BartPreTrainedModel):
         head_mask: Optional[ms.Tensor] = None,
         decoder_head_mask: Optional[ms.Tensor] = None,
         cross_attn_head_mask: Optional[ms.Tensor] = None,
-        encoder_outputs: Optional[List[ms.Tensor]] = None,
+        encoder_outputs: Optional[list[ms.Tensor]] = None,
         inputs_embeds: Optional[ms.Tensor] = None,
         decoder_inputs_embeds: Optional[ms.Tensor] = None,
         labels: Optional[ms.Tensor] = None,
@@ -1641,8 +1544,36 @@ class BartForSequenceClassification(BartPreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[Tuple, Seq2SeqSequenceClassifierOutput]:
+        cache_position: Optional[ms.Tensor] = None,
+    ) -> Union[tuple, Seq2SeqSequenceClassifierOutput]:
         r"""
+        decoder_input_ids (`ms.Tensor` of shape `(batch_size, target_sequence_length)`, *optional*):
+            Indices of decoder input sequence tokens in the vocabulary.
+
+            Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
+            [`PreTrainedTokenizer.__call__`] for details.
+
+            [What are decoder input IDs?](../glossary#decoder-input-ids)
+
+            Bart uses the `eos_token_id` as the starting token for `decoder_input_ids` generation. If `past_key_values`
+            is used, optionally only the last `decoder_input_ids` have to be input (see `past_key_values`).
+
+            For translation and summarization training, `decoder_input_ids` should be provided. If no
+            `decoder_input_ids` is provided, the model will create this tensor by shifting the `input_ids` to the right
+            for denoising pre-training following the paper.
+        decoder_attention_mask (`ms.Tensor` of shape `(batch_size, target_sequence_length)`, *optional*):
+            Default behavior: generate a tensor that ignores pad tokens in `decoder_input_ids`. Causal mask will also
+            be used by default.
+
+            If you want to change padding behavior, you should read [`modeling_bart._prepare_decoder_attention_mask`]
+            and modify to your needs. See diagram 1 in [the paper](https://huggingface.co/papers/1910.13461) for more
+            information on the default strategy.
+        cross_attn_head_mask (`ms.Tensor` of shape `(decoder_layers, decoder_attention_heads)`, *optional*):
+            Mask to nullify selected heads of the cross-attention modules in the decoder. Mask values selected in `[0,
+            1]`:
+
+            - 1 indicates the head is **not masked**,
+            - 0 indicates the head is **masked**.
         labels (`ms.Tensor` of shape `(batch_size,)`, *optional*):
             Labels for computing the sequence classification/regression loss. Indices should be in `[0, ...,
             config.num_labels - 1]`. If `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
@@ -1671,6 +1602,7 @@ class BartForSequenceClassification(BartPreTrainedModel):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
+            cache_position=cache_position,
         )
         hidden_states = outputs[0]  # last hidden state
 
@@ -1723,6 +1655,7 @@ class BartForSequenceClassification(BartPreTrainedModel):
         )
 
 
+@auto_docstring
 class BartForQuestionAnswering(BartPreTrainedModel):
     _tied_weights_keys = ["encoder.embed_tokens.weight", "decoder.embed_tokens.weight"]
 
@@ -1738,14 +1671,7 @@ class BartForQuestionAnswering(BartPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @add_start_docstrings_to_model_forward(BART_INPUTS_DOCSTRING)
-    @add_code_sample_docstrings(
-        checkpoint=_CHECKPOINT_FOR_QA,
-        output_type=Seq2SeqQuestionAnsweringModelOutput,
-        config_class=_CONFIG_FOR_DOC,
-        expected_loss=_QA_EXPECTED_LOSS,
-        expected_output=_QA_EXPECTED_OUTPUT,
-    )
+    @auto_docstring
     def construct(
         self,
         input_ids: ms.Tensor = None,
@@ -1755,7 +1681,7 @@ class BartForQuestionAnswering(BartPreTrainedModel):
         head_mask: Optional[ms.Tensor] = None,
         decoder_head_mask: Optional[ms.Tensor] = None,
         cross_attn_head_mask: Optional[ms.Tensor] = None,
-        encoder_outputs: Optional[List[ms.Tensor]] = None,
+        encoder_outputs: Optional[list[ms.Tensor]] = None,
         start_positions: Optional[ms.Tensor] = None,
         end_positions: Optional[ms.Tensor] = None,
         inputs_embeds: Optional[ms.Tensor] = None,
@@ -1764,16 +1690,36 @@ class BartForQuestionAnswering(BartPreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[Tuple, Seq2SeqQuestionAnsweringModelOutput]:
+        cache_position: Optional[ms.Tensor] = None,
+    ) -> Union[tuple, Seq2SeqQuestionAnsweringModelOutput]:
         r"""
-        start_positions (`ms.Tensor` of shape `(batch_size,)`, *optional*):
-            Labels for position (index) of the start of the labelled span for computing the token classification loss.
-            Positions are clamped to the length of the sequence (*sequence_length*). Position outside of the sequence
-            are not taken into account for computing the loss.
-        end_positions (`ms.Tensor` of shape `(batch_size,)`, *optional*):
-            Labels for position (index) of the end of the labelled span for computing the token classification loss.
-            Positions are clamped to the length of the sequence (*sequence_length*). Position outside of the sequence
-            are not taken into account for computing the loss.
+        decoder_input_ids (`ms.Tensor` of shape `(batch_size, target_sequence_length)`, *optional*):
+            Indices of decoder input sequence tokens in the vocabulary.
+
+            Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
+            [`PreTrainedTokenizer.__call__`] for details.
+
+            [What are decoder input IDs?](../glossary#decoder-input-ids)
+
+            Bart uses the `eos_token_id` as the starting token for `decoder_input_ids` generation. If `past_key_values`
+            is used, optionally only the last `decoder_input_ids` have to be input (see `past_key_values`).
+
+            For translation and summarization training, `decoder_input_ids` should be provided. If no
+            `decoder_input_ids` is provided, the model will create this tensor by shifting the `input_ids` to the right
+            for denoising pre-training following the paper.
+        decoder_attention_mask (`ms.Tensor` of shape `(batch_size, target_sequence_length)`, *optional*):
+            Default behavior: generate a tensor that ignores pad tokens in `decoder_input_ids`. Causal mask will also
+            be used by default.
+
+            If you want to change padding behavior, you should read [`modeling_bart._prepare_decoder_attention_mask`]
+            and modify to your needs. See diagram 1 in [the paper](https://huggingface.co/papers/1910.13461) for more
+            information on the default strategy.
+        cross_attn_head_mask (`ms.Tensor` of shape `(decoder_layers, decoder_attention_heads)`, *optional*):
+            Mask to nullify selected heads of the cross-attention modules in the decoder. Mask values selected in `[0,
+            1]`:
+
+            - 1 indicates the head is **not masked**,
+            - 0 indicates the head is **masked**.
         """
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
         if start_positions is not None and end_positions is not None:
@@ -1794,6 +1740,7 @@ class BartForQuestionAnswering(BartPreTrainedModel):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
+            cache_position=cache_position,
         )
 
         sequence_output = outputs[0]
@@ -1855,11 +1802,11 @@ class BartDecoderWrapper(BartPreTrainedModel):
         return self.decoder(*args, **kwargs)
 
 
+@auto_docstring
 class BartForCausalLM(BartPreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
 
     def __init__(self, config):
-        config = copy.deepcopy(config)
         config.is_decoder = True
         config.is_encoder_decoder = False
         super().__init__(config)
@@ -1876,19 +1823,13 @@ class BartForCausalLM(BartPreTrainedModel, GenerationMixin):
     def set_input_embeddings(self, value):
         self.model.decoder.embed_tokens = value
 
-    def get_output_embeddings(self):
-        return self.lm_head
-
-    def set_output_embeddings(self, new_embeddings):
-        self.lm_head = new_embeddings
-
     def set_decoder(self, decoder):
         self.model.decoder = decoder
 
     def get_decoder(self):
         return self.model.decoder
 
-    @replace_return_docstrings(output_type=CausalLMOutputWithCrossAttentions, config_class=_CONFIG_FOR_DOC)
+    @auto_docstring
     def construct(
         self,
         input_ids: ms.Tensor = None,
@@ -1897,81 +1838,25 @@ class BartForCausalLM(BartPreTrainedModel, GenerationMixin):
         encoder_attention_mask: Optional[ms.Tensor] = None,
         head_mask: Optional[ms.Tensor] = None,
         cross_attn_head_mask: Optional[ms.Tensor] = None,
-        past_key_values: Optional[List[ms.Tensor]] = None,
+        past_key_values: Optional[Cache] = None,
         inputs_embeds: Optional[ms.Tensor] = None,
         labels: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[Tuple, CausalLMOutputWithCrossAttentions]:
+        cache_position: Optional[ms.Tensor] = None,
+    ) -> Union[tuple, CausalLMOutputWithCrossAttentions]:
         r"""
-        Args:
-            input_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`):
-                Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you
-                provide it.
+        cross_attn_head_mask (`ms.Tensor` of shape `(decoder_layers, decoder_attention_heads)`, *optional*):
+            Mask to nullify selected heads of the cross-attention modules. Mask values selected in `[0, 1]`:
 
-                Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
-                [`PreTrainedTokenizer.__call__`] for details.
-
-                [What are input IDs?](../glossary#input-ids)
-            attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
-                Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
-
-                - 1 for tokens that are **not masked**,
-                - 0 for tokens that are **masked**.
-
-                [What are attention masks?](../glossary#attention-mask)
-            encoder_hidden_states  (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
-                Sequence of hidden-states at the output of the last layer of the encoder. Used in the cross-attention
-                if the model is configured as a decoder.
-            encoder_attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
-                Mask to avoid performing attention on the padding token indices of the encoder input. This mask is used
-                in the cross-attention if the model is configured as a decoder. Mask values selected in `[0, 1]`:
-            head_mask (`ms.Tensor` of shape `(decoder_layers, decoder_attention_heads)`, *optional*):
-                Mask to nullify selected heads of the attention modules. Mask values selected in `[0, 1]`:
-
-                - 1 indicates the head is **not masked**,
-                - 0 indicates the head is **masked**.
-
-            cross_attn_head_mask (`ms.Tensor` of shape `(decoder_layers, decoder_attention_heads)`, *optional*):
-                Mask to nullify selected heads of the cross-attention modules. Mask values selected in `[0, 1]`:
-
-                - 1 indicates the head is **not masked**,
-                - 0 indicates the head is **masked**.
-
-            past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-                Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of
-                shape `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and 2 additional tensors of
-                shape `(batch_size, num_heads, encoder_sequence_length, embed_size_per_head)`. The two additional
-                tensors are only required when the model is used as a decoder in a Sequence to Sequence model.
-
-                Contains pre-computed hidden-states (key and values in the self-attention blocks and in the
-                cross-attention blocks) that can be used (see `past_key_values` input) to speed up sequential decoding.
-
-                If `past_key_values` are used, the user can optionally input only the last `decoder_input_ids` (those
-                that don't have their past key value states given to this model) of shape `(batch_size, 1)` instead of
-                all `decoder_input_ids` of shape `(batch_size, sequence_length)`.
-            labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
-                Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,
-                config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored
-                (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`.
-            use_cache (`bool`, *optional*):
-                If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding
-                (see `past_key_values`).
-
-                - 1 for tokens that are **not masked**,
-                - 0 for tokens that are **masked**.
-            output_attentions (`bool`, *optional*):
-                Whether or not to return the attentions tensors of all attention layers. See `attentions` under
-                returned tensors for more detail.
-            output_hidden_states (`bool`, *optional*):
-                Whether or not to return the hidden states of all layers. See `hidden_states` under returned tensors
-                for more detail.
-            return_dict (`bool`, *optional*):
-                Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
-
-        Returns:
+            - 1 indicates the head is **not masked**,
+            - 0 indicates the head is **masked**.
+        labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+            Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,
+            config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored
+            (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`.
 
         Example:
 
@@ -2017,6 +1902,7 @@ class BartForCausalLM(BartPreTrainedModel, GenerationMixin):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
+            cache_position=cache_position,
         )
 
         logits = self.lm_head(outputs[0])
@@ -2039,13 +1925,6 @@ class BartForCausalLM(BartPreTrainedModel, GenerationMixin):
             attentions=outputs.attentions,
             cross_attentions=outputs.cross_attentions,
         )
-
-    @staticmethod
-    def _reorder_cache(past_key_values, beam_idx):
-        reordered_past = ()
-        for layer_past in past_key_values:
-            reordered_past += (tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),)
-        return reordered_past
 
 
 __all__ = [
