@@ -6,7 +6,7 @@ ONE is short for "ONE for all"
 
 ## News
 
-- [2025.12.24] We release [v0.5.0](https://github.com/mindspore-lab/mindone/releases/tag/v0.5.0), compatibility with 🤗 Transformers v4.57.1 ([70+ new models](./mindone/transformers/SUPPORTED_MODELS.md)) and mindone.diffusersfor compatibility with 🤗 Diffusers v0.35.2, plus previews of v0.36 pipelines like Flux2, QwenImage-Edit and Wan-Animate. Also introduces initial ComfyUI integration. Happy exploring!
+- [2025.12.24] We release [v0.5.0](https://github.com/mindspore-lab/mindone/releases/tag/v0.5.0), compatibility with 🤗 Transformers v4.57.1 ([70+ new models](./mindone/transformers/SUPPORTED_MODELS.md)) and 🤗 Diffusers v0.35.2, plus previews of v0.36 pipelines like Flux2, Lucy and kandinsky5. Also introduces initial ComfyUI integration. Happy exploring!
 - [2025.11.02] [v0.4.0](https://github.com/mindspore-lab/mindone/releases/tag/v0.4.0) is released, with 280+ transformers models and 70+ diffusers pipelines supported. See [here](https://github.com/mindspore-lab/mindone/blob/refs/tags/v0.4.0/CHANGELOG.md)
 - [2025.04.10] We release [v0.3.0](https://github.com/mindspore-lab/mindone/releases/tag/v0.3.0). More than 15 SoTA generative models are added, including Flux, CogView4, OpenSora2.0, Movie Gen 30B, CogVideoX 5B~30B. Have fun!
 - [2025.02.21] We support DeepSeek [Janus-Pro](https://huggingface.co/deepseek-ai/Janus-Pro-7B), a SoTA multimodal understanding and generation model. See [here](examples/janus)
