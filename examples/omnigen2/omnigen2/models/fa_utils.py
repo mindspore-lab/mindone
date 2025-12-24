@@ -51,7 +51,7 @@ class IndexPutFirstAxis(nn.Cell):
         return output
 
     @staticmethod
-    def backward(values, indices, first_axis_dim, out, dout):
+    def brop(values, indices, first_axis_dim, out, dout):
         # TD [2022-03-04] For some reason torch.gather is a bit faster than indexing.
         grad_values = dout[indices]
         # grad_values = torch.gather(grad_output, 0, repeat(indices, 'z -> z d', d=grad_output.shape[1]))

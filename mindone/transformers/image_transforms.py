@@ -21,6 +21,7 @@ from math import ceil
 from typing import Optional, Union
 
 import numpy as np
+from transformers.utils import logging
 
 from .image_utils import (
     ChannelDimension,
@@ -31,6 +32,8 @@ from .image_utils import (
 )
 from .utils import ExplicitEnum, TensorType, is_mindspore_tensor
 from .utils.import_utils import is_mindspore_available, is_vision_available, requires_backends
+
+logger = logging.get_logger(__name__)
 
 if is_vision_available():
     import PIL
@@ -245,7 +248,7 @@ def get_size_with_aspect_ratio(image_size, size, max_size=None) -> tuple[int, in
 # 511924c1ced4ce0461197e5caa64ce5b9e558aab/torchvision/transforms/functional.py#L366
 def get_resize_output_image_size(
     input_image: np.ndarray,
-    size: Union[int, tuple[int, int], list[int], tuple[int]],
+    size: Union[int, tuple[int, int], list[int], tuple[int, ...]],
     default_to_square: bool = True,
     max_size: Optional[int] = None,
     input_data_format: Optional[Union[str, ChannelDimension]] = None,
@@ -312,7 +315,7 @@ def get_resize_output_image_size(
 def resize(
     image: np.ndarray,
     size: tuple[int, int],
-    resample: "PILImageResampling" = None,
+    resample: Optional["PILImageResampling"] = None,
     reducing_gap: Optional[int] = None,
     data_format: Optional[ChannelDimension] = None,
     return_numpy: bool = True,
@@ -707,7 +710,7 @@ def pad(
         elif isinstance(values, tuple) and len(values) == 2 and isinstance(values[0], int):
             values = (values, values)
         elif isinstance(values, tuple) and len(values) == 2 and isinstance(values[0], tuple):
-            values = values
+            pass
         else:
             raise ValueError(f"Unsupported format: {values}")
 
@@ -819,14 +822,14 @@ def _group_images_by_shape(nested_images, is_nested: bool = False):
 def _reconstruct_nested_structure(indices, processed_images):
     """Helper function to reconstruct a single level nested structure."""
     # Find the maximum outer index
-    max_outer_idx = max(idx[0] for idx in indices.keys())
+    max_outer_idx = max(idx[0] for idx in indices)
 
     # Create the outer list
     result = [None] * (max_outer_idx + 1)
 
     # Group indices by outer index
     nested_indices = defaultdict(list)
-    for i, j in indices.keys():
+    for i, j in indices:
         nested_indices[i].append(j)
 
     for i in range(max_outer_idx + 1):
@@ -844,6 +847,7 @@ def _reconstruct_nested_structure(indices, processed_images):
 
 def group_images_by_shape(
     images: Union[list["ms.Tensor"], "ms.Tensor"],
+    disable_grouping: bool = False,
     is_nested: bool = False,
 ) -> tuple[dict[tuple[int, int], list["ms.Tensor"]], dict[Union[int, tuple[int, int]], tuple[tuple[int, int], int]]]:
     """
@@ -857,9 +861,6 @@ def group_images_by_shape(
     Args:
         images (Union[list["ms.Tensor"], "ms.Tensor"]):
             A list of images or a single tensor
-        disable_grouping (bool):
-            Whether to disable grouping. If None, will be set to True if the images are on CPU, and False otherwise.
-            This choice is based on empirical observations, as detailed here: https://github.com/huggingface/transformers/pull/38157
         is_nested (bool, *optional*, defaults to False):
             Whether the images are nested.
 
@@ -868,7 +869,10 @@ def group_images_by_shape(
             - A dictionary with shape as key and list of images with that shape as value
             - A dictionary mapping original indices to (shape, index) tuples
     """
-    # TODO mindone.transformers hasn't supported disable_grouping yet
+    # If disable grouping is not explicitly provided, original repo favor disabling it if the images are on CPU, and enabling it otherwise.
+    # TODO basically ms.tensors in mindone.transformers should be on device, so no device detection is performed here, and provide stack operation always.
+    if disable_grouping:
+        logger.warining("mindone.transformers currently does not support disable_grouping in image_transformers")
 
     # Handle single level nested structure
     grouped_images, grouped_images_index = _group_images_by_shape(images, is_nested)
@@ -894,7 +898,7 @@ def reorder_images(
         grouped_images_index (dict[Union[int, tuple[int, int]], tuple[tuple[int, int], int]]):
             Dictionary mapping original indices to (shape, index) tuples.
         is_nested (bool, *optional*, defaults to False):
-            Whether the images are nested. Cannot be infered from the input, as some processing functions outputs nested images.
+            Whether the images are nested. Cannot be inferred from the input, as some processing functions outputs nested images.
             even with non nested images,e.g functions splitting images into patches. We thus can't deduce is_nested from the input.
 
 

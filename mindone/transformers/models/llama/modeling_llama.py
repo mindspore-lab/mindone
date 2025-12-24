@@ -31,7 +31,7 @@ from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.common import initializer as init
 
 from ...activations import ACT2FN
-from ...cache_utils import Cache, get_max_length, get_seq_length, init_static_cache, update
+from ...cache_utils import Cache, DynamicCache
 from ...generation import GenerationMixin
 from ...mindspore_adapter import recompute_except_output
 from ...mindspore_adapter.utils import _MIN_FP16
@@ -246,7 +246,7 @@ class LlamaAttention(nn.Cell):
         hidden_states: ms.Tensor,
         position_embeddings: Tuple[ms.Tensor, ms.Tensor],
         attention_mask: Optional[ms.Tensor],
-        past_key_value: Optional[Cache] = None,
+        past_key_values: Optional[Cache] = None,
         cache_position: Optional[ms.Tensor] = None,
         **kwargs: Unpack[FlashAttentionKwargs],
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
@@ -260,14 +260,10 @@ class LlamaAttention(nn.Cell):
         cos, sin = position_embeddings
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
 
-        if past_key_value is not None:
-            if isinstance(past_key_value, Cache):
-                # sin and cos are specific to RoPE models; cache_position needed for the static cache
-                cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
-                key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
-            elif isinstance(past_key_value, tuple):
-                key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
-                past_key_value = (key_states, value_states)
+        if past_key_values is not None:
+            # sin and cos are specific to RoPE models; cache_position needed for the static cache
+            cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
+            key_states, value_states = past_key_values.update(key_states, value_states, self.layer_idx, cache_kwargs)
 
         attention_interface: Callable = eager_attention_forward
         if self.config._attn_implementation != "eager":
@@ -293,7 +289,7 @@ class LlamaAttention(nn.Cell):
         attn_output = attn_output.reshape(*input_shape, -1).contiguous()
         attn_output = self.o_proj(attn_output)
 
-        return attn_output, attn_weights, past_key_value
+        return attn_output, attn_weights
 
 
 class LlamaDecoderLayer(nn.Cell):
@@ -311,7 +307,7 @@ class LlamaDecoderLayer(nn.Cell):
         hidden_states: ms.Tensor,
         attention_mask: Optional[ms.Tensor] = None,
         position_ids: Optional[ms.Tensor] = None,
-        past_key_value: Optional[Tuple[Tuple[ms.Tensor, ms.Tensor]]] = None,
+        past_key_values: Optional[Tuple[Tuple[ms.Tensor, ms.Tensor]]] = None,
         output_attentions: Optional[bool] = False,
         use_cache: Optional[bool] = False,
         cache_position: Optional[ms.Tensor] = None,
@@ -323,11 +319,11 @@ class LlamaDecoderLayer(nn.Cell):
         hidden_states = self.input_layernorm(hidden_states)
 
         # Self Attention
-        hidden_states, self_attn_weights, present_key_value = self.self_attn(
+        hidden_states, self_attn_weights = self.self_attn(
             hidden_states=hidden_states,
             attention_mask=attention_mask,
             position_ids=position_ids,
-            past_key_value=past_key_value,
+            past_key_values=past_key_values,
             output_attentions=output_attentions,
             use_cache=use_cache,
             cache_position=cache_position,
@@ -342,15 +338,7 @@ class LlamaDecoderLayer(nn.Cell):
         hidden_states = self.mlp(hidden_states)
         hidden_states = residual + hidden_states
 
-        outputs = (hidden_states,)
-
-        if output_attentions:
-            outputs += (self_attn_weights,)
-
-        if use_cache:
-            outputs += (present_key_value,)
-
-        return outputs
+        return hidden_states
 
 
 LLAMA_START_DOCSTRING = r"""
@@ -384,7 +372,7 @@ class LlamaPreTrainedModel(PreTrainedModel):
     _supports_flash_attn_2 = True
     _supports_sdpa = False  # SDPA, not support yet
     _supports_flex_attn = False  # FlexAttention, not support yet
-    _supports_cache_class = True  # set it True if use DynamicCache
+    _supports_cache_class = True  # set it False if use static tuple cache
     _supports_quantized_cache = False
     _supports_static_cache = False  # StaticCache, not used
     _supports_attention_backend = True
@@ -552,17 +540,6 @@ class LlamaModel(LlamaPreTrainedModel):
 
         logger.info(f"{self.__class__.__name__}: enable recompute.")
 
-    def prepare_static_cache(self, input_embeds, max_cache_len):
-        bs = input_embeds.shape[0]
-        max_batch_size, cache_dtype = (
-            getattr(self.config, "num_beams", 1) * bs,
-            self.dtype,
-        )
-        past_key_values = init_static_cache(
-            config=self.config, max_batch_size=max_batch_size, max_cache_len=max_cache_len, dtype=cache_dtype
-        )
-        return past_key_values
-
     @add_start_docstrings_to_model_forward(LLAMA_INPUTS_DOCSTRING)
     def construct(
         self,
@@ -578,11 +555,6 @@ class LlamaModel(LlamaPreTrainedModel):
         cache_position: Optional[ms.Tensor] = None,
         **flash_attn_kwargs: Unpack[FlashAttentionKwargs],
     ) -> Union[Tuple, BaseModelOutputWithPast]:
-        output_attentions = output_attentions if output_attentions is not None else self.output_attentions
-        output_hidden_states = output_hidden_states if output_hidden_states is not None else self.output_hidden_states
-        use_cache = use_cache if use_cache is not None else self.use_cache
-        return_dict = return_dict if return_dict is not None else self.use_return_dict
-
         if (input_ids is not None) != (inputs_embeds is None):
             raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
 
@@ -592,8 +564,11 @@ class LlamaModel(LlamaPreTrainedModel):
         if input_ids is not None and inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
+        if use_cache and past_key_values is None:
+            past_key_values = DynamicCache(config=self.config)
+
         if cache_position is None:
-            past_seen_tokens = get_seq_length(past_key_values).item() if past_key_values is not None else 0
+            past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
             cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1], dtype=ms.int32)
 
         if position_ids is None:
@@ -609,27 +584,12 @@ class LlamaModel(LlamaPreTrainedModel):
         # create position embeddings to be shared across the decoder layers
         position_embeddings = self.rotary_emb(hidden_states, position_ids)
 
-        # decoder layers
-        all_hidden_states = () if output_hidden_states else None
-        all_self_attns = () if output_attentions else None
-        next_caches = () if use_cache else None
-
         for layer_idx, decoder_layer in enumerate(self.layers):
-            if output_hidden_states:
-                all_hidden_states += (hidden_states,)
-
-            past_key_value = None
-            if past_key_values is not None:
-                if isinstance(past_key_values, tuple):  # use static tuple
-                    past_key_value = past_key_values[layer_idx]
-                else:  # use Cache class
-                    past_key_value = past_key_values
-
-            layer_outputs = decoder_layer(
+            hidden_states = decoder_layer(
                 hidden_states,
                 attention_mask=causal_mask,
                 position_ids=position_ids,
-                past_key_value=past_key_value,
+                past_key_values=past_key_values,
                 output_attentions=output_attentions,
                 use_cache=use_cache,
                 cache_position=cache_position,
@@ -637,32 +597,13 @@ class LlamaModel(LlamaPreTrainedModel):
                 **flash_attn_kwargs,
             )
 
-            hidden_states = layer_outputs[0]
-
-            if use_cache:
-                if isinstance(past_key_values, tuple):  # use static tuple
-                    next_caches += (layer_outputs[2 if output_attentions else 1],)
-                else:  # use Cache class
-                    next_caches = past_key_value
-
-            if output_attentions:
-                all_self_attns += (layer_outputs[1],)
-
         hidden_states = self.norm(hidden_states)
 
-        # add hidden states from the last decoder layer
-        if output_hidden_states:
-            all_hidden_states += (hidden_states,)
-
-        if not use_cache:
-            next_caches = None
         if not return_dict:
-            return tuple(v for v in [hidden_states, next_caches, all_hidden_states, all_self_attns] if v is not None)
+            return tuple(v for v in [hidden_states, past_key_values] if v is not None)
         return BaseModelOutputWithPast(
             last_hidden_state=hidden_states,
-            past_key_values=next_caches,
-            hidden_states=all_hidden_states,
-            attentions=all_self_attns,
+            past_key_values=past_key_values,
         )
 
     def _update_causal_mask(
@@ -677,21 +618,15 @@ class LlamaModel(LlamaPreTrainedModel):
         if past_key_values is not None:
             if isinstance(past_key_values, Cache):  # DynamicCache
                 past_seen_tokens = past_key_values.get_seq_length()
-            elif isinstance(past_key_values, tuple):  # static tuple cache
-                past_seen_tokens = get_seq_length(past_key_values)
-        using_static_cache = isinstance(past_key_values, tuple)
 
         dtype = input_tensor.dtype
         sequence_length = input_tensor.shape[1]
 
-        if using_static_cache:
-            target_length = get_max_length(past_key_values)
-        else:
-            target_length = (
-                attention_mask.shape[-1]
-                if isinstance(attention_mask, ms.Tensor)
-                else past_seen_tokens + sequence_length + 1
-            )
+        target_length = (
+            attention_mask.shape[-1]
+            if isinstance(attention_mask, ms.Tensor)
+            else past_seen_tokens + sequence_length + 1
+        )
 
         # In case the provided `attention` mask is 2D, we generate a causal mask here (4D).
         causal_mask = self._prepare_4d_causal_attention_mask_with_cache_position(

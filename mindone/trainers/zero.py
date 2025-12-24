@@ -11,6 +11,7 @@ from mindspore.context import ParallelMode
 from mindspore.parallel._utils import _get_parallel_mode
 
 from mindone.models.modules.parallel import PARALLEL_MODULES, SPECIAL_CASE_FOR_PARALLEL_MODULES
+from mindone.utils.version_control import MS_VERSION
 
 from .train_step import TrainOneStepWrapper
 
@@ -271,7 +272,7 @@ class ZeroHelper:
 
     def get_optimizer_param_tuples(self):
         param_tuples = []
-        if ms.get_context("mode") == ms.PYNATIVE_MODE:
+        if ms.get_context("mode") == ms.PYNATIVE_MODE and MS_VERSION < "2.7.0":
             for name in self.optimizer._params_list:
                 if name in ["_parameters", "parameters"]:
                     continue
@@ -473,15 +474,15 @@ def get_cell_dtype(cell):
 
 def _init_parallel_settings(net, optimizer_parallel_group, parallel_modules=None, special_cases_parallel_module=None):
     for module, parallel_module in parallel_modules.items():
-        if isinstance(net, module):
+        if type(net) is module:
             cell_type = get_cell_dtype(net)
             new_net = parallel_module(net, 3, optimizer_parallel_group)
             if cell_type is not None:
                 new_net.to_float(cell_type)
             return new_net
     for module, parallel_module in special_cases_parallel_module.items():
-        if net.trainable_params():
-            if "gate_up_proj" in net.trainable_params()[0].name:
+        if isinstance(net, module):
+            if hasattr(net, "gate_up_proj"):
                 cell_type = get_cell_dtype(net)
                 new_net = parallel_module(net, 3, optimizer_parallel_group)
                 if cell_type is not None:

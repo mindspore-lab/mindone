@@ -14,7 +14,7 @@ import inspect
 import numpy as np
 import pytest
 import torch
-from transformers import Speech2TextConfig
+from transformers import DynamicCache, EncoderDecoderCache, Speech2TextConfig
 
 import mindspore as ms
 
@@ -268,6 +268,10 @@ def test_named_modules(
             if isinstance(pt_output, (list, tuple)):
                 pt_outputs_n += list(pt_output)
                 ms_outputs_n += list(ms_output)
+            elif isinstance(pt_output, (DynamicCache, EncoderDecoderCache)):
+                # cache as `EncoderDecoderCache` in v4.57.1, change to tuple and pick an element for test.
+                pt_outputs_n.append(pt_output.to_legacy_cache()[0])
+                ms_outputs_n.append(ms_output.to_legacy_cache()[0])
             else:
                 pt_outputs_n.append(pt_output)
                 ms_outputs_n.append(ms_output)

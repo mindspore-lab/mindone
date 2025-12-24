@@ -12,4 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .image_processing_got_ocr2 import GotOcr2ImageProcessor
+from .image_processing_got_ocr2_fast import GotOcr2ImageProcessorFast
 from .modeling_got_ocr2 import GotOcr2ForConditionalGeneration, GotOcr2PreTrainedModel

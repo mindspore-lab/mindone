@@ -1,0 +1,10 @@
+data:
+  - path: 'configs/finetune/data/t2i/t2i.yml'
+    type: 't2i'
+    ratio: 0.33
+  - path: 'configs/finetune/data/edit/edit.yml'
+    type: 'edit'
+    ratio: 0.33
+  - path: 'configs/finetune/data/ic/ic.yml'
+    type: 'ic'
+    ratio: 0.33
