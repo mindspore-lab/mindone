@@ -13,18 +13,19 @@ This repository provides the LoRA finetune codes of [Qwen-Image](https://arxiv.o
 * **Strong Cross-Benchmark Performance:** Evaluated on multiple benchmarks, Qwen-Image consistently outperforms existing models across diverse generation and editing tasks, establishing a strong foundation model for image generation.
 
 
-
 ## 📑 Todo List
 - Qwen-Image (Text-to-Image Model)
   - [x] LoRA finetune
 
 
-## 🚀 Quick Start
+## 📦 Requirements
 
-### Requirements
-| mindspore | ascend driver | cann toolkit/kernel|
+| mindspore | ascend driver | cann               |
 | :-------: | :-----------: | :----------------: |
 | >=2.7.0   |  >=25.2.0     | >=8.2.RC1          |
+
+
+## 🚀 Quick Start
 
 ### Installation
 Clone the repo:
