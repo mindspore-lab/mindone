@@ -23,7 +23,6 @@ limitations under the License.
 
 > [!IMPORTANT]
 > This project is still under active development and many features are not yet well-supported.
-> Development progress and plans are detailed in [Roadmap](#Roadmap).
 > Any contribution is welcome!
 
 > [!WARNING]
@@ -85,26 +84,6 @@ image
 
 Check out the [Quickstart](https://mindspore-lab.github.io/mindone/latest/diffusers/quicktour/) to launch your diffusion journey today!
 
-## Roadmap
-
-In short, only the model, scheduler, pipeline and the training code related to StableDiffusionXL are currently available.
-Most base, utility and mixin class are available.
-
-### Pipeline
-- [x] DDIMPipeline
-- [x] DDPMPipeline
-- [x] StableDiffusionXLPipeline
-- [ ] StableDiffusionPipeline
-
-### Model
-- All Supported
-
-### Scheduler
-- [x] DDIMScheduler/DDPMScheduler/...(30)
-- [ ] DPMSolverSDEScheduler
-
-### Loader
-- All Supported
 
 ## Limitations
 

@@ -24,26 +24,19 @@ CannyEdit is a novel training-free framework to support multitask image editing.
 
 ## 📦 Requirements
 
-<div align="center">
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.7.0    | >=24.1.RC3 |  >=8.0.RC3.beta1 |
 
-| MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
-|:---------:|:-------------:|:-----------:|:-------------------:|
-|   2.7.0   |   24.1.RC3    | 7.6.0.1.220 |    8.0.RC3.beta1    |
 
-</div>
 
-1. Install
-   [CANN 8.0.RC3.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC3.beta1) and MindSpore according to the [official instructions](https://www.mindspore.cn/install).
-2. Install requirements
-    ```shell
-    pip install -r requirements.txt
-    ```
-3. Install mindone
-    ```shell
-    cd mindone
-    pip install -e .
-    ```
-   Try `python -c "import mindone"`. If no error occurs, the installation is successful.
+Install requirements
+```shell
+cd mindone
+pip install -e .
+pip install -r requirements.txt
+```
+Try `python -c "import mindone"`. If no error occurs, the installation is successful.
 
 ## 🚀 Quick Start
 The pipeline of using CannyEdit consists of 3 steps:

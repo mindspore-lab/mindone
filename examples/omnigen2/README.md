@@ -26,12 +26,13 @@ competitive performance across four primary capabilities:
 - MindSpore inference pipeline and Gradio demo are available under `examples/omnigen2/`.
 - Example presets are provided via `configs/app.yaml` and support URL-based images.
 
-## Requirements
+## 📦 Requirements
 
-| MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
-|:---------:|:-------------:|:-----------:|:-------------------:|
-|   2.6.0   |   24.1.rc3    | 7.7.0.1.238 |       8.1.RC1       |
-|   2.7.0   |   24.1.rc3    | 7.7.0.1.238 |       8.2.RC1       |
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
+
+
 
 1) Install MindSpore and Ascend software per the official docs:
 
@@ -41,6 +42,7 @@ competitive performance across four primary capabilities:
 2) Install Python dependencies:
 
     ```shell
+    cd examples/omnigen2
     pip install -r requirements.txt
     ```
 

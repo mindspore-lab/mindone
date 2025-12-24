@@ -10,13 +10,10 @@ Language SAM 基于 Meta 的 Segment Anything Model 2 和 GroundingDINO 检测�
 
 ## 📦 环境要求
 
-<div align="center">
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC3.b080 |  >=8.1.RC1 |
 
-| MindSpore | Ascend 驱动 | 固件版本 | CANN 工具包/内核 |
-|:---------:|:-----------:|:--------:|:----------------:|
-| 2.6.0/2.7.0 | 24.1.RC3.b080  | 7.5.T11.0.B088 | 8.1.RC1 |
-
-</div>
 
 1. 安装 [CANN 8.1.RC1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.1.RC1) 和 MindSpore，具体请参考[官方安装说明](https://www.mindspore.cn/install)。
 2. 安装依赖

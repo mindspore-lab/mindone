@@ -34,6 +34,13 @@ This model was contributed by [patrickvonplaten](https://huggingface.co/patrickv
 
 Since ByT5 was pre-trained unsupervisedly, there's no real advantage to using a task prefix during single-task fine-tuning. If you are doing multi-task fine-tuning, you should use a prefix.
 
+## 📦 Requirements
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
+
+
+
 
 ## Usage example
 

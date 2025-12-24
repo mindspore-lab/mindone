@@ -35,20 +35,18 @@ Here is the development plan of the project:
 
 ## 📦 Requirements
 
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
-<div align="center">
 
-| MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
-|:---------:|:-------------:|:-----------:|:-------------------:|
-| 2.6.0/2.7.0 | 24.1.RC3.b080  |   7.5.T11.0.B088   | 8.1.RC1    |
-
-</div>
 
 1. Install
    [CANN 8.1.RC1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.1.RC1)
    and MindSpore according to the [official instructions](https://www.mindspore.cn/install).
 2. Install requirements
     ```shell
+    cd examples/mmada
     pip install -r requirements.txt
     ```
 3. Install mindone
@@ -195,6 +193,7 @@ The following experiments are tested on Ascend Atlas 800T A2 machines with minds
 | model | # card(s) | batch size | parallelism | task | per batch time (seconds) |
 |:-:|:-:|:-:|:-:|:-:|:-:|
 | MMaDA-8B-Base  | 8 |  4 | zero2  | finetune  | 1.30 |
+
 
 
 ## 🤝 Acknowledgments

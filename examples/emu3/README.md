@@ -40,11 +40,11 @@ Image VQA:
 |<img src="https://github.com/user-attachments/assets/bb84d826-39fd-4e97-9471-e0592d1158b7" width="512px"><br> prompt: `"Please describe the image"`| The image is a closeup of a dog with a happy expression, looking directly at the camera. The dog has a brown and white coat, with a distinctive white stripe running down the center of its face. The background is blurred, with hints of greenery suggesting an outdoor setting. The dog appears to be sitting on grass, with a few yellow flowers visible in the lower part of the image. The overall tone of the image is cheerful and friendly.|
 
 ## Get Started
-### Requirements
-|mindspore |	ascend driver | firmware | cann tookit/kernel|
-|--- | --- | --- | --- |
-|2.6.0 | 24.1.RC3 | 7.5.T11.0 | 8.1.RC1|
-|2.7.0 | 24.1.RC3 | 7.5.T11.0 | 8.2.RC1|
+## 📦 Requirements
+
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC3 |   >=8.1.RC1 |
 
 ### Dependencies
 

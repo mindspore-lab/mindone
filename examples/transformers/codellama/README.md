@@ -9,6 +9,14 @@ All Code Llama model checkpoints can be found [here](https://huggingface.co/mode
 
 This model was contributed by [ArthurZucker](https://huggingface.co/ArthurZ). The original code can be found [here](https://github.com/facebookresearch/llama).
 
+## 📦 Requirements
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
+
+
+
+
 ## Checkpoints
 
 CodeLlama checkpoints are restricted. One need to authenticate with Hugging Face to download the checkpoints. We recommend using the following command to authenticate:

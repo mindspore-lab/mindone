@@ -18,13 +18,13 @@ ArkInfer - Cross-platform Deployment System: Supports one-click deployment in mu
 
 # Get Started
 
-## Requirements:
-| mindspore   | 	ascend driver | firmware       | cann tookit/kernel |
-|-------------|----------------|----------------|--------------------|
-| 2.6.0/2.7.0 | 24.1.RC3.b080  | 7.5.T11.0.B088 | 8.1.RC1            |
+## 📦 Requirements
+mindspore  |  ascend driver   |cann  |
+|:--:|:--:|:--:|
+| >=2.6.0    | >=24.1.RC1 |   >=8.1.RC1 |
 
-### Installation:
-```
+
+
 git clone https://github.com/mindspore-lab/mindone.git
 cd mindone
 pip install -e .
