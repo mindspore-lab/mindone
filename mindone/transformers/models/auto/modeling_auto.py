@@ -255,6 +255,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("roberta-prelayernorm", "RobertaPreLayerNormModel"),
         ("rwkv", "RwkvModel"),
         ("sam", "SamModel"),
+        ("sam2_video", "Sam2VideoModel"),
         ("sam_hq", "SamHQModel"),
         ("sam_hq_vision_model", "SamHQVisionModel"),
         ("sam_vision_model", "SamVisionModel"),
@@ -1383,6 +1384,7 @@ MODEL_FOR_BACKBONE_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_MASK_GENERATION_MAPPING_NAMES = OrderedDict(
     [
         ("sam", "SamModel"),
+        ("sam2_video", "Sam2VideoModel"),
         ("sam_hq", "SamHQModel"),
     ]
 )
