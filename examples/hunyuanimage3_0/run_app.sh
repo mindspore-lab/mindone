@@ -15,7 +15,7 @@ NPROC_PER_NODE=${WORLD_SIZE:-8}
 # Input argument
 NPUS=${NPUS:-0,1,2,3,4,5,6,7}
 HOST=${HOST:-"0.0.0.0"}
-PORT=${PORT:-443}
+PORT=${PORT:-5000}
 MODEL_ID=${MODEL_ID:-"HunyuanImage-3/"}
 
 # App entry point

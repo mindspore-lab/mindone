@@ -23,6 +23,8 @@ from app.style import load_css
 from gradio import ChatMessage
 from hunyuan_image_3.system_prompt import t2i_system_prompts
 
+import mindspore as ms
+import mindspore.mint.distributed as dist
 from mindspore.nn import no_init_parameters
 
 # Global vars
@@ -338,7 +340,6 @@ def create_ui_interface(args):
             chatbot = gr.Chatbot(
                 min_height=500,
                 elem_id="chatbot",
-                bubble_full_width=False,
                 type="messages",
                 scale=1,
                 avatar_images=("./assets/user.png", "./assets/robot.png"),
@@ -453,7 +454,23 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
+
+    ms.set_context(
+        mode=ms.PYNATIVE_MODE,
+        device_target="Ascend",
+        jit_config={"jit_level": "O0"},
+        deterministic="ON",
+        pynative_synchronize=True,
+        memory_optimize_level="O1",
+        max_device_memory="59GB",
+    )
+
+    dist.init_process_group()
+    ms.set_auto_parallel_context(parallel_mode=ms.ParallelMode.DATA_PARALLEL)
+    ms.launch_blocking()
+
     load_pipeline(args)
 
+    port_for_rank = int(args.port) + dist.get_rank()
     chatbot_ui = create_ui_interface(args)
-    chatbot_ui.launch(server_name=args.host, server_port=args.port, share=False)
+    chatbot_ui.launch(server_name=args.host, server_port=port_for_rank, share=False)

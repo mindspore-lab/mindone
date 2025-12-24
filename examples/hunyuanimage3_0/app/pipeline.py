@@ -14,6 +14,7 @@
 import re
 import time
 from copy import deepcopy
+from functools import partial
 from threading import Thread
 from typing import Any, Dict, List, Optional
 
@@ -25,7 +26,6 @@ from PIL import Image
 from transformers import TextIteratorStreamer
 
 import mindspore as ms
-import mindspore.mint.distributed as dist
 import mindspore.nn as nn
 from mindspore.communication import GlobalComm
 
@@ -35,9 +35,6 @@ from mindone.utils.amp import auto_mixed_precision
 
 class HunyuanImage3AppPipeline(object):
     def __init__(self, args):
-        dist.init_process_group()
-        ms.set_auto_parallel_context(parallel_mode=ms.ParallelMode.DATA_PARALLEL)
-
         dtype = ms.bfloat16
         kwargs = dict(
             attn_implementation=args.attn_impl,
@@ -48,9 +45,9 @@ class HunyuanImage3AppPipeline(object):
             self.model = HunyuanImage3ForCausalMM.from_pretrained(args.model_id, **kwargs)
         self.model.load_tokenizer(args.model_id)
         self.image_processor = self.model.image_processor
-        # use zero3
-        self.model = prepare_network(self.model, zero_stage=3, optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP)
-        dist.barrier()
+        # # use zero3
+        shard_fn = partial(prepare_network, zero_stage=3, optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP)
+        self.model = shard_fn(self.model)
         # set mixed_precision
         if hasattr(self.model, "vae") and self.model.vae is not None:
             self.model.vae = auto_mixed_precision(
