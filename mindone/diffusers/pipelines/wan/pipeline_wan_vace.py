@@ -1,4 +1,4 @@
-# Copyright 2025 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The Wan Team and The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
@@ -26,13 +26,12 @@ from transformers import AutoTokenizer
 import mindspore as ms
 from mindspore import mint
 
-from mindone.diffusers.models.transformers.transformer_wan_vace import WanVACETransformer3DModel
 from mindone.transformers import UMT5EncoderModel
 
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...image_processor import PipelineImageInput
 from ...loaders import WanLoraLoaderMixin
-from ...models import AutoencoderKLWan
+from ...models import AutoencoderKLWan, WanVACETransformer3DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
 from ...utils import is_ftfy_available, logging
 from ...utils.mindspore_utils import pynative_context, randn_tensor
@@ -44,6 +43,72 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 if is_ftfy_available():
     import ftfy
+
+
+EXAMPLE_DOC_STRING = """
+    Examples:
+        ```python
+        >>> import mindspore as ms
+        >>> import PIL.Image
+        >>> from mindone.diffusers import AutoencoderKLWan, WanVACEPipeline
+        >>> from mindone.diffusers.schedulers.scheduling_unipc_multistep import UniPCMultistepScheduler
+        >>> from mindone.diffusers.utils import export_to_video, load_image
+        def prepare_video_and_mask(first_img: PIL.Image.Image, last_img: PIL.Image.Image, height: int, width: int, num_frames: int):
+            first_img = first_img.resize((width, height))
+            last_img = last_img.resize((width, height))
+            frames = []
+            frames.append(first_img)
+            # Ideally, this should be 127.5 to match original code, but they perform computation on numpy arrays
+            # whereas we are passing PIL images. If you choose to pass numpy arrays, you can set it to 127.5 to
+            # match the original code.
+            frames.extend([PIL.Image.new("RGB", (width, height), (128, 128, 128))] * (num_frames - 2))
+            frames.append(last_img)
+            mask_black = PIL.Image.new("L", (width, height), 0)
+            mask_white = PIL.Image.new("L", (width, height), 255)
+            mask = [mask_black, *[mask_white] * (num_frames - 2), mask_black]
+            return frames, mask
+
+        >>> # Available checkpoints: Wan-AI/Wan2.1-VACE-1.3B-diffusers, Wan-AI/Wan2.1-VACE-14B-diffusers
+        >>> model_id = "Wan-AI/Wan2.1-VACE-1.3B-diffusers"
+        >>> vae = AutoencoderKLWan.from_pretrained(model_id, subfolder="vae", mindspore_dtype=ms.float32)
+        >>> pipe = WanVACEPipeline.from_pretrained(model_id, vae=vae, mindspore_dtype=ms.bfloat16)
+        >>> flow_shift = 3.0  # 5.0 for 720P, 3.0 for 480P
+        >>> pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config, flow_shift=flow_shift)
+
+        >>> prompt = "CG animation style, a small blue bird takes off from the ground, " \
+                     "flapping its wings. The bird's feathers are delicate, with a unique pattern on its chest. " \
+                     "The background shows a blue sky with white clouds under bright sunshine. " \
+                     "The camera follows the bird upward, capturing its flight and the vastness of the sky from a close-up, low-angle perspective."
+        >>> negative_prompt = "Bright tones, overexposed, static, blurred details, subtitles, style, works, paintings, images, static, overall gray, " \
+                              "worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, " \
+                              "poorly drawn faces, deformed, disfigured, " \
+                              "misshapen limbs, fused fingers, still picture, messy background, three legs, many people in the background, walking backwards"
+        >>> first_frame = load_image(
+        ...     "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/flf2v_input_first_frame.png"
+        ... )
+        >>> last_frame = load_image(
+        ...     "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/flf2v_input_last_frame.png>>> "
+        ... )
+
+        >>> height = 512
+        >>> width = 512
+        >>> num_frames = 81
+        >>> video, mask = prepare_video_and_mask(first_frame, last_frame, height, width, num_frames)
+
+        >>> output = pipe(
+        ...     video=video,
+        ...     mask=mask,
+        ...     prompt=prompt,
+        ...     negative_prompt=negative_prompt,
+        ...     height=height,
+        ...     width=width,
+        ...     num_frames=num_frames,
+        ...     num_inference_steps=30,
+        ...     guidance_scale=5.0,
+        ... ).frames[0]
+        >>> export_to_video(output, "output.mp4", fps=16)
+        ```
+"""
 
 
 def basic_clean(text):
@@ -83,7 +148,7 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
     Pipeline for controllable generation using Wan.
 
     This model inherits from [`DiffusionPipeline`]. Check the superclass documentation for the generic methods
-    implemented for all pipelines (downloading, saving, etc.).
+    implemented for all pipelines (downloading, saving, running on a particular device, etc.).
 
     Args:
         tokenizer ([`T5Tokenizer`]):
@@ -200,7 +265,7 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
                 weighting. If not provided, negative_prompt_embeds will be generated from `negative_prompt` input
                 argument.
             dtype: (`ms.dtype`, *optional*):
-                ms dtype
+                mindspore dtype
         """
         prompt = [prompt] if isinstance(prompt, str) else prompt
         if prompt is not None:
@@ -457,8 +522,7 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             latents = retrieve_latents(self.vae.encode(video), generator, sample_mode="argmax").unbind(0)
             latents = ((latents.float() - latents_mean) * latents_std).to(vae_dtype)
         else:
-            mask = mask.to(dtype=vae_dtype)
-            mask = mint.where(mask > 0.5, 1.0, 0.0)
+            mask = mint.where(mask > 0.5, 1.0, 0.0).to(dtype=vae_dtype)
             inactive = video * (1 - mask)
             reactive = video * mask
             with pynative_context():
@@ -539,7 +603,7 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
         width: int = 832,
         num_frames: int = 81,
         dtype: Optional[ms.Type] = None,
-        generator: Optional[Union[ms.Generator, List[ms.Generator]]] = None,
+        generator: Optional[Union[np.random.Generator, List[np.random.Generator]]] = None,
         latents: Optional[ms.Tensor] = None,
     ) -> ms.Tensor:
         if latents is not None:
@@ -600,7 +664,7 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
         num_inference_steps: int = 50,
         guidance_scale: float = 5.0,
         num_videos_per_prompt: Optional[int] = 1,
-        generator: np.random.Generator = None,
+        generator: Optional[Union[np.random.Generator, List[np.random.Generator]]] = None,
         latents: Optional[ms.Tensor] = None,
         prompt_embeds: Optional[ms.Tensor] = None,
         negative_prompt_embeds: Optional[ms.Tensor] = None,
@@ -662,8 +726,8 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
                 usually at the expense of lower image quality.
             num_videos_per_prompt (`int`, *optional*, defaults to 1):
                 The number of images to generate per prompt.
-            generator (`np.random.Generator`):
-                A [`np.random.Generator`] to make
+            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
+                A [`np.random.Generator`](https://numpy.org/doc/stable/reference/random/generator.html) to make
                 generation deterministic.
             latents (`ms.Tensor`, *optional*):
                 Pre-generated noisy latents sampled from a Gaussian distribution, to be used as inputs for image
@@ -801,7 +865,7 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
         num_reference_images = len(reference_images[0])
 
         conditioning_latents = self.prepare_video_latents(video, mask, reference_images, generator)
-        mask = self.prepare_masks(mask, reference_images, generator).to(conditioning_latents.dtype)
+        mask = self.prepare_masks(mask, reference_images, generator)
         conditioning_latents = mint.cat([conditioning_latents, mask], dim=1)
         conditioning_latents = conditioning_latents.to(transformer_dtype)
 
@@ -883,8 +947,8 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             latents_mean = (
                 ms.tensor(self.vae.config.latents_mean).view(1, self.vae.config.z_dim, 1, 1, 1).to(latents.dtype)
             )
-            latents_std = 1.0 / ms.tensor(self.vae.config.latents_std, dtype=ms.float32).view(
-                1, self.vae.config.z_dim, 1, 1, 1
+            latents_std = 1.0 / ms.tensor(self.vae.config.latents_std).view(1, self.vae.config.z_dim, 1, 1, 1).to(
+                latents.dtype
             )
             latents = latents / latents_std + latents_mean
             with pynative_context():

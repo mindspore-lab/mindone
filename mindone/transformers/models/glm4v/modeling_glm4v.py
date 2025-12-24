@@ -27,7 +27,7 @@ import itertools
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from transformers.utils import LossKwargs, logging
+from transformers.utils import logging
 
 import mindspore as ms
 import mindspore.mint.nn.functional as F
@@ -45,6 +45,7 @@ from ...modeling_outputs import BaseModelOutputWithPast, ModelOutput
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
+from ...utils import TransformersKwargs
 from .configuration_glm4v import Glm4vConfig, Glm4vTextConfig, Glm4vVisionConfig
 
 logger = logging.get_logger(__name__)
@@ -507,10 +508,6 @@ class Glm4vVisionModel(Glm4vPreTrainedModel):
 
         hidden_states = self.merger(hidden_states)
         return hidden_states
-
-
-class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
-    ...
 
 
 @dataclass
@@ -1060,7 +1057,8 @@ class Glm4vModel(Glm4vPreTrainedModel):
                 ),
                 dtype=input_ids.dtype,
             )
-
+            image_index, video_index = 0, 0
+            video_group_index = 0
             for i, input_ids in enumerate(total_input_ids):
                 input_ids = input_ids[attention_mask[i] == 1]
                 input_tokens = input_ids.tolist()
@@ -1089,7 +1087,6 @@ class Glm4vModel(Glm4vPreTrainedModel):
 
                 llm_pos_ids_list = []
                 video_frame_num = 1
-                image_index, video_index = 0, 0
 
                 for modality_type, start_idx, end_idx in input_type_group:
                     st_idx = llm_pos_ids_list[-1].max() + 1 if len(llm_pos_ids_list) > 0 else 0
@@ -1142,7 +1139,11 @@ class Glm4vModel(Glm4vPreTrainedModel):
 
                             llm_pos_ids_list.append(mint.stack([t_index, h_index, w_index]) + st_idx)
 
-                        video_index += 1
+                        video_group_index += 1
+
+                        if video_group_index >= video_grid_thw[video_index][0]:
+                            video_index += 1
+                            video_group_index = 0
 
                         video_frame_num += 1
 
@@ -1222,7 +1223,7 @@ class Glm4vModel(Glm4vPreTrainedModel):
         video_grid_thw: Optional[ms.Tensor] = None,
         rope_deltas: Optional[ms.Tensor] = None,
         cache_position: Optional[ms.Tensor] = None,
-        **kwargs: Unpack[KwargsForCausalLM],
+        **kwargs: Unpack[TransformersKwargs],
     ) -> Union[Tuple, Glm4vModelOutputWithPast]:
         r"""
         pixel_values_videos (`torch.FloatTensor` of shape `(seq_length, num_channels * temporal_size * image_size * image_size)):
@@ -1463,7 +1464,7 @@ class Glm4vForConditionalGeneration(Glm4vPreTrainedModel, GenerationMixin):
         video_grid_thw: Optional[ms.Tensor] = None,
         rope_deltas: Optional[ms.Tensor] = None,
         cache_position: Optional[ms.Tensor] = None,
-        **kwargs: Unpack[KwargsForCausalLM],
+        **kwargs: Unpack[TransformersKwargs],
     ) -> Union[Tuple, Glm4vCausalLMOutputWithPast]:
         r"""
         labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):

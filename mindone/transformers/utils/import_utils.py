@@ -65,9 +65,17 @@ def _is_package_available(pkg_name: str, return_version: bool = False) -> Union[
         return package_exists
 
 
+_av_available = importlib.util.find_spec("av") is not None
+_decord_available = importlib.util.find_spec("decord") is not None
 _pandas_available = _is_package_available("pandas")
 _scipy_available = _is_package_available("scipy")
+_cv2_available = importlib.util.find_spec("cv2") is not None
+_yt_dlp_available = importlib.util.find_spec("yt_dlp") is not None
+_soundfile_available = _is_package_available("soundfile")
+_librosa_available = _is_package_available("librosa")
 _pytesseract_available = _is_package_available("pytesseract")
+_pyctcdecode_available = _is_package_available("pyctcdecode")
+_mistral_common_available = _is_package_available("mistral_common")
 
 
 def is_mindspore_available():
@@ -82,6 +90,30 @@ def get_mindspore_version():
 
 def is_scipy_available():
     return _scipy_available
+
+
+def is_av_available():
+    return _av_available
+
+
+def is_decord_available():
+    return _decord_available
+
+
+def is_cv2_available():
+    return _cv2_available
+
+
+def is_yt_dlp_available():
+    return _yt_dlp_available
+
+
+def is_mistral_common_available():
+    return _mistral_common_available
+
+
+def is_librosa_available():
+    return _librosa_available
 
 
 def is_pandas_available():
@@ -103,9 +135,26 @@ def is_vision_available():
     return _pil_available
 
 
+# docstyle-ignore
+LIBROSA_IMPORT_ERROR = """
+{0} requires the librosa library. But that was not found in your environment. You can install them with pip:
+`pip install librosa`
+Please note that you may need to restart your runtime after installation.
+"""
+
+
 def is_pytesseract_available():
     return _pytesseract_available
 
+
+# docstyle-ignore
+AV_IMPORT_ERROR = """
+{0} requires the PyAv library but it was not found in your environment. You can install it with:
+```
+pip install av
+```
+Please note that you may need to restart your runtime after installation.
+"""
 
 MINDSPORE_IMPORT_ERROR_WITH_TF = """
 {0} requires the MindSpore library but it was not found in your environment.
@@ -140,11 +189,13 @@ VISION_IMPORT_ERROR = """
 
 BACKENDS_MAPPING = OrderedDict(
     [
+        ("av", (is_av_available, AV_IMPORT_ERROR)),
         ("mindspore", (is_mindspore_available, MINDSPORE_IMPORT_ERROR_WITH_TF)),
         ("pandas", (is_pandas_available, PANDAS_IMPORT_ERROR)),
         ("pytesseract", (is_pytesseract_available, PYTESSERACT_IMPORT_ERROR)),
         ("scipy", (is_scipy_available, SCIPY_IMPORT_ERROR)),
         ("vision", (is_vision_available, VISION_IMPORT_ERROR)),
+        ("librosa", (is_librosa_available, LIBROSA_IMPORT_ERROR)),
     ]
 )
 
@@ -170,3 +221,15 @@ def is_flash_attn_2_available():
 
 def is_sdpa_available():
     return False
+
+
+def is_soundfile_available():
+    return _soundfile_available
+
+
+def is_librosa_available():
+    return _librosa_available
+
+
+def is_pyctcdecode_available() -> Union[tuple[bool, str], bool]:
+    return _pyctcdecode_available

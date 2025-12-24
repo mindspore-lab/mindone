@@ -2,6 +2,6 @@ transformers>=4.44.0
 tiktoken==0.6.0
 pillow
 omegaconf
-opencv-python
+opencv-python==4.9.0.80
 ezcolorlog
 mindcv==0.3.0

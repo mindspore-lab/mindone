@@ -99,7 +99,7 @@ def main():
     model = LlamaForSequenceClassification.from_pretrained(
         args.model_path,
         num_labels=5,
-        use_flash_attention_2=True,
+        attn_implementation="flash_attention_2",
         mindspore_dtype=ms.bfloat16 if args.bf16 else (ms.float16 if args.fp16 else None),
     )
     model.gradient_checkpointing_enable()

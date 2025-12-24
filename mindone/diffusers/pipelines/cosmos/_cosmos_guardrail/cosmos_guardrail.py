@@ -79,10 +79,10 @@ class PostprocessingGuardrail:
 class GuardrailRunner:
     def __init__(
         self,
-        safety_models: list[ContentSafetyGuardrail] | None = None,
+        safety_models: Union[list[ContentSafetyGuardrail], None] = None,
         generic_block_msg: str = "",
         generic_safe_msg: str = "",
-        postprocessors: list[PostprocessingGuardrail] | None = None,
+        postprocessors: Union[list[PostprocessingGuardrail], None] = None,
     ):
         self.safety_models = safety_models
         self.generic_block_msg = generic_block_msg

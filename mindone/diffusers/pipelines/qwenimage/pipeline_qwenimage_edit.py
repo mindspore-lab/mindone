@@ -20,10 +20,12 @@ import math
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
-from transformers import Qwen2Tokenizer, Qwen2VLProcessor
+from transformers import Qwen2Tokenizer
 
 import mindspore as ms
 from mindspore import mint
+
+from mindone.transformers import Qwen2VLProcessor
 
 from ....transformers import Qwen2_5_VLForConditionalGeneration
 from ...image_processor import PipelineImageInput, VaeImageProcessor
