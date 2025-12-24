@@ -9,7 +9,7 @@
 - **MindSpore**: Compatible with MindSpore 2.6.0 - 2.7.1
 
 ### mindone.transformers updates
-- **Major upgrade**: Enhanced compatibility with 🤗 transformers v4.54 and v4.57.1. Check supported models [here](./mindone/transformers/SUPPORTED_MODELS.md).
+- **Major upgrade**: Enhanced compatibility with 🤗 transformers v4.54 and v4.57.1. Check supported models [here](./mindone/transformers/SUPPORT_LIST.md).
 
 #### Base Updates
 - Transformers 4.54 base support ([#1387](https://github.com/mindspore-lab/mindone/pull/1387))

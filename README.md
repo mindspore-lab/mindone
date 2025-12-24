@@ -6,7 +6,7 @@ ONE is short for "ONE for all"
 
 ## News
 
-- [2025.12.24] We release [v0.5.0](https://github.com/mindspore-lab/mindone/releases/tag/v0.5.0), compatibility with 🤗 Transformers v4.57.1 ([70+ new models](./mindone/transformers/SUPPORTED_MODELS.md)) and 🤗 Diffusers v0.35.2, plus previews of v0.36 pipelines like Flux2, QwenImageEditPlus, Lucy and Kandinsky5. Also introduces initial ComfyUI integration. Happy exploring!
+- [2025.12.24] We release [v0.5.0](https://github.com/mindspore-lab/mindone/releases/tag/v0.5.0), compatibility with 🤗 Transformers v4.57.1 ([70+ new models](./mindone/transformers/SUPPORT_LIST.md)) and 🤗 Diffusers v0.35.2, plus previews of v0.36 pipelines like Flux2, QwenImageEditPlus, Lucy and Kandinsky5. Also introduces initial ComfyUI integration. Happy exploring!
 - [2025.11.02] [v0.4.0](https://github.com/mindspore-lab/mindone/releases/tag/v0.4.0) is released, with 280+ transformers models and 70+ diffusers pipelines supported. See [here](https://github.com/mindspore-lab/mindone/blob/refs/tags/v0.4.0/CHANGELOG.md)
 - [2025.04.10] We release [v0.3.0](https://github.com/mindspore-lab/mindone/releases/tag/v0.3.0). More than 15 SoTA generative models are added, including Flux, CogView4, OpenSora2.0, Movie Gen 30B, CogVideoX 5B~30B. Have fun!
 - [2025.02.21] We support DeepSeek [Janus-Pro](https://huggingface.co/deepseek-ai/Janus-Pro-7B), a SoTA multimodal understanding and generation model. See [here](examples/janus)
@@ -45,15 +45,14 @@ image.save("sd3.png")
 ```
 ###  run hf diffusers on mindspore
  - mindone diffusers is under active development, most tasks were tested with MindSpore 2.6.0-2.7.1 on Ascend Atlas 800T A2 machines
- - compatible with 🤗 diffusers v0.35.2, preview supports for SoTA v0.36 pipelines
- - 240+ [diffusion pipelines](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview) for inference, 70+ pretrained [models](https://mindspore-lab.github.io/mindone/latest/diffusers/api/models/overview) (AutoEncoder, ControlNet, Transformer, UNet) for constructing pipelines, and 40+ noise [schedulers](https://mindspore-lab.github.io/mindone/latest/diffusers/api/schedulers/overview) to control diffusion speed and quality
+ - compatible with 🤗 diffusers v0.35.2, preview supports for SoTA v0.36 pipelines, see [support list](./mindone/diffusers/SUPPORT_LIST.md)
  - 18+ [training examples](./examples/diffusers) - controlnet, dreambooth, lora and more
 
 
 ###  run hf transformers on mindspore
  - mindone transformers is under active development, most tasks were tested with mindspore 2.6.0-2.7.1 on Ascend Atlas 800T A2 machines
  - compatibale with 🤗 transformers v4.57.1
- - providing 350+ state-of-the-art machine learning models in text, computer vision, audio, video, and multimodal model for inference, see [supported list](./mindone/transformers/SUPPORTED_MODELS.md)
+ - providing 350+ state-of-the-art machine learning models in text, computer vision, audio, video, and multimodal model for inference, see [support list](./mindone/transformers/SUPPORT_LIST.md)
 
 ### supported models under mindone/examples
 
@@ -92,4 +91,4 @@ image.save("sd3.png")
 | Image-Text-to-Text | [pllava](https://github.com/mindspore-lab/mindone/tree/master/tools/captioners/PLLaVA) |  ✅ |  ✖️ |  ✖️   | support video and image captioning |
 
 ### training-free acceleration
-Introduce [dit infer acceleration](https://github.com/mindspore-lab/mindone/blob/master/examples/accelerated_dit_pipelines/README.md), tested on sd3.
+Introduce [dit infer acceleration](https://github.com/mindspore-lab/mindone/blob/master/examples/accelerated_dit_pipelines/README.md) - DiTCache, PromptGate and FBCache with Taylorseer, tested on sd3 and flux.1.
