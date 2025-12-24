@@ -1,4 +1,4 @@
-# Copyright 2025 Qwen-Image Team and The HuggingFace Team. All rights reserved.
+# Copyright 2025 Qwen-Image Team, The InstantX Team and The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
@@ -25,9 +25,10 @@ import mindspore as ms
 from mindspore import mint
 
 from ....transformers import Qwen2_5_VLForConditionalGeneration
-from ...image_processor import VaeImageProcessor
+from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...loaders import QwenImageLoraLoaderMixin
 from ...models import AutoencoderKLQwenImage, QwenImageTransformer2DModel
+from ...models.controlnets.controlnet_qwenimage import QwenImageControlNetModel, QwenImageMultiControlNetModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
 from ...utils import logging
 from ...utils.mindspore_utils import randn_tensor
@@ -41,19 +42,38 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 EXAMPLE_DOC_STRING = """
     Examples:
         ```py
-        >>> import mindspore as ms
-        >>> from mindone.diffusers import QwenImagePipeline
+        >>> import mindspore
+        >>> from mindone.diffusers.utils import load_image
+        >>> from mindone.diffusers import QwenImageControlNetModel, QwenImageControlNetInpaintPipeline
 
-        >>> pipe = QwenImagePipeline.from_pretrained("Qwen/Qwen-Image", mindspore_dtype=ms.bfloat16)
-        >>> prompt = "A cat holding a sign that says hello world"
-        >>> # Depending on the variant being used, the pipeline call will slightly vary.
-        >>> # Refer to the pipeline documentation for more details.
-        >>> image = pipe(prompt, num_inference_steps=50)[0][0]
-        >>> image.save("qwenimage.png")
+        >>> base_model_path = "Qwen/Qwen-Image"
+        >>> controlnet_model_path = "InstantX/Qwen-Image-ControlNet-Inpainting"
+        >>> controlnet = QwenImageControlNetModel.from_pretrained(controlnet_model_path, mindspore_dtype=mindspore.bfloat16)
+        >>> pipe = QwenImageControlNetInpaintPipeline.from_pretrained(
+        ...     base_model_path, controlnet=controlnet, mindspore_dtype=mindspore.bfloat16
+        ... )
+        >>> image = load_image(
+        ...     "https://huggingface.co/InstantX/Qwen-Image-ControlNet-Inpainting/resolve/main/assets/images/image1.png"
+        ... )
+        >>> mask_image = load_image(
+        ...     "https://huggingface.co/InstantX/Qwen-Image-ControlNet-Inpainting/resolve/main/assets/masks/mask1.png"
+        ... )
+        >>> prompt = "一辆绿色的出租车行驶在路上"
+        >>> result = pipe(
+        ...     prompt=prompt,
+        ...     control_image=image,
+        ...     control_mask=mask_image,
+        ...     controlnet_conditioning_scale=1.0,
+        ...     width=mask_image.size[0],
+        ...     height=mask_image.size[1],
+        ...     true_cfg_scale=4.0,
+        ... )[0][0]
+        >>> image.save("qwenimage_controlnet_inpaint.png")
         ```
 """
 
 
+# Coped from diffusers.pipelines.qwenimage.pipeline_qwenimage.calculate_shift
 def calculate_shift(
     image_seq_len,
     base_seq_len: int = 256,
@@ -65,6 +85,21 @@ def calculate_shift(
     b = base_shift - m * base_seq_len
     mu = image_seq_len * m + b
     return mu
+
+
+# Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion_img2img.retrieve_latents
+def retrieve_latents(
+    vae, encoder_output: ms.Tensor, generator: Optional[np.random.Generator] = None, sample_mode: str = "sample"
+):
+    if sample_mode == "sample":
+        return vae.diag_gauss_dist.sample(encoder_output, generator=generator)
+    elif sample_mode == "argmax":
+        return vae.diag_gauss_dist.mode(encoder_output)
+    # This brach is not needed because the encoder_output type is ms.Tensor as per AutoencoderKLOuput change
+    # elif hasattr(encoder_output, "latents"):
+    #     return encoder_output.latents
+    else:
+        return encoder_output
 
 
 # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.retrieve_timesteps
@@ -124,7 +159,7 @@ def retrieve_timesteps(
     return timesteps, num_inference_steps
 
 
-class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
+class QwenImageControlNetInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
     r"""
     The QwenImage pipeline for text-to-image generation.
 
@@ -153,6 +188,7 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         text_encoder: Qwen2_5_VLForConditionalGeneration,
         tokenizer: Qwen2Tokenizer,
         transformer: QwenImageTransformer2DModel,
+        controlnet: QwenImageControlNetModel,
     ):
         super().__init__()
 
@@ -162,11 +198,21 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             tokenizer=tokenizer,
             transformer=transformer,
             scheduler=scheduler,
+            controlnet=controlnet,
         )
         self.vae_scale_factor = 2 ** len(self.vae.temperal_downsample) if getattr(self, "vae", None) else 8
         # QwenImage latents are turned into 2x2 patches and packed. This means the latent width and height has to be divisible
         # by the patch size. So the vae scale factor is multiplied by the patch size to account for this
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor * 2)
+
+        self.mask_processor = VaeImageProcessor(
+            vae_scale_factor=self.vae_scale_factor * 2,
+            do_resize=True,
+            do_convert_grayscale=True,
+            do_normalize=False,
+            do_binarize=True,
+        )
+
         self.tokenizer_max_length = 1024
         self.prompt_template_encode = (
             "<|im_start|>system\nDescribe the image by detailing the color, shape, size, "
@@ -176,6 +222,7 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         self.prompt_template_encode_start_idx = 34
         self.default_sample_size = 128
 
+    # Coped from diffusers.pipelines.qwenimage.pipeline_qwenimage.extract_masked_hidden
     def _extract_masked_hidden(self, hidden_states: ms.Tensor, mask: ms.Tensor):
         bool_mask = mask.bool()
         valid_lengths = bool_mask.sum(dim=1)
@@ -184,6 +231,7 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
 
         return split_result
 
+    # Coped from diffusers.pipelines.qwenimage.pipeline_qwenimage.get_qwen_prompt_embeds
     def _get_qwen_prompt_embeds(
         self,
         prompt: Union[str, List[str]] = None,
@@ -220,6 +268,7 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
 
         return prompt_embeds, encoder_attention_mask
 
+    # Coped from diffusers.pipelines.qwenimage.pipeline_qwenimage.encode_prompt
     def encode_prompt(
         self,
         prompt: Union[str, List[str]],
@@ -271,8 +320,7 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
     ):
         if height % (self.vae_scale_factor * 2) != 0 or width % (self.vae_scale_factor * 2) != 0:
             logger.warning(
-                f"`height` and `width` have to be divisible by {self.vae_scale_factor * 2} but are {height} and {width}."
-                " Dimensions will be resized accordingly"
+                f"`height` and `width` have to be divisible by {self.vae_scale_factor * 2} but are {height} and {width}. Dimensions will be resized accordingly"
             )
 
         if callback_on_step_end_tensor_inputs is not None and not all(
@@ -297,8 +345,8 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
 
         if negative_prompt is not None and negative_prompt_embeds is not None:
             raise ValueError(
-                f"Cannot forward both `negative_prompt`: {negative_prompt} and `negative_prompt_embeds`:"
-                f" {negative_prompt_embeds}. Please make sure to only forward one of the two."
+                f"Cannot forward both `negative_prompt`: {negative_prompt} and `negative_prompt_embeds`: {negative_prompt_embeds}. "
+                "Please make sure to only forward one of the two."
             )
 
         if prompt_embeds is not None and prompt_embeds_mask is None:
@@ -306,7 +354,6 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                 "If `prompt_embeds` are provided, `prompt_embeds_mask` also have to be passed. Make sure to generate `prompt_embeds_mask`"
                 " from the same text encoder that was used to generate `prompt_embeds`."
             )
-
         if negative_prompt_embeds is not None and negative_prompt_embeds_mask is None:
             raise ValueError(
                 "If `negative_prompt_embeds` are provided, `negative_prompt_embeds_mask` also have to be passed. Make sure to generate"
@@ -317,6 +364,7 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             raise ValueError(f"`max_sequence_length` cannot be greater than 1024 but is {max_sequence_length}")
 
     @staticmethod
+    # Copied from diffusers.pipelines.qwenimage.pipeline_qwenimage.QwenImagePipeline._pack_latents
     def _pack_latents(latents, batch_size, num_channels_latents, height, width):
         latents = latents.view(batch_size, num_channels_latents, height // 2, 2, width // 2, 2)
         latents = latents.permute(0, 2, 4, 1, 3, 5)
@@ -325,6 +373,7 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         return latents
 
     @staticmethod
+    # Copied from diffusers.pipelines.qwenimage.pipeline_qwenimage.QwenImagePipeline._unpack_latents
     def _unpack_latents(latents, height, width, vae_scale_factor):
         batch_size, num_patches, channels = latents.shape
 
@@ -369,6 +418,7 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         """
         self.vae.disable_tiling()
 
+    # Copied from diffusers.pipelines.qwenimage.pipeline_qwenimage.QwenImagePipeline.prepare_latents
     def prepare_latents(
         self,
         batch_size,
@@ -400,6 +450,118 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
 
         return latents
 
+    # Copied from diffusers.pipelines.controlnet_sd3.pipeline_stable_diffusion_3_controlnet.StableDiffusion3ControlNetPipeline.prepare_image
+    def prepare_image(
+        self,
+        image,
+        width,
+        height,
+        batch_size,
+        num_images_per_prompt,
+        dtype,
+        do_classifier_free_guidance=False,
+        guess_mode=False,
+    ):
+        if isinstance(image, ms.Tensor):
+            pass
+        else:
+            image = self.image_processor.preprocess(image, height=height, width=width)
+
+        image_batch_size = image.shape[0]
+
+        if image_batch_size == 1:
+            repeat_by = batch_size
+        else:
+            # image batch size is the same as prompt batch size
+            repeat_by = num_images_per_prompt
+
+        image = image.repeat_interleave(repeat_by, dim=0)
+
+        image = image.to(dtype=dtype)
+
+        if do_classifier_free_guidance and not guess_mode:
+            image = mint.cat([image] * 2)
+
+        return image
+
+    def prepare_image_with_mask(
+        self,
+        image,
+        mask,
+        width,
+        height,
+        batch_size,
+        num_images_per_prompt,
+        dtype,
+        do_classifier_free_guidance=False,
+        guess_mode=False,
+    ):
+        if isinstance(image, ms.Tensor):
+            pass
+        else:
+            image = self.image_processor.preprocess(image, height=height, width=width)
+
+        image_batch_size = image.shape[0]
+
+        if image_batch_size == 1:
+            repeat_by = batch_size
+        else:
+            # image batch size is the same as prompt batch size
+            repeat_by = num_images_per_prompt
+
+        image = image.repeat_interleave(repeat_by, dim=0)
+        image = image.to(dtype=dtype)  # (bsz, 3, height_ori, width_ori)
+
+        # Prepare mask
+        if isinstance(mask, ms.Tensor):
+            pass
+        else:
+            mask = self.mask_processor.preprocess(mask, height=height, width=width)
+        mask = mask.repeat_interleave(repeat_by, dim=0)
+        mask = mask.to(dtype=dtype)  # (bsz, 1, height_ori, width_ori)
+
+        if image.ndim == 4:
+            image = image.unsqueeze(2)
+
+        if mask.ndim == 4:
+            mask = mask.unsqueeze(2)
+
+        # Get masked image
+        masked_image = image.clone()
+        masked_image[(mask > 0.5).repeat(1, 3, 1, 1, 1)] = -1  # (bsz, 3, 1, height_ori, width_ori)
+
+        self.vae_scale_factor = 2 ** len(self.vae.temperal_downsample)
+        latents_mean = ms.tensor(self.vae.config.latents_mean).view(1, self.vae.config.z_dim, 1, 1, 1)
+        latents_std = 1.0 / ms.tensor(self.vae.config.latents_std).view(1, self.vae.config.z_dim, 1, 1, 1)
+
+        # Encode to latents
+        image_latents = self.vae.encode(masked_image.to(self.vae.dtype)).latent_dist.sample()
+        image_latents = (image_latents - latents_mean) * latents_std
+        image_latents = image_latents.to(dtype)  # Size([1, 16, 1, height_ori//8, width_ori//8])
+
+        mask = mint.nn.functional.interpolate(
+            mask, size=(image_latents.shape[-3], image_latents.shape[-2], image_latents.shape[-1])
+        )
+        mask = 1 - mask  # Size([1, 1, 1, height_ori//8, width_ori//8])
+
+        control_image = mint.cat([image_latents, mask], dim=1)  # Size([1, 16+1, 1, height_ori//8, width_ori//8])
+
+        control_image = control_image.permute(0, 2, 1, 3, 4)  # Size([1, 1, 16+1, height_ori//8, width_ori//8])
+
+        # pack
+        control_image = self._pack_latents(
+            control_image,
+            batch_size=control_image.shape[0],
+            num_channels_latents=control_image.shape[2],
+            height=control_image.shape[3],
+            width=control_image.shape[4],
+        )
+
+        if do_classifier_free_guidance and not guess_mode:
+            control_image = mint.cat([control_image] * 2)
+
+        return control_image
+
     @property
     def guidance_scale(self):
         return self._guidance_scale
@@ -429,7 +591,12 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         width: Optional[int] = None,
         num_inference_steps: int = 50,
         sigmas: Optional[List[float]] = None,
-        guidance_scale: Optional[float] = None,
+        guidance_scale: float = 1.0,
+        control_guidance_start: Union[float, List[float]] = 0.0,
+        control_guidance_end: Union[float, List[float]] = 1.0,
+        control_image: PipelineImageInput = None,
+        control_mask: PipelineImageInput = None,
+        controlnet_conditioning_scale: Union[float, List[float]] = 1.0,
         num_images_per_prompt: int = 1,
         generator: Optional[Union[np.random.Generator, List[np.random.Generator]]] = None,
         latents: Optional[ms.Tensor] = None,
@@ -456,12 +623,7 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                 `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `true_cfg_scale` is
                 not greater than `1`).
             true_cfg_scale (`float`, *optional*, defaults to 1.0):
-                Guidance scale as defined in [Classifier-Free Diffusion
-                Guidance](https://huggingface.co/papers/2207.12598). `true_cfg_scale` is defined as `w` of equation 2.
-                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Classifier-free guidance is enabled by
-                setting `true_cfg_scale > 1` and a provided `negative_prompt`. Higher guidance scale encourages to
-                generate images that are closely linked to the text `prompt`, usually at the expense of lower image
-                quality.
+                When > 1.0 and a provided `negative_prompt`, enables true classifier-free guidance.
             height (`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor):
                 The height in pixels of the generated image. This is set to 1024 by default for the best results.
             width (`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor):
@@ -473,16 +635,12 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                 Custom sigmas to use for the denoising process with schedulers which support a `sigmas` argument in
                 their `set_timesteps` method. If not defined, the default behavior when `num_inference_steps` is passed
                 will be used.
-            guidance_scale (`float`, *optional*, defaults to None):
-                A guidance scale value for guidance distilled models. Unlike the traditional classifier-free guidance
-                where the guidance scale is applied during inference through noise prediction rescaling, guidance
-                distilled models take the guidance scale directly as an input parameter during forward pass. Guidance
-                scale is enabled by setting `guidance_scale > 1`. Higher guidance scale encourages to generate images
-                that are closely linked to the text `prompt`, usually at the expense of lower image quality. This
-                parameter in the pipeline is there to support future guidance-distilled models when they come up. It is
-                ignored when not using guidance distilled models. To enable traditional classifier-free guidance,
-                please pass `true_cfg_scale > 1.0` and `negative_prompt` (even an empty negative prompt like " " should
-                enable classifier-free guidance computations).
+            guidance_scale (`float`, *optional*, defaults to 3.5):
+                Guidance scale as defined in [Classifier-Free Diffusion
+                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.
+                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting
+                `guidance_scale > 1`. Higher guidance scale encourages to generate images that are closely linked to
+                the text `prompt`, usually at the expense of lower image quality.
             num_images_per_prompt (`int`, *optional*, defaults to 1):
                 The number of images to generate per prompt.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
@@ -530,6 +688,17 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         height = height or self.default_sample_size * self.vae_scale_factor
         width = width or self.default_sample_size * self.vae_scale_factor
 
+        if not isinstance(control_guidance_start, list) and isinstance(control_guidance_end, list):
+            control_guidance_start = len(control_guidance_end) * [control_guidance_start]
+        elif not isinstance(control_guidance_end, list) and isinstance(control_guidance_start, list):
+            control_guidance_end = len(control_guidance_start) * [control_guidance_end]
+        elif not isinstance(control_guidance_start, list) and not isinstance(control_guidance_end, list):
+            mult = len(control_image) if isinstance(self.controlnet, QwenImageMultiControlNetModel) else 1
+            control_guidance_start, control_guidance_end = (
+                mult * [control_guidance_start],
+                mult * [control_guidance_end],
+            )
+
         # 1. Check inputs. Raise error if not correct
         self.check_inputs(
             prompt,
@@ -560,16 +729,6 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         has_neg_prompt = negative_prompt is not None or (
             negative_prompt_embeds is not None and negative_prompt_embeds_mask is not None
         )
-
-        if true_cfg_scale > 1 and not has_neg_prompt:
-            logger.warning(
-                f"true_cfg_scale is passed as {true_cfg_scale}, but classifier-free guidance is not enabled since no negative_prompt is provided."
-            )
-        elif true_cfg_scale <= 1 and has_neg_prompt:
-            logger.warning(
-                " negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1"
-            )
-
         do_true_cfg = true_cfg_scale > 1 and has_neg_prompt
         prompt_embeds, prompt_embeds_mask = self.encode_prompt(
             prompt=prompt,
@@ -587,6 +746,19 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                 max_sequence_length=max_sequence_length,
             )
 
+        # 3. Prepare control image
+        num_channels_latents = self.transformer.config.in_channels // 4
+        if isinstance(self.controlnet, QwenImageControlNetModel):
+            control_image = self.prepare_image_with_mask(
+                image=control_image,
+                mask=control_mask,
+                width=width,
+                height=height,
+                batch_size=batch_size * num_images_per_prompt,
+                num_images_per_prompt=num_images_per_prompt,
+                dtype=self.vae.dtype,
+            )
+
         # 4. Prepare latent variables
         num_channels_latents = self.transformer.config.in_channels // 4
         latents = self.prepare_latents(
@@ -598,7 +770,7 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             generator,
             latents,
         )
-        img_shapes = [[(1, height // self.vae_scale_factor // 2, width // self.vae_scale_factor // 2)]] * batch_size
+        img_shapes = [(1, height // self.vae_scale_factor // 2, width // self.vae_scale_factor // 2)] * batch_size
 
         # 5. Prepare timesteps
         sigmas = np.linspace(1.0, 1 / num_inference_steps, num_inference_steps) if sigmas is None else sigmas
@@ -619,27 +791,23 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         num_warmup_steps = max(len(timesteps) - num_inference_steps * self.scheduler.order, 0)
         self._num_timesteps = len(timesteps)
 
+        controlnet_keep = []
+        for i in range(len(timesteps)):
+            keeps = [
+                1.0 - float(i / len(timesteps) < s or (i + 1) / len(timesteps) > e)
+                for s, e in zip(control_guidance_start, control_guidance_end)
+            ]
+            controlnet_keep.append(keeps[0] if isinstance(self.controlnet, QwenImageControlNetModel) else keeps)
+
         # handle guidance
-        if self.transformer.config.guidance_embeds and guidance_scale is None:
-            raise ValueError("guidance_scale is required for guidance-distilled model.")
-        elif self.transformer.config.guidance_embeds:
+        if self.transformer.config.guidance_embeds:
             guidance = mint.full([1], guidance_scale, dtype=ms.float32)
             guidance = guidance.expand((latents.shape[0],))
-        elif not self.transformer.config.guidance_embeds and guidance_scale is not None:
-            logger.warning(
-                f"guidance_scale is passed as {guidance_scale}, but ignored since the model is not guidance-distilled."
-            )
-            guidance = None
-        elif not self.transformer.config.guidance_embeds and guidance_scale is None:
+        else:
             guidance = None
 
         if self.attention_kwargs is None:
             self._attention_kwargs = {}
-
-        txt_seq_lens = prompt_embeds_mask.sum(dim=1).tolist() if prompt_embeds_mask is not None else None
-        negative_txt_seq_lens = (
-            negative_prompt_embeds_mask.sum(dim=1).tolist() if negative_prompt_embeds_mask is not None else None
-        )
 
         # 6. Denoising loop
         self.scheduler.set_begin_index(0)
@@ -651,14 +819,36 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                 self._current_timestep = t
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
                 timestep = t.expand((latents.shape[0],)).to(latents.dtype)
+
+                if isinstance(controlnet_keep[i], list):
+                    cond_scale = [c * s for c, s in zip(controlnet_conditioning_scale, controlnet_keep[i])]
+                else:
+                    controlnet_cond_scale = controlnet_conditioning_scale
+                    if isinstance(controlnet_cond_scale, list):
+                        controlnet_cond_scale = controlnet_cond_scale[0]
+                    cond_scale = controlnet_cond_scale * controlnet_keep[i]
+
+                # controlnet
+                controlnet_block_samples = self.controlnet(
+                    hidden_states=latents,
+                    controlnet_cond=control_image.to(dtype=latents.dtype),
+                    conditioning_scale=cond_scale,
+                    timestep=timestep / 1000,
+                    encoder_hidden_states=prompt_embeds,
+                    encoder_hidden_states_mask=prompt_embeds_mask,
+                    img_shapes=img_shapes,
+                    txt_seq_lens=prompt_embeds_mask.sum(dim=1).tolist(),
+                    return_dict=False,
+                )
+
                 noise_pred = self.transformer(
                     hidden_states=latents,
                     timestep=timestep / 1000,
-                    guidance=guidance,
-                    encoder_hidden_states_mask=prompt_embeds_mask,
                     encoder_hidden_states=prompt_embeds,
+                    encoder_hidden_states_mask=prompt_embeds_mask,
                     img_shapes=img_shapes,
-                    txt_seq_lens=txt_seq_lens,
+                    txt_seq_lens=prompt_embeds_mask.sum(dim=1).tolist(),
+                    controlnet_block_samples=controlnet_block_samples,
                     attention_kwargs=self.attention_kwargs,
                     return_dict=False,
                 )[0]
@@ -671,7 +861,8 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                         encoder_hidden_states_mask=negative_prompt_embeds_mask,
                         encoder_hidden_states=negative_prompt_embeds,
                         img_shapes=img_shapes,
-                        txt_seq_lens=negative_txt_seq_lens,
+                        txt_seq_lens=negative_prompt_embeds_mask.sum(dim=1).tolist(),
+                        controlnet_block_samples=controlnet_block_samples,
                         attention_kwargs=self.attention_kwargs,
                         return_dict=False,
                     )[0]

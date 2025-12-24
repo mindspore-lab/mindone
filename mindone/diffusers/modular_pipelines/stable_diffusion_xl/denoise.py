@@ -230,7 +230,7 @@ class StableDiffusionXLLoopDenoiser(ModularPipelineBlocks):
             components.guider.cleanup_models(components.unet)
 
         # Perform guidance
-        block_state.noise_pred, block_state.scheduler_step_kwargs = components.guider(guider_state)
+        block_state.noise_pred = components.guider(guider_state)[0]
 
         return components, block_state
 
@@ -424,7 +424,7 @@ class StableDiffusionXLControlNetLoopDenoiser(ModularPipelineBlocks):
             components.guider.cleanup_models(components.unet)
 
         # Perform guidance
-        block_state.noise_pred, block_state.scheduler_step_kwargs = components.guider(guider_state)
+        block_state.noise_pred = components.guider(guider_state)[0]
 
         return components, block_state
 
@@ -482,7 +482,6 @@ class StableDiffusionXLLoopAfterDenoiser(ModularPipelineBlocks):
             t,
             block_state.latents,
             **block_state.extra_step_kwargs,
-            **block_state.scheduler_step_kwargs,
             return_dict=False,
         )[0]
 
@@ -574,7 +573,6 @@ class StableDiffusionXLInpaintLoopAfterDenoiser(ModularPipelineBlocks):
             t,
             block_state.latents,
             **block_state.extra_step_kwargs,
-            **block_state.scheduler_step_kwargs,
             return_dict=False,
         )[0]
 

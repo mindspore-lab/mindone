@@ -53,6 +53,9 @@ MODULAR_PIPELINE_MAPPING = OrderedDict(
         ("stable-diffusion-xl", "StableDiffusionXLModularPipeline"),
         ("wan", "WanModularPipeline"),
         ("flux", "FluxModularPipeline"),
+        ("qwenimage", "QwenImageModularPipeline"),
+        ("qwenimage-edit", "QwenImageEditModularPipeline"),
+        ("qwenimage-edit-plus", "QwenImageEditPlusModularPipeline"),
     ]
 )
 
@@ -61,6 +64,9 @@ MODULAR_PIPELINE_BLOCKS_MAPPING = OrderedDict(
         ("StableDiffusionXLModularPipeline", "StableDiffusionXLAutoBlocks"),
         ("WanModularPipeline", "WanAutoBlocks"),
         ("FluxModularPipeline", "FluxAutoBlocks"),
+        ("QwenImageModularPipeline", "QwenImageAutoBlocks"),
+        ("QwenImageEditModularPipeline", "QwenImageEditAutoBlocks"),
+        ("QwenImageEditPlusModularPipeline", "QwenImageEditPlusAutoBlocks"),
     ]
 )
 
@@ -529,8 +535,11 @@ class AutoPipelineBlocks(ModularPipelineBlocks):
 
     def __init__(self):
         sub_blocks = InsertableDict()
-        for block_name, block_cls in zip(self.block_names, self.block_classes):
-            sub_blocks[block_name] = block_cls()
+        for block_name, block in zip(self.block_names, self.block_classes):
+            if inspect.isclass(block):
+                sub_blocks[block_name] = block()
+            else:
+                sub_blocks[block_name] = block
         self.sub_blocks = sub_blocks
         if not (len(self.block_classes) == len(self.block_names) == len(self.block_trigger_inputs)):
             raise ValueError(
@@ -810,7 +819,9 @@ class SequentialPipelineBlocks(ModularPipelineBlocks):
         return expected_configs
 
     @classmethod
-    def from_blocks_dict(cls, blocks_dict: Dict[str, Any]) -> "SequentialPipelineBlocks":
+    def from_blocks_dict(
+        cls, blocks_dict: Dict[str, Any], description: Optional[str] = None
+    ) -> "SequentialPipelineBlocks":
         """Creates a SequentialPipelineBlocks instance from a dictionary of blocks.
 
         Args:
@@ -832,12 +843,19 @@ class SequentialPipelineBlocks(ModularPipelineBlocks):
         instance.block_classes = [block.__class__ for block in sub_blocks.values()]
         instance.block_names = list(sub_blocks.keys())
         instance.sub_blocks = sub_blocks
+
+        if description is not None:
+            instance.description = description
+
         return instance
 
     def __init__(self):
         sub_blocks = InsertableDict()
-        for block_name, block_cls in zip(self.block_names, self.block_classes):
-            sub_blocks[block_name] = block_cls()
+        for block_name, block in zip(self.block_names, self.block_classes):
+            if inspect.isclass(block):
+                sub_blocks[block_name] = block()
+            else:
+                sub_blocks[block_name] = block
         self.sub_blocks = sub_blocks
 
     def _get_inputs(self):
@@ -1260,8 +1278,11 @@ class LoopSequentialPipelineBlocks(ModularPipelineBlocks):
 
     def __init__(self):
         sub_blocks = InsertableDict()
-        for block_name, block_cls in zip(self.block_names, self.block_classes):
-            sub_blocks[block_name] = block_cls()
+        for block_name, block in zip(self.block_names, self.block_classes):
+            if inspect.isclass(block):
+                sub_blocks[block_name] = block()
+            else:
+                sub_blocks[block_name] = block
         self.sub_blocks = sub_blocks
 
     @classmethod
@@ -2151,7 +2172,7 @@ class ModularPipeline(ConfigMixin, PushToHubMixin):
         # pull out and resolve the stored type_hint
         lib_name, cls_name = spec_dict.pop("type_hint")
         if lib_name is not None and cls_name is not None:
-            if "Tokenizer" not in cls_name:
+            if "Tokenizer" not in cls_name and "Processor" not in cls_name:
                 lib_name = f"mindone.{lib_name}"
             type_hint = simple_get_class_obj(lib_name, cls_name)
         else:
