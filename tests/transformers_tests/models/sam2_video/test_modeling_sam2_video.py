@@ -34,7 +34,7 @@ import mindspore as ms
 from mindone.transformers.models.sam2_video.modeling_sam2_video import (
     Sam2VideoInferenceSession as msSam2VideoInferenceSession,
 )
-from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
+from tests.modeling_test_utils import compute_diffs, get_modules
 from tests.transformers_tests.models.modeling_common import floats_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
