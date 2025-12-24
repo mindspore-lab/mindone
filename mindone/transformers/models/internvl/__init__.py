@@ -15,5 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .modeling_internvl import *
 from .processing_internvl import InternVLProcessor
 from .video_processing_internvl import InternVLVideoProcessor

@@ -1,12 +1,8 @@
-import logging
 import os
 
 import comfy.model_management
 import comfy.text_encoders.t5
-from comfy import sd1_clip, sdxl_clip
-from transformers import T5TokenizerFast
-
-import mindspore
+from comfy import sd1_clip
 
 
 class T5XXLModel(sd1_clip.SDClipModel):
@@ -48,7 +44,9 @@ def t5_xxl_detect(state_dict, prefix=""):
 # class T5XXLTokenizer(sd1_clip.SDTokenizer):
 #     def __init__(self, embedding_directory=None, tokenizer_data={}, min_length=77, max_length=99999999):
 #         tokenizer_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "t5_tokenizer")
-#         super().__init__(tokenizer_path, embedding_directory=embedding_directory, pad_with_end=False, embedding_size=4096, embedding_key='t5xxl', tokenizer_class=T5TokenizerFast, has_start_token=False, pad_to_max_length=False, max_length=max_length, min_length=min_length, tokenizer_data=tokenizer_data)
+#         super().__init__(tokenizer_path, embedding_directory=embedding_directory, pad_with_end=False, embedding_size=4096,
+#         embedding_key='t5xxl', tokenizer_class=T5TokenizerFast, has_start_token=False, pad_to_max_length=False, max_length=max_length, min_length=min_length,
+#         tokenizer_data=tokenizer_data)
 
 
 # class SD3Tokenizer:
@@ -75,7 +73,8 @@ def t5_xxl_detect(state_dict, prefix=""):
 #         super().__init__()
 #         self.dtypes = set()
 #         if clip_l:
-#             self.clip_l = sd1_clip.SDClipModel(layer="hidden", layer_idx=-2, device=device, dtype=dtype, layer_norm_hidden_state=False, return_projected_pooled=False, model_options=model_options)
+#             self.clip_l = sd1_clip.SDClipModel(layer="hidden", layer_idx=-2, device=device, dtype=dtype, layer_norm_hidden_state=False,
+#             return_projected_pooled=False, model_options=model_options)
 #             self.dtypes.add(dtype)
 #         else:
 #             self.clip_l = None
@@ -176,5 +175,6 @@ def t5_xxl_detect(state_dict, prefix=""):
 #             if t5xxl_scaled_fp8 is not None and "t5xxl_scaled_fp8" not in model_options:
 #                 model_options = model_options.copy()
 #                 model_options["t5xxl_scaled_fp8"] = t5xxl_scaled_fp8
-#             super().__init__(clip_l=clip_l, clip_g=clip_g, t5=t5, dtype_t5=dtype_t5, t5_attention_mask=t5_attention_mask, device=device, dtype=dtype, model_options=model_options)
+#             super().__init__(clip_l=clip_l, clip_g=clip_g, t5=t5, dtype_t5=dtype_t5, t5_attention_mask=t5_attention_mask,
+#             device=device, dtype=dtype, model_options=model_options)
 #     return SD3ClipModel_
