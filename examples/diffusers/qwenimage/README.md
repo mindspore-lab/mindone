@@ -22,9 +22,9 @@ This repository provides the LoRA finetune codes of [Qwen-Image](https://arxiv.o
 ## 🚀 Quick Start
 
 ### Requirements
-| mindspore |	ascend driver | firmware    | cann toolkit/kernel|
-| :-------: | :-----------: | :---------: | :----------------: |
-| 2.7.0     |  25.2.0       | 7.7.0.6.236 | 8.2.RC1            |
+| mindspore | ascend driver | cann toolkit/kernel|
+| :-------: | :-----------: | :----------------: |
+| >=2.7.0   |  >=25.2.0     | >=8.2.RC1          |
 
 ### Installation
 Clone the repo:
