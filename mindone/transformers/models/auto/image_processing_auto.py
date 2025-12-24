@@ -89,6 +89,7 @@ else:
             ("qwen2_vl", ("Qwen2VLImageProcessor", "Qwen2VLImageProcessorFast")),
             ("rt_detr", ("RTDetrImageProcessor",)),
             ("sam", ("SamImageProcessor",)),
+            ("sam2", ("Sam2ImageProcessorFast",)),
             ("segformer", ("SegformerImageProcessor",)),
             ("siglip", ("SiglipImageProcessor", "SiglipImageProcessorFast")),
             ("videomae", ("VideoMAEImageProcessor",)),
