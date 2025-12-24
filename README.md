@@ -6,7 +6,7 @@ ONE is short for "ONE for all"
 
 ## News
 
-- [2025.12.24] We release [v0.5.0](https://github.com/mindspore-lab/mindone/releases/tag/v0.5.0), compatibility with 🤗 Transformers v4.57.1 ([70+ new models](./mindone/transformers/SUPPORTED_MODELS.md)) and 🤗 Diffusers v0.35.2, plus previews of v0.36 pipelines like Flux2, Lucy and kandinsky5. Also introduces initial ComfyUI integration. Happy exploring!
+- [2025.12.24] We release [v0.5.0](https://github.com/mindspore-lab/mindone/releases/tag/v0.5.0), compatibility with 🤗 Transformers v4.57.1 ([70+ new models](./mindone/transformers/SUPPORTED_MODELS.md)) and 🤗 Diffusers v0.35.2, plus previews of v0.36 pipelines like Flux2, QwenImageEditPlus, Lucy and Kandinsky5. Also introduces initial ComfyUI integration. Happy exploring!
 - [2025.11.02] [v0.4.0](https://github.com/mindspore-lab/mindone/releases/tag/v0.4.0) is released, with 280+ transformers models and 70+ diffusers pipelines supported. See [here](https://github.com/mindspore-lab/mindone/blob/refs/tags/v0.4.0/CHANGELOG.md)
 - [2025.04.10] We release [v0.3.0](https://github.com/mindspore-lab/mindone/releases/tag/v0.3.0). More than 15 SoTA generative models are added, including Flux, CogView4, OpenSora2.0, Movie Gen 30B, CogVideoX 5B~30B. Have fun!
 - [2025.02.21] We support DeepSeek [Janus-Pro](https://huggingface.co/deepseek-ai/Janus-Pro-7B), a SoTA multimodal understanding and generation model. See [here](examples/janus)
@@ -44,14 +44,10 @@ image = pipe(prompt)[0][0]
 image.save("sd3.png")
 ```
 ###  run hf diffusers on mindspore
- - mindone diffusers is under active development, most tasks were tested with MindSpore 2.6.0-2.7.1 on Ascend Atlas 800T A2 machines.
+ - mindone diffusers is under active development, most tasks were tested with MindSpore 2.6.0-2.7.1 on Ascend Atlas 800T A2 machines
  - compatible with 🤗 diffusers v0.35.2, preview supports for SoTA v0.36 pipelines
-
-| component  |  features  
-| :---   |  :--  
-| [pipeline](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/pipelines) | support text-to-image,text-to-video,text-to-audio tasks 240+
-| [models](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models) | support audoencoder, controlnets, transformers, unet base models same as hf diffusers 70+
-| [schedulers](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/schedulers) | support diffusion schedulers (e.g., ddpm and dpm solver) same as hf diffusers 40+
+ - 240+ [diffusion pipelines](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview) for inference, 70+ pretrained [models](https://mindspore-lab.github.io/mindone/latest/diffusers/api/models/overview) (AutoEncoder, ControlNet, Transformer, UNet) for constructing pipelines, and 40+ noise [schedulers](https://mindspore-lab.github.io/mindone/latest/diffusers/api/schedulers/overview) to control diffusion speed and quality
+ - 18+ [training examples](./examples/diffusers) - controlnet, dreambooth, lora and more
 
 
 ###  run hf transformers on mindspore
@@ -64,11 +60,12 @@ image.save("sd3.png")
 | task | model  | inference | finetune | pretrain | institute  |
 | :---   |  :---   |  :---:    |  :---:  |  :---:     |  :--  |
 | Text/Image-to-Video | [wan2.1](https://github.com/mindspore-lab/mindone/blob/master/examples/wan2_1) 🔥 |  ✅  |  ✖️  |  ✖️   | Alibaba  |
-| Text/Image-to-Video | [wan2.2](https://github.com/mindspore-lab/mindone/blob/master/examples/wan2_2) 🔥🔥🔥 |  ✅  |  ✅  |  ✖️   | Alibaba  |
+| Text/Image-to-Video | [wan2.2](https://github.com/mindspore-lab/mindone/blob/master/examples/wan2_2) 🔥🔥 |  ✅  |  ✅  |  ✖️   | Alibaba  |
 | Audio/Image-Text-to-Text | [qwen2_5_omni](https://github.com/mindspore-lab/mindone/blob/master/examples/transformers/qwen2_5_omni) 🔥🔥|  ✅ |  ✅ |  ✖️   | Alibaba |
 | Image/Video-Text-to-Text  | [qwen2_5_vl](https://github.com/mindspore-lab/mindone/tree/master/examples/transformers/qwen2_5_vl) 🔥🔥|  ✅ | ✅  |  ✖️   | Alibaba |
-| Any-to-Any  | [qwen3_omni_moe](https://github.com/mindspore-lab/mindone/tree/master/examples/transformers/qwen3_omni_moe) 🔥 |  ✅ | ✖️   |  ✖️   | Alibaba |
-| Image-Text-to-Text | [qwen3_vl/qwen3_vl_moe](https://github.com/mindspore-lab/mindone/tree/master/examples/transformers/qwen3_vl) 🔥🔥 |  ✅ | ✖️   |  ✖️   | Alibaba |
+| Any-to-Any  | [qwen3_omni_moe](https://github.com/mindspore-lab/mindone/tree/master/examples/transformers/qwen3_omni_moe) 🔥🔥🔥 |  ✅ | ✖️   |  ✖️   | Alibaba |
+| Image-Text-to-Text | [qwen3_vl/qwen3_vl_moe](https://github.com/mindspore-lab/mindone/tree/master/examples/transformers/qwen3_vl) 🔥🔥🔥 |  ✅ | ✖️   |  ✖️   | Alibaba |
+| Text-to-Image | [qwen_image](https://github.com/mindspore-lab/mindone/tree/master/examples/diffusers/qwenimage) 🔥🔥🔥 |  ✅ | ✅   |  ✖️   | Alibaba |
 | Text-to-Text | [minicpm](https://github.com/mindspore-lab/mindone/tree/master/examples/transformers/minicpm) 🔥🔥 | ✅ | ✖️   |  ✖️   | OpenBMB |
 | Any-to-Any | [janus](https://github.com/mindspore-lab/mindone/blob/master/examples/janus)   | ✅  | ✅  | ✅  | DeepSeek |
 | Any-to-Any | [emu3](https://github.com/mindspore-lab/mindone/blob/master/examples/emu3)   | ✅  | ✅  | ✅  |  BAAI |
