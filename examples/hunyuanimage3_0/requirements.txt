@@ -5,6 +5,3 @@ safetensors
 tokenizers
 transformers==4.56.0
 tiktoken
-
-# Interactive demo
-gradio

@@ -22,12 +22,13 @@ This repository provides the inference codes of [HunyuanImage-3.0](https://arxiv
   - [ ] Image-to-Image Generation
 
 
-## 🚀 Quick Start
+## 📦 Requirements
+| mindspore |	ascend driver | cann               |
+| :-------: | :-----------: | :----------------: |
+| >= 2.7.0  |  >= 25.2.0    | >= 8.2.RC1         |
 
-### Requirements
-| mindspore |	ascend driver | firmware    | cann toolkit/kernel|
-| :-------: | :-----------: | :---------: | :----------------: |
-| 2.7.0     |  25.2.0       | 7.7.0.6.236 | 8.2.RC1            |
+
+## 🚀 Quick Start
 
 ### Installation
 Clone the repo:
@@ -80,19 +81,6 @@ sh infer_t2i.sh
 | `--verbose`             | Verbose level. 0: No log; 1: log inference information.      | `0`         |
 | `--rewrite`             | Whether to enable rewriting                                  | `1`         |
 | `--sys-deepseek-prompt` | Select sys-prompt from `universal` or `text_rendering`       | `universal` |
-
-
-### 🎨 Interactive Gradio Demo
-
-Launch an interactive web interface for easy text-to-image generation.
-
-```bash
-sh run_app.sh
-```
-
-Access the Interface
-
-> 🌐 **Web Interface:** Open your browser and navigate to `http://localhost:443` (or your configured port)
 
 
 ### Run HunyuanImage-3.0 LoRA finetune
