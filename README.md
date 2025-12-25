@@ -58,37 +58,37 @@ image.save("sd3.png")
 
 | task | model  | inference | finetune | pretrain | institute  |
 | :---   |  :---   |  :---:    |  :---:  |  :---:     |  :--  |
-| Text/Image-to-Video | [wan2.1](https://github.com/mindspore-lab/mindone/blob/master/examples/wan2_1) 🔥 |  ✅  |  ✖️  |  ✖️   | Alibaba  |
-| Text/Image-to-Video | [wan2.2](https://github.com/mindspore-lab/mindone/blob/master/examples/wan2_2) 🔥🔥 |  ✅  |  ✅  |  ✖️   | Alibaba  |
-| Audio/Image-Text-to-Text | [qwen2_5_omni](https://github.com/mindspore-lab/mindone/blob/master/examples/transformers/qwen2_5_omni) 🔥🔥|  ✅ |  ✅ |  ✖️   | Alibaba |
-| Image/Video-Text-to-Text  | [qwen2_5_vl](https://github.com/mindspore-lab/mindone/tree/master/examples/transformers/qwen2_5_vl) 🔥🔥|  ✅ | ✅  |  ✖️   | Alibaba |
-| Any-to-Any  | [qwen3_omni_moe](https://github.com/mindspore-lab/mindone/tree/master/examples/transformers/qwen3_omni_moe) 🔥🔥🔥 |  ✅ | ✖️   |  ✖️   | Alibaba |
-| Image-Text-to-Text | [qwen3_vl/qwen3_vl_moe](https://github.com/mindspore-lab/mindone/tree/master/examples/transformers/qwen3_vl) 🔥🔥🔥 |  ✅ | ✖️   |  ✖️   | Alibaba |
-| Text-to-Image | [qwen_image](https://github.com/mindspore-lab/mindone/tree/master/examples/diffusers/qwenimage) 🔥🔥🔥 |  ✅ | ✅   |  ✖️   | Alibaba |
-| Text-to-Text | [minicpm](https://github.com/mindspore-lab/mindone/tree/master/examples/transformers/minicpm) 🔥🔥 | ✅ | ✖️   |  ✖️   | OpenBMB |
-| Any-to-Any | [janus](https://github.com/mindspore-lab/mindone/blob/master/examples/janus)   | ✅  | ✅  | ✅  | DeepSeek |
-| Any-to-Any | [emu3](https://github.com/mindspore-lab/mindone/blob/master/examples/emu3)   | ✅  | ✅  | ✅  |  BAAI |
-| Class-to-Image | [var](https://github.com/mindspore-lab/mindone/blob/master/examples/var) | ✅  | ✅  | ✅  | ByteDance  |
-| Text-to-Image | [omnigen2](https://github.com/mindspore-lab/mindone/blob/master/examples/omnigen2) 🔥 | ✅ | ✅  | ✖️  | VectorSpaceLab |
-| Text/Image-to-Video | [hpcai open sora 1.2/2.0](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_hpcai)    | ✅ | ✅ | ✅ | HPC-AI Tech  |
-| Text/Image-to-Video | [cogvideox 1.5 5B~30B ](https://github.com/mindspore-lab/mindone/blob/master/examples/diffusers/cogvideox_factory)  | ✅ |  ✅  | ✅  | Zhipu  |
-| Image/Text-to-Text | [glm4v](https://github.com/mindspore-lab/mindone/tree/master/examples/transformers/glm4v) 🔥 | ✅ | ✖️   |  ✖️ | Zhipu |
-| Text-to-Video | [open sora plan 1.3](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_pku)  | ✅ | ✅ | ✅ | PKU |
-| Text-to-Video | [hunyuanvideo](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuanvideo) | ✅  | ✅  | ✅  | Tencent  |
-| Image-to-Video | [hunyuanvideo-i2v](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuanvideo-i2v) 🔥 |  ✅  | ✖️  | ✖️  | Tencent |
-| Text-to-Video | [movie gen 30B](https://github.com/mindspore-lab/mindone/blob/master/examples/moviegen)   | ✅ | ✅ | ✅ | Meta |
-| Segmentation | [lang_sam](https://github.com/mindspore-lab/mindone/tree/master/examples/lang_sam) 🔥 | ✅ | ✖️ | ✖️ | Meta |
-| Segmentation | [sam2](https://github.com/mindspore-lab/mindone/tree/master/examples/sam2) |✅  | ✖️ |✖️  | Meta |
-| Text-to-Video | [step_video_t2v](https://github.com/mindspore-lab/mindone/blob/master/examples/step_video_t2v) | ✅   | ✖️  | ✖️   | StepFun  |
-| Text-to-Speech | [sparktts](https://github.com/mindspore-lab/mindone/tree/master/examples/sparktts) |✅   | ✖️  | ✖️   | Spark Audio |
-| Text-to-Image | [flux](https://github.com/mindspore-lab/mindone/blob/master/examples/diffusers/dreambooth/README_flux.md)  | ✅ | ✅ | ✖️  | Black Forest Lab |
-| Text-to-Image | [stable diffusion 3](https://github.com/mindspore-lab/mindone/blob/master/examples/diffusers/dreambooth/README_sd3.md) | ✅ | ✅ | ✖️ | Stability AI |
+| Text/Image-to-Video | [wan2.1](https://github.com/mindspore-lab/mindone/blob/v0.5.0/examples/wan2_1) 🔥 |  ✅  |  ✖️  |  ✖️   | Alibaba  |
+| Text/Image-to-Video | [wan2.2](https://github.com/mindspore-lab/mindone/blob/v0.5.0/examples/wan2_2) 🔥🔥 |  ✅  |  ✅  |  ✖️   | Alibaba  |
+| Audio/Image-Text-to-Text | [qwen2_5_omni](https://github.com/mindspore-lab/mindone/blob/v0.5.0/examples/transformers/qwen2_5_omni) 🔥🔥|  ✅ |  ✅ |  ✖️   | Alibaba |
+| Image/Video-Text-to-Text  | [qwen2_5_vl](https://github.com/mindspore-lab/mindone/tree/v0.5.0/examples/transformers/qwen2_5_vl) 🔥🔥|  ✅ | ✅  |  ✖️   | Alibaba |
+| Any-to-Any  | [qwen3_omni_moe](https://github.com/mindspore-lab/mindone/tree/v0.5.0/examples/transformers/qwen3_omni_moe) 🔥🔥🔥 |  ✅ | ✖️   |  ✖️   | Alibaba |
+| Image-Text-to-Text | [qwen3_vl/qwen3_vl_moe](https://github.com/mindspore-lab/mindone/tree/v0.5.0/examples/transformers/qwen3_vl) 🔥🔥🔥 |  ✅ | ✖️   |  ✖️   | Alibaba |
+| Text-to-Image | [qwen_image](https://github.com/mindspore-lab/mindone/tree/v0.5.0/examples/diffusers/qwenimage) 🔥🔥🔥 |  ✅ | ✅   |  ✖️   | Alibaba |
+| Text-to-Text | [minicpm](https://github.com/mindspore-lab/mindone/tree/v0.5.0/examples/transformers/minicpm) 🔥🔥 | ✅ | ✖️   |  ✖️   | OpenBMB |
+| Any-to-Any | [janus](https://github.com/mindspore-lab/mindone/blob/v0.5.0/examples/janus)   | ✅  | ✅  | ✅  | DeepSeek |
+| Any-to-Any | [emu3](https://github.com/mindspore-lab/mindone/blob/v0.5.0/examples/emu3)   | ✅  | ✅  | ✅  |  BAAI |
+| Class-to-Image | [var](https://github.com/mindspore-lab/mindone/blob/v0.5.0/examples/var) | ✅  | ✅  | ✅  | ByteDance  |
+| Text-to-Image | [omnigen2](https://github.com/mindspore-lab/mindone/blob/v0.5.0/examples/omnigen2) 🔥 | ✅ | ✅  | ✖️  | VectorSpaceLab |
+| Text/Image-to-Video | [hpcai open sora 1.2/2.0](https://github.com/mindspore-lab/mindone/blob/v0.5.0/examples/opensora_hpcai)    | ✅ | ✅ | ✅ | HPC-AI Tech  |
+| Text/Image-to-Video | [cogvideox 1.5 5B~30B ](https://github.com/mindspore-lab/mindone/blob/v0.5.0/examples/diffusers/cogvideox_factory)  | ✅ |  ✅  | ✅  | Zhipu  |
+| Image/Text-to-Text | [glm4v](https://github.com/mindspore-lab/mindone/tree/v0.5.0/examples/transformers/glm4v) 🔥 | ✅ | ✖️   |  ✖️ | Zhipu |
+| Text-to-Video | [open sora plan 1.3](https://github.com/mindspore-lab/mindone/blob/v0.5.0/examples/opensora_pku)  | ✅ | ✅ | ✅ | PKU |
+| Text-to-Video | [hunyuanvideo](https://github.com/mindspore-lab/mindone/blob/v0.5.0/examples/hunyuanvideo) | ✅  | ✅  | ✅  | Tencent  |
+| Image-to-Video | [hunyuanvideo-i2v](https://github.com/mindspore-lab/mindone/blob/v0.5.0/examples/hunyuanvideo-i2v) 🔥 |  ✅  | ✖️  | ✖️  | Tencent |
+| Text-to-Video | [movie gen 30B](https://github.com/mindspore-lab/mindone/blob/v0.5.0/examples/moviegen)   | ✅ | ✅ | ✅ | Meta |
+| Segmentation | [lang_sam](https://github.com/mindspore-lab/mindone/tree/v0.5.0/examples/lang_sam) 🔥 | ✅ | ✖️ | ✖️ | Meta |
+| Segmentation | [sam2](https://github.com/mindspore-lab/mindone/tree/v0.5.0/examples/sam2) |✅  | ✖️ |✖️  | Meta |
+| Text-to-Video | [step_video_t2v](https://github.com/mindspore-lab/mindone/blob/v0.5.0/examples/step_video_t2v) | ✅   | ✖️  | ✖️   | StepFun  |
+| Text-to-Speech | [sparktts](https://github.com/mindspore-lab/mindone/tree/v0.5.0/examples/sparktts) |✅   | ✖️  | ✖️   | Spark Audio |
+| Text-to-Image | [flux](https://github.com/mindspore-lab/mindone/blob/v0.5.0/examples/diffusers/dreambooth/README_flux.md)  | ✅ | ✅ | ✖️  | Black Forest Lab |
+| Text-to-Image | [stable diffusion 3](https://github.com/mindspore-lab/mindone/blob/v0.5.0/examples/diffusers/dreambooth/README_sd3.md) | ✅ | ✅ | ✖️ | Stability AI |
 
 
 ### supported captioner
 | task | model  | inference | finetune | pretrain | features  |
 | :---   |  :---   |  :---:    |  :---:  |  :---:     |  :--  |
-| Image-Text-to-Text | [pllava](https://github.com/mindspore-lab/mindone/tree/master/tools/captioners/PLLaVA) |  ✅ |  ✖️ |  ✖️   | support video and image captioning |
+| Image-Text-to-Text | [pllava](https://github.com/mindspore-lab/mindone/tree/v0.5.0/tools/captioners/PLLaVA) |  ✅ |  ✖️ |  ✖️   | support video and image captioning |
 
 ### training-free acceleration
-Introduce [dit infer acceleration](https://github.com/mindspore-lab/mindone/blob/master/examples/accelerated_dit_pipelines/README.md) - DiTCache, PromptGate and FBCache with Taylorseer, tested on sd3 and flux.1.
+Introduce [dit infer acceleration](https://github.com/mindspore-lab/mindone/blob/v0.5.0/examples/accelerated_dit_pipelines/README.md) - DiTCache, PromptGate and FBCache with Taylorseer, tested on sd3 and flux.1.
