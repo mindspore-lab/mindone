@@ -30,6 +30,7 @@ from typing import Any, Callable, ContextManager, Dict, List, Optional, Tuple, T
 
 from huggingface_hub import DDUFEntry, create_repo
 from huggingface_hub.utils import validate_hf_hub_args
+from packaging.version import parse
 from typing_extensions import Self
 
 import mindspore as ms
@@ -37,6 +38,7 @@ from mindspore import mint, nn
 from mindspore.nn.utils import no_init_parameters
 
 from mindone.safetensors.mindspore import save_file as safe_save_file
+from mindone.utils.modeling_patch import patch_nn_default_dtype, unpatch_nn_default_dtype
 
 from .. import __version__
 from ..utils import (
@@ -63,6 +65,10 @@ from .model_loading_utils import (
     load_state_dict,
     split_torch_state_dict_into_shards,
 )
+
+if parse(ms.__version__) >= parse("2.7.1"):
+    ms.Parameter._data = ms.Tensor.data
+    ms.Parameter.data_ptr = ms.Tensor.data_ptr
 
 
 class ContextManagers:
@@ -916,8 +922,12 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                     f"{mindspore_dtype} needs to be of type `mindspore.Type`, e.g. `mindspore.float16`, but is {type(mindspore_dtype)}."
                 )
 
+        if mindspore_dtype is not None:
+            patch_nn_default_dtype(dtype=mindspore_dtype, force=True)
         with no_init_parameters():
             model = cls.from_config(config, **unused_kwargs)
+        if mindspore_dtype is not None:
+            unpatch_nn_default_dtype()
 
         state_dict = None
         if not is_sharded:
@@ -976,17 +986,27 @@ class ModelMixin(nn.Cell, PushToHubMixin):
 
     def to(self, dtype: Optional[ms.Type] = None):
         for p in self.get_parameters():
-            p.set_dtype(dtype)
+            if p.dtype != dtype:
+                try:
+                    p._data = p.to(device="CPU", dtype=dtype)
+                except (RuntimeError, AttributeError, TypeError):
+                    p.set_dtype(dtype)
         return self
 
     def half(self):
         for p in self.get_parameters():
-            p.set_dtype(ms.float16)
+            try:
+                p._data = p.to(device="CPU", dtype=ms.float16)
+            except (RuntimeError, AttributeError, TypeError):
+                p.set_dtype(ms.float16)
         return self
 
     def float(self):
         for p in self.get_parameters():
-            p.set_dtype(ms.float32)
+            try:
+                p._data = p.to(device="CPU", dtype=ms.float32)
+            except (RuntimeError, AttributeError, TypeError):
+                p.set_dtype(ms.float32)
         return self
 
     def compile_repeated_blocks(self, *args, **kwargs):
