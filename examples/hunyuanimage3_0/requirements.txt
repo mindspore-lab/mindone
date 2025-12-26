@@ -1,0 +1,7 @@
+# Core dependencies
+numpy
+pillow
+safetensors
+tokenizers
+transformers==4.56.0
+tiktoken
