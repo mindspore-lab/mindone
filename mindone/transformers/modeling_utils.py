@@ -30,7 +30,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable, MutableMapping, Optional, Union
 
-from packaging.version import parse
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import custom_object_save
 from transformers.safetensors_conversion import auto_conversion
@@ -64,14 +63,8 @@ from transformers.utils.hub import convert_file_size_to_int, get_checkpoint_shar
 import mindspore as ms
 from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.nn import CrossEntropyLoss, Identity
-from mindspore.nn.utils import no_init_parameters
 
 from mindone.transformers.generation.configuration_utils import CompileConfig, GenerationConfig
-from mindone.utils.modeling_patch import (
-    _patched_get_parameter_new_args,
-    patch_nn_default_dtype,
-    unpatch_nn_default_dtype,
-)
 
 from .activations import get_activation
 from .integrations import PeftAdapterMixin
@@ -122,27 +115,7 @@ VLMS = [
 
 logger = logging.get_logger(__name__)
 
-if parse(ms.__version__) >= parse("2.7.1"):
-    ms.Parameter._data = ms.Tensor.data
-    ms.Parameter.data_ptr = ms.Tensor.data_ptr
-    version_mode = "new_data_assignment"
-elif parse(ms.__version__) == parse("2.7.0"):
-    cpu_cast = ops.Cast().set_device("CPU")
-    version_mode = "param_replacement"
-else:
-    version_mode = "set_dtype"
-
 _init_weights = True
-
-
-@contextmanager
-def patch_parameter_new_args(patched_fn):
-    original = ms.Parameter._get_parameter_new_args
-    try:
-        ms.Parameter._get_parameter_new_args = staticmethod(patched_fn)
-        yield
-    finally:
-        ms.Parameter._get_parameter_new_args = staticmethod(original)
 
 
 def _get_pt2ms_mappings(m):
@@ -414,12 +387,7 @@ def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_shar
     local_state = {v.name: v for k, v in model_to_load.parameters_and_names()}
     for k, v in state_dict.items():
         if k in local_state:
-            if version_mode == "new_data_assignment":
-                v._data = v.to(device="CPU", dtype=local_state[k].dtype)
-            elif version_mode == "param_replacement":
-                state_dict[k] = ms.Parameter(cpu_cast(v.data, local_state[k].dtype), name=k)
-            else:
-                v.set_dtype(local_state[k].dtype)
+            v.set_dtype(local_state[k].dtype)
         else:
             pass  # unexpect key keeps origin dtype
     cm = silence_mindspore_logger() if is_sharded else nullcontext()
@@ -848,27 +816,17 @@ class ModuleUtilsMixin:
 
     def to(self, dtype: Optional[ms.Type] = None):
         for p in self.get_parameters():
-            if p.dtype != dtype:
-                try:
-                    p._data = p.to(device="CPU", dtype=dtype)
-                except (RuntimeError, AttributeError, TypeError):
-                    p.set_dtype(dtype)
+            p.set_dtype(dtype)
         return self
 
     def float(self):
         for p in self.get_parameters():
-            try:
-                p._data = p.to(device="CPU", dtype=ms.float32)
-            except (RuntimeError, AttributeError, TypeError):
-                p.set_dtype(ms.float32)
+            p.set_dtype(ms.float32)
         return self
 
     def half(self):
         for p in self.get_parameters():
-            try:
-                p._data = p.to(device="CPU", dtype=ms.float16)
-            except (RuntimeError, AttributeError, TypeError):
-                p.set_dtype(ms.float16)
+            p.set_dtype(ms.float16)
         return self
 
     @property
@@ -1504,18 +1462,7 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, PushToHub
         if "attn_implementation" in kwargs:
             config._attn_implementation = kwargs.pop("attn_implementation")
 
-        if mindspore_dtype is not None:
-            patch_nn_default_dtype(dtype=mindspore_dtype, force=True)
-
-        try:
-            with patch_parameter_new_args(_patched_get_parameter_new_args), no_init_parameters():
-                model = cls(config, **kwargs)
-        except Exception as e:
-            logger.warning("`no_init_parameters` failed. Falling back to standard initialization: %s", e)
-            model = cls(config, **kwargs)
-
-        if mindspore_dtype is not None:
-            unpatch_nn_default_dtype()
+        model = cls(config, **kwargs)
 
         # We cannot set default mindspore dtype. So we need to cast model weights after creating.
         if mindspore_dtype is not None:
@@ -2991,18 +2938,7 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, PushToHub
 
         config = copy.deepcopy(config)  # We do not want to modify the config inplace in from_pretrained.
 
-        if dtype is not None:
-            patch_nn_default_dtype(dtype=dtype, force=True)
-
-        try:
-            with patch_parameter_new_args(_patched_get_parameter_new_args), no_init_parameters():
-                model = cls(config, *model_args, **model_kwargs)
-        except Exception as e:
-            logger.warning("`no_init_parameters` failed. Falling back to standard initialization: %s", e)
-            model = cls(config, *model_args, **model_kwargs)
-
-        if dtype is not None:
-            unpatch_nn_default_dtype()
+        model = cls(config, *model_args, **model_kwargs)
 
         # Make sure to tie the weights correctly
         model.tie_weights()
