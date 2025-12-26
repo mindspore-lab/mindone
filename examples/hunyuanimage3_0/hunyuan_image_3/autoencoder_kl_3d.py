@@ -28,18 +28,10 @@ from mindspore import mint, nn
 
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
 from mindone.diffusers.models.activations import get_activation
-
-# from mindone.diffusers.models.modeling_outputs import AutoencoderKLOutput
 from mindone.diffusers.models.modeling_utils import ModelMixin
 from mindone.diffusers.utils import BaseOutput
 from mindone.diffusers.utils.mindspore_utils import randn_tensor
 from mindone.transformers.mindspore_adapter import scaled_dot_product_attention
-
-# from einops import rearrange
-
-
-# from ..attention_processor import Attention
-# from ..layers_compat import unflatten
 
 
 def forward_with_checkpointing(module, *inputs, use_checkpointing=False):
@@ -208,7 +200,7 @@ class AttnBlock(nn.Cell):
         k = self.k(h_)
         v = self.v(h_)
 
-        b, c, f, h, w = q.shape  # (1, 1024, 1, 76, 52)
+        b, c, f, h, w = q.shape
         q = q.permute(0, 2, 3, 4, 1).reshape(b, 1, f * h * w, c).contiguous()
         k = k.permute(0, 2, 3, 4, 1).reshape(b, 1, f * h * w, c).contiguous()
         v = v.permute(0, 2, 3, 4, 1).reshape(b, 1, f * h * w, c).contiguous()
@@ -285,12 +277,11 @@ class Downsample(nn.Cell):
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         spatial_pad = (0, 1, 0, 1, 0, 0)  # WHT
-        # x = nn.functional.pad(x, spatial_pad, mode="constant", value=0)
+
         # TODO: bfloat16 is not supported in mint.nn.functional.pad
         x = F.pad(x.float(), spatial_pad, mode="constant", value=0).to(x.dtype)
 
         temporal_pad = (0, 0, 0, 0, 0, 1) if self.add_temporal_downsample else (0, 0, 0, 0, 1, 1)
-        # x = nn.functional.pad(x, temporal_pad, mode="replicate")
         x = F.pad(x.float(), temporal_pad, mode="replicate").to(x.dtype)
 
         x = self.conv(x)
@@ -876,13 +867,6 @@ class AutoencoderKLConv3D(ModelMixin, ConfigMixin):
 
         if self.use_spatial_tiling and (width > self.tile_sample_min_size or height > self.tile_sample_min_size):
             return self.spatial_tiled_encode(x)
-
-        # do not support?
-        # if self.use_compile:
-        #     @torch.compile
-        #     def encoder(x):
-        #         return self.encoder(x)
-        #     return encoder(x)
 
         enc = self.encoder(x)
 

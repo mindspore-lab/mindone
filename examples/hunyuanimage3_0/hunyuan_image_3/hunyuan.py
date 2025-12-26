@@ -29,7 +29,7 @@ import mindspore as ms
 import mindspore.mint.nn.functional as F
 from mindspore import Parameter, mint, nn, ops
 
-# from torch.cuda import nvtx
+from mindone.diffusers.models.attention_processor import Attention as attn
 from mindone.models.utils import normal_, zeros_
 from mindone.transformers.activations import ACT2FN
 from mindone.transformers.cache_utils import Cache, StaticCache
@@ -39,7 +39,7 @@ from mindone.transformers.generation.utils import ALL_CACHE_NAMES, GenerationCon
 from mindone.transformers.modeling_attn_mask_utils import _prepare_4d_causal_attention_mask
 from mindone.transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from mindone.transformers.modeling_utils import PreTrainedModel
-from mindone.transformers.utils import is_flash_attn_2_available  # Ascend
+from mindone.transformers.utils import is_flash_attn_2_available
 from mindone.utils.version_control import check_valid_flash_attention
 
 if TYPE_CHECKING:
@@ -574,8 +574,6 @@ class TimestepEmbedder(nn.Cell):
         )
         normal_(self.mlp[0].weight, mean=0.0, std=0.02)
         normal_(self.mlp[2].weight, mean=0.0, std=0.02)
-        # nn.init.normal_(self.mlp[0].weight, std=0.02)
-        # nn.init.normal_(self.mlp[2].weight, std=0.02)
 
     def construct(self, t):
         t_freq = timestep_embedding(t, self.frequency_embedding_size, self.max_period).type(self.mlp[0].weight.dtype)
@@ -787,11 +785,10 @@ class UNetDown(nn.Cell):
                 x = module(x, t)
             else:
                 x = module(x)
-        B, C, token_h, token_w = x.shape
 
-        # x = rearrange(x, "b c h w -> b (h w) c")
+        B, C, token_h, token_w = x.shape
         x = x.permute(0, 2, 3, 1)  # b, h, w, c
-        x = x.reshape(B, token_h * token_w, C)
+        x = x.reshape(B, token_h * token_w, C)  # b, h*w, c
 
         return x, token_h, token_w
 
@@ -950,13 +947,10 @@ class HunyuanStaticCache(StaticCache):
             k_out.copy_(key_states)
             v_out.copy_(value_states)
         else:
-            # Note: here we use `tensor.index_copy_(dim, index, ms.Tensor)` that is equivalent to
-            # `tensor[:, :, index] = ms.Tensor`, but the first one is compile-friendly and it does explicitly an in-place
-            # operation, that avoids copies and uses less memory.
+            # Note: if ms version >= 2.7.1, `tensor.index_copy_(dim, index, ms.Tensor)` that is equivalent to
+            # `tensor[:, :, index] = ms.Tensor` can be used, but the first one is compile-friendly and it does
+            #  explicitly an in-place operation, that avoids copies and uses less memory.
             if cache_position.dim() == 1:
-                # tensor.index_copy_ is new in ms2.7.1, temporarily commented to support ms2.7.0
-                # k_out.index_copy_(2, cache_position, key_states)
-                # v_out.index_copy_(2, cache_position, value_states)
                 k_out[:, :, cache_position] = key_states
                 v_out[:, :, cache_position] = value_states
 
@@ -973,10 +967,6 @@ class HunyuanStaticCache(StaticCache):
                 assert batch_size == value_states.shape[0]
 
                 for i in range(batch_size):
-                    # tensor.index_copy_ is new in ms2.7.1, temporarily commented to support ms2.7.0
-                    # unbatched_dim = 1
-                    # k_out[i].index_copy_(unbatched_dim, cache_position[i], key_states[i])
-                    # v_out[i].index_copy_(unbatched_dim, cache_position[i], value_states[i])
                     k_out[i][:, cache_position[i]] = key_states[i]
                     v_out[i][:, cache_position[i]] = value_states[i]
                 if self.dynamic:
@@ -1000,7 +990,6 @@ class HunyuanRMSNorm(nn.Cell):
 
     def construct(self, hidden_states):
         input_dtype = hidden_states.dtype
-        # hidden_states = hidden_states.to(ms.float32)
         variance = hidden_states.pow(2).mean(-1, keepdim=True)
         hidden_states = hidden_states * mint.rsqrt(variance + self.variance_epsilon)
         return self.weight * hidden_states.to(input_dtype)
@@ -1016,7 +1005,7 @@ class HunyuanMLP(nn.Cell):
 
         self.intermediate_size = config.intermediate_size
         if is_shared_mlp or is_moe:
-            # 如果是 moe 的话，优先用 moe_intermediate_size
+            # if moe, using moe_intermediate_size
             if config.moe_intermediate_size is not None:
                 self.intermediate_size = (
                     config.moe_intermediate_size
@@ -1151,7 +1140,6 @@ class HunyuanMoE(nn.Cell):
 
         reshaped_input = hidden_states.reshape(-1, hidden_size)  # [bsz*seq_len, hidden_size]
 
-        # with nvtx.range("MoE"):
         if self._moe_impl == "flashinfer":
             # Get expert weights
             if not self._weights_initialized:
@@ -1213,7 +1201,7 @@ class HunyuanMoE(nn.Cell):
 
 
 class HunyuanImage3SDPAAttention(nn.Cell):
-    """PyTorch SDPA attention implementation using torch.nn.functional.scaled_dot_product_attention"""
+    """SDPA attention implementation using scaled_dot_product_attention function from mindone"""
 
     def __init__(self, config: HunyuanImage3Config, layer_idx: int):
         super().__init__()
@@ -1224,7 +1212,6 @@ class HunyuanImage3SDPAAttention(nn.Cell):
         self.attention_dropout = config.attention_dropout
         self.hidden_size = config.hidden_size
         self.num_heads = config.num_attention_heads
-        # self.head_dim = self.hidden_size // self.num_heads
         self.head_dim = config.attention_head_dim
         self.num_key_value_heads = config.num_key_value_heads if config.num_key_value_heads else self.num_heads
         self.num_key_value_groups = self.num_heads // self.num_key_value_heads
@@ -1274,7 +1261,7 @@ class HunyuanImage3SDPAAttention(nn.Cell):
         if output_attentions:
             raise NotImplementedError(
                 "HunyuanImage3Model is using HunyuanImage3SDPAAttention,"
-                "but `torch.nn.functional.scaled_dot_product_attention` does not support `output_attentions=True`."
+                "but `scaled_dot_product_attention` does not support `output_attentions=True`."
             )
         bsz, q_len, _ = hidden_states.shape
 
@@ -1315,7 +1302,7 @@ class HunyuanImage3SDPAAttention(nn.Cell):
             key_states = key_states.contiguous()
             value_states = value_states.contiguous()
 
-        attn_output = F.scaled_dot_product_attention(
+        attn_output = attn.scaled_dot_product_attention(
             query_states, key_states, value_states, attn_mask=attention_mask, dropout_p=0.0
         )
         attn_output = attn_output.transpose(1, 2).contiguous()
@@ -1404,7 +1391,6 @@ class HunyuanImage3FlashAttention2(HunyuanImage3SDPAAttention):
         )
 
         # For gen_text and gen_image, we need to handle the attention differently
-        # with nvtx.range("attention"):
         if mode == "gen_text":
             if attention_mask is None:
                 attn_output = flash_attn_func(q_fa, k_fa, v_fa)  # decode attention
